@@ -10,6 +10,34 @@ export const countByLocation = (data) => {
     
     return Object.entries(counts).map(([location, count]) => ({ location, count }));
   };
+
+  // Function to get a unique set of location names
+export const getUniqueLocations = (data) => {
+  const locations = new Set(); // Set automatically ensures uniqueness
+
+  data.forEach(observation => {
+    if (observation.Location) {
+      locations.add(observation.Location); // Add location to the set
+    }
+  });
+
+  // Convert the set to an array and return it
+  return Array.from(locations);
+};
+
+  // Function to get a unique set of location names
+  export const getUniqueActivity = (data) => {
+    const activities = new Set(); // Set automatically ensures uniqueness
+  
+    data.forEach(observation => {
+      if (observation["Activity (foraging, preening, calling, perching, others)"]) {
+        activities.add(observation["Activity (foraging, preening, calling, perching, others)"]); // Add location to the set
+      }
+    });
+  
+    // Convert the set to an array and return it
+    return Array.from(activities);
+  };
   
   // Function to count observations by activity
   export const countByActivity = (data) => {

@@ -20,93 +20,103 @@ class Map extends Component {
     window.removeEventListener('resize', this.handleResize);
   }
 
+  componentDidUpdate(prevProps) {
+    // Check if data has changed
+    if (prevProps.data !== this.props.data) {
+      console.log("Map Data Updated", this.props.data);
+      // You can trigger any additional updates here if needed
+      // (e.g., updating markers, map zoom, etc.)
+    }
+  }
+
   handleResize = () => {
     this.setState({ windowWidth: window.innerWidth });
+  };
+
+  createClusterCustomIcon = (cluster) => {
+    const count = cluster.getChildCount();
+    let size = 'small';
+    let gradient = 'radial-gradient(circle, #1B7B6E, #2A9D8F)'; // teal variant
+
+    if (count >= 10 && count < 50) {
+      size = 'medium';
+      gradient = 'radial-gradient(circle, #C46B00, #F4A261)'; // orange variant
+    } else if (count >= 50) {
+      size = 'large';
+      gradient = 'radial-gradient(circle, #9B1D1D, #E76F51)'; // red variant
+    }
+
+    const sizeMap = {
+      small: 30,
+      medium: 40,
+      large: 50
+    };
+
+    return new L.DivIcon({
+      html: `
+        <div 
+          style="
+            background: ${gradient};
+            width: ${sizeMap[size]}px;
+            height: ${sizeMap[size]}px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.75rem;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+          "
+        >
+          ${count}
+        </div>
+      `,
+      className: 'custom-cluster-icon',
+      iconSize: new L.Point(sizeMap[size], sizeMap[size])
+    });
+  };
+
+  createPinpointIcon = () => {
+    return new L.DivIcon({
+      html: `
+        <div 
+          style="
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 30px; /* Increased size of the emoji */
+          "
+        >
+          <span 
+            style="
+              color: yellow; /* Emoji color */
+              font-size: 25px; /* Bigger emoji size */
+              font-weight: 900; /* Make it bold */
+              text-shadow: 2px 2px 3px rgba(0, 0, 0, 0.5); /* Optional: adds shadow for more thickness */
+              transform: rotate(10deg);
+            "
+          >
+            📍
+          </span>  
+        </div>
+      `,
+      className: 'custom-pin-icon',
+      iconSize: new L.Point(40, 40), // Size of the icon
+      iconAnchor: [20, 40], // Anchor the icon properly
+      popupAnchor: [0, -40], // Popup location
+    });
   };
 
   render() {
     const { data } = this.props;
     const singaporeCenter = [1.3521, 103.8198];
-    const createClusterCustomIcon = (cluster) => {
-      const count = cluster.getChildCount();
-      let size = 'small';
-      let gradient = 'radial-gradient(circle, #1B7B6E, #2A9D8F)'; // teal variant
-    
-      if (count >= 10 && count < 50) {
-        size = 'medium';
-        gradient = 'radial-gradient(circle, #C46B00, #F4A261)'; // orange variant
-      } else if (count >= 50) {
-        size = 'large';
-        gradient = 'radial-gradient(circle, #9B1D1D, #E76F51)'; // red variant
-      }
-    
-      const sizeMap = {
-        small: 30,
-        medium: 40,
-        large: 50
-      };
-    
-      return new L.DivIcon({
-        html: `
-          <div 
-            style="
-              background: ${gradient};
-              width: ${sizeMap[size]}px;
-              height: ${sizeMap[size]}px;
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: white;
-              font-weight: 600;
-              font-size: 0.75rem;
-              box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-            "
-          >
-            ${count}
-          </div>
-        `,
-        className: 'custom-cluster-icon',
-        iconSize: new L.Point(sizeMap[size], sizeMap[size])
-      });
-    };    
 
-    const createPinpointIcon = () => {
-      return new L.DivIcon({
-        html: `
-          <div 
-            style="
-              width: 32px;
-              height: 32px;
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: white;
-              font-weight: bold;
-              font-size: 30px; /* Increased size of the emoji */
-            "
-          >
-            <span 
-              style="
-                color: yellow; /* Emoji color */
-                font-size: 25px; /* Bigger emoji size */
-                font-weight: 900; /* Make it bold */
-                text-shadow: 2px 2px 3px rgba(0, 0, 0, 0.5); /* Optional: adds shadow for more thickness */
-                transform: rotate(10deg);
-              "
-            >
-              📍
-            </span>  
-          </div>
-        `,
-        className: 'custom-pin-icon',
-        iconSize: new L.Point(40, 40), // Size of the icon
-        iconAnchor: [20, 40], // Anchor the icon properly
-        popupAnchor: [0, -40], // Popup location
-      });
-    };    
-    
     return (
       <div className="map-container" style={{ height: '100vh', width: '100%' }}>
         <MapContainer 
@@ -127,13 +137,16 @@ class Map extends Component {
           />
 
           {/* MarkerClusterGroup with customized cluster marker */}
-          <MarkerClusterGroup iconCreateFunction={createClusterCustomIcon}>
+          <MarkerClusterGroup 
+            key={JSON.stringify(data)} // Use the data as the key to force re-render of the group on data change
+            iconCreateFunction={this.createClusterCustomIcon}
+          >
             {data.map((observation, index) => (
               observation.Lat && observation.Long ? (
                  <Marker 
                   key={index} 
                   position={[observation.Lat, observation.Long]}
-                  icon={createPinpointIcon()} // Apply custom pinpoint icon
+                  icon={this.createPinpointIcon()} // Apply custom pinpoint icon
                 >
                   <Popup>
                     <div className="map-popup">

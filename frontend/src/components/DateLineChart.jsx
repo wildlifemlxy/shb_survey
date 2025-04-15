@@ -1,11 +1,14 @@
 import React, { Component } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { countByMonthYear } from '../utils/dataProcessing';
 
 class DateLineChart extends Component {
   render() {
     const { data } = this.props;
-    const dateData = countByMonthYear(data);
+    const dateData = countByMonthYear(data);  // Assuming this processes the data correctly
+
+    // Log the dateData to verify its structure
+    console.log(dateData);
 
     return (
       <div className="chart-container">
@@ -38,7 +41,21 @@ class DateLineChart extends Component {
                 return `${monthNames[parseInt(month) - 1]} ${year}`;  // Full month and year
               }}
             />
-            <Line type="monotone" dataKey="count" stroke="#82ca9d" dot={false} />
+            {/* Shaded area under the curve */}
+            <Area
+              type="monotone"
+              dataKey="count"
+              stroke="#82ca9d"
+              fill="#82ca9d"
+              fillOpacity={0.3} // Adjust opacity for the shaded area
+            />
+            {/* Line on top of the shaded area */}
+            <Line 
+              type="monotone" 
+              dataKey="count" 
+              stroke="#82ca9d" 
+              dot={true}  // Show dots on the line
+            />
           </LineChart>
         </ResponsiveContainer>
       </div>

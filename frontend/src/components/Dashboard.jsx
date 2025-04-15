@@ -1,10 +1,9 @@
-// src/components/Dashboard.jsx
 import React, { Component } from 'react';
 import Map from './Map';
 import DateLineChart from './DateLineChart';
 import LocationStats from './LocationStats';
 import ObservationTable from './ObservationTable';
-import { getValidCoordinates } from '../utils/dataProcessing';
+import { getValidCoordinates, getUniqueLocations, getUniqueActivity } from '../utils/dataProcessing';
 
 class Dashboard extends Component {
   constructor(props) {
@@ -15,6 +14,9 @@ class Dashboard extends Component {
       filterLocation: '',
       filterActivity: '',
       activeTab: 'dashboard', // For mobile navigation
+      locations: [],
+      activitys: [],
+      validCoordinates: []
     };
   }
 
@@ -25,7 +27,6 @@ class Dashboard extends Component {
 
   applyFilters = () => {
     const { data, filterLocation, filterActivity } = this.state;
-    
     let filtered = data;
     
     if (filterLocation) {
@@ -36,7 +37,7 @@ class Dashboard extends Component {
     
     if (filterActivity) {
       filtered = filtered.filter(item => 
-        item.Activity && item.Activity.toLowerCase().includes(filterActivity.toLowerCase())
+        item["Activity (foraging, preening, calling, perching, others)"] && item["Activity (foraging, preening, calling, perching, others)"].toLowerCase().includes(filterActivity.toLowerCase())
       );
     }
     
@@ -47,15 +48,39 @@ class Dashboard extends Component {
     this.setState({ activeTab: tab });
   };
 
+  componentDidMount() {
+    const uniqueLocations = getUniqueLocations(this.props.data);
+    const uniqueActivity = getUniqueActivity(this.props.data);
+   
+    this.setState({ 
+      locations: uniqueLocations, 
+      activitys: uniqueActivity, 
+    });
+    window.addEventListener('resize', this.handleResize);
+  }
+  
+  componentWillUnmount() {
+    window.removeEventListener('resize', this.handleResize);
+  }
+
+  handleResize = () => {
+    this.setState({ windowWidth: window.innerWidth });
+  };
+
   render() {
-    const { filteredData, filterLocation, filterActivity, activeTab } = this.state;
-    const validCoordinates = getValidCoordinates(filteredData);
+    const { filteredData, filterLocation, filterActivity, activeTab, locations, activitys } = this.state;
+    const validCoordinates = getValidCoordinates(filteredData);  // Use this.props.data instead of filteredData
+
+    const totalBirds = filteredData.reduce((sum, obs) => {
+      const count = parseInt(obs["Number of Birds"], 10);
+      return sum + (isNaN(count) ? 0 : count);
+    }, 0);
     
     return (
       <div className="dashboard">
         <h1>Straw-headed Bulbul Observation Dashboard</h1>
         
-        {/* Mobile Navigation Tabs */}   
+        {/* Mobile Navigation Tabs */}
         <div className="nav-tabs mb-20">
           <button 
             className={`nav-tab ${activeTab === 'dashboard' ? 'active' : ''}`}
@@ -80,14 +105,20 @@ class Dashboard extends Component {
         <div className="filters">
           <div>
             <label htmlFor="filterLocation">Filter by Location</label>
-            <input 
-              type="text" 
-              id="filterLocation" 
+            <input
+              type="text"
+              id="filterLocation"
               name="filterLocation"
               value={filterLocation}
               onChange={this.handleFilterChange}
+              list="locationOptions"
               placeholder="e.g. BBNP"
             />
+            <datalist id="locationOptions">
+              {locations.map((location, index) => (
+                <option key={index} value={location} />
+              ))}
+            </datalist>
           </div>
           <div>
             <label htmlFor="filterActivity">Filter by Activity</label>
@@ -97,11 +128,17 @@ class Dashboard extends Component {
               name="filterActivity"
               value={filterActivity}
               onChange={this.handleFilterChange}
+              list="activitysOptions"
               placeholder="e.g. Calling"
             />
+            <datalist id="activitysOptions">
+              {activitys.map((activity, index) => (
+                <option key={index} value={activity} />
+              ))}
+            </datalist>
           </div>
         </div>
-        
+
         {/* Stats are always visible */}
         <div className="stats-grid">
           <div className="stats-summary">
@@ -113,27 +150,26 @@ class Dashboard extends Component {
             <h3 className="stat-value">{new Set(filteredData.map(item => item.Location)).size}</h3>
           </div>
           <div className="stats-summary">
-            <h3>Birds with Coordinates</h3>
-            <h3 className="stat-value">{validCoordinates.length}</h3>
+            <h3>Number of Birds</h3>
+            <h3 className="stat-value">{totalBirds}</h3>
           </div>
         </div>
-        <div id="export-section">
-          {/* Dashboard View */}
-          {(activeTab === 'dashboard' || window.innerWidth >= 1024) && (
-            <div className="charts-grid">
-              <DateLineChart data={filteredData} />
-              <LocationStats data={filteredData} />
-            </div>
-          )}
 
-          {/* Map View */}
-          {(activeTab === 'map' || window.innerWidth >= 1024) && (
-            <div className="map-section mb-20">
-              <h2>Observation Map</h2>
-              <Map data={validCoordinates} />
-            </div>
-          )}
-        </div>
+        {/* Dashboard View */}
+        {(activeTab === 'dashboard' || window.innerWidth >= 1024) && (
+          <div className="charts-grid">
+            <DateLineChart data={filteredData} />
+            <LocationStats data={filteredData} />
+          </div>
+        )}
+
+        {/* Map View */}
+        {(activeTab === 'map' || window.innerWidth >= 1024)  && (
+          <div className="map-section mb-20">
+            <h2>Observation Map</h2>
+            <Map data={validCoordinates} />
+          </div>
+        )}
 
         {/* Data Table View (always visible on desktop, tab option on mobile) */}
         {(activeTab === 'data' || window.innerWidth >= 1024) && (
