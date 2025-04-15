@@ -2,7 +2,6 @@ import React, { Component } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, ZoomControl } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import MarkerClusterGroup from 'react-leaflet-cluster'; // Import MarkerClusterGroup
 
 // Fix for default marker icons in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -35,10 +34,10 @@ class Map extends Component {
   render() {
     const { data } = this.props;
     const singaporeCenter = [1.3521, 103.8198];
-    
+
     return (
       <div className="map-container">
-       <MapContainer 
+        <MapContainer 
           center={singaporeCenter} 
           zoom={11}
           style={{ height: '100%', width: '100%' }}
@@ -54,28 +53,26 @@ class Map extends Component {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           />
-          
-          {/* Marker Cluster Group */}
-          <MarkerClusterGroup>
-            {data.map((observation, index) => (
-              observation.Lat && observation.Long ? (
-                <Marker 
-                  key={index} 
-                  position={[observation.Lat, observation.Long]}
-                >
-                  <Popup>
-                    <div className="map-popup">
-                      <h3>{observation.Location}</h3>
-                      <p><strong>Observer:</strong> {observation['Observer name']}</p>
-                      <p><strong>Bird ID:</strong> {observation['SHB individual ID (e.g. SHB1)']}</p>
-                      <p><strong>Date:</strong> {observation.formattedDate}</p>
-                      <p><strong>Activity:</strong> {observation["Activity (foraging, preening, calling, perching, others)"]}</p>
-                    </div>
-                  </Popup>
-                </Marker>
-              ) : null
-            ))}
-          </MarkerClusterGroup>
+
+          {/* Directly map data to markers without clustering */}
+          {data.map((observation, index) => (
+            observation.Lat && observation.Long ? (
+              <Marker 
+                key={index} 
+                position={[observation.Lat, observation.Long]}
+              >
+                <Popup>
+                  <div className="map-popup">
+                    <h3>{observation.Location}</h3>
+                    <p><strong>Observer:</strong> {observation['Observer name']}</p>
+                    <p><strong>Bird ID:</strong> {observation['SHB individual ID (e.g. SHB1)']}</p>
+                    <p><strong>Date:</strong> {observation.formattedDate}</p>
+                    <p><strong>Activity:</strong> {observation["Activity (foraging, preening, calling, perching, others)"]}</p>
+                  </div>
+                </Popup>
+              </Marker>
+            ) : null
+          ))}
           
           {/* Add zoom control in a better position for mobile */}
           <ZoomControl position="bottomright" />
