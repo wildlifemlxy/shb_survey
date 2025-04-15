@@ -1,15 +1,8 @@
 import React, { Component } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, ZoomControl } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
-
-// Fix for default marker icons in react-leaflet
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
+import MarkerClusterGroup from 'react-leaflet-markercluster';
+import L from 'leaflet';  // You need to import Leaflet to create custom icons
 
 class Map extends Component {
   constructor(props) {
@@ -31,12 +24,57 @@ class Map extends Component {
     this.setState({ windowWidth: window.innerWidth });
   };
 
+  
+
   render() {
     const { data } = this.props;
     const singaporeCenter = [1.3521, 103.8198];
-
+    const createClusterCustomIcon = (cluster) => {
+      const count = cluster.getChildCount();
+      let size = 'small';
+      let gradient = 'radial-gradient(circle, #1B7B6E, #2A9D8F)'; // teal variant
+    
+      if (count >= 10 && count < 50) {
+        size = 'medium';
+        gradient = 'radial-gradient(circle, #C46B00, #F4A261)'; // orange variant
+      } else if (count >= 50) {
+        size = 'large';
+        gradient = 'radial-gradient(circle, #9B1D1D, #E76F51)'; // red variant
+      }
+    
+      const sizeMap = {
+        small: 30,
+        medium: 40,
+        large: 50
+      };
+    
+      return new L.DivIcon({
+        html: `
+          <div 
+            style="
+              background: ${gradient};
+              width: ${sizeMap[size]}px;
+              height: ${sizeMap[size]}px;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-weight: 600;
+              font-size: 0.75rem;
+              box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            "
+          >
+            ${count}
+          </div>
+        `,
+        className: 'custom-cluster-icon',
+        iconSize: new L.Point(sizeMap[size], sizeMap[size])
+      });
+    };    
+    
     return (
-      <div className="map-container">
+      <div className="map-container" style={{ height: '100vh', width: '100%' }}>
         <MapContainer 
           center={singaporeCenter} 
           zoom={11}
@@ -54,28 +92,27 @@ class Map extends Component {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           />
 
-          {/* Directly map data to markers without clustering */}
-          {data.map((observation, index) => (
-            observation.Lat && observation.Long ? (
-              <Marker 
-                key={index} 
-                position={[observation.Lat, observation.Long]}
-              >
-                <Popup>
-                  <div className="map-popup">
-                    <h3>{observation.Location}</h3>
-                    <p><strong>Observer:</strong> {observation['Observer name']}</p>
-                    <p><strong>Bird ID:</strong> {observation['SHB individual ID (e.g. SHB1)']}</p>
-                    <p><strong>Date:</strong> {observation.formattedDate}</p>
-                    <p><strong>Activity:</strong> {observation["Activity (foraging, preening, calling, perching, others)"]}</p>
-                  </div>
-                </Popup>
-              </Marker>
-            ) : null
-          ))}
-          
-          {/* Add zoom control in a better position for mobile */}
-          <ZoomControl position="bottomright" />
+          {/* MarkerClusterGroup with customized cluster marker */}
+          <MarkerClusterGroup iconCreateFunction={createClusterCustomIcon}>
+            {data.map((observation, index) => (
+              observation.Lat && observation.Long ? (
+                <Marker 
+                  key={index} 
+                  position={[observation.Lat, observation.Long]}
+                >
+                  <Popup>
+                    <div className="map-popup">
+                      <h3>{observation.Location}</h3>
+                      <p><strong>Observer:</strong> {observation['Observer name']}</p>
+                      <p><strong>Bird ID:</strong> {observation['SHB individual ID (e.g. SHB1)']}</p>
+                      <p><strong>Date:</strong> {observation.Date}</p>
+                      <p><strong>Activity:</strong> {observation["Activity (foraging, preening, calling, perching, others)"]}</p>
+                    </div>
+                  </Popup>
+                </Marker>
+              ) : null
+            ))}
+          </MarkerClusterGroup>
         </MapContainer>
       </div>
     );

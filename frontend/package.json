@@ -14,11 +14,15 @@
     "@react-google-maps/api": "^2.20.6",
     "axios": "^1.8.4",
     "date-fns": "^4.1.0",
+    "file-saver": "^2.0.5",
+    "filesaver": "^0.0.13",
+    "html2canvas": "^1.4.1",
     "leaflet": "^1.9.4",
-    "leaflet.markercluster": "^1.5.3",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-leaflet": "^4.2.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-leaflet": "^5.0.0",
+    "react-leaflet-markercluster": "^5.0.0-rc.0",
+    "react-map-gl": "^8.0.3",
     "recharts": "^2.15.2",
     "xlsx": "^0.18.5"
   },
@@ -36,11 +40,11 @@
   "browserslist": {
     "production": [
       ">0.2%",
-    "not dead",
-    "not op_mini all",
-    "chrome >= 89",
-    "firefox >= 89",
-    "safari >= 15"
+      "not dead",
+      "not op_mini all",
+      "chrome >= 89",
+      "firefox >= 89",
+      "safari >= 15"
     ],
     "development": [
       "last 1 chrome version",

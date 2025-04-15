@@ -15,7 +15,7 @@ class ObservationTable extends Component {
             <p><strong>Observer:</strong> {observation['Observer name']}</p>
             <p><strong>Bird ID:</strong> {observation['SHB individual ID (e.g. SHB1)']}</p>
             <p><strong>Activity:</strong> {observation["Activity (foraging, preening, calling, perching, others)"]}</p>
-            <p><strong>Date:</strong> {observation.formattedDate}</p>
+            <p><strong>Date:</strong> {observation.Date}</p>
           </div>
         </div>
       ));

@@ -118,25 +118,24 @@ class Dashboard extends Component {
             <h3 className="stat-value">{validCoordinates.length}</h3>
           </div>
         </div>
-        
-        {/* Dashboard View (default on desktop, tab option on mobile) */}
-        {(activeTab === 'dashboard' || window.innerWidth >= 1024) && (
-          <>
+        <div id="export-section">
+          {/* Dashboard View */}
+          {(activeTab === 'dashboard' || window.innerWidth >= 1024) && (
             <div className="charts-grid">
               <DateLineChart data={filteredData} />
               <LocationStats data={filteredData} />
             </div>
-          </>
-        )}
-        
-        {/* Map View (always visible on desktop, tab option on mobile) */}
-        {(activeTab === 'map' || window.innerWidth >= 1024) && (
-          <div className="map-section mb-20">
-            <h2>Observation Map</h2>
-            <Map data={validCoordinates} />
-          </div>
-        )}
-        
+          )}
+
+          {/* Map View */}
+          {(activeTab === 'map' || window.innerWidth >= 1024) && (
+            <div className="map-section mb-20">
+              <h2>Observation Map</h2>
+              <Map data={validCoordinates} />
+            </div>
+          )}
+        </div>
+
         {/* Data Table View (always visible on desktop, tab option on mobile) */}
         {(activeTab === 'data' || window.innerWidth >= 1024) && (
           <div className="table-section">

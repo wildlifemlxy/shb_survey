@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { countByMonthYear } from '../utils/dataProcessing';
 
 class DateLineChart extends Component {
@@ -10,7 +10,7 @@ class DateLineChart extends Component {
     return (
       <div className="chart-container">
         <h2>Observations Over Time (Monthly)</h2>
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={400}>
           <LineChart data={dateData}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis
@@ -21,13 +21,15 @@ class DateLineChart extends Component {
                 return `${monthNames[parseInt(month) - 1]} ${year}`;
               }}
               interval={0}  // Show every month (no skipping)
+              angle={-40}   // Rotate the labels by 40 degrees
+              textAnchor="end" // Align the labels after rotation
+              height={80}  // Set a fixed height for the X axis to prevent labels from being cut off
             />
             <YAxis />
             <Tooltip
               formatter={(value, name, props) => {
                 const [month, year] = props.payload.monthYear.split('-');
                 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                const monthName = monthNames[parseInt(month) - 1];
                 return [`Observation: ${value}`]; // Format: "Observation: X"
               }}
               labelFormatter={(label) => {
@@ -36,7 +38,6 @@ class DateLineChart extends Component {
                 return `${monthNames[parseInt(month) - 1]} ${year}`;  // Full month and year
               }}
             />
-            <Legend />
             <Line type="monotone" dataKey="count" stroke="#82ca9d" dot={false} />
           </LineChart>
         </ResponsiveContainer>
