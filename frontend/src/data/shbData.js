@@ -212,6 +212,7 @@ function parseSheetData(rawData) {
 async function fetchData() {
   try {
     const rawData = await fetchGoogleSheetData();
+    rawData.splice(0, 1); // Removes the second item (index 1)
     const processedData = parseSheetData(rawData);
     console.log('Processed data:', processedData); // Make sure to log processed data
     return processedData;

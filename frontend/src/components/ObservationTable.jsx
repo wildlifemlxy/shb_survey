@@ -33,6 +33,7 @@ class ObservationTable extends Component {
             <table className="observation-table">
               <thead>
                 <tr>
+                  <th>S/N</th>
                   <th>Observer</th>
                   <th>Bird ID</th>
                   <th>Location</th>
@@ -43,9 +44,10 @@ class ObservationTable extends Component {
               <tbody>
                 {data.map((observation, index) => (
                   <tr key={index}>
+                    <td>{index+1}</td>
                     <td>{observation['Observer name']}</td>
                     <td>{observation['SHB individual ID (e.g. SHB1)']}</td>
-                    <td>{observation.Location}</td>
+                    <td>{observation.Location} ({observation.Lat}, {observation.Long})</td>
                     <td>{observation.Date}</td>
                     <td>{observation["Activity (foraging, preening, calling, perching, others)"]}</td>
                   </tr>

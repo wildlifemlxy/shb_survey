@@ -24,8 +24,6 @@ class Map extends Component {
     this.setState({ windowWidth: window.innerWidth });
   };
 
-  
-
   render() {
     const { data } = this.props;
     const singaporeCenter = [1.3521, 103.8198];
@@ -72,6 +70,42 @@ class Map extends Component {
         iconSize: new L.Point(sizeMap[size], sizeMap[size])
       });
     };    
+
+    const createPinpointIcon = () => {
+      return new L.DivIcon({
+        html: `
+          <div 
+            style="
+              width: 32px;
+              height: 32px;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-weight: bold;
+              font-size: 30px; /* Increased size of the emoji */
+            "
+          >
+            <span 
+              style="
+                color: yellow; /* Emoji color */
+                font-size: 25px; /* Bigger emoji size */
+                font-weight: 900; /* Make it bold */
+                text-shadow: 2px 2px 3px rgba(0, 0, 0, 0.5); /* Optional: adds shadow for more thickness */
+                transform: rotate(10deg);
+              "
+            >
+              📍
+            </span>  
+          </div>
+        `,
+        className: 'custom-pin-icon',
+        iconSize: new L.Point(40, 40), // Size of the icon
+        iconAnchor: [20, 40], // Anchor the icon properly
+        popupAnchor: [0, -40], // Popup location
+      });
+    };    
     
     return (
       <div className="map-container" style={{ height: '100vh', width: '100%' }}>
@@ -96,9 +130,10 @@ class Map extends Component {
           <MarkerClusterGroup iconCreateFunction={createClusterCustomIcon}>
             {data.map((observation, index) => (
               observation.Lat && observation.Long ? (
-                <Marker 
+                 <Marker 
                   key={index} 
                   position={[observation.Lat, observation.Long]}
+                  icon={createPinpointIcon()} // Apply custom pinpoint icon
                 >
                   <Popup>
                     <div className="map-popup">

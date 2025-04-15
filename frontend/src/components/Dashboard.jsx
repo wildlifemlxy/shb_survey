@@ -50,7 +50,6 @@ class Dashboard extends Component {
   render() {
     const { filteredData, filterLocation, filterActivity, activeTab } = this.state;
     const validCoordinates = getValidCoordinates(filteredData);
-    console.log("Props:", this.props.data);
     
     return (
       <div className="dashboard">
