@@ -3,6 +3,7 @@ import Map from './Map';
 import DateLineChart from './DateLineChart';
 import LocationStats from './LocationStats';
 import ObservationTable from './ObservationTable';
+import D3TreeHeightChart from './D3TreeHeightChart';
 import { getValidCoordinates, getUniqueLocations, getUniqueActivity } from '../utils/dataProcessing';
 
 class Dashboard extends Component {
@@ -144,6 +145,8 @@ class Dashboard extends Component {
           <div className="stats-summary">
             <h3>Total Observations</h3>
             <h3 className="stat-value">{filteredData.length}</h3>
+            <h3 className="stat-value">Seen: {filteredData.filter(item => item["Seen/Heard"] === "Seen").length}</h3>
+            <h3 className="stat-value">Heard: {filteredData.filter(item => item["Seen/Heard"] === "Heard").length}</h3>
           </div>
           <div className="stats-summary">
             <h3>Unique Locations</h3>
@@ -160,6 +163,7 @@ class Dashboard extends Component {
           <div className="charts-grid">
             <DateLineChart data={filteredData} />
             <LocationStats data={filteredData} />
+            <D3TreeHeightChart data={filteredData} />
           </div>
         )}
 

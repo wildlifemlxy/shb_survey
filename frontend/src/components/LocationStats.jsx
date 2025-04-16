@@ -70,7 +70,7 @@ class LocationStats extends Component {
     const { tooltipVisible } = this.state;
     console.log("Payload:", payload);
     if ((active || tooltipVisible) && payload && payload.length) {
-      const { location, count } = payload[0].payload;
+      const { location, Seen, Heard, Total } = payload[0].payload;
       return (
         <div
           style={{
@@ -83,7 +83,10 @@ class LocationStats extends Component {
             border: '1px solid #ccc',
           }}
         >
-          <strong>{location}</strong>: {count} observations
+          <div><strong>Observation(s)</strong></div>
+          <div>Heard: {Heard}</div>
+          <div>Seen: {Seen}</div>
+          <div>Total: {Total}</div>
         </div>
       );
     }
@@ -94,6 +97,7 @@ class LocationStats extends Component {
   render() {
     const { data } = this.props;
     const locationData = countByLocation(data);
+    console.log("Location Data:", locationData)
     const { showLegend, activeIndex } = this.state;
 
     return (
@@ -172,7 +176,7 @@ class LocationStats extends Component {
             <PieChart>
               <Pie
                 data={locationData}
-                dataKey="count"
+                dataKey="Total"
                 nameKey="location"
                 cx="50%"
                 cy="50%"

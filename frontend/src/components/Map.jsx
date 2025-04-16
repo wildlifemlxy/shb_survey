@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, ZoomControl } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import MarkerClusterGroup from 'react-leaflet-markercluster';
-import L from 'leaflet';  // You need to import Leaflet to create custom icons
+import L from 'leaflet';
 
 class Map extends Component {
   constructor(props) {
@@ -21,18 +21,15 @@ class Map extends Component {
   }
 
   componentDidUpdate(prevProps) {
-    // Check if data has changed
     if (prevProps.data !== this.props.data) {
       console.log("Map Data Updated", this.props.data);
-      // You can trigger any additional updates here if needed
-      // (e.g., updating markers, map zoom, etc.)
     }
   }
 
   convertExcelTime(serial) {
     if (serial === undefined || serial === null || serial === "") return "";
   
-    const totalSeconds = Math.round(86400 * serial); // seconds in a day
+    const totalSeconds = Math.round(86400 * serial);
     const hours = Math.floor(totalSeconds / 3600) % 24;
     const minutes = Math.floor((totalSeconds % 3600) / 60);
   
@@ -46,14 +43,14 @@ class Map extends Component {
   createClusterCustomIcon = (cluster) => {
     const count = cluster.getChildCount();
     let size = 'small';
-    let gradient = 'radial-gradient(circle, #1B7B6E, #2A9D8F)'; // teal variant
+    let gradient = 'radial-gradient(circle, #1B7B6E, #2A9D8F)';
 
     if (count >= 10 && count < 50) {
       size = 'medium';
-      gradient = 'radial-gradient(circle, #C46B00, #F4A261)'; // orange variant
+      gradient = 'radial-gradient(circle, #C46B00, #F4A261)';
     } else if (count >= 50) {
       size = 'large';
-      gradient = 'radial-gradient(circle, #9B1D1D, #E76F51)'; // red variant
+      gradient = 'radial-gradient(circle, #9B1D1D, #E76F51)';
     }
 
     const sizeMap = {
@@ -87,68 +84,128 @@ class Map extends Component {
     });
   };
 
-  createPinpointIcon = () => {
+  // Define colors for each observation type
+  getObservationColor = (observerName) => {
+    const seenColor = "#32CD32";  // Green for "Seen"
+    const heardColor = "#1E90FF"; // Blue for "Heard"
+    const defaultColor = "#FF0000"; // Red for default
+    
+    if (observerName) {
+      if (observerName.toLowerCase().includes("seen")) {
+        return seenColor;
+      } else if (observerName.toLowerCase().includes("heard")) {
+        return heardColor;
+      }
+    }
+    return defaultColor;
+  };
+
+  createPinpointIcon = (observerName, hs) => {
+    const pinColor = this.getObservationColor(hs);
+    const rotation = "10deg";
+
     return new L.DivIcon({
       html: `
         <div 
           style="
             width: 32px;
             height: 32px;
-            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 30px; /* Increased size of the emoji */
           "
         >
-          <span 
-            style="
-              color: yellow; /* Emoji color */
-              font-size: 25px; /* Bigger emoji size */
-              font-weight: 900; /* Make it bold */
-              text-shadow: 2px 2px 3px rgba(0, 0, 0, 0.5); /* Optional: adds shadow for more thickness */
-              transform: rotate(10deg);
-            "
-          >
-            📍
-          </span>  
+          <svg width="24" height="36" viewBox="0 0 24 36">
+            <path 
+              d="M12 0C5.383 0 0 5.383 0 12c0 9 12 24 12 24s12-15 12-24c0-6.617-5.383-12-12-12z"
+              fill="${pinColor}"
+              stroke="white"
+              stroke-width="1"
+            />
+            <circle 
+              cx="12" 
+              cy="12" 
+              r="5" 
+              fill="white" 
+            />
+          </svg>
         </div>
       `,
       className: 'custom-pin-icon',
-      iconSize: new L.Point(40, 40), // Size of the icon
-      iconAnchor: [20, 40], // Anchor the icon properly
-      popupAnchor: [0, -40], // Popup location
+      iconSize: new L.Point(32, 36),
+      iconAnchor: [16, 36],
+      popupAnchor: [0, -36],
     });
   };
 
   render() {
     const { data } = this.props;
+    console.log("Map Data:", data);
     const singaporeCenter = [1.3521, 103.8198];
 
+    // Define the observation types and their colors for the legend
+    const observationTypes = [
+      { type: "Seen", color: "#32CD32" },
+      { type: "Heard", color: "#1E90FF" },
+      { type: "Other", color: "#FF0000" }
+    ];
+
     return (
-      <div className="map-container" style={{ height: '100vh', width: '100%' }}>
+      <div className="map-container" style={{ height: '40vh', width: '100%' }}>
         <MapContainer 
           center={singaporeCenter} 
           zoom={11}
           style={{ height: '100%', width: '100%' }}
           minZoom={11}
-          zoomControl={false}           // Hides the + / − buttons
-          attributionControl={false}   // Hides the bottom-right attribution text
-          dragging={true}              // Keeps dragging enabled
-          scrollWheelZoom={true}       // Allows zooming with scroll (optional)
-          doubleClickZoom={true}       // Allows zooming with double click (optional)
+          zoomControl={false}
+          attributionControl={false}
+          dragging={true}
+          scrollWheelZoom={true}
+          doubleClickZoom={true}
           maxBoundsViscosity={1.0}
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           />
+          
+          {/* Custom legend */}
+          <div className="map-legend" style={{
+            position: 'absolute',
+            bottom: '10px',
+            right: '10px',
+            backgroundColor: 'white',
+            padding: '10px',
+            borderRadius: '5px',
+            boxShadow: '0 1px 5px rgba(0,0,0,0.4)',
+            zIndex: 1000
+          }}>
+            <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Observation Type</div>
+            {observationTypes.map((item, index) => (
+              <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                <div style={{ marginRight: '5px' }}>
+                  <svg width="12" height="18" viewBox="0 0 24 36">
+                    <path 
+                      d="M12 0C5.383 0 0 5.383 0 12c0 9 12 24 12 24s12-15 12-24c0-6.617-5.383-12-12-12z"
+                      fill={item.color}
+                      stroke="white"
+                      stroke-width="1"
+                    />
+                    <circle 
+                      cx="12" 
+                      cy="12" 
+                      r="5" 
+                      fill="white" 
+                    />
+                  </svg>
+                </div>
+                <span style={{ fontSize: '12px' }}>{item.type}</span>
+              </div>
+            ))}
+          </div>
 
-          {/* MarkerClusterGroup with customized cluster marker */}
           <MarkerClusterGroup 
-            key={JSON.stringify(data)} // Use the data as the key to force re-render of the group on data change
+            key={JSON.stringify(data)}
             iconCreateFunction={this.createClusterCustomIcon}
           >
             {data.map((observation, index) => (
@@ -156,7 +213,7 @@ class Map extends Component {
                  <Marker 
                   key={index} 
                   position={[observation.Lat, observation.Long]}
-                  icon={this.createPinpointIcon()} // Apply custom pinpoint icon
+                  icon={this.createPinpointIcon(observation['Observer name'], observation['Seen/Heard'])}
                 >
                   <Popup>
                     <div className="map-popup">

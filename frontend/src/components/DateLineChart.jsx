@@ -33,7 +33,14 @@ class DateLineChart extends Component {
               formatter={(value, name, props) => {
                 const [month, year] = props.payload.monthYear.split('-');
                 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                return [`Observation: ${value}`]; // Format: "Observation: X"
+                return [
+                  <div key="tooltip-content">
+                    <div><strong>Observation(s)</strong></div>
+                    <div>Heard: {props.payload.Heard}</div>
+                    <div>Seen: {props.payload.Seen}</div>
+                    <div>Total: {props.payload.Total}</div>
+                  </div>
+                ];
               }}
               labelFormatter={(label) => {
                 const [month, year] = label.split('-');
@@ -41,21 +48,33 @@ class DateLineChart extends Component {
                 return `${monthNames[parseInt(month) - 1]} ${year}`;  // Full month and year
               }}
             />
-            {/* Shaded area under the curve */}
+            {/* Shaded area under the Total line */}
             <Area
               type="monotone"
-              dataKey="count"
-              stroke="#82ca9d"
-              fill="#82ca9d"
-              fillOpacity={0.3} // Adjust opacity for the shaded area
+              dataKey="Total"
+              stroke="#8884d8"
+              fill="#8884d8"
+              fillOpacity={0.2} // Adjust opacity for the shaded area
             />
-            {/* Line on top of the shaded area */}
+            {/* Line on top of the shaded area for Total */}
             <Line 
               type="monotone" 
-              dataKey="count" 
-              stroke="#82ca9d" 
+              dataKey="Total" 
+              stroke="#8884d8" 
               dot={true}  // Show dots on the line
             />
+            {/*<Line 
+              type="monotone" 
+              dataKey="Seen" 
+              stroke="#82ca9d" 
+              dot={true} 
+            />
+            <Line 
+              type="monotone" 
+              dataKey="Heard" 
+              stroke="#ff7300" 
+              dot={true} 
+            />*/}
           </LineChart>
         </ResponsiveContainer>
       </div>
