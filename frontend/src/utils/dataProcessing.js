@@ -59,11 +59,17 @@ export const extractSeenHeard = (data) => {
   });
 };
 
-
 export const extractBirdHeights = (data) => {
   return data.map(observation => {
     // Extract the value of "Height of tree/m" if available
     return observation["Height of bird/m"] || null;
+  });
+};
+
+export const extractNoBirds = (data) => {
+  return data.map(observation => {
+    // Extract the value of "Height of tree/m" if available
+    return observation["Number of Birds"] || null;
   });
 };
 

@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import * as d3 from 'd3';
-import { extractTreeHeights, extractBirdHeights, extractSeenHeard } from '../utils/dataProcessing';
+import { extractTreeHeights, extractBirdHeights, extractSeenHeard, extractNoBirds } from '../utils/dataProcessing';
 import birdLogo from '../assets/bird-logo.png';
 
 class D3TreeHeightChart extends Component {
@@ -73,35 +73,37 @@ class D3TreeHeightChart extends Component {
     let treeData = extractTreeHeights(data);
     let birdData = extractBirdHeights(data);
     let seenHeardData = extractSeenHeard(data);
+    let noBirdsData = extractNoBirds(data);
 
     // Clean and pair tree and bird data, but keep all tree data
-const pairedData = treeData.map((treeHeight, index) => {
-  let birdHeight = birdData[index];
-  let seenHeard = seenHeardData[index];
+    const pairedData = treeData.map((treeHeight, index) => {
+      let birdHeight = birdData[index];
+      let seenHeard = seenHeardData[index];
+      let noBirds = noBirdsData[index];
 
-  // Ensure birdHeight is null if there's no bird, and use a default null for missing bird data
-  const hasBird = birdHeight !== null && birdHeight !== 'N/A' && !isNaN(birdHeight);
+      // Ensure birdHeight is null if there's no bird, and use a default null for missing bird data
+      const hasBird = birdHeight !== null && birdHeight !== 'N/A' && !isNaN(birdHeight);
 
-  if (!isNaN(treeHeight) && treeHeight !== null && treeHeight !== 'N/A') {
-    return {
-      treeHeight,
-      birdHeight: hasBird ? birdHeight : null,  // Set birdHeight to null if no bird data
-      hasBird,
-      seenHeard,
-      index: index + 1 // Use 1-based indexing for display
-    };
-  }
-  // Don't filter anything out – return null if tree height is invalid, but no need to filter after
-  return {
-    treeHeight: treeHeight, // Return tree height even if the bird data is missing
-    birdHeight: null,       // No bird data
-    hasBird: false,         // No bird associated
-    seenHeard: seenHeard,
-    index: index + 1        // 1-based indexing
-  };
-});
-
-
+      if (!isNaN(treeHeight) && treeHeight !== null && treeHeight !== 'N/A') {
+        return {
+          treeHeight,
+          birdHeight: hasBird ? birdHeight : null,  // Set birdHeight to null if no bird data
+          hasBird,
+          seenHeard,
+          noBirds,
+          index: index + 1 // Use 1-based indexing for display
+        };
+      }
+      // Don't filter anything out – return null if tree height is invalid, but no need to filter after
+      return {
+        treeHeight: treeHeight, // Return tree height even if the bird data is missing
+        birdHeight: null,       // No bird data
+        hasBird: false,         // No bird associated
+        seenHeard: seenHeard,
+        noBirds,
+        index: index + 1        // 1-based indexing
+      };
+    });
 
     // Setup dimensions - adjust margins for mobile
     const margin = isMobile 
@@ -173,7 +175,7 @@ const pairedData = treeData.map((treeHeight, index) => {
         .duration(200)
         .style("opacity", 0.9);
       
-      const tooltipContent = `<strong>Tree #${d.index}</strong><br/>Height: ${d.treeHeight}m<br/>${d.hasBird ? `<strong>Bird on Tree #${d.index}</strong><br/>Height: ${d.birdHeight}m<br/><strong>Seen/Heard:</strong><br/>${d.seenHeard}` : ''}`;
+      const tooltipContent = `<strong>Tree #${d.index}</strong><br/>Height: ${d.treeHeight}m<br/>${d.hasBird ? `<strong>Bird on Tree #${d.index}</strong><br/>Height: ${d.birdHeight}m<br/><strong>Seen/Heard:</strong><br/>${d.seenHeard}<br/><strong>No of Birds:</strong><br/>${d.noBirds}` : ''}`;
       
       tooltip.html(tooltipContent);
       

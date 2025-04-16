@@ -77,7 +77,7 @@ class ObservationTable extends Component {
         <div className="mobile-observation-cards hide-desktop">
           {this.renderMobileCards(transformedData)}
         </div>
-        <div className="ag-theme-alpine" style={{ height: '30vh', width: '100%' }}>
+        <div className="ag-theme-alpine" style={{ height: '50vh', width: '100%' }}>
           <AgGridReact
             columnDefs={columns}
             rowData={transformedData}
