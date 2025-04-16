@@ -83,7 +83,7 @@ class LocationStats extends Component {
             border: '1px solid #ccc',
           }}
         >
-          <div><strong>Observation(s)</strong></div>
+          <div><strong>{location}</strong></div>
           <div>Heard: {Heard}</div>
           <div>Seen: {Seen}</div>
           <div>Total: {Total}</div>

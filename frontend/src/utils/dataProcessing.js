@@ -84,7 +84,8 @@ export const getValidCoordinates = (data) => {
 };
 
 export const countByMonthYear = (data) => {
-  const counts = {};
+  const seenCounts = {};
+  const heardCounts = {};
 
   data.forEach(observation => {
     let date;
@@ -98,65 +99,90 @@ export const countByMonthYear = (data) => {
 
     if (date instanceof Date && !isNaN(date)) {
       const monthYear = `${date.getMonth() + 1}-${date.getFullYear()}`;
-      const type = observation["Heard/Seen"] === 'Seen' ? 'Seen' : 'Heard';
 
-      if (!counts[monthYear]) {
-        counts[monthYear] = { monthYear, Seen: 0, Heard: 0, Total: 0 };
+      if (observation["Seen/Heard"] === 'Seen') {
+        if (!seenCounts[monthYear]) {
+          seenCounts[monthYear] = { monthYear, Seen: 0 };
+        }
+        seenCounts[monthYear].Seen++;
+      } else if (observation["Seen/Heard"] === 'Heard') {
+        if (!heardCounts[monthYear]) {
+          heardCounts[monthYear] = { monthYear, Heard: 0 };
+        }
+        heardCounts[monthYear].Heard++;
       }
-
-      counts[monthYear][type]++;
-      counts[monthYear].Total++;
     }
   });
 
-  return Object.values(counts);
+  // Merge seen and heard counts and calculate total
+  const result = [];
+  const allMonthYears = new Set([...Object.keys(seenCounts), ...Object.keys(heardCounts)]);
+
+  allMonthYears.forEach(monthYear => {
+    const seen = seenCounts[monthYear]?.Seen || 0;
+    const heard = heardCounts[monthYear]?.Heard || 0;
+    const total = seen + heard;
+
+    result.push({
+      monthYear,
+      Seen: seen,
+      Heard: heard,
+      Total: total
+    });
+  });
+
+  return result;
 };
 
 export const countByLocation = (data) => {
-  if (!Array.isArray(data)) {
-    console.error("countByLocation: Expected an array of data, but got:", data);
-    return [];
-  }
-  
-  const counts = {};
-  
+  const seenCounts = {};
+  const heardCounts = {};
+
   data.forEach(observation => {
-    console.log("Observation:", observation);
-    // Ensure that we have a valid location string
+    // Ensure valid location and check for date
     let location = observation.Location;
-    if (typeof location === 'string') {
-      location = location.trim();
-    }
-    if (!location) {
-      console.warn("Skipping observation due to missing location:", observation);
+    if (typeof location !== 'string' || !location.trim()) {
+      console.warn("Skipping observation due to missing or invalid location:", observation);
       return;
     }
 
-    // Ensure that the Heard/Seen field is processed properly
-    let heardSeen = observation["Seen/Heard"];
-    console.log("Heard/Seen:", heardSeen);
-    if (typeof heardSeen === 'string') {
-      heardSeen = heardSeen.trim().toLowerCase();
-    }
-    else {
-      console.warn("Observation missing 'Heard/Seen' field or not a string:", observation);
+    // Handle "Seen/Heard" field
+    const heardSeen = observation["Seen/Heard"];
+    if (heardSeen !== 'Seen' && heardSeen !== 'Heard') {
+      console.warn("Skipping observation with invalid 'Seen/Heard' field:", observation);
       return;
     }
-    
-    // Determine type from the field
-    const type = (heardSeen === 'Seen') ? 'Seen' : 'Heard';
 
-    // Initialize counts if location is new
-    if (!counts[location]) {
-      counts[location] = { location, Seen: 0, Heard: 0, Total: 0 };
+    // Count based on location and Seen/Heard
+    if (heardSeen === 'Seen') {
+      if (!seenCounts[location]) {
+        seenCounts[location] = { location, Seen: 0 };
+      }
+      seenCounts[location].Seen++;
+    } else if (heardSeen === 'Heard') {
+      if (!heardCounts[location]) {
+        heardCounts[location] = { location, Heard: 0 };
+      }
+      heardCounts[location].Heard++;
     }
-
-    counts[location][type]++;
-    counts[location].Total++;
   });
 
-  // Log the result for debugging
-  console.log("Count by Location:", counts);
+  // Merge seen and heard counts for each location and calculate total
+  const result = [];
+  const allLocations = new Set([...Object.keys(seenCounts), ...Object.keys(heardCounts)]);
 
-  return Object.values(counts);
+  allLocations.forEach(location => {
+    const seen = seenCounts[location]?.Seen || 0;
+    const heard = heardCounts[location]?.Heard || 0;
+    const total = seen + heard;
+
+    result.push({
+      location,
+      Seen: seen,
+      Heard: heard,
+      Total: total
+    });
+  });
+
+  return result;
 };

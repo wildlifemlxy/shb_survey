@@ -28,11 +28,11 @@ class Map extends Component {
 
   convertExcelTime(serial) {
     if (serial === undefined || serial === null || serial === "") return "";
-  
+
     const totalSeconds = Math.round(86400 * serial);
     const hours = Math.floor(totalSeconds / 3600) % 24;
     const minutes = Math.floor((totalSeconds % 3600) / 60);
-  
+
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   }
 
@@ -89,7 +89,7 @@ class Map extends Component {
     const seenColor = "#32CD32";  // Green for "Seen"
     const heardColor = "#1E90FF"; // Blue for "Heard"
     const defaultColor = "#FF0000"; // Red for default
-    
+
     if (observerName) {
       if (observerName.toLowerCase().includes("seen")) {
         return seenColor;
@@ -147,7 +147,6 @@ class Map extends Component {
     const observationTypes = [
       { type: "Seen", color: "#32CD32" },
       { type: "Heard", color: "#1E90FF" },
-      { type: "Other", color: "#FF0000" }
     ];
 
     return (

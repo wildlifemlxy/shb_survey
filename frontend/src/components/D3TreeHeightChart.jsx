@@ -74,23 +74,34 @@ class D3TreeHeightChart extends Component {
     let birdData = extractBirdHeights(data);
     let seenHeardData = extractSeenHeard(data);
 
-    // Clean and filter both tree and bird data
-    const pairedData = treeData.map((treeHeight, index) => {
-      let birdHeight = birdData[index];
-      let seenHeard = seenHeardData[index];
-      const hasBird = birdHeight !== null && birdHeight !== 'N/A' && !isNaN(birdHeight);
-      
-      if (!isNaN(treeHeight) && treeHeight !== null && treeHeight !== 'N/A') {
-        return {
-          treeHeight,
-          birdHeight: hasBird ? birdHeight : null,
-          hasBird,
-          seenHeard,
-          index: index + 1 // Use 1-based indexing for display
-        };
-      }
-      return null;
-    }).filter(d => d !== null);
+    // Clean and pair tree and bird data, but keep all tree data
+const pairedData = treeData.map((treeHeight, index) => {
+  let birdHeight = birdData[index];
+  let seenHeard = seenHeardData[index];
+
+  // Ensure birdHeight is null if there's no bird, and use a default null for missing bird data
+  const hasBird = birdHeight !== null && birdHeight !== 'N/A' && !isNaN(birdHeight);
+
+  if (!isNaN(treeHeight) && treeHeight !== null && treeHeight !== 'N/A') {
+    return {
+      treeHeight,
+      birdHeight: hasBird ? birdHeight : null,  // Set birdHeight to null if no bird data
+      hasBird,
+      seenHeard,
+      index: index + 1 // Use 1-based indexing for display
+    };
+  }
+  // Don't filter anything out – return null if tree height is invalid, but no need to filter after
+  return {
+    treeHeight: treeHeight, // Return tree height even if the bird data is missing
+    birdHeight: null,       // No bird data
+    hasBird: false,         // No bird associated
+    seenHeard: seenHeard,
+    index: index + 1        // 1-based indexing
+  };
+});
+
+
 
     // Setup dimensions - adjust margins for mobile
     const margin = isMobile 
@@ -154,7 +165,6 @@ class D3TreeHeightChart extends Component {
 
     // Event handlers that work for both mouse and touch
     const showTooltip = (event, d) => {
-      console.log("Show Tool Tip:", d);
       // Prevent tooltip from going off-screen
       const tooltipWidth = isMobile ? 150 : 200;
       const windowWidth = window.innerWidth;
@@ -294,7 +304,6 @@ class D3TreeHeightChart extends Component {
           ref={this.d3Container}
           width={this.state.width}
           height={this.state.height}
-          style={{ display: 'block', margin: '0 auto' }}
         />
       </div>
     );

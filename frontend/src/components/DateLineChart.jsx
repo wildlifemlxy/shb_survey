@@ -8,7 +8,7 @@ class DateLineChart extends Component {
     const dateData = countByMonthYear(data);  // Assuming this processes the data correctly
 
     // Log the dateData to verify its structure
-    console.log(dateData);
+    console.log("Date Data:", dateData);
 
     return (
       <div className="chart-container">

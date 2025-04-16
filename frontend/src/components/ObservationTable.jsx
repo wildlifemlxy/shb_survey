@@ -81,7 +81,7 @@ class ObservationTable extends Component {
           <AgGridReact
             columnDefs={columns}
             rowData={transformedData}
-            domLayout="autoHeight"
+            domLayout="normal"
             pagination={true}
             defaultColDef={{
               sortable: true,
