@@ -29,6 +29,16 @@ class Map extends Component {
     }
   }
 
+  convertExcelTime(serial) {
+    if (serial === undefined || serial === null || serial === "") return "";
+  
+    const totalSeconds = Math.round(86400 * serial); // seconds in a day
+    const hours = Math.floor(totalSeconds / 3600) % 24;
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+  
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  }
+
   handleResize = () => {
     this.setState({ windowWidth: window.innerWidth });
   };
@@ -153,8 +163,11 @@ class Map extends Component {
                       <h3>{observation.Location}</h3>
                       <p><strong>Observer:</strong> {observation['Observer name']}</p>
                       <p><strong>Bird ID:</strong> {observation['SHB individual ID (e.g. SHB1)']}</p>
-                      <p><strong>Date:</strong> {observation.Date}</p>
+                      <p><strong>Date & Time:</strong> {observation.Date} {this.convertExcelTime(observation.Time)}</p>
                       <p><strong>Activity:</strong> {observation["Activity (foraging, preening, calling, perching, others)"]}</p>
+                      <p><strong>Height of Tree:</strong> {observation["Height of tree/m"]}m</p>
+                      <p><strong>Height of Bird:</strong> {observation["Height of bird/m"]}m</p>
+                      <p><strong>Number of Bird(s):</strong> {observation["Number of Birds"]}</p>
                     </div>
                   </Popup>
                 </Marker>

@@ -58,7 +58,7 @@ class Dashboard extends Component {
     });
     window.addEventListener('resize', this.handleResize);
   }
-  
+
   componentWillUnmount() {
     window.removeEventListener('resize', this.handleResize);
   }

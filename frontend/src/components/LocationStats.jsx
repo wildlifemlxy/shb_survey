@@ -1,5 +1,12 @@
 import React, { Component } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Sector,
+} from 'recharts';
 import { countByLocation } from '../utils/dataProcessing';
 
 const COLORS = [
@@ -15,18 +22,79 @@ const COLORS = [
 class LocationStats extends Component {
   state = {
     showLegend: false,
-    activeLocation: null, // Track the clicked location
-    activeIndex: null, // Track the active pie slice index
+    activeIndex: null,
+    tooltipVisible: false,
   };
 
   toggleLegend = () => {
     this.setState((prevState) => ({ showLegend: !prevState.showLegend }));
   };
 
+  handleLegendClick = (index) => {
+    this.setState({
+      showLegend: false
+    });
+  };
+
+  renderActiveShape = (props) => {
+    const RADIAN = Math.PI / 180;
+    const {
+      cx, cy, midAngle, innerRadius, outerRadius, startAngle, endAngle,
+      fill, payload,
+    } = props;
+
+    const sin = Math.sin(-RADIAN * midAngle);
+    const cos = Math.cos(-RADIAN * midAngle);
+    const sx = cx + (outerRadius + 10) * cos;
+    const sy = cy + (outerRadius + 10) * sin;
+    const mx = cx + (outerRadius + 30) * cos;
+    const my = cy + (outerRadius + 30) * sin;
+
+    return (
+      <g>
+        <Sector
+          cx={cx}
+          cy={cy}
+          innerRadius={innerRadius}
+          outerRadius={outerRadius + 10}
+          startAngle={startAngle}
+          endAngle={endAngle}
+          fill={fill}
+        />
+        <path d={`M${sx},${sy}L${mx},${my}`} stroke={fill} fill="none" />
+      </g>
+    );
+  };
+
+  renderCustomTooltip = ({ active, payload }) => {
+    const { tooltipVisible } = this.state;
+    console.log("Payload:", payload);
+    if ((active || tooltipVisible) && payload && payload.length) {
+      const { location, count } = payload[0].payload;
+      return (
+        <div
+          style={{
+            fontSize: '1rem',
+            fontWeight: 'normal',
+            color: '#333',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            borderRadius: '4px',
+            padding: '5px',
+            border: '1px solid #ccc',
+          }}
+        >
+          <strong>{location}</strong>: {count} observations
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   render() {
     const { data } = this.props;
     const locationData = countByLocation(data);
-    const { showLegend, activeLocation, activeIndex } = this.state;
+    const { showLegend, activeIndex } = this.state;
 
     return (
       <div
@@ -34,7 +102,7 @@ class LocationStats extends Component {
         style={{
           position: 'relative',
           overflow: 'visible',
-          padding: '2rem', // Increased padding to add space around the chart
+          padding: '2rem',
           zIndex: 0,
         }}
       >
@@ -44,7 +112,7 @@ class LocationStats extends Component {
           onClick={this.toggleLegend}
           className="legend-toggle-button"
           style={{
-            marginBottom: '1rem', // Adjust space between button and chart
+            marginBottom: '1rem',
             padding: '0.5rem 1rem',
             cursor: 'pointer',
             border: '1px solid #ccc',
@@ -59,7 +127,7 @@ class LocationStats extends Component {
             className="legend-popup"
             style={{
               position: 'absolute',
-              top: '4rem', // Adjusted to give more room for the chart
+              top: '4rem',
               right: '1rem',
               backgroundColor: '#fff',
               border: '1px solid #ccc',
@@ -73,7 +141,16 @@ class LocationStats extends Component {
               {locationData.map((entry, index) => (
                 <li
                   key={index}
-                  style={{ color: COLORS[index % COLORS.length], marginBottom: '0.5rem' }}
+                  onClick={() => this.handleLegendClick(index)}
+                  onMouseEnter={() =>
+                    this.setState({ activeIndex: index, tooltipVisible: true })
+                  }
+                  style={{
+                    color: COLORS[index % COLORS.length],
+                    marginBottom: '0.5rem',
+                    cursor: 'pointer',
+                    fontWeight: activeIndex === index ? 'bold' : 'normal',
+                  }}
                 >
                   {entry.location}
                 </li>
@@ -82,33 +159,13 @@ class LocationStats extends Component {
           </div>
         )}
 
-        {activeLocation && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '4rem', // Adjusted to give more room for the chart
-              left: '1rem',
-              backgroundColor: '#fff',
-              border: '1px solid #ccc',
-              padding: '1rem',
-              borderRadius: '8px',
-              boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-              zIndex: 9999,
-            }}
-          >
-            <h3>{activeLocation.location}</h3>
-            <p>Count: {activeLocation.count}</p>
-          </div>
-        )}
-
-        {/* Chart container, now placed below the button */}
         <div
           style={{
             position: 'relative',
             zIndex: 1,
             width: '100%',
             height: '500px',
-            marginTop: '2rem', // Add some space between the button and the chart
+            marginTop: '2rem',
           }}
         >
           <ResponsiveContainer width="100%" height="100%">
@@ -120,30 +177,25 @@ class LocationStats extends Component {
                 cx="50%"
                 cy="50%"
                 fill="#8884d8"
+                activeIndex={activeIndex}
+                activeShape={this.renderActiveShape}
               >
                 {locationData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
-                    fill={COLORS[index % COLORS.length]} // Use colors from the COLORS array
-                    onMouseEnter={() => this.setState({ activeIndex: index })} // Optional: Highlight on hoverx
+                    fill={COLORS[index % COLORS.length]}
+                    onMouseEnter={() =>
+                      this.setState({ activeIndex: index, tooltipVisible: true })
+                    }
+                    onMouseLeave={() =>
+                      this.setState({ tooltipVisible: false })
+                    }
                   />
                 ))}
               </Pie>
               <Tooltip
-                wrapperStyle={{
-                  zIndex: 9999,
-                  position: 'absolute',
-                  pointerEvents: 'auto',
-                }}
-                contentStyle={{
-                  fontSize: '0.75rem', // Adjust this value to make the text smaller
-                  fontWeight: 'normal', // Optional: Adjust font weight if needed
-                  color: '#333', // Optional: Change text color if necessary
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)', // Optional: Adjust background color for readability
-                  borderRadius: '4px', // Optional: Add rounded corners to the tooltip
-                  padding: '5px', // Optional: Adjust padding around the text
-                }}
-                active={activeIndex !== null} // Only show tooltip when activeIndex is set
+                content={this.renderCustomTooltip}
+                wrapperStyle={{ zIndex: 9999 }}
               />
             </PieChart>
           </ResponsiveContainer>
