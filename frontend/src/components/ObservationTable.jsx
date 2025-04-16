@@ -110,6 +110,7 @@ class ObservationTable extends Component {
           <p><strong>Height of Tree:</strong> {obs["Height of tree/m"]}m</p>
           <p><strong>Height of Bird:</strong> {obs["Height of bird/m"]}m</p>
           <p><strong>Number of Bird(s):</strong> {obs["Number of Birds"]}</p>
+          <p><strong>Seen/Heard:</strong> {obs["Seen/Heard"]}</p>
         </div>
       </div>
     ));

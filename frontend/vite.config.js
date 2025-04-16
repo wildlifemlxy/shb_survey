@@ -10,13 +10,10 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    port: 3000,  // Set port to 3000
   },
   mode: 'production',
   build: {
-    target: 'es2022',
-    rollupOptions: {
-      external: ['d3'], // <-- this line makes d3 external
-    },
+    target: 'es2022',  // or 'esnext' for the latest features
   },
 });
