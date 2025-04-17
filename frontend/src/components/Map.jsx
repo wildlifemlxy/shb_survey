@@ -86,10 +86,9 @@ class Map extends Component {
 
   // Define colors for each observation type, including "Not Found"
   getObservationColor = (observerName) => {
-    const seenColor = "#32CD32";  // Green for "Seen"
-    const heardColor = "#1E90FF"; // Blue for "Heard"
-    const notFoundColor = "#FF6347"; // Tomato for "Not Found"
-    const defaultColor = "#FF0000"; // Red for default
+    const seenColor = "#A8E6CF";  // Green for "Seen"
+    const heardColor = "#D1C4E9"; // Blue for "Heard"
+    const notFoundColor = "#FFCDD2"; // Tomato for "Not Found"
 
     if (observerName) {
       if (observerName.toLowerCase().includes("seen")) {
@@ -100,7 +99,6 @@ class Map extends Component {
         return notFoundColor;
       }
     }
-    return defaultColor;
   };
 
   createPinpointIcon = (observerName, hs) => {
@@ -148,9 +146,9 @@ class Map extends Component {
 
     // Define the observation types and their colors for the legend
     const observationTypes = [
-      { type: "Seen", color: "#32CD32" },
-      { type: "Heard", color: "#1E90FF" },
-      { type: "Not Found", color: "#FF6347" },
+      { type: "Seen", color: "#A8E6CF" },
+      { type: "Heard", color: "#D1C4E9" },
+      { type: "Not found", color: "#FFCDD2" },
     ];
 
     return (
