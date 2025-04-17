@@ -27,6 +27,28 @@ class ObservationTable extends Component {
     });
   }
 
+    // Accept transformed data here
+    renderMobileCards(data) {
+      return data.map((obs, i) => (
+        <div key={i} className="observation-card">
+          <div className="card-header">
+            <strong>Location:</strong> {obs.Location}
+          </div>
+          <div className="card-body">
+            <p><strong>Observer:</strong> {obs['Observer name']}</p>
+            <p><strong>Bird ID:</strong> {obs['SHB individual ID']}</p>
+            <p><strong>Activity:</strong> {obs["Activity (foraging, preening, calling, perching, others)"]}</p>
+            <p><strong>Date:</strong> {obs.Date}</p>
+            <p><strong>Time:</strong> {this.convertExcelTime(obs.Time)}</p>
+            <p><strong>Height of Tree:</strong> {obs["Height of tree/m"]}m</p>
+            <p><strong>Height of Bird:</strong> {obs["Height of bird/m"]}m</p>
+            <p><strong>Number of Bird(s):</strong> {obs["Number of Birds"]}</p>
+            <p><strong>Seen/Heard:</strong> {obs["Seen/Heard"]}</p>
+          </div>
+        </div>
+      ));
+  }
+
   render() {
     const { data } = this.props;
     const transformedData = this.transformData(data);
@@ -71,50 +93,32 @@ class ObservationTable extends Component {
         width: 300
       }
     ];
+    
 
     return (
       <>
         <div className="mobile-observation-cards hide-desktop">
           {this.renderMobileCards(transformedData)}
         </div>
-        <div className="ag-theme-alpine" style={{ height: '50vh', width: '100%' }}>
-          <AgGridReact
-            columnDefs={columns}
-            rowData={transformedData}
-            domLayout="normal"
-            pagination={true}
-            defaultColDef={{
-              sortable: true,
-              resizable: true
-            }}
-            paginationPageSize={transformedData.length}
-          />
-        </div>
+        {window.innerWidth >= 1024 && (
+          <div className="ag-theme-alpine" style={{ height: '50vh', width: '100%' }}>
+            <AgGridReact
+              columnDefs={columns}
+              rowData={transformedData}
+              domLayout="normal"
+              pagination={true}
+              defaultColDef={{
+                sortable: true,
+                resizable: true,
+              }}
+              paginationPageSize={transformedData.length}
+            />
+          </div>
+        )}
       </>
     );
   }
-
-  // Accept transformed data here
-  renderMobileCards(data) {
-    return data.map((obs, i) => (
-      <div key={i} className="observation-card">
-        <div className="card-header">
-          <strong>Location:</strong> {obs.Location}
-        </div>
-        <div className="card-body">
-          <p><strong>Observer:</strong> {obs['Observer name']}</p>
-          <p><strong>Bird ID:</strong> {obs['SHB individual ID']}</p>
-          <p><strong>Activity:</strong> {obs["Activity (foraging, preening, calling, perching, others)"]}</p>
-          <p><strong>Date:</strong> {obs.Date}</p>
-          <p><strong>Time:</strong> {this.convertExcelTime(obs.Time)}</p>
-          <p><strong>Height of Tree:</strong> {obs["Height of tree/m"]}m</p>
-          <p><strong>Height of Bird:</strong> {obs["Height of bird/m"]}m</p>
-          <p><strong>Number of Bird(s):</strong> {obs["Number of Birds"]}</p>
-          <p><strong>Seen/Heard:</strong> {obs["Seen/Heard"]}</p>
-        </div>
-      </div>
-    ));
-  }
+   
 }
 
 export default ObservationTable;
