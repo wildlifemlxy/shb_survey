@@ -94,107 +94,111 @@ class LocationStats extends Component {
     return null;
   };
 
-renderStatistics = (locationData) => {
-  const { expandedIndex } = this.state;
-
-  const totalEntry = locationData.reduce(
-    (acc, curr) => ({
-      Total: acc.Total + curr.Total,
-      Seen: acc.Seen + curr.Seen,
-      Heard: acc.Heard + curr.Heard,
-      NotFound: acc.NotFound + curr.NotFound,
-    }),
-    { Total: 0, Seen: 0, Heard: 0, NotFound: 0 }
-  );
-
-  const totalExpanded = expandedIndex === 'total';
-
-  return (
-    <div
-      className="statistics-container"
-      style={{
-        maxHeight: '150px',
-        overflowY: 'auto',
-        marginTop: '1rem',
-        position: 'relative',
-      }}
-    >
-      {/* Sticky Total Row */}
+  renderStatistics = (locationData) => {
+    const { expandedIndex } = this.state;
+  
+    const totalEntry = locationData.reduce(
+      (acc, curr) => ({
+        Total: acc.Total + curr.Total,
+        Seen: acc.Seen + curr.Seen,
+        Heard: acc.Heard + curr.Heard,
+        NotFound: acc.NotFound + curr.NotFound,
+      }),
+      { Total: 0, Seen: 0, Heard: 0, NotFound: 0 }
+    );
+  
+    const totalExpanded = expandedIndex === 'total';
+    const totalPercentage = totalEntry.Total
+      ? ((totalEntry.Total / totalEntry.Total) * 100).toFixed(2)
+      : '0.00';
+  
+    return (
       <div
-        onClick={() =>
-          this.setState({ expandedIndex: totalExpanded ? null : 'total' })
-        }
+        className="statistics-container"
         style={{
-          position: 'sticky',
-          top: 0,
-          backgroundColor: totalExpanded ? '#f9f9f9' : '#fff',
-          zIndex: 1,
-          padding: '0.5rem',
-          borderBottom: '2px solid #000',
-          fontWeight: 'bold',
-          display: 'flex',
-          flexDirection: 'column',
-          cursor: 'pointer',
+          maxHeight: '150px',
+          overflowY: 'auto',
+          marginTop: '1rem',
+          position: 'relative',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span>Total</span>
-          <span>{totalEntry.Total}</span>
-        </div>
-        {totalExpanded && (
-          <div style={{ marginTop: '0.5rem', fontWeight: 'normal' }}>
-            <div>Seen: {totalEntry.Seen}</div>
-            <div>Heard: {totalEntry.Heard}</div>
-            <div>Not Found: {totalEntry.NotFound}</div>
+        {/* Sticky Total Row */}
+        <div
+          onClick={() =>
+            this.setState({ expandedIndex: totalExpanded ? null : 'total' })
+          }
+          style={{
+            position: 'sticky',
+            top: 0,
+            backgroundColor: totalExpanded ? '#f9f9f9' : '#fff',
+            zIndex: 1,
+            padding: '0.5rem',
+            borderBottom: '2px solid #000',
+            fontWeight: 'bold',
+            display: 'flex',
+            flexDirection: 'column',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Total</span>
+            <span>{totalEntry.Total} ({totalPercentage}%)</span>
           </div>
-        )}
-      </div>
-
-      {/* Scrollable List */}
-      {locationData.map((entry, index) => {
-        const percentage = ((entry.Total / totalEntry.Total) * 100).toFixed(2);
-        const isExpanded = expandedIndex === index;
-
-        return (
-          <div
-            key={index}
-            onClick={() =>
-              this.setState({ expandedIndex: isExpanded ? null : index })
-            }
-            onMouseEnter={() =>
-              this.setState({ activeIndex: index, tooltipVisible: true })
-            }
-            onMouseLeave={() => this.setState({ tooltipVisible: false })}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              padding: '0.5rem',
-              borderBottom: '1px solid #ccc',
-              cursor: 'pointer',
-              backgroundColor: isExpanded ? '#f9f9f9' : 'transparent',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: COLORS[index % COLORS.length] }}>
-                <strong>{entry.location} ({percentage}%)</strong>
-              </span>
-              <span style={{ color: COLORS[index % COLORS.length] }}>
-                <strong>{entry.Total} ({percentage}%)</strong>
-              </span>
+          {totalExpanded && (
+            <div style={{ marginTop: '0.5rem', fontWeight: 'normal' }}>
+              <div>Seen: {totalEntry.Seen}</div>
+              <div>Heard: {totalEntry.Heard}</div>
+              <div>Not Found: {totalEntry.NotFound}</div>
             </div>
-            {isExpanded && (
-              <div style={{ marginTop: '0.5rem ', color: COLORS[index % COLORS.length] }}>
-                <div>Seen: {entry.Seen}</div>
-                <div>Heard: {entry.Heard}</div>
-                <div>Not Found: {entry.NotFound}</div>
+          )}
+        </div>
+  
+        {/* Scrollable List */}
+        {locationData.map((entry, index) => {
+          const percentage = ((entry.Total / totalEntry.Total) * 100).toFixed(2);
+          const isExpanded = expandedIndex === index;
+  
+          return (
+            <div
+              key={index}
+              onClick={() =>
+                this.setState({ expandedIndex: isExpanded ? null : index })
+              }
+              onMouseEnter={() =>
+                this.setState({ activeIndex: index, tooltipVisible: true })
+              }
+              onMouseLeave={() => this.setState({ tooltipVisible: false })}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                padding: '0.5rem',
+                borderBottom: '1px solid #ccc',
+                cursor: 'pointer',
+                backgroundColor: isExpanded ? '#f9f9f9' : 'transparent',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: COLORS[index % COLORS.length] }}>
+                  <strong>{entry.location}</strong>
+                </span>
+                <span style={{ color: COLORS[index % COLORS.length] }}>
+                  <strong>{entry.Total} ({percentage}%)</strong>
+                </span>
               </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-};
+              {isExpanded && (
+                <div style={{ marginTop: '0.5rem', color: COLORS[index % COLORS.length] }}>
+                  <div>Seen: {entry.Seen}</div>
+                  <div>Heard: {entry.Heard}</div>
+                  <div>Not Found: {entry.NotFound}</div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+  
   
   render() {
     const { data } = this.props;
