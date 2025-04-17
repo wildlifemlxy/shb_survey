@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import chroma from 'chroma-js'; // Import chroma.js
 import {
   PieChart,
   Pie,
@@ -9,22 +10,12 @@ import {
 } from 'recharts';
 import { countByLocation } from '../utils/dataProcessing';
 
-const COLORS = [
-  '#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1',
-  '#d0ed57', '#ffb6c1', '#ff6347', '#2e8b57', '#adff2f', '#da70d6', '#f08080', '#f5deb3',
-  '#d2691e', '#ff1493', '#ff4500', '#2e8b57', '#d3d3d3', '#a52a2a', '#9acd32', '#f4a300',
-  '#7b68ee', '#87cefa', '#32cd32', '#ff7f50', '#ff4500', '#ff6347', '#ff1493', '#8b4513',
-  '#bc8f8f', '#b8860b', '#ff8c00', '#9932cc', '#8a2be2', '#ff69b4', '#c71585', '#f0e68c',
-  '#6a5acd', '#20b2aa', '#98fb98', '#ff0000', '#fa8072', '#dcdcdc', '#c0c0c0', '#708090',
-  '#add8e6', '#fdf5e6', '#ffdead', '#a9a9a9', '#ffdb58'
-];
-
 class LocationStats extends Component {
   state = {
     showLegend: false,
     activeIndex: null,
     tooltipVisible: false,
-    expandedIndex: null, // Track the index of the clicked (expanded) statistic
+    expandedIndex: null,
   };
 
   toggleLegend = () => {
@@ -33,7 +24,7 @@ class LocationStats extends Component {
 
   handleLegendClick = (index) => {
     this.setState({
-      showLegend: false
+      showLegend: false,
     });
   };
 
@@ -57,7 +48,7 @@ class LocationStats extends Component {
           cx={cx}
           cy={cy}
           innerRadius={innerRadius}
-          outerRadius={outerRadius + (this.state.activeIndex !== null ? 15 : 0)} // Expand radius when active
+          outerRadius={outerRadius + (this.state.activeIndex !== null ? 15 : 0)}
           startAngle={startAngle}
           endAngle={endAngle}
           fill={fill}
@@ -84,10 +75,10 @@ class LocationStats extends Component {
           }}
         >
           <div><strong>{location}</strong></div>
-          <div>Heard: {Heard}</div>
-          <div>Seen: {Seen}</div>
-          <div>Not found: {NotFound}</div>
-          <div>Total: {Total}</div>
+          <div style={{ color: '#6DAE80' }}><strong>Heard:</strong> {Heard}</div>
+          <div style={{ color: '#B39DDB' }}><strong>Seen:</strong> {Seen}</div>
+          <div style={{ color: '#EF9A9A' }}><strong>Not Found:</strong> {NotFound}</div>
+          <div style={{ color: '#5e56a2' }}><strong>Total:</strong> {Total}</div>
         </div>
       );
     }
@@ -96,7 +87,7 @@ class LocationStats extends Component {
 
   renderStatistics = (locationData) => {
     const { expandedIndex } = this.state;
-  
+
     const totalEntry = locationData.reduce(
       (acc, curr) => ({
         Total: acc.Total + curr.Total,
@@ -106,12 +97,12 @@ class LocationStats extends Component {
       }),
       { Total: 0, Seen: 0, Heard: 0, NotFound: 0 }
     );
-  
+
     const totalExpanded = expandedIndex === 'total';
     const totalPercentage = totalEntry.Total
       ? ((totalEntry.Total / totalEntry.Total) * 100).toFixed(2)
       : '0.00';
-  
+
     return (
       <div
         className="statistics-container"
@@ -122,7 +113,6 @@ class LocationStats extends Component {
           position: 'relative',
         }}
       >
-        {/* Sticky Total Row */}
         <div
           onClick={() =>
             this.setState({ expandedIndex: totalExpanded ? null : 'total' })
@@ -142,32 +132,27 @@ class LocationStats extends Component {
         >
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span>Total</span>
-            <span>{totalEntry.Total} ({totalPercentage}%)</span>
+            <span style={{ color: '#5e56a2' }}>{totalEntry.Total} ({totalPercentage}%)</span>
           </div>
           {totalExpanded && (
             <div style={{ marginTop: '0.5rem', fontWeight: 'normal' }}>
-              <div>Seen: {totalEntry.Seen}</div>
-              <div>Heard: {totalEntry.Heard}</div>
-              <div>Not Found: {totalEntry.NotFound}</div>
+              <div style={{ color: '#6DAE80' }}><strong>Seen:</strong> {totalEntry.Seen}</div>
+              <div style={{ color: '#B39DDB' }}><strong>Heard:</strong> {totalEntry.Heard}</div>
+              <div style={{ color: '#EF9A9A' }}><strong>Not Found:</strong> {totalEntry.NotFound}</div>
             </div>
           )}
         </div>
-  
-        {/* Scrollable List */}
+
         {locationData.map((entry, index) => {
           const percentage = ((entry.Total / totalEntry.Total) * 100).toFixed(2);
           const isExpanded = expandedIndex === index;
-  
+
           return (
             <div
               key={index}
               onClick={() =>
                 this.setState({ expandedIndex: isExpanded ? null : index })
               }
-              onMouseEnter={() =>
-                this.setState({ activeIndex: index, tooltipVisible: true })
-              }
-              onMouseLeave={() => this.setState({ tooltipVisible: false })}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -178,18 +163,18 @@ class LocationStats extends Component {
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: COLORS[index % COLORS.length] }}>
+                <span style={{ color: this.getColorForIndex(index) }}>
                   <strong>{entry.location}</strong>
                 </span>
-                <span style={{ color: COLORS[index % COLORS.length] }}>
+                <span style={{ color: '#5e56a2' }}>
                   <strong>{entry.Total} ({percentage}%)</strong>
                 </span>
               </div>
               {isExpanded && (
-                <div style={{ marginTop: '0.5rem', color: COLORS[index % COLORS.length] }}>
-                  <div>Seen: {entry.Seen}</div>
-                  <div>Heard: {entry.Heard}</div>
-                  <div>Not Found: {entry.NotFound}</div>
+                <div style={{ marginTop: '0.5rem', color: this.getColorForIndex(index) }}>
+                  <div style={{ color: '#6DAE80' }}><strong>Seen:</strong> {totalEntry.Seen}</div>
+                  <div style={{ color: '#B39DDB' }}><strong>Heard:</strong> {totalEntry.Heard}</div>
+                  <div style={{ color: '#EF9A9A' }}><strong>Not Found:</strong> {totalEntry.NotFound}</div>
                 </div>
               )}
             </div>
@@ -198,8 +183,17 @@ class LocationStats extends Component {
       </div>
     );
   };
-  
-  
+
+// Helper method to get a distinctive color for each index dynamically
+getColorForIndex = (index) => {
+  // Generate a scale of distinct colors using HSL (Hue, Saturation, Lightness)
+  // The hue will be spaced out by a fixed interval to ensure distinctiveness
+  const hue = (index * 137.5) % 360; // 137.5 is a golden angle, ensuring a good spread of colors
+  const color = chroma.hsl(hue, 0.75, 0.5).hex(); // Saturation = 0.75, Lightness = 0.5, adjust as needed
+
+  return color;
+};
+
   render() {
     const { data } = this.props;
     const locationData = countByLocation(data);
@@ -251,14 +245,10 @@ class LocationStats extends Component {
                 <li
                   key={index}
                   onClick={() => this.setState({ expandedIndex: index })}
-                  onMouseEnter={() =>
-                    this.setState({ activeIndex: index, tooltipVisible: true })
-                  }
                   style={{
-                    color: COLORS[index % COLORS.length],
+                    color: this.getColorForIndex(index),
                     marginBottom: '0.5rem',
                     cursor: 'pointer',
-                    fontWeight: activeIndex === index ? 'bold' : 'normal',
                   }}
                 >
                   {entry.location}
@@ -292,7 +282,7 @@ class LocationStats extends Component {
                 {locationData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
-                    fill={COLORS[index % COLORS.length]}
+                    fill={this.getColorForIndex(index)}
                     onMouseEnter={() =>
                       this.setState({ activeIndex: index, tooltipVisible: true })
                     }
@@ -305,13 +295,14 @@ class LocationStats extends Component {
               </Pie>
               <Tooltip
                 content={this.renderCustomTooltip}
-                wrapperStyle={{ zIndex: 9999 }}
+                cursor={false}
+                wrapperStyle={{
+                  zIndex: 1000,
+                }}
               />
             </PieChart>
           </ResponsiveContainer>
         </div>
-
-        {/* Displaying the statistics below the pie chart */}
         {this.renderStatistics(locationData)}
       </div>
     );

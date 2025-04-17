@@ -73,8 +73,32 @@ class Dashboard extends Component {
     const validCoordinates = getValidCoordinates(filteredData);  // Use this.props.data instead of filteredData
 
     const totalBirds = filteredData.reduce((sum, obs) => {
-      const count = parseInt(obs["Number of Birds"], 10);
-      return sum + (isNaN(count) ? 0 : count);
+        const count = parseInt(obs["Number of Birds"], 10);
+        return sum + (isNaN(count) ? 0 : count);
+    }, 0);
+
+    const totalSeenBirds = filteredData.reduce((sum, obs) => {
+      if (obs["Seen/Heard"] === "Seen") {
+        const count = parseInt(obs["Number of Birds"], 10);
+        return sum + (isNaN(count) ? 0 : count);
+      }
+      return sum;
+    }, 0);
+    
+    const totalHeardBirds = filteredData.reduce((sum, obs) => {
+      if (obs["Seen/Heard"] === "Heard") {
+        const count = parseInt(obs["Number of Birds"], 10);
+        return sum + (isNaN(count) ? 0 : count);
+      }
+      return sum;
+    }, 0);
+    
+    const totalNotFoundBirds = filteredData.reduce((sum, obs) => {
+      if (obs["Seen/Heard"] === "Not found") {
+        const count = parseInt(obs["Number of Birds"], 10);
+        return sum + (isNaN(count) ? 0 : count);
+      }
+      return sum;
     }, 0);
     
     return (
@@ -144,19 +168,41 @@ class Dashboard extends Component {
         {(activeTab === 'dashboard' || window.innerWidth >= 1024) && (
         <div className="stats-grid">
           <div className="stats-summary">
-            <h3>Total Observations</h3>
-            <h3 className="stat-value">{filteredData.length}</h3>
-            <h3 className="stat-value">Heard: {filteredData.filter(item => item["Seen/Heard"] === "Heard").length}</h3>
-            <h3 className="stat-value">Seen: {filteredData.filter(item => item["Seen/Heard"] === "Seen").length}</h3>
-            <h3 className="stat-value">Not Found: {filteredData.filter(item => item["Seen/Heard"] === "Not found").length}</h3>
+            <h1>Total Observations</h1>
+            <h2 className="stat-value" style={{ color: '#8884d8' }}>{filteredData.length}</h2>
+            <h3 className="stat-value" style={{ color: '#6DAE80' }}>Seen: {filteredData.filter(item => item["Seen/Heard"] === "Seen").length}</h3>
+            <h3 className="stat-value" style={{ color: '#B39DDB' }}>Heard: {filteredData.filter(item => item["Seen/Heard"] === "Heard").length}</h3>
+            <h3 className="stat-value" style={{ color: '#EF9A9A' }}>Not Found: {filteredData.filter(item => item["Seen/Heard"] === "Not found").length}</h3>
           </div>
           <div className="stats-summary">
-            <h3>Unique Locations</h3>
-            <h3 className="stat-value">{new Set(filteredData.map(item => item.Location)).size}</h3>
+            <h1>Unique Location Status </h1>
+            <h2 style={{ color: '#8884d8' }}>
+              {new Set(filteredData.map(item => `${item.Location}-${item["Seen/Heard"]}`)).size}
+            </h2>
+            <h3 className="stat-value" style={{ color: '#6DAE80' }}>
+              Seen: {new Set(filteredData.filter(item => item["Seen/Heard"] === "Seen").map(item => item.Location)).size}
+            </h3>
+            <h3 className="stat-value" style={{ color: '#B39DDB' }}>
+              Heard: {new Set(filteredData.filter(item => item["Seen/Heard"] === "Heard").map(item => item.Location)).size}
+            </h3>
+            <h3 className="stat-value" style={{ color: '#EF9A9A' }}>
+              Not Found: {new Set(filteredData.filter(item => item["Seen/Heard"] === "Not found").map(item => item.Location)).size}
+            </h3>
           </div>
           <div className="stats-summary">
-            <h3>Number of Birds</h3>
-            <h3 className="stat-value">{totalBirds}</h3>
+            <h1>Total Birds</h1>
+            <h2 className="stat-value" style={{ color: '#8884d8' }}>
+              {totalBirds}
+            </h2>
+            <h3 className="stat-value" style={{ color: '#6DAE80' }}>
+              Seen: {totalSeenBirds}
+            </h3>
+            <h3 className="stat-value" style={{ color: '#B39DDB' }}>
+              Heard: {totalHeardBirds}
+            </h3>
+            <h3 className="stat-value" style={{ color: '#EF9A9A' }}>
+              Not Found: {totalNotFoundBirds}
+            </h3>
           </div>
         </div>
       )}

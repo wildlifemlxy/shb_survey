@@ -8,12 +8,19 @@ class Map extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      windowWidth: window.innerWidth
+      windowWidth: window.innerWidth,
+      statistics: {
+        totalObservations: 0,
+        seen: 0,
+        heard: 0,
+        notFound: 0,
+      }
     };
   }
 
   componentDidMount() {
     window.addEventListener('resize', this.handleResize);
+    this.calculateStatistics(this.props.data);
   }
 
   componentWillUnmount() {
@@ -22,8 +29,33 @@ class Map extends Component {
 
   componentDidUpdate(prevProps) {
     if (prevProps.data !== this.props.data) {
-      console.log("Map Data Updated", this.props.data);
+      this.calculateStatistics(this.props.data);
     }
+  }
+
+  calculateStatistics(data) 
+  {
+    console.log("Statistic Data:", data);
+    let seen = 0;
+    let heard = 0;
+    let notFound = 0;
+
+    data.forEach(observation => {
+      if (observation["Seen/Heard"]) {
+        if (observation["Seen/Heard"].toLowerCase().includes("seen")) seen++;
+        else if (observation["Seen/Heard"].toLowerCase().includes("heard")) heard++;
+        else if (observation["Seen/Heard"].toLowerCase().includes("not found")) notFound++;
+      }
+    });
+
+    this.setState({
+      statistics: {
+        totalObservations: data.length,
+        seen,
+        heard,
+        notFound,
+      }
+    });
   }
 
   convertExcelTime(serial) {
@@ -62,20 +94,17 @@ class Map extends Component {
     return new L.DivIcon({
       html: `
         <div 
-          style="
-            background: ${gradient};
-            width: ${sizeMap[size]}px;
-            height: ${sizeMap[size]}px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
-            font-size: 0.75rem;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-          "
-        >
+          style="background: ${gradient};
+          width: ${sizeMap[size]}px;
+          height: ${sizeMap[size]}px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-weight: 600;
+          font-size: 0.75rem;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.3);">
           ${count}
         </div>
       `,
@@ -84,7 +113,6 @@ class Map extends Component {
     });
   };
 
-  // Define colors for each observation type, including "Not Found"
   getObservationColor = (observerName) => {
     const seenColor = "#A8E6CF";  // Green for "Seen"
     const heardColor = "#D1C4E9"; // Blue for "Heard"
@@ -108,27 +136,18 @@ class Map extends Component {
     return new L.DivIcon({
       html: `
         <div 
-          style="
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          "
-        >
+          style="width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;">
           <svg width="24" height="36" viewBox="0 0 24 36">
             <path 
               d="M12 0C5.383 0 0 5.383 0 12c0 9 12 24 12 24s12-15 12-24c0-6.617-5.383-12-12-12z"
               fill="${pinColor}"
               stroke="white"
-              stroke-width="1"
-            />
-            <circle 
-              cx="12" 
-              cy="12" 
-              r="5" 
-              fill="white" 
-            />
+              stroke-width="1" />
+            <circle cx="12" cy="12" r="5" fill="white" />
           </svg>
         </div>
       `,
@@ -192,12 +211,7 @@ class Map extends Component {
                       stroke="white"
                       stroke-width="1"
                     />
-                    <circle 
-                      cx="12" 
-                      cy="12" 
-                      r="5" 
-                      fill="white" 
-                    />
+                    <circle cx="12" cy="12" r="5" fill="white" />
                   </svg>
                 </div>
                 <span style={{ fontSize: '12px' }}>{item.type}</span>
@@ -234,6 +248,24 @@ class Map extends Component {
           </MarkerClusterGroup>
 
           <ZoomControl position="bottomright" />
+
+          {/* Statistics Panel */}
+          <div className="statistics-panel" style={{
+            position: 'absolute',
+            top: '10px',
+            left: '10px',
+            backgroundColor: 'white',
+            padding: '10px',
+            borderRadius: '5px',
+            boxShadow: '0 1px 5px rgba(0,0,0,0.4)',
+            zIndex: 1000
+          }}>
+            <h4>Statistics</h4>
+            <p style={{ color: '#8884d8' }}><strong>Total:</strong> {this.state.statistics.totalObservations}</p>
+            <p style={{ color: '#6DAE80' }}><strong>Seen:</strong> {this.state.statistics.seen}</p>
+            <p style={{ color: '#B39DDB' }}><strong>Heard:</strong> {this.state.statistics.heard}</p>
+            <p style={{ color: '#EF9A9A' }}p><strong>Not Found:</strong> {this.state.statistics.notFound}</p>
+          </div>
         </MapContainer>
       </div>
     );
