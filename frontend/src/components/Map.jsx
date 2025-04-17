@@ -84,10 +84,11 @@ class Map extends Component {
     });
   };
 
-  // Define colors for each observation type
+  // Define colors for each observation type, including "Not Found"
   getObservationColor = (observerName) => {
     const seenColor = "#32CD32";  // Green for "Seen"
     const heardColor = "#1E90FF"; // Blue for "Heard"
+    const notFoundColor = "#FF6347"; // Tomato for "Not Found"
     const defaultColor = "#FF0000"; // Red for default
 
     if (observerName) {
@@ -95,6 +96,8 @@ class Map extends Component {
         return seenColor;
       } else if (observerName.toLowerCase().includes("heard")) {
         return heardColor;
+      } else if (observerName.toLowerCase().includes("not found")) {
+        return notFoundColor;
       }
     }
     return defaultColor;
@@ -147,6 +150,7 @@ class Map extends Component {
     const observationTypes = [
       { type: "Seen", color: "#32CD32" },
       { type: "Heard", color: "#1E90FF" },
+      { type: "Not Found", color: "#FF6347" },
     ];
 
     return (
@@ -223,13 +227,15 @@ class Map extends Component {
                       <p><strong>Activity:</strong> {observation["Activity (foraging, preening, calling, perching, others)"]}</p>
                       <p><strong>Height of Tree:</strong> {observation["Height of tree/m"]}m</p>
                       <p><strong>Height of Bird:</strong> {observation["Height of bird/m"]}m</p>
-                      <p><strong>Number of Bird(s):</strong> {observation["Number of Birds"]}</p>
+                      <p><strong>Location Name:</strong> {observation['Location']}</p>
                     </div>
                   </Popup>
                 </Marker>
               ) : null
             ))}
           </MarkerClusterGroup>
+
+          <ZoomControl position="bottomright" />
         </MapContainer>
       </div>
     );

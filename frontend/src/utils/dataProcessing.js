@@ -92,10 +92,12 @@ export const getValidCoordinates = (data) => {
 export const countByMonthYear = (data) => {
   const seenCounts = {};
   const heardCounts = {};
+  const notFoundCounts = {};
 
   data.forEach(observation => {
     let date;
 
+    // Handle date conversion based on input format
     if (typeof observation.Date === 'number') {
       date = convertExcelSerialDate(observation.Date);
     } else if (typeof observation.Date === 'string' && observation.Date.includes('/')) {
@@ -103,9 +105,11 @@ export const countByMonthYear = (data) => {
       date = new Date(`${year}-${month}-${day}`);
     }
 
+    // Process only valid dates
     if (date instanceof Date && !isNaN(date)) {
       const monthYear = `${date.getMonth() + 1}-${date.getFullYear()}`;
 
+      // Count occurrences based on "Seen/Heard" field
       if (observation["Seen/Heard"] === 'Seen') {
         if (!seenCounts[monthYear]) {
           seenCounts[monthYear] = { monthYear, Seen: 0 };
@@ -116,23 +120,34 @@ export const countByMonthYear = (data) => {
           heardCounts[monthYear] = { monthYear, Heard: 0 };
         }
         heardCounts[monthYear].Heard++;
+      } else if (observation["Seen/Heard"] === 'Not found') {
+        if (!notFoundCounts[monthYear]) {
+          notFoundCounts[monthYear] = { monthYear, NotFound: 0 };
+        }
+        notFoundCounts[monthYear].NotFound++;
       }
     }
   });
 
-  // Merge seen and heard counts and calculate total
+  // Merge seen, heard, and not found counts and calculate total
   const result = [];
-  const allMonthYears = new Set([...Object.keys(seenCounts), ...Object.keys(heardCounts)]);
+  const allMonthYears = new Set([
+    ...Object.keys(seenCounts),
+    ...Object.keys(heardCounts),
+    ...Object.keys(notFoundCounts),
+  ]);
 
   allMonthYears.forEach(monthYear => {
     const seen = seenCounts[monthYear]?.Seen || 0;
     const heard = heardCounts[monthYear]?.Heard || 0;
-    const total = seen + heard;
+    const notFound = notFoundCounts[monthYear]?.NotFound || 0;
+    const total = seen + heard + notFound;
 
     result.push({
       monthYear,
       Seen: seen,
       Heard: heard,
+      NotFound: notFound,
       Total: total
     });
   });
@@ -154,7 +169,7 @@ export const countByLocation = (data) => {
 
     // Handle "Seen/Heard" field
     const heardSeen = observation["Seen/Heard"];
-    if (heardSeen !== 'Seen' && heardSeen !== 'Heard') {
+    if (heardSeen !== 'Seen' && heardSeen !== 'Heard' && heardSeen !== 'Not found') {
       console.warn("Skipping observation with invalid 'Seen/Heard' field:", observation);
       return;
     }
@@ -171,6 +186,13 @@ export const countByLocation = (data) => {
       }
       heardCounts[location].Heard++;
     }
+    // Add "Not found" to the heardCounts if applicable (optional, adjust as needed)
+    else if (heardSeen === 'Not found') {
+      if (!heardCounts[location]) {
+        heardCounts[location] = { location, NotFound: 0 };
+      }
+      heardCounts[location].NotFound++;
+    }
   });
 
   // Merge seen and heard counts for each location and calculate total
@@ -180,12 +202,14 @@ export const countByLocation = (data) => {
   allLocations.forEach(location => {
     const seen = seenCounts[location]?.Seen || 0;
     const heard = heardCounts[location]?.Heard || 0;
-    const total = seen + heard;
+    const notFound = heardCounts[location]?.NotFound || 0;
+    const total = seen + heard + notFound;
 
     result.push({
       location,
       Seen: seen,
       Heard: heard,
+      NotFound: notFound,
       Total: total
     });
   });

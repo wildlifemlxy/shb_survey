@@ -24,6 +24,7 @@ class LocationStats extends Component {
     showLegend: false,
     activeIndex: null,
     tooltipVisible: false,
+    expandedIndex: null, // Track the index of the clicked (expanded) statistic
   };
 
   toggleLegend = () => {
@@ -56,7 +57,7 @@ class LocationStats extends Component {
           cx={cx}
           cy={cy}
           innerRadius={innerRadius}
-          outerRadius={outerRadius + 10}
+          outerRadius={outerRadius + (this.state.activeIndex !== null ? 15 : 0)} // Expand radius when active
           startAngle={startAngle}
           endAngle={endAngle}
           fill={fill}
@@ -68,9 +69,8 @@ class LocationStats extends Component {
 
   renderCustomTooltip = ({ active, payload }) => {
     const { tooltipVisible } = this.state;
-    console.log("Payload:", payload);
     if ((active || tooltipVisible) && payload && payload.length) {
-      const { location, Seen, Heard, Total } = payload[0].payload;
+      const { location, Seen, Heard, NotFound, Total } = payload[0].payload;
       return (
         <div
           style={{
@@ -86,18 +86,119 @@ class LocationStats extends Component {
           <div><strong>{location}</strong></div>
           <div>Heard: {Heard}</div>
           <div>Seen: {Seen}</div>
+          <div>Not found: {NotFound}</div>
           <div>Total: {Total}</div>
         </div>
       );
     }
-
     return null;
   };
 
+renderStatistics = (locationData) => {
+  const { expandedIndex } = this.state;
+
+  const totalEntry = locationData.reduce(
+    (acc, curr) => ({
+      Total: acc.Total + curr.Total,
+      Seen: acc.Seen + curr.Seen,
+      Heard: acc.Heard + curr.Heard,
+      NotFound: acc.NotFound + curr.NotFound,
+    }),
+    { Total: 0, Seen: 0, Heard: 0, NotFound: 0 }
+  );
+
+  const totalExpanded = expandedIndex === 'total';
+
+  return (
+    <div
+      className="statistics-container"
+      style={{
+        maxHeight: '150px',
+        overflowY: 'auto',
+        marginTop: '1rem',
+        position: 'relative',
+      }}
+    >
+      {/* Sticky Total Row */}
+      <div
+        onClick={() =>
+          this.setState({ expandedIndex: totalExpanded ? null : 'total' })
+        }
+        style={{
+          position: 'sticky',
+          top: 0,
+          backgroundColor: totalExpanded ? '#f9f9f9' : '#fff',
+          zIndex: 1,
+          padding: '0.5rem',
+          borderBottom: '2px solid #000',
+          fontWeight: 'bold',
+          display: 'flex',
+          flexDirection: 'column',
+          cursor: 'pointer',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span>Total</span>
+          <span>{totalEntry.Total}</span>
+        </div>
+        {totalExpanded && (
+          <div style={{ marginTop: '0.5rem', fontWeight: 'normal' }}>
+            <div>Seen: {totalEntry.Seen}</div>
+            <div>Heard: {totalEntry.Heard}</div>
+            <div>Not Found: {totalEntry.NotFound}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Scrollable List */}
+      {locationData.map((entry, index) => {
+        const percentage = ((entry.Total / totalEntry.Total) * 100).toFixed(2);
+        const isExpanded = expandedIndex === index;
+
+        return (
+          <div
+            key={index}
+            onClick={() =>
+              this.setState({ expandedIndex: isExpanded ? null : index })
+            }
+            onMouseEnter={() =>
+              this.setState({ activeIndex: index, tooltipVisible: true })
+            }
+            onMouseLeave={() => this.setState({ tooltipVisible: false })}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              padding: '0.5rem',
+              borderBottom: '1px solid #ccc',
+              cursor: 'pointer',
+              backgroundColor: isExpanded ? '#f9f9f9' : 'transparent',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: COLORS[index % COLORS.length] }}>
+                {entry.location}
+              </span>
+              <span>
+                {entry.Total} ({percentage}%)
+              </span>
+            </div>
+            {isExpanded && (
+              <div style={{ marginTop: '0.5rem' }}>
+                <div>Seen: {entry.Seen}</div>
+                <div>Heard: {entry.Heard}</div>
+                <div>Not Found: {entry.NotFound}</div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+  
   render() {
     const { data } = this.props;
     const locationData = countByLocation(data);
-    console.log("Location Data:", locationData)
     const { showLegend, activeIndex } = this.state;
 
     return (
@@ -145,7 +246,7 @@ class LocationStats extends Component {
               {locationData.map((entry, index) => (
                 <li
                   key={index}
-                  onClick={() => this.handleLegendClick(index)}
+                  onClick={() => this.setState({ expandedIndex: index })}
                   onMouseEnter={() =>
                     this.setState({ activeIndex: index, tooltipVisible: true })
                   }
@@ -194,6 +295,7 @@ class LocationStats extends Component {
                     onMouseLeave={() =>
                       this.setState({ tooltipVisible: false })
                     }
+                    onClick={() => this.setState({ expandedIndex: index === expandedIndex ? null : index })}
                   />
                 ))}
               </Pie>
@@ -204,6 +306,9 @@ class LocationStats extends Component {
             </PieChart>
           </ResponsiveContainer>
         </div>
+
+        {/* Displaying the statistics below the pie chart */}
+        {this.renderStatistics(locationData)}
       </div>
     );
   }

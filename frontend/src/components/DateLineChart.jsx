@@ -38,6 +38,7 @@ class DateLineChart extends Component {
                     <div><strong>Observation(s)</strong></div>
                     <div>Heard: {props.payload.Heard}</div>
                     <div>Seen: {props.payload.Seen}</div>
+                    <div>Not Found: {props.payload.NotFound}</div>
                     <div>Total: {props.payload.Total}</div>
                   </div>
                 ];

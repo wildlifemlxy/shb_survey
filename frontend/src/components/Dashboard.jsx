@@ -141,12 +141,14 @@ class Dashboard extends Component {
         </div>
 
         {/* Stats are always visible */}
+        {(activeTab === 'dashboard' || window.innerWidth >= 1024) && (
         <div className="stats-grid">
           <div className="stats-summary">
             <h3>Total Observations</h3>
             <h3 className="stat-value">{filteredData.length}</h3>
             <h3 className="stat-value">Heard: {filteredData.filter(item => item["Seen/Heard"] === "Heard").length}</h3>
             <h3 className="stat-value">Seen: {filteredData.filter(item => item["Seen/Heard"] === "Seen").length}</h3>
+            <h3 className="stat-value">Not Found: {filteredData.filter(item => item["Seen/Heard"] === "Not found").length}</h3>
           </div>
           <div className="stats-summary">
             <h3>Unique Locations</h3>
@@ -157,6 +159,7 @@ class Dashboard extends Component {
             <h3 className="stat-value">{totalBirds}</h3>
           </div>
         </div>
+      )}
 
         {/* Dashboard View */}
         {(activeTab === 'dashboard' || window.innerWidth >= 1024) && (
