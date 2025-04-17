@@ -176,14 +176,14 @@ renderStatistics = (locationData) => {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: COLORS[index % COLORS.length] }}>
-                {entry.location}
+                <strong>{entry.location}</strong>
               </span>
-              <span>
-                {entry.Total} ({percentage}%)
+              <span style={{ color: COLORS[index % COLORS.length] }}>
+                <strong>{entry.Total} ({percentage}%)</strong>
               </span>
             </div>
             {isExpanded && (
-              <div style={{ marginTop: '0.5rem' }}>
+              <div style={{ marginTop: '0.5rem ', color: COLORS[index % COLORS.length] }}>
                 <div>Seen: {entry.Seen}</div>
                 <div>Heard: {entry.Heard}</div>
                 <div>Not Found: {entry.NotFound}</div>
