@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@react-google-maps/api": "^2.20.6",
+    "@tensorflow/tfjs": "^4.22.0",
     "ag-grid-community": "^33.2.3",
     "ag-grid-react": "^33.2.3",
     "axios": "^1.8.4",

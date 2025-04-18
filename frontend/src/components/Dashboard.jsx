@@ -4,6 +4,7 @@ import DateLineChart from './DateLineChart';
 import LocationStats from './LocationStats';
 import ObservationTable from './ObservationTable';
 import D3TreeHeightChart from './D3TreeHeightChart';
+import ActivityPredictorClass from "./ActivityPredictorClass";
 import { getValidCoordinates, getUniqueLocations, getUniqueActivity } from '../utils/dataProcessing';
 
 class Dashboard extends Component {
@@ -120,6 +121,12 @@ class Dashboard extends Component {
             Map
           </button>
           <button 
+            className={`nav-tab ${activeTab === 'AI' ? 'active' : ''}`}
+            onClick={() => this.setActiveTab('AI')}
+          >
+            AI
+          </button>
+          <button 
             className={`nav-tab ${activeTab === 'data' ? 'active' : ''}`}
             onClick={() => this.setActiveTab('data')}
           >
@@ -221,6 +228,12 @@ class Dashboard extends Component {
           <div className="map-section mb-20">
             <h2>Observation Map</h2>
             <Map data={validCoordinates} />
+          </div>
+        )}
+
+        {(activeTab === 'AI' || window.innerWidth >= 1024)  && (
+          <div>
+            <ActivityPredictorClass />
           </div>
         )}
 
