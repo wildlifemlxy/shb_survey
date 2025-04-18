@@ -43,6 +43,7 @@ class DateLineChart extends Component {
     anomalies: [],
     isLoadingML: false,
     showMLPanel: false,
+    showReportPanel: false,
     modelTrained: false,
     trainingProgress: 0,
     activeTab: 'population'  // 'population' or 'anomaly'
@@ -759,10 +760,128 @@ class DateLineChart extends Component {
       </div>
     );
   };
+
+  // Add these methods to the DateLineChart class
+  generateReport = () => {
+    const { data } = this.props;
+    const dateData = countByMonthYear(data);
+    const { mlInsights, anomalies } = this.state;
+  };
+
+  renderReport = () => {
+    const { data } = this.props;
+    const dateData = countByMonthYear(data);
+    const { mlInsights, anomalies } = this.state;
+    
+    // Format month-year as "Month YYYY"
+    const formatMonthYear = (monthYear) => {
+      const [month, year] = monthYear.split('-');
+      const monthNames = ["January", "February", "March", "April", "May", "June", 
+                        "July", "August", "September", "October", "November", "December"];
+      return `${monthNames[parseInt(month) - 1]} ${year}`;
+    };
+    
+    // Summary statistics
+    const totalEntry = dateData.reduce(
+      (acc, curr) => ({
+        Total: acc.Total + curr.Total,
+        Seen: acc.Seen + curr.Seen,
+        Heard: acc.Heard + curr.Heard,
+        NotFound: acc.NotFound + curr.NotFound,
+      }),
+      { Total: 0, Seen: 0, Heard: 0, NotFound: 0 }
+    );
+    
+    return (
+      <div className="report-container" style={{ 
+        padding: '1rem',
+        backgroundColor: 'white',
+        border: '1px solid #e2e8f0',
+        borderRadius: '6px',
+        maxHeight: '500px',
+        overflowY: 'auto'
+      }}>
+        <h4 style={{ marginTop: 0, color: '#2d3748', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
+          Observation Data Report
+        </h4>
+        <div style={{ color: '#718096', marginBottom: '1rem', fontSize: '0.9rem' }}>
+          Generated on {new Date().toLocaleDateString()}
+        </div>
+        
+        {/* Summary Statistics */}
+        <h5 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>Summary Statistics</h5>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(4, 1fr)', 
+          gap: '1rem', 
+          marginBottom: '1.5rem',
+          padding: '0.5rem',
+          backgroundColor: '#f7fafc',
+          borderRadius: '4px'
+        }}>
+          <div>
+            <div style={{ fontWeight: 'bold', fontSize: '1.5rem', color: '#6366F1' }}>{totalEntry.Total}</div>
+            <div style={{ color: '#718096' }}>Total Observations</div>
+          </div>
+          <div>
+            <div style={{ fontWeight: 'bold', fontSize: '1.5rem', color: '#A8E6CF' }}>{totalEntry.Seen}</div>
+            <div style={{ color: '#718096' }}>Seen ({Math.round(totalEntry.Seen / totalEntry.Total * 100)}%)</div>
+          </div>
+          <div>
+            <div style={{ fontWeight: 'bold', fontSize: '1.5rem', color: '#D1C4E9' }}>{totalEntry.Heard}</div>
+            <div style={{ color: '#718096' }}>Heard ({Math.round(totalEntry.Heard / totalEntry.Total * 100)}%)</div>
+          </div>
+          <div>
+            <div style={{ fontWeight: 'bold', fontSize: '1.5rem', color: '#FFCDD2' }}>{totalEntry.NotFound}</div>
+            <div style={{ color: '#718096' }}>Not Found ({Math.round(totalEntry.NotFound / totalEntry.Total * 100)}%)</div>
+          </div>
+        </div>
+        
+        {/* Monthly Breakdown */}
+        <h5 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>Monthly Breakdown</h5>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#f7fafc', borderBottom: '2px solid #e2e8f0' }}>
+                <th style={{ padding: '0.75rem', textAlign: 'left' }}>Month</th>
+                <th style={{ padding: '0.75rem', textAlign: 'right' }}>Total</th>
+                <th style={{ padding: '0.75rem', textAlign: 'right' }}>Seen</th>
+                <th style={{ padding: '0.75rem', textAlign: 'right' }}>Heard</th>
+                <th style={{ padding: '0.75rem', textAlign: 'right' }}>Not Found</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dateData.map((entry, idx) => (
+                <tr key={idx} style={{ 
+                  borderBottom: '1px solid #e2e8f0',
+                  backgroundColor: idx % 2 === 0 ? 'white' : '#f7fafc',
+                  // Highlight anomalies with a subtle left border
+                  ...(anomalies && anomalies.some(a => a.date === entry.monthYear) 
+                    ? { borderLeft: '3px solid #FC8181' } 
+                    : {})
+                }}>
+                  <td style={{ padding: '0.75rem' }}>
+                    {formatMonthYear(entry.monthYear)}
+                    {anomalies && anomalies.some(a => a.date === entry.monthYear) && (
+                      <span role="img" aria-label="warning" style={{marginLeft: '5px', fontSize: '0.8rem'}}>⚠️</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 'bold' }}>{entry.Total}</td>
+                  <td style={{ padding: '0.75rem', textAlign: 'right' }}>{entry.Seen}</td>
+                  <td style={{ padding: '0.75rem', textAlign: 'right' }}>{entry.Heard}</td>
+                  <td style={{ padding: '0.75rem', textAlign: 'right' }}>{entry.NotFound}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
   
   render() {
     const { data } = this.props;
-    const { showMLPanel, predictions, anomalies } = this.state;
+    const { showMLPanel, predictions, anomalies, showReportPanel } = this.state;
     let dateData = countByMonthYear(data);
     
     // If we have predictions, append them to the chart data
@@ -787,6 +906,8 @@ class DateLineChart extends Component {
       }
     }
 
+    
+
     return (
       <div className="chart-container">
         <div style={{
@@ -799,6 +920,7 @@ class DateLineChart extends Component {
           <button
             onClick={() => this.setState(prevState => ({ 
               showMLPanel: !prevState.showMLPanel,
+              showReportPanel: false,
               // Initialize TensorFlow when panel is first shown
               isLoadingML: !prevState.showMLPanel && !prevState.modelTrained 
             }))}
@@ -817,6 +939,26 @@ class DateLineChart extends Component {
           >
             <span role="img" aria-label="AI">🧠</span>
             {showMLPanel ? 'Hide Insight' : 'Show Insight'}
+          </button>
+          <button
+            onClick={() => this.setState(prevState => ({ 
+              showMLPanel: false,     
+              showReportPanel: !prevState.showReportPanel,
+            }))}
+            style={{
+              background: showReportPanel ? '#EDF2F7' : '#6366F1',
+              color: showReportPanel ? '#4A5568' : 'white',
+              border: 'none',
+              padding: '0.5rem 1rem',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem'
+            }}
+          >
+            Generate Report
           </button>
         </div>
 
@@ -936,10 +1078,11 @@ class DateLineChart extends Component {
         </ResponsiveContainer>
 
         {/* Render ML Analysis Panel */}
-        {this.renderMLPanel()}
+        { this.state.showMLPanel === true && this.state.showReportPanel === false && this.renderMLPanel()}
+        {this.state.showMLPanel === false && this.state.showReportPanel === true && this.renderReport()}
 
         {/* Render Statistics Below the Chart */}
-        {this.renderStatistics(dateData.filter(item => !item.isPrediction))} {/* Exclude predictions from statistics */}
+        {/*this.state.showReportPanel === false &&*/ this.renderStatistics(dateData.filter(item => !item.isPrediction))} {/* Exclude predictions from statistics */}
       </div>
     );
   }
