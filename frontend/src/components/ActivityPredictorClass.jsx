@@ -1,404 +1,933 @@
 import React, { Component } from 'react';
+import chroma from 'chroma-js';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { countByMonthYear } from '../utils/dataProcessing';
 import * as tf from '@tensorflow/tfjs';
-import * as XLSX from 'xlsx';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 
-const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSAL_sN7qwE1seWkiDF-TAl-T_s-gtuV9F6XQiKLOQ03ru-5DVwf-uRsZ0HjKlOyA/pub?output=xlsx';
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
 
-// Singapore coordinates for center of map
-const singaporeCenter = [1.3521, 103.8198];
-
-class ActivityPredictorClass extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      model: null,
-      activityMap: {},
-      locations: [],
-      newLocationPredictions: [], // Locations with predictions
-      isLoading: true,
-      error: null,
-      bounds: {
-        minLat: 1.2, maxLat: 1.5,  // Singapore latitude range
-        minLon: 103.6, maxLon: 104.1 // Singapore longitude range
-      }
+    const tooltipStyles = {
+      heard: { color: '#D1C4E9' },
+      seen: { color: '#A8E6CF' },
+      NotFound: { color: '#FFCDD2' },
+      total: { color: '#8884d8' }
     };
-  }
 
-  // Load and Train TensorFlow Model
-  async componentDidMount() {
-    await this.loadAndTrainModel();
-  }
-
-  async loadAndTrainModel() {
-    try {
-      const response = await fetch(SHEET_URL);
-      const buffer = await response.arrayBuffer();
-      const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(sheet);
-      
-      jsonData.splice(0, 1); // Remove header row
-
-      const processedData = this.preprocessData(jsonData);
-      const inputs = processedData.map(d => [d.Lat, d.Long]);
-      
-      // Make sure we're using the right property name for activities
-      const allActivities = [...new Set(processedData.map(d => d.Activity).filter(Boolean))];
-      
-      console.log('Unique activities:', allActivities);
-      
-      // Check if we have enough unique activities for classification
-      if (allActivities.length < 2) {
-        console.error('Not enough unique activities for classification (need at least 2)');
-        // Add default activities if there aren't enough
-        if (allActivities.length === 0) {
-          allActivities.push('Unknown', 'Default');
-        } else {
-          allActivities.push('Other');
-        }
-        console.log('Added default activities. Updated activities:', allActivities);
-      }
-      
-      const activityMap = this.createActivityMap(allActivities);
-      console.log('Activity map:', activityMap);
-      
-      const labels = processedData.map(d => activityMap[d.Activity] ?? 0);
-      console.log('Labels:', labels);
-
-      // Calculate bounds for future predictions from actual data
-      const bounds = this.calculateDataBounds(processedData);
-
-      const xs = tf.tensor2d(inputs, [inputs.length, 2], 'float32');
-      // Change from float32 to int32 for categorical labels
-      const ys = tf.tensor1d(labels, 'float32');
-
-      const model = tf.sequential();
-      model.add(tf.layers.dense({ inputShape: [2], units: 16, activation: 'relu' }));
-      model.add(tf.layers.dense({ units: 8, activation: 'relu' }));
-      model.add(tf.layers.dense({ units: allActivities.length, activation: 'softmax' }));
-
-      model.compile({
-        optimizer: tf.train.adam(),
-        loss: 'sparseCategoricalCrossentropy',
-        metrics: ['accuracy'],
-      });
-
-      await model.fit(xs, ys, { 
-        epochs: 50, 
-        validationSplit: 0.2, 
-        shuffle: true,
-        callbacks: {
-          onEpochEnd: (epoch, logs) => {
-            console.log(`Epoch ${epoch}: loss = ${logs.loss.toFixed(4)}, accuracy = ${logs.acc.toFixed(4)}`);
-          }
-        }
-      });
-
-      this.setState({
-        model,
-        activityMap: this.reverseActivityMap(activityMap),
-        locations: this.getUniqueLocations(processedData),
-        isLoading: false,
-        bounds
-      }, () => {
-        // Generate and predict activities for dynamic locations
-        this.generateDynamicLocations();
-      });
-    } catch (error) {
-      console.error('Error loading or training model:', error);
-      console.error('Error details:', error.stack);
-      this.setState({
-        isLoading: false,
-        error: 'Failed to load or train model. Please try refreshing the page.'
-      });
-    }
-  }
-
-  calculateDataBounds(data) {
-    const lats = data.map(item => item.Lat);
-    const longs = data.map(item => item.Long);
-    
-    return {
-      minLat: Math.min(...lats),
-      maxLat: Math.max(...lats),
-      minLon: Math.min(...longs),
-      maxLon: Math.max(...longs)
+    const formatLabel = (label) => {
+      const [month, year] = label.split('-');
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return `${monthNames[parseInt(month) - 1]} ${year}`;
     };
-  }
 
-  generateDynamicLocations() {
-    const { bounds, dynamicLocations = [] } = this.state;  // Ensure dynamicLocations is initialized as an empty array
-    const { minLat, maxLat, minLon, maxLon } = bounds;
-  
-    // Check if the bounds have changed or if dynamic locations need to be regenerated
-    if (!this.hasBoundsChanged(bounds) && dynamicLocations.length > 0) {
-      // If bounds haven't changed and dynamic locations exist, no need to regenerate
-      return;
-    }
-  
-    // Generate 5 dynamic locations within the bounds of existing data
-    const newDynamicLocations = [];
-    const locationNames = [
-      'Northern District',
-      'Eastern Area',
-      'Southern Region',
-      'Western Zone',
-      'Central District'
-    ];
-  
-    for (let i = 0; i < 5; i++) {
-      // Generate random locations within the data bounds
-      const padding = 0.02; // Add padding to avoid edge cases
-      const lat = minLat + padding + (Math.random() * (maxLat - minLat - (padding * 2)));
-      const lon = minLon + padding + (Math.random() * (maxLon - minLon - (padding * 2)));
-  
-      // To add more realistic clustering, apply a slight bias to the location
-      const latVariation = (Math.random() - 0.5) * 0.015; // Slight bias to avoid uniformity
-      const lonVariation = (Math.random() - 0.5) * 0.015;
-  
-      const adjustedLat = lat + latVariation;
-      const adjustedLon = lon + lonVariation;
-  
-      // Assign a name to the area based on the location (smarter naming logic)
-      let name = locationNames[i] || `Area ${i + 1}`;
-  
-      // If you have specific regions or clusters, you can refine the names based on regions
-      if (adjustedLat > 1.3) {
-        name = `North ${locationNames[i]}`;
-      } else if (adjustedLon < 103.8) {
-        name = `West ${locationNames[i]}`;
-      }
-  
-      // Add to dynamic locations
-      newDynamicLocations.push({ lat: adjustedLat, lon: adjustedLon, name });
-    }
-  
-    // Update state with new dynamic locations
-    this.setState({ dynamicLocations: newDynamicLocations });
-  
-    // Predict activities for all dynamic locations
-    newDynamicLocations.forEach(location => {
-      // Pass in dynamic location name and other contextual information for smarter prediction
-      this.predictActivity(location.lat, location.lon, location.name);
-    });
-}
-  
-// Helper function to compare if bounds have changed
-hasBoundsChanged(newBounds) {
-    const { bounds } = this.state;
     return (
-        newBounds.minLat !== bounds.minLat ||
-        newBounds.maxLat !== bounds.maxLat ||
-        newBounds.minLon !== bounds.minLon ||
-        newBounds.maxLon !== bounds.maxLon
+      <div className="custom-tooltip" style={{ backgroundColor: '#fff', padding: '10px', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}>
+        <p><strong>{formatLabel(label)}</strong></p>
+        <p><strong>Observation(s):</strong></p>
+        <div style={tooltipStyles.total}><strong>Total:</strong> {data.Total}</div>
+        <div style={tooltipStyles.seen}><strong>Seen:</strong> {data.Seen}</div>
+        <div style={tooltipStyles.heard}><strong>Heard:</strong> {data.Heard}</div>
+        <div style={tooltipStyles.NotFound}><strong>Not Found:</strong> {data.NotFound}</div>
+      </div>
     );
-}
-
-  
-  preprocessData(data) {
-    return data.filter(row => row.Lat && row.Long).map(row => ({
-      Lat: this.convertToNumber(row.Lat),
-      Long: this.convertToNumber(row.Long),
-      Activity: (row.Activity && typeof row.Activity === 'string') ? row.Activity.split(',')[0].trim() : 'Unknown',
-      Time: this.convertExcelTimeTo24hr(row.Time),
-    }));
   }
+  return null;
+};
 
-  convertToNumber(value) {
-    return isNaN(parseFloat(value)) ? 0 : parseFloat(value);
-  }
+class DateLineChart extends Component {
+  state = {
+    expandedIndex: null,
+    mlInsights: null,
+    predictions: null,
+    anomalies: [],
+    isLoadingML: false,
+    showMLPanel: false,
+    modelTrained: false,
+    trainingProgress: 0,
+    activeTab: 'population'  // 'population' or 'anomaly'
+  };
 
-  convertExcelTimeTo24hr(excelTime) {
-    if (!excelTime || isNaN(excelTime)) {
-      return { hours: 0, minutes: 0 };
+  componentDidMount() {
+    // Initialize TensorFlow if ML panel is shown
+    if (this.state.showMLPanel) {
+      this.initTensorFlow();
     }
-    const hours = Math.floor(excelTime * 24);
-    const minutes = Math.round((excelTime * 24 - hours) * 60);
-    return { hours, minutes };
   }
 
-  createActivityMap(allActivities) {
-    return allActivities.reduce((map, activity, index) => {
-      map[activity] = index;
-      return map;
-    }, {});
+  componentDidUpdate(prevProps, prevState) {
+    // Initialize TensorFlow when ML panel is first shown
+    if (this.state.showMLPanel && !prevState.showMLPanel) {
+      this.initTensorFlow();
+    }
+    
+    // If data changes and model is trained, update predictions
+    if (this.props.data !== prevProps.data && this.state.modelTrained) {
+      this.runMachineLearningAnalysis();
+    }
   }
 
-  reverseActivityMap(activityMap) {
-    return Object.fromEntries(Object.entries(activityMap).map(([key, value]) => [value, key]));
-  }
+  // Initialize TensorFlow and prepare for analysis
+  initTensorFlow = async () => {
+    this.setState({ isLoadingML: true, trainingProgress: 5 });
+    
+    try {
+      // Wait for TF to be ready
+      await tf.ready();
+      this.setState({ trainingProgress: 10 });
+      console.log("TensorFlow.js is ready");
+      
+      // Run ML analysis
+      await this.runMachineLearningAnalysis();
+      
+    } catch (error) {
+      console.error("TensorFlow initialization error:", error);
+      this.setState({ 
+        mlInsights: ["Error initializing TensorFlow. Please try again."],
+        isLoadingML: false 
+      });
+    }
+  };
 
-  getUniqueLocations(data) {
-    const uniqueLocations = new Map();
-    data.forEach(record => {
-      const key = `${record.Lat.toFixed(6)},${record.Long.toFixed(6)}`;
-      if (!uniqueLocations.has(key)) {
-        uniqueLocations.set(key, { lat: record.Lat, lon: record.Long, visited: true });
-      }
-    });
-    return Array.from(uniqueLocations.values());
-  }
-
-  predictActivity(lat, lon, locationName = '') {
-    const { model, activityMap } = this.state;
-    if (!model) {
-      console.warn('Model is not loaded yet.');
+  // Main function to run all ML analyses
+  runMachineLearningAnalysis = async () => {
+    const { data } = this.props;
+    const dateData = countByMonthYear(data);
+    
+    if (!dateData || dateData.length < 3) {
+      this.setState({ 
+        mlInsights: ["Not enough data for meaningful machine learning analysis. Need at least 3 time periods."],
+        isLoadingML: false
+      });
       return;
     }
-
-    try {
-      const inputTensor = tf.tensor2d([[lat, lon]], [1, 2], 'float32');
-      const result = model.predict(inputTensor);
-      
-      // Get prediction probabilities for all classes
-      const probabilities = result.dataSync();
-      const predictedIndex = result.argMax(1).dataSync()[0];
-      const prediction = activityMap[predictedIndex] || 'Unknown Activity';
-      
-      // Get confidence level
-      const confidence = (probabilities[predictedIndex] * 100).toFixed(1);
-      
-      console.log(`Prediction for ${locationName || `[${lat}, ${lon}]`}: ${prediction} (${confidence}% confidence)`);
-
-      this.setState(prevState => ({
-        newLocationPredictions: [
-          ...prevState.newLocationPredictions,
-          { 
-            lat, 
-            lon, 
-            prediction, 
-            confidence,
-            visited: false, 
-            name: locationName 
-          }
-        ]
-      }));
-    } catch (error) {
-      console.error('Error making prediction:', error);
-    }
-  }
-
-  handleManualPrediction = () => {
-    const lat = parseFloat(this.latInput.value);
-    const lon = parseFloat(this.longInput.value);
-    const name = this.nameInput.value.trim();
     
-    if (!isNaN(lat) && !isNaN(lon)) {
-      this.predictActivity(lat, lon, name);
-      this.latInput.value = '';
-      this.longInput.value = '';
-      this.nameInput.value = '';
+    try {
+      this.setState({ isLoadingML: true, trainingProgress: 15 });
+      
+      // Run population trend analysis
+      const populationInsights = await this.runPopulationAnalysis(dateData);
+      this.setState({ trainingProgress: 50 });
+      
+      // Run anomaly detection
+      const anomalyResults = await this.runAnomalyDetection(dateData);
+      this.setState({ trainingProgress: 85 });
+      
+      // Combine insights
+      const allInsights = [
+        ...populationInsights,
+        ...anomalyResults.insights
+      ];
+      
+      this.setState({ 
+        mlInsights: allInsights,
+        anomalies: anomalyResults.anomalies,
+        modelTrained: true,
+        isLoadingML: false,
+        trainingProgress: 100
+      });
+      
+    } catch (error) {
+      console.error("ML analysis error:", error);
+      this.setState({ 
+        mlInsights: ["Error during machine learning analysis. Please try again."],
+        isLoadingML: false 
+      });
     }
-  }
+  };
 
-  handleMarkerClick(lat, lon) {
-    const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lon}`;
-    window.open(googleMapsUrl, '_blank');
-  }
+  // Population trend analysis using time series forecasting
+  runPopulationAnalysis = async (dateData) => {
+    // Prepare time series data for TensorFlow
+    const timeSeriesData = dateData.map((entry, index) => ({
+      x: index,  // Use index as time step
+      y: entry.Total  // Total observations as target value
+    }));
+    
+    // Progress update
+    this.setState({ trainingProgress: 20 });
+    
+    // Convert to tensors
+    const xs = tf.tensor2d(timeSeriesData.map(d => [d.x]), [timeSeriesData.length, 1]);
+    const ys = tf.tensor2d(timeSeriesData.map(d => [d.y]), [timeSeriesData.length, 1]);
+    
+    // Normalize data
+    const xMin = xs.min();
+    const xMax = xs.max();
+    const yMin = ys.min();
+    const yMax = ys.max();
+    
+    const xsNorm = xs.sub(xMin).div(xMax.sub(xMin));
+    const ysNorm = ys.sub(yMin).div(yMax.sub(yMin));
+    
+    // Progress update
+    this.setState({ trainingProgress: 25 });
+    
+    // Create and train the model
+    const model = tf.sequential();
+    
+    model.add(tf.layers.dense({
+      inputShape: [1],
+      units: 10,
+      activation: 'relu'
+    }));
+    
+    model.add(tf.layers.dense({
+      units: 1
+    }));
+    
+    model.compile({
+      optimizer: tf.train.adam(0.1),
+      loss: 'meanSquaredError'
+    });
+    
+    // Progress update
+    this.setState({ trainingProgress: 30 });
+    
+    // Train the model
+    await model.fit(xsNorm, ysNorm, {
+      epochs: 100,
+      callbacks: {
+        onEpochEnd: (epoch, logs) => {
+          // Update progress every 10 epochs
+          if (epoch % 10 === 0) {
+            const progress = 30 + Math.floor((epoch / 100) * 10);
+            this.setState({ trainingProgress: progress });
+          }
+        }
+      }
+    });
+    
+    // Progress update
+    this.setState({ trainingProgress: 40 });
+    
+    // Generate predictions for the next 3 time periods
+    const lastX = timeSeriesData.length - 1;
+    const predictionInputs = tf.tensor2d([[lastX + 1], [lastX + 2], [lastX + 3]]);
+    
+    // Normalize prediction inputs
+    const predInputsNorm = predictionInputs.sub(xMin).div(xMax.sub(xMin));
+    
+    // Get predictions
+    const predictionsNorm = model.predict(predInputsNorm);
+    
+    // Denormalize predictions
+    const predictions = predictionsNorm.mul(yMax.sub(yMin)).add(yMin);
+    const predictionValues = await predictions.array();
+    
+    // Extract prediction values and create forecast data
+    const forecastData = predictionValues.map((val, index) => {
+      // Create date labels for forecasted months
+      const lastDate = dateData[dateData.length - 1].monthYear;
+      const [lastMonth, lastYear] = lastDate.split('-').map(Number);
+      
+      let forecastMonth = lastMonth + index + 1;
+      let forecastYear = lastYear;
+      
+      // Handle year rollover
+      while (forecastMonth > 12) {
+        forecastMonth -= 12;
+        forecastYear += 1;
+      }
+      
+      return {
+        monthYear: `${forecastMonth}-${forecastYear}`, 
+        Total: Math.round(val[0]),
+        isPrediction: true
+      };
+    });
+    
+    // Store predictions in state
+    this.setState({ predictions: forecastData });
+    
+    // Generate insights
+    const insights = [];
+    
+    // Calculate trend
+    const firstHalf = dateData.slice(0, Math.floor(dateData.length / 2));
+    const secondHalf = dateData.slice(Math.floor(dateData.length / 2));
+    
+    const firstHalfAvg = firstHalf.reduce((sum, item) => sum + item.Total, 0) / firstHalf.length;
+    const secondHalfAvg = secondHalf.reduce((sum, item) => sum + item.Total, 0) / secondHalf.length;
+    
+    // Predict future trend based on ML forecast
+    const currentAvg = dateData.slice(-3).reduce((sum, item) => sum + item.Total, 0) / 3;
+    const forecastAvg = forecastData.reduce((sum, item) => sum + item.Total, 0) / forecastData.length;
+    
+    const trendPercent = ((forecastAvg - currentAvg) / currentAvg * 100).toFixed(1);
+    
+    if (Math.abs(trendPercent) < 5) {
+      insights.push("ML Analysis: Population is predicted to remain stable over the next 3 months.");
+    } else if (trendPercent > 0) {
+      insights.push(`ML Analysis: Population is predicted to increase by approximately ${trendPercent}% over the next 3 months.`);
+    } else {
+      insights.push(`ML Analysis: Population is predicted to decrease by approximately ${Math.abs(trendPercent)}% over the next 3 months.`);
+    }
+    
+    // Add specific month predictions
+    insights.push(`ML Forecast: Next 3 months predicted observation counts: ${forecastData.map(d => Math.round(d.Total)).join(', ')}`);
+    
+    // Cleanup tensors to prevent memory leaks
+    xs.dispose();
+    ys.dispose();
+    xsNorm.dispose();
+    ysNorm.dispose();
+    predInputsNorm.dispose();
+    predictionsNorm.dispose();
+    model.dispose();
+    
+    return insights;
+  };
 
-  render() {
-    const { locations, newLocationPredictions, isLoading, error } = this.state;
+  // Anomaly detection using Isolation Forest approach (simplified for TF.js)
+  runAnomalyDetection = async (dateData) => {
+    // Progress update
+    this.setState({ trainingProgress: 60 });
+    
+    const insights = [];
+    const anomalies = [];
+    
+    // Extract features for anomaly detection
+    const features = dateData.map(entry => [
+      entry.Total,
+      entry.Seen / (entry.Total || 1),  // Prevent division by zero
+      entry.Heard / (entry.Total || 1),
+      entry.NotFound / (entry.Total || 1)
+    ]);
+    
+    // Convert to tensor
+    const featureTensor = tf.tensor2d(features);
+    
+    // Progress update
+    this.setState({ trainingProgress: 65 });
+    
+    // Normalize features
+    const featureMean = featureTensor.mean(0);
+    const featureStd = featureTensor.std(0);
+    const normalizedFeatures = featureTensor.sub(featureMean).div(featureStd);
+    
+    // Progress update
+    this.setState({ trainingProgress: 70 });
+    
+    // Create a simple autoencoder for anomaly detection
+    const inputDim = features[0].length;
+    
+    const encoder = tf.sequential();
+    encoder.add(tf.layers.dense({
+      inputShape: [inputDim],
+      units: 2,
+      activation: 'relu'
+    }));
+    
+    const decoder = tf.sequential();
+    decoder.add(tf.layers.dense({
+      inputShape: [2],
+      units: inputDim,
+      activation: 'sigmoid'
+    }));
+    
+    const autoencoder = tf.sequential();
+    autoencoder.add(encoder);
+    autoencoder.add(decoder);
+    
+    autoencoder.compile({
+      optimizer: 'adam',
+      loss: 'meanSquaredError'
+    });
+    
+    // Progress update
+    this.setState({ trainingProgress: 75 });
+    
+    // Train autoencoder
+    await autoencoder.fit(normalizedFeatures, normalizedFeatures, {
+      epochs: 50,
+      batchSize: 4,
+      shuffle: true,
+      callbacks: {
+        onEpochEnd: (epoch, logs) => {
+          if (epoch % 10 === 0) {
+            const progress = 75 + Math.floor((epoch / 50) * 5);
+            this.setState({ trainingProgress: progress });
+          }
+        }
+      }
+    });
+    
+    // Progress update
+    this.setState({ trainingProgress: 80 });
+    
+    // Predict and calculate reconstruction error
+    const predictions = autoencoder.predict(normalizedFeatures);
+    const reconstructionErrors = tf.losses.meanSquaredError(
+      normalizedFeatures, 
+      predictions
+    );
+    
+    const errors = await reconstructionErrors.array();
+    
+    // Find anomalies (points with high reconstruction error)
+    const meanError = errors.reduce((sum, val) => sum + val, 0) / errors.length;
+    const stdError = Math.sqrt(
+      errors.reduce((sum, val) => sum + Math.pow(val - meanError, 2), 0) / errors.length
+    );
+    
+    // Threshold for anomaly (2 standard deviations from mean)
+    const anomalyThreshold = meanError + (2 * stdError);
+    
+    // Identify anomalies
+    errors.forEach((error, index) => {
+      if (error > anomalyThreshold) {
+        anomalies.push({
+          index,
+          date: dateData[index].monthYear,
+          score: error,
+          data: dateData[index]
+        });
+      }
+    });
+    
+    // Generate insights
+    if (anomalies.length === 0) {
+      insights.push("ML Anomaly Detection: No significant anomalies detected in the observation patterns.");
+    } else {
+      // Format the anomaly insights
+      const formatMonthYear = (monthYear) => {
+        const [month, year] = monthYear.split('-');
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        return `${monthNames[parseInt(month) - 1]} ${year}`;
+      };
+      
+      insights.push(`ML Anomaly Detection: ${anomalies.length} unusual observation pattern${anomalies.length > 1 ? 's' : ''} detected.`);
+      
+      // Add details about the most significant anomaly
+      if (anomalies.length > 0) {
+        // Sort anomalies by score (highest first)
+        anomalies.sort((a, b) => b.score - a.score);
+        
+        const topAnomaly = anomalies[0];
+        insights.push(`Most significant anomaly: ${formatMonthYear(topAnomaly.date)} with unusual distribution of observation types.`);
+      }
+    }
+    
+    // Cleanup tensors
+    featureTensor.dispose();
+    normalizedFeatures.dispose();
+    predictions.dispose();
+    reconstructionErrors.dispose();
+    featureMean.dispose();
+    featureStd.dispose();
+    autoencoder.dispose();
+    
+    return { insights, anomalies };
+  };
 
-    if (isLoading) {
-      return (
-        <div style={{ padding: '2rem', textAlign: 'center' }}>
-          <h2>Location Predictor</h2>
-          <div style={{ marginTop: '2rem' }}>
-            <p>Loading and training model... This may take a moment.</p>
-            <div style={{ width: '50%', margin: '0 auto', backgroundColor: '#eee', borderRadius: '8px' }}>
-              <div style={{ width: '100%', height: '20px', backgroundColor: '#4CAF50', borderRadius: '8px', animation: 'pulse 1.5s infinite ease-in-out' }}></div>
+  renderStatistics = (locationData) => {
+    const { expandedIndex } = this.state;
+  
+    // Aggregating totals
+    const totalEntry = locationData.reduce(
+      (acc, curr) => ({
+        Total: acc.Total + curr.Total,
+        Seen: acc.Seen + curr.Seen,
+        Heard: acc.Heard + curr.Heard,
+        NotFound: acc.NotFound + curr.NotFound,
+      }),
+      { Total: 0, Seen: 0, Heard: 0, NotFound: 0 }
+    );
+  
+    const totalExpanded = expandedIndex === 'total';
+  
+    // Helper function to format month-year as "MMM YYYY"
+    const formatMonthYear = (monthYear) => {
+      const [month, year] = monthYear.split('-');
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return `${monthNames[parseInt(month) - 1]} ${year}`;
+    };
+  
+    // Dynamically generate a color palette based on the length of data
+    const colorPalette = chroma.scale('Set1')
+                                    .mode('hsl')
+                                    .colors(locationData.length);
+  
+    return (
+      <div className="statistics-container" style={{ maxHeight: '150px', overflowY: 'auto', marginTop: '1rem' }}>
+        {/* Sticky Total Row */}
+        <div
+          onClick={() => this.setState({ expandedIndex: totalExpanded ? null : 'total' })}
+          style={{
+            position: 'sticky',
+            top: 0,
+            backgroundColor: totalExpanded ? '#f9f9f9' : '#fff',
+            zIndex: 1,
+            padding: '0.5rem',
+            borderBottom: '2px solid #000',
+            fontWeight: 'bold',
+            display: 'flex',
+            flexDirection: 'column',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Total</span>
+            <span>{totalEntry.Total}</span>
+          </div>
+          {totalExpanded && (
+            <div style={{ marginTop: '0.5rem', fontWeight: 'normal' }}>
+              <div style={{ color: '#A8E6CF' }}><strong>Seen:</strong> {totalEntry.Seen}</div>
+              <div style={{ color: '#D1C4E9' }}><strong>Heard:</strong> {totalEntry.Heard}</div>
+              <div style={{ color: '#FFCDD2' }}><strong>Not Found:</strong> {totalEntry.NotFound}</div>
             </div>
-            <style>{`
-              @keyframes pulse {
-                0% { opacity: 0.6; }
-                50% { opacity: 1; }
-                100% { opacity: 0.6; }
-              }
-            `}</style>
+          )}
+        </div>
+  
+        {/* Render for each locationData */}
+        {locationData.map((entry, index) => {
+          const isExpanded = expandedIndex === entry.monthYear;
+          const labelColor = colorPalette[index % colorPalette.length];
+          
+          // Highlight anomalies
+          const isAnomaly = this.state.anomalies.some(anomaly => anomaly.date === entry.monthYear);
+          const rowStyle = {
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '0.5rem',
+            borderBottom: '1px solid #ccc',
+            cursor: 'pointer',
+            backgroundColor: isExpanded ? '#f9f9f9' : 'transparent',
+            ...(isAnomaly ? { border: '2px solid #FF6B6B', borderRadius: '4px' } : {})
+          };
+  
+          return (
+            <div
+              key={index}
+              onClick={() => this.setState({ expandedIndex: isExpanded ? null : entry.monthYear })}
+              style={rowStyle}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: labelColor }}>
+                  <strong>
+                    {formatMonthYear(entry.monthYear)}
+                    {isAnomaly && <span role="img" aria-label="warning" style={{marginLeft: '5px'}}>⚠️</span>}
+                  </strong>
+                </span>
+                <span><strong style={{ color: labelColor }}>{entry.Total}</strong></span>
+              </div>
+              {isExpanded && (
+                <div style={{ marginTop: '0.5rem' }}>
+                  <div style={{ color: labelColor }}><strong>Seen:</strong> {entry.Seen}</div>
+                  <div style={{ color: labelColor }}><strong>Heard:</strong> {entry.Heard}</div>
+                  <div style={{ color: labelColor }}><strong>Not Found:</strong> {entry.NotFound}</div>
+                  {isAnomaly && (
+                    <div style={{ color: '#FF6B6B', marginTop: '0.25rem' }}>
+                      <strong>⚠️ Anomaly detected by ML</strong>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Render ML panel with insights and controls
+  renderMLPanel = () => {
+    const { mlInsights, isLoadingML, trainingProgress, activeTab, predictions } = this.state;
+    
+    if (!this.state.showMLPanel) return null;
+    
+    return (
+      <div className="ml-panel" style={{ 
+        marginTop: '1.5rem', 
+        padding: '1rem',
+        backgroundColor: '#f8fafc',
+        borderRadius: '8px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        border: '1px solid #e2e8f0'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h3 style={{ margin: 0, color: '#2d3748' }}>
+            <span role="img" aria-label="AI">🧠</span> TensorFlow ML Analysis
+          </h3>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              onClick={() => this.setState({ activeTab: 'population' })}
+              style={{
+                background: activeTab === 'population' ? '#6366F1' : '#e2e8f0',
+                color: activeTab === 'population' ? 'white' : '#4a5568',
+                border: 'none',
+                padding: '0.4rem 0.8rem',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '0.9rem'
+              }}
+            >
+              Population Analysis
+            </button>
+            <button
+              onClick={() => this.setState({ activeTab: 'anomaly' })}
+              style={{
+                background: activeTab === 'anomaly' ? '#6366F1' : '#e2e8f0',
+                color: activeTab === 'anomaly' ? 'white' : '#4a5568',
+                border: 'none',
+                padding: '0.4rem 0.8rem',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '0.9rem'
+              }}
+            >
+              Anomaly Detection
+            </button>
           </div>
         </div>
-      );
+        
+        {isLoadingML ? (
+          <div>
+            <div style={{ marginBottom: '0.5rem' }}>Training TensorFlow model...</div>
+            <div 
+              style={{ 
+                height: '8px', 
+                width: '100%', 
+                backgroundColor: '#e2e8f0',
+                borderRadius: '4px',
+                overflow: 'hidden'
+              }}
+            >
+              <div 
+                style={{ 
+                  height: '100%', 
+                  width: `${trainingProgress}%`, 
+                  backgroundColor: '#6366F1',
+                  transition: 'width 0.3s ease-in-out'
+                }}
+              />
+            </div>
+            <div style={{ marginTop: '0.4rem', fontSize: '0.9rem', color: '#718096' }}>
+              {trainingProgress}% complete
+            </div>
+          </div>
+        ) : (
+          <div>
+            {activeTab === 'population' && (
+              <div>
+                <h4 style={{ marginTop: 0, color: '#4a5568' }}>Population Trend Analysis</h4>
+                {mlInsights && mlInsights.filter(insight => insight.includes('ML Analysis') || insight.includes('Forecast')).length > 0 ? (
+                  <>
+                    <ul style={{ paddingLeft: '1.5rem', margin: '0.5rem 0' }}>
+                      {mlInsights
+                        .filter(insight => insight.includes('ML Analysis') || insight.includes('Forecast'))
+                        .map((insight, idx) => (
+                          <li key={idx} style={{ marginBottom: '0.5rem' }}>{insight}</li>
+                        ))}
+                    </ul>
+                    
+                    {/* Display predictions as a small table */}
+                    {predictions && predictions.length > 0 && (
+                      <div style={{ marginTop: '1rem' }}>
+                        <h5 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#4a5568' }}>Forecasted Observations</h5>
+                        <div style={{ display: 'flex', borderRadius: '4px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                          {predictions.map((pred, idx) => {
+                            const [month, year] = pred.monthYear.split('-');
+                            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                            
+                            return (
+                              <div 
+                                key={idx} 
+                                style={{ 
+                                  flex: 1, 
+                                  padding: '0.5rem', 
+                                  textAlign: 'center',
+                                  backgroundColor: idx % 2 === 0 ? '#f7fafc' : '#edf2f7',
+                                  borderRight: idx < predictions.length - 1 ? '1px solid #e2e8f0' : 'none'
+                                }}
+                              >
+                                <div style={{ fontWeight: 'bold', color: '#4a5568' }}>
+                                  {monthNames[parseInt(month) - 1]} {year}
+                                </div>
+                                <div style={{ marginTop: '0.25rem', color: '#6366F1', fontWeight: 'bold' }}>
+                                  {Math.round(pred.Total)}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p>No population insights available for the current data.</p>
+                )}
+              </div>
+            )}
+            
+            {activeTab === 'anomaly' && (
+              <div>
+                <h4 style={{ marginTop: 0, color: '#4a5568' }}>Anomaly Detection Results</h4>
+                {mlInsights && mlInsights.filter(insight => insight.includes('Anomaly')).length > 0 ? (
+                  <>
+                    <ul style={{ paddingLeft: '1.5rem', margin: '0.5rem 0' }}>
+                      {mlInsights
+                        .filter(insight => insight.includes('Anomaly'))
+                        .map((insight, idx) => (
+                          <li key={idx} style={{ marginBottom: '0.5rem' }}>{insight}</li>
+                        ))}
+                    </ul>
+                    
+                    {/* Display anomalies information */}
+                    {this.state.anomalies.length > 0 && (
+                      <div style={{ marginTop: '1rem' }}>
+                        <h5 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#4a5568' }}>Detected Anomalies</h5>
+                        <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '4px' }}>
+                          {this.state.anomalies.map((anomaly, idx) => {
+                            const [month, year] = anomaly.date.split('-');
+                            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                            
+                            return (
+                              <div 
+                                key={idx} 
+                                style={{ 
+                                  padding: '0.5rem', 
+                                  borderBottom: idx < this.state.anomalies.length - 1 ? '1px solid #e2e8f0' : 'none',
+                                  backgroundColor: idx % 2 === 0 ? '#f7fafc' : '#edf2f7',
+                                }}
+                              >
+                                <div style={{ fontWeight: 'bold', color: '#e53e3e' }}>
+                                  <span role="img" aria-label="warning" style={{marginRight: '5px'}}>⚠️</span>
+                                  {monthNames[parseInt(month) - 1]} {year}
+                                </div>
+                                <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem', fontSize: '0.9rem' }}>
+                                  <div><strong>Total:</strong> {anomaly.data.Total}</div>
+                                  <div><strong>Seen:</strong> {anomaly.data.Seen}</div>
+                                  <div><strong>Heard:</strong> {anomaly.data.Heard}</div>
+                                  <div><strong>Not Found:</strong> {anomaly.data.NotFound}</div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p>No anomalies detected in the current dataset.</p>
+                )}
+              </div>
+            )}
+            
+            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: '0.9rem', color: '#718096', fontStyle: 'italic' }}>
+                Powered by TensorFlow.js
+              </div>
+              <button 
+                onClick={this.runMachineLearningAnalysis}
+                style={{
+                  background: '#6366F1',
+                  color: 'white',
+                  border: 'none',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem'
+                }}
+              >
+                <span role="img" aria-label="refresh">🔄</span>
+                Retrain Model
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+  
+  render() {
+    const { data } = this.props;
+    const { showMLPanel, predictions, anomalies } = this.state;
+    let dateData = countByMonthYear(data);
+    
+    // If we have predictions, append them to the chart data
+    if (predictions && predictions.length > 0) {
+      // Create a copy of the original data
+      const combinedData = [...dateData];
+      
+      // Add predictions with visual distinction
+      predictions.forEach(pred => {
+        combinedData.push({
+          ...pred,
+          Seen: Math.round(pred.Total * 0.6),  // Estimate based on typical distribution
+          Heard: Math.round(pred.Total * 0.3),
+          NotFound: Math.round(pred.Total * 0.1),
+          isPrediction: true  // Flag for styling
+        });
+      });
+      
+      dateData = combinedData;
     }
 
     return (
-      <div style={{ padding: '2rem' }}>
-        <h2>Location Predictor</h2>
-        <div style={{ marginTop: '2rem', height: '400px' }}>
-          <MapContainer 
-            center={singaporeCenter}
-            zoom={11}
-            style={{ height: '100%', width: '100%' }}
-            minZoom={11}
-            zoomControl={false}
-            attributionControl={false}
-            dragging={true}
-            scrollWheelZoom={true}
-            doubleClickZoom={true}
-            maxBoundsViscosity={1.0}
+      <div className="chart-container">
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '1rem'
+        }}>
+          <h2>Observations Over Time (Monthly)</h2>
+          <button
+            onClick={() => this.setState(prevState => ({ 
+              showMLPanel: !prevState.showMLPanel,
+              // Initialize TensorFlow when panel is first shown
+              isLoadingML: !prevState.showMLPanel && !prevState.modelTrained 
+            }))}
+            style={{
+              background: showMLPanel ? '#EDF2F7' : '#6366F1',
+              color: showMLPanel ? '#4A5568' : 'white',
+              border: 'none',
+              padding: '0.5rem 1rem',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem'
+            }}
           >
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            {locations.map((location, index) => (
-              <Marker
-                key={`visited-${index}`}
-                position={[location.lat, location.lon]}
-                icon={new L.Icon({ 
-                  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-                  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-                  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-                  iconSize: [25, 41],
-                  iconAnchor: [12, 41],
-                  popupAnchor: [1, -34],
-                  shadowSize: [41, 41]
-                })}
-                eventHandlers={{ click: () => this.handleMarkerClick(location.lat, location.lon) }}
-              >
-                <Popup>{`Lat: ${location.lat.toFixed(6)}, Lon: ${location.lon.toFixed(6)}`}</Popup>
-              </Marker>
-            ))}
-            {newLocationPredictions.map((location, index) => (
-              <Marker
-                key={`prediction-${index}`}
-                position={[location.lat, location.lon]}
-                icon={new L.Icon({ 
-                  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-                  iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-                  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-                  iconSize: [25, 41],
-                  iconAnchor: [12, 41],
-                  popupAnchor: [1, -34],
-                  shadowSize: [41, 41]
-                })}
-                eventHandlers={{ click: () => this.handleMarkerClick(location.lat, location.lon) }}
-              >
-                <Popup>
-                  {location.name ? <br/> : null}
-                  {`Lat: ${location.lat.toFixed(6)}, Lon: ${location.lon.toFixed(6)}`}
-                  <br/>
-                </Popup>
-              </Marker>
-            ))}
-          </MapContainer>
+            <span role="img" aria-label="AI">🧠</span>
+            {showMLPanel ? 'Hide ML Analysis' : 'Show ML Analysis'}
+          </button>
         </div>
 
-        <div style={{ marginTop: '1rem', padding: '0.5rem', border: '1px solid #ccc', borderRadius: '5px' }}>
-          <h4 style={{ margin: '0 0 0.5rem 0' }}>Legend:</h4>
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <div style={{ width: '16px', height: '16px', backgroundColor: 'blue', marginRight: '0.5rem' }}></div>
-              <span>Visited Locations</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <div style={{ width: '16px', height: '16px', backgroundColor: 'red', marginRight: '0.5rem' }}></div>
-              <span>Unvisited </span>
-            </div>
+        <ResponsiveContainer width="100%" height={400}>
+          <LineChart data={dateData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis
+              dataKey="monthYear"
+              tickFormatter={(tick) => {
+                const [month, year] = tick.split('-');
+                const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                return `${monthNames[parseInt(month) - 1]} ${year}`; // "MMM YYYY"
+              }}
+              tick={({ x, y, payload, index }) => {
+                const monthYear = payload.value; // Get the value of the tick (MM-YYYY)
+                const [month, year] = monthYear.split('-'); // Split the month and year
+            
+                // Generate a color palette using Chroma.js
+                const colorPalette = chroma.scale('Set1')
+                                    .mode('hsl')
+                                    .colors(dateData.length);
+                                    
+                // Find if this is a prediction point
+                const dataPoint = dateData.find(item => item.monthYear === monthYear);
+                const isPrediction = dataPoint && dataPoint.isPrediction;
+                
+                const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                const month1 = `${monthNames[parseInt(month) - 1]} ${year}`; // "MMM YYYY"
+                const labelColor = isPrediction ? '#6366F1' : colorPalette[index % colorPalette.length];
+
+                return (
+                  <text
+                    x={x}
+                    y={y + 10}
+                    textAnchor="middle"
+                    fill={labelColor}
+                    fontSize="13"
+                    fontWeight={isPrediction ? 'bold' : 'normal'}
+                    fontStyle={isPrediction ? 'italic' : 'normal'}
+                  >
+                    {month1}{isPrediction ? '*' : ''}
+                  </text>
+                );
+              }}
+            />
+            <YAxis />
+            <Tooltip content={<CustomTooltip />} />
+            
+            {/* Render regular data points */}
+            <Line 
+              type="monotone" 
+              dataKey="Total" 
+              stroke="#8884d8"
+              strokeWidth={2}
+              dot={(props) => {
+                const { cx, cy, payload } = props;
+                // Check if this is an anomaly point
+                const isAnomaly = anomalies && anomalies.some(anomaly => anomaly.date === payload.monthYear);
+                // Check if this is a prediction point
+                const isPrediction = payload.isPrediction;
+                
+                if (isAnomaly) {
+                  return (
+                    <circle 
+                      cx={cx} 
+                      cy={cy} 
+                      r={6} 
+                      fill="#FF6B6B" 
+                      stroke="#FF6B6B" 
+                      strokeWidth={2} 
+                    />
+                  );
+                } else if (isPrediction) {
+                  return (
+                    <circle 
+                      cx={cx} 
+                      cy={cy} 
+                      r={5} 
+                      fill="#6366F1" 
+                      stroke="#6366F1" 
+                      strokeWidth={2}
+                      strokeDasharray="2 2"
+                    />
+                  );
+                }
+                return (
+                  <circle 
+                    cx={cx} 
+                    cy={cy} 
+                    r={4} 
+                    fill="#8884d8" 
+                    stroke="#8884d8" 
+                  />
+                );
+              }}
+            />
+            <Line type="monotone" dataKey="Seen" stroke="#A8E6CF" />
+            <Line type="monotone" dataKey="Heard" stroke="#D1C4E9" />
+            <Line type="monotone" dataKey="NotFound" stroke="#FFCDD2" />
+            
+            <Legend 
+              layout="horizontal" 
+              align="center" 
+              verticalAlign="bottom"
+              formatter={(value, entry, index) => {
+                // Add prediction and anomaly to the legend
+                if (value === 'Total' && predictions && predictions.length > 0) {
+                  return <span>Total (Solid) / Prediction (Dashed)</span>;
+                }
+                return value;
+              }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+
+        {/* Render ML Analysis Panel */}
+        {this.renderMLPanel()}
+
+        {/* Render Statistics Below the Chart */}
+        {this.renderStatistics(dateData.filter(item => !item.isPrediction))} {/* Exclude predictions from statistics */}
+        
+        {/* Prediction note */}
+        {predictions && predictions.length > 0 && (
+          <div style={{ marginTop: '1rem', fontSize: '0.9rem', color: '#718096', fontStyle: 'italic' }}>
+            * Forecast values generated by TensorFlow machine learning model
           </div>
-        </div>
+        )}
       </div>
     );
   }
 }
 
-export default ActivityPredictorClass;
+export default DateLineChart;

@@ -120,12 +120,12 @@ class Dashboard extends Component {
           >
             Map
           </button>
-          <button 
+          {/*<button 
             className={`nav-tab ${activeTab === 'AI' ? 'active' : ''}`}
             onClick={() => this.setActiveTab('AI')}
           >
             AI
-          </button>
+          </button>*/}
           <button 
             className={`nav-tab ${activeTab === 'data' ? 'active' : ''}`}
             onClick={() => this.setActiveTab('data')}
@@ -231,14 +231,14 @@ class Dashboard extends Component {
           </div>
         )}
 
-        {(activeTab === 'AI' || window.innerWidth >= 1024)  && (
+       {/* {(activeTab === 'AI' || window.innerWidth >= 1024)  && (
           <div>
-            <ActivityPredictorClass />
+            <ActivityPredictorClass data={this.props.data}/>
           </div>
-        )}
+        )}*/}
 
         {/* Data Table View (always visible on desktop, tab option on mobile) */}
-        {(activeTab === 'data' || window.innerWidth >= 1024) && (
+       {(activeTab === 'data' || window.innerWidth >= 1024) && (
           <div className="table-section">
             <h2>Observation Data</h2>
             <div className="table-container">

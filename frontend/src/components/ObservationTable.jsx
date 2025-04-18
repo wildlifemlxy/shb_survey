@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry } from 'ag-grid-community';
 import { AllCommunityModule } from 'ag-grid-community';
+import {getUniqueLocations, getUniqueSeenHeards } from '../utils/dataProcessing';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -9,7 +10,11 @@ class ObservationTable extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      openCardIndex: 0 // First card open by default
+      currentPage: 0,
+      cardsPerPage: 6,
+      searchQuery: '',
+      selectedLocation: 'All',
+      selectedSeenHeard: 'All',
     };
   }
 
@@ -38,11 +43,38 @@ class ObservationTable extends Component {
     }));
   };
 
+  handlePageChange = (newPage) => {
+    this.setState({ currentPage: newPage });
+  };
+
+  handleLocationChange = (e) => {
+    this.setState({ selectedLocation: e.target.value });
+  };
+
+  handleSeenHeardChange = (e) => {
+    this.setState({ selectedSeenHeard: e.target.value });
+  };
+
   renderMobileCards(data) {
-    return data.map((obs, i) => {
+    const { currentPage, cardsPerPage, searchQuery, selectedLocation, selectedSeenHeard } = this.state;
+
+    // Filter data based on search query, location, and Seen/Heard status
+    const filteredData = data.filter((obs) => {
+      const searchMatches =
+        obs['Observer name'].toLowerCase().includes(searchQuery.toLowerCase()) ||
+        obs['SHB individual ID'].toLowerCase().includes(searchQuery.toLowerCase()) ||
+        obs['Location'].toLowerCase().includes(searchQuery.toLowerCase());
+
+      const locationMatches = selectedLocation === 'All' || obs['Location'] === selectedLocation;
+      const seenHeardMatches = selectedSeenHeard === 'All' || obs['Seen/Heard'] === selectedSeenHeard;
+
+      return searchMatches && locationMatches && seenHeardMatches;
+    });
+
+    const paginatedData = filteredData.slice(currentPage * cardsPerPage, (currentPage + 1) * cardsPerPage);
+
+    return paginatedData.map((obs, i) => {
       const isOpen = this.state.openCardIndex === i;
-  
-      // Determine the pastel background color for the card based on "Seen/Heard"
       let cardBackgroundColor = '#f9f9f9';  // Default background color (light gray)
       switch (obs["Seen/Heard"]) {
         case "Seen":
@@ -55,7 +87,9 @@ class ObservationTable extends Component {
           cardBackgroundColor = '#FFCDD2';  // Soft pastel red
           break;
       }
-  
+
+      const serialNumber = currentPage * cardsPerPage + (i + 1);
+
       return (
         <div
           key={i}
@@ -80,11 +114,11 @@ class ObservationTable extends Component {
               paddingBottom: '0.5rem', // Adjust space below header
             }}
           >
-            <strong>S/N:</strong> {i + 1}
+            <strong>S/N:</strong> {serialNumber} {/* Displaying the adjusted serial number */}
             <br />
             <strong>Location:</strong> {obs.Location}
           </div>
-  
+
           {isOpen && (
             <div className="card-body">
               <p><strong>Observer:</strong> {obs['Observer name']}</p>
@@ -101,10 +135,159 @@ class ObservationTable extends Component {
         </div>
       );
     });
-  }  
+  }
+
+  renderPagination(data) {
+    const { currentPage, cardsPerPage } = this.state;
+    const totalPages = Math.ceil(data.length / cardsPerPage);
+    const pageNumbers = [];
+
+    const maxPageNumbersToShow = 5;
+
+    if (totalPages <= maxPageNumbersToShow) {
+      for (let i = 0; i < totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      if (currentPage < 3) {
+        for (let i = 0; i < maxPageNumbersToShow - 1; i++) {
+          pageNumbers.push(i);
+        }
+        pageNumbers.push('...');
+      } else if (currentPage > totalPages - 4) {
+        pageNumbers.push(0);
+        pageNumbers.push('...');
+        for (let i = totalPages - maxPageNumbersToShow + 2; i < totalPages; i++) {
+          pageNumbers.push(i);
+        }
+      } else {
+        pageNumbers.push(0);
+        pageNumbers.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pageNumbers.push(i);
+        }
+        pageNumbers.push('...');
+        pageNumbers.push(totalPages - 1);
+      }
+    }
+
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        marginTop: '1rem',
+        fontSize: '0.75rem',
+        width: '40%',
+        height: '40%',
+        marginLeft: "auto",
+        marginRight: "auto",
+      }}>
+        <button
+          onClick={() => this.handlePageChange(0)}
+          disabled={currentPage === 0}
+          style={{
+            padding: '0.3rem',
+            margin: '0 5px',
+            background: 'none',
+            border: 'none',
+            fontSize: '0.7rem',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            color: '#333',
+          }}
+        >
+          {"<<"}
+        </button>
+        <button
+          onClick={() => this.handlePageChange(Math.max(0, currentPage - 1))}
+          disabled={currentPage === 0}
+          style={{
+            padding: '0.3rem',
+            margin: '0 5px',
+            background: 'none',
+            border: 'none',
+            fontSize: '0.7rem',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            color: '#333',
+          }}
+        >
+          {"<"}
+        </button>
+
+        {pageNumbers.map((pageNum, index) => (
+          pageNum === '...' ? (
+            <span key={index} style={{
+              padding: '0.3rem',
+              margin: '0 5px',
+              fontSize: '0.7rem',
+              fontWeight: 'bold',
+              color: '#333',
+            }}>
+              {"..."}
+            </span>
+          ) : (
+            <button
+              key={pageNum}
+              onClick={() => this.handlePageChange(pageNum)}
+              style={{
+                padding: '0.3rem',
+                margin: '0 5px',
+                background: 'none',
+                border: 'none',
+                fontSize: '0.7rem',
+                cursor: 'pointer',
+                fontWeight: currentPage === pageNum ? 'bold' : 'normal',
+                color: '#333',
+              }}
+            >
+              {pageNum + 1}
+            </button>
+          )
+        ))}
+
+        <button
+          onClick={() => this.handlePageChange(Math.min(totalPages - 1, currentPage + 1))}
+          disabled={currentPage === totalPages - 1}
+          style={{
+            padding: '0.3rem',
+            margin: '0 5px',
+            background: 'none',
+            border: 'none',
+            fontSize: '0.7rem',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            color: '#333',
+          }}
+        >
+          {">"}
+        </button>
+
+        <button
+          onClick={() => this.handlePageChange(totalPages - 1)}
+          disabled={currentPage === totalPages - 1}
+          style={{
+            padding: '0.3rem',
+            margin: '0 5px',
+            background: 'none',
+            border: 'none',
+            fontSize: '0.7rem',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            color: '#333',
+          }}
+        >
+          {">>"}
+        </button>
+      </div>
+    );
+  }
 
   render() {
     const { data } = this.props;
+    const { searchQuery, selectedLocation, selectedSeenHeard } = this.state;
+    const locations = getUniqueLocations(data);
+    const seenHeards = getUniqueSeenHeards(data);
     const transformedData = this.transformData(data);
 
     const columns = [
@@ -150,7 +333,43 @@ class ObservationTable extends Component {
     return (
       <>
         <div className="mobile-observation-cards hide-desktop">
-          {this.renderMobileCards(transformedData)}
+        <div className="filters" style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+          <select 
+            value={selectedLocation} 
+            onChange={this.handleLocationChange} 
+            style={{
+              padding: '0.5rem',
+              fontSize: '1rem',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              width: '200px'
+            }}
+          >
+            <option value="All">All Locations</option>
+            {locations.map((location, index) => (
+              <option key={index} value={location}>{location}</option>
+            ))}
+          </select>
+
+          <select 
+            value={selectedSeenHeard} 
+            onChange={this.handleSeenHeardChange} 
+            style={{
+              padding: '0.5rem',
+              fontSize: '1rem',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              width: '200px'
+            }}
+          >
+            <option value="All">All Status</option>
+            {seenHeards.map((seenHeard, index) => (
+              <option key={index} value={seenHeard}>{seenHeard}</option>
+            ))}
+          </select>
+        </div>
+          {this.renderMobileCards(data)}
+          {this.renderPagination(data)}
         </div>
 
         {window.innerWidth >= 1024 && (

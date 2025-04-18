@@ -12,6 +12,20 @@ data.forEach(observation => {
 return Array.from(locations);
 };
 
+export const getUniqueSeenHeards = (data) => {
+  const seenHeards = new Set(); // Set automatically ensures uniqueness
+  
+  data.forEach(observation => {
+    if (observation["Seen/Heard"]) {
+      seenHeards.add(observation["Seen/Heard"]); // Add location to the set
+    }
+  });
+  
+  // Convert the set to an array and return it
+  return Array.from(seenHeards);
+  };
+  
+
 // Function to get a unique set of location names
 export const getUniqueActivity = (data) => {
   const activities = new Set(); // Set automatically ensures uniqueness
