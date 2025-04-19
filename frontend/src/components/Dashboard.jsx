@@ -60,34 +60,37 @@ class Dashboard extends Component {
       const canvas = await html2canvas(dashboardElement, {
         backgroundColor: '#ffffff',
         useCORS: true,
-        scale: 2,
+        scale: 3, // Higher scale for better resolution
+        windowWidth: dashboardElement.scrollWidth,
+        windowHeight: dashboardElement.scrollHeight,
       });
   
       const imgData = canvas.toDataURL('image/png');
+  
+      // Define a fixed page size for PDF (A4 size in pixels at 96 DPI)
+      const pdfWidth = orientation === 'portrait' ? 595.28 : 841.89;
+      const pdfHeight = orientation === 'portrait' ? 841.89 : 595.28;
+  
+      // Get image dimensions
       const imgWidth = canvas.width;
       const imgHeight = canvas.height;
   
-      console.log("Is portrait:", orientation === 'portrait');
+      // Calculate image scaling ratio to fit into PDF page
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const scaledWidth = imgWidth * ratio;
+      const scaledHeight = imgHeight * ratio;
   
-      // Adjust page size based on orientation, and rotate if needed
-      let pageSize = [imgWidth, imgHeight]; // Default to landscape (horizontal)
-      
-      if (orientation === 'portrait') {
-        pageSize = [imgHeight, imgWidth]; // Swap width and height for portrait orientation
-      }
+      // Center the image in the PDF
+      const x = (pdfWidth - scaledWidth) / 2;
+      const y = (pdfHeight - scaledHeight) / 2;
   
       const pdf = new jsPDF({
         orientation,
-        unit: 'px',
-        format: pageSize,
+        unit: 'pt',
+        format: [pdfWidth, pdfHeight],
       });
   
-      // Check if the content needs to be rotated for portrait
-      if (orientation === 'portrait') {
-        pdf.addImage(imgData, 'PNG', 0, 0, pageSize[0], pageSize[1]);
-      } else {
-        pdf.addImage(imgData, 'PNG', 0, 0, pageSize[0], pageSize[1]);
-      }
+      pdf.addImage(imgData, 'PNG', x, y, scaledWidth, scaledHeight);
   
       const saveFileName = fileName && fileName.trim() !== '' ? `${fileName}.pdf` : 'dashboard_with_charts.pdf';
       pdf.save(saveFileName);
@@ -95,6 +98,7 @@ class Dashboard extends Component {
       console.error('Error generating PDF with chart:', error);
     }
   };
+  
 
   handleFilterChange = (e) => {
     const { name, value } = e.target;
