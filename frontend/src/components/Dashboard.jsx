@@ -24,6 +24,7 @@ class Dashboard extends Component {
       showExportPopup: false,  // New state to control the export popup visibility
       fileName: '',
       orientation: 'landscape', // Default orientation
+      isDownloading: false
     };
   }
 
@@ -47,8 +48,9 @@ class Dashboard extends Component {
     this.setState({ [name]: value });
   };
 
-  exportChartsPDF = async (fileName, orientation) => {
-    this.setState(prev => ({ showPopup: !prev.showPopup }));
+  exportChartsPDF = async (fileName, orientation, format = 'a4') => {
+    this.setState({ isDownloading: true, showPopup: true, popupMessage: 'Loading...' });
+  
     const dashboardElement = document.querySelector('.charts-grid');
   
     if (!dashboardElement) {
@@ -57,10 +59,14 @@ class Dashboard extends Component {
     }
   
     try {
+      // Dynamically set the scale based on the screen size
+      const screenWidth = window.innerWidth;
+      const scale = screenWidth >= 1024 ? 5 : 2; // Higher scale for larger screens, lower for smaller screens
+  
       const canvas = await html2canvas(dashboardElement, {
         backgroundColor: '#ffffff',
         useCORS: true,
-        scale: 2,
+        scale: scale, // Dynamically adjust scale
         scrollY: -window.scrollY,
         windowWidth: dashboardElement.scrollWidth,
       });
@@ -69,34 +75,48 @@ class Dashboard extends Component {
       const imgWidth = canvas.width;
       const imgHeight = canvas.height;
   
-      // A4 size in points
+      // Dynamically set format based on passed parameter
       const pdf = new jsPDF({
         orientation,
         unit: 'pt',
-        format: 'a4',
+        format: format, // Dynamically choose the format (e.g., 'a4')
       });
   
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
   
-      // Scale down if needed to fit A4
-      const scale = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
-      const scaledWidth = imgWidth * scale;
-      const scaledHeight = imgHeight * scale;
+      // Use the same layout for all screen sizes
+      const ratioX = pageWidth / imgWidth;
+      const ratioY = pageHeight / imgHeight;
+      const ratio = Math.min(ratioX, ratioY); // Ensure the image fits within the page dimensions
   
-      // Center the image
-      const x = (pageWidth - scaledWidth) / 2;
-      const y = (pageHeight - scaledHeight) / 2;
+      const newWidth = imgWidth * ratio;
+      const newHeight = imgHeight * ratio;
   
-      pdf.addImage(imgData, 'PNG', x, y, scaledWidth, scaledHeight);
+      // Add the image to the PDF
+      pdf.addImage(imgData, 'PNG', 0, 0, newWidth, newHeight);
   
-      const saveFileName = fileName && fileName.trim() !== '' ? `${fileName}.pdf` : 'dashboard_with_charts.pdf';
+      const saveFileName = fileName?.trim() ? `${fileName}.pdf` : 'dashboard_with_charts.pdf';
       pdf.save(saveFileName);
+  
+      // After saving, show the "Download Finished" message
+      this.setState({ isDownloading: false, popupMessage: 'Download Finished' });
+  
+      // Automatically close the popup after 5-10 seconds
+      setTimeout(() => {
+        this.setState({ showPopup: false });
+      }, 10000); // Set a delay (5 seconds)
     } catch (error) {
-      console.error('Error generating PDF with chart:', error);
+      console.error('Error generating high-res PDF:', error);
+      this.setState({ isDownloading: false, popupMessage: 'Error during download' });
+  
+      // Automatically close the popup after 5-10 seconds if there's an error
+      setTimeout(() => {
+        this.setState({ showPopup: false });
+      }, 10000); // Set a delay (5 seconds)
     }
   };
-  
+
   handleFilterChange = (e) => {
     const { name, value } = e.target;
     this.setState({ [name]: value }, this.applyFilters);
@@ -224,18 +244,29 @@ class Dashboard extends Component {
       marginTop: '0.5rem',
     };
     
-    const buttonStyle = {
-      marginTop: '1rem',
-      padding: '0.5rem 1rem',
-      backgroundColor: '#4a5568',
-      color: 'white',
-      border: 'none',
-      borderRadius: '4px',
-      cursor: 'pointer',
-      marginLeft: 'auto',
-      marginRight: 'auto'
-    };    
-    
+    // Updated style for each ball with delay for sequential bounce
+    const ballStyle = (index) => ({
+      width: '15px',
+      height: '15px',
+      margin: '20px 5px',
+      borderRadius: '50%',
+      backgroundColor: '#333',
+      animation: `bounce 1.2s ${(index + 1) * 0.3}s infinite ease-in-out`, // Sequential delay
+    });
+
+    // Add the bounce animation to the stylesheet
+    const styleSheet = document.styleSheets[0];
+      styleSheet.insertRule(`
+        @keyframes bounce {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-15px);
+          }
+        }
+      `, styleSheet.cssRules.length);
+
     return (
       <div className="dashboard">
         <h1>Straw-headed Bulbul Observation Dashboard</h1>
@@ -380,83 +411,145 @@ class Dashboard extends Component {
           </div>
         )}
 
-         {/* Export Button */}
-          <button 
-            onClick={this.openExportPopup}
-            style={exportButtonStyle}
-          >
-            Export Chart To PDF
-          </button>
+        {
+          window.innerWidth >= 1024 && (
+            // Export Button
+            <button
+              onClick={this.openExportPopup}
+              style={exportButtonStyle}
+            >
+              Export Chart To PDF
+            </button>
+          )
+        }
 
-          {/* Export Popup Modal */}
-          {showExportPopup && (
-            <div className="export-popup" style={popupOverlayStyle}>
-              <div className="popup-content" style={popupContentStyle}>
-                <h2>Export PDF</h2>
-                <label>
-                  File Name:
-                  <input 
-                    type="text" 
-                    name="fileName" 
-                    value={fileName}
-                    placeholder={"Please type in the filename without extension"}
-                    onChange={this.handleInputChange}
-                    style={inputStyle}
-                  />
-                </label>
-                <br />
-                <label>
-                  Orientation:
-                  <select 
-                    name="orientation"
-                    value={orientation}
-                    onChange={this.handleInputChange}
-                    style={selectStyle}
-                  >
-                    <option value="landscape">Landscape</option>
-                    <option value="portrait">Portrait</option>
-                  </select>
-                </label>
-                <br />
-                <div 
-                  style={{
-                    display: 'flex', 
-                    justifyContent: 'space-between', // This will space out the buttons
-                    gap: '0.25rem', // Smaller gap between buttons
-                    width: '30%', // Allows the container to adapt to the content widt
-                    marginTop: '2rem',
-                    marginBottom: 'auto',
-                    marginLeft: '30%',
-                    marginRight: 'auto',
-                  }}
-                >
-                  <button onClick={this.handleExportSubmit} style={{
-                    padding: '0.5rem 1rem',
-                    fontSize: '1rem',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    background: '#4a5568',
-                    color: '#fff',
-                    cursor: 'pointer',
-                  }}>
-                    Export
-                  </button>
-                  <button onClick={this.closeExportPopup} style={{
-                    padding: '0.5rem 1rem',
-                    fontSize: '1rem',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    background: '#4a5568',
-                    color: '#fff',
-                    cursor: 'pointer',
-                  }}>
-                    Cancel
-                  </button>
+        {this.state.showPopup && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',  // Semi-transparent background
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999,  // Ensure it is on top of other elements
+          }}>
+            <div style={{
+              backgroundColor: '#ffffff',
+              padding: '20px',
+              borderRadius: '8px',
+              textAlign: 'center',
+              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+            }}>
+              {/* Loading Text or Download Finished */}
+              <p style={{
+                fontSize: '16px',
+                fontWeight: 'bold',
+                color: '#333333',  // Dark text for better readability
+                marginBottom: '10px',  // Space between text and bouncing balls
+              }}>
+                {this.state.isDownloading ? 'Loading...' : 'Download Finished'}
+              </p>
+
+              {/* If the download is finished, show this message */}
+              {!this.state.isDownloading && (
+                <p style={{
+                  fontSize: '14px',
+                  color: '#555555',  // Lighter text color
+                  marginTop: '10px',  // Space between the two lines
+                }}>
+                  You can open it after the popup closes
+                </p>
+              )}
+
+              {/* Bouncing Balls */}
+              {this.state.isDownloading && (
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <div style={ballStyle(0)}></div>
+                  <div style={ballStyle(1)}></div>
+                  <div style={ballStyle(2)}></div>
+                  <div style={ballStyle(3)}></div>
                 </div>
-
-              </div>
+              )}
             </div>
-          )}
+          </div>
+        )}
+
+        {/* Export Popup Modal */}
+        {showExportPopup && (
+          <div className="export-popup" style={popupOverlayStyle}>
+            <div className="popup-content" style={popupContentStyle}>
+              <h2>Export PDF</h2>
+              <label>
+                File Name:
+                <input 
+                  type="text" 
+                  name="fileName" 
+                  value={fileName}
+                  placeholder={"Please type in the filename without extension"}
+                  onChange={this.handleInputChange}
+                  style={inputStyle}
+                />
+              </label>
+              <br />
+              <label>
+                Orientation:
+                <select 
+                  name="orientation"
+                  value={orientation}
+                  onChange={this.handleInputChange}
+                  style={selectStyle}
+                >
+                  <option value="landscape">Landscape</option>
+                  <option value="portrait">Portrait</option>
+                </select>
+              </label>
+              <br />
+              <div 
+                style={{
+                  display: 'flex', 
+                  justifyContent: 'space-between', // This will space out the buttons
+                  gap: '0.25rem', // Smaller gap between buttons
+                  width: '30%', // Allows the container to adapt to the content widt
+                  marginTop: '2rem',
+                  marginBottom: 'auto',
+                  marginLeft: '30%',
+                  marginRight: 'auto',
+                }}
+              >
+                <button onClick={this.handleExportSubmit} style={{
+                  padding: '0.5rem 1rem',
+                  fontSize: '1rem',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  background: '#4a5568',
+                  color: '#fff',
+                  cursor: 'pointer',
+                }}>
+                  Export
+                </button>
+                <button onClick={this.closeExportPopup} style={{
+                  padding: '0.5rem 1rem',
+                  fontSize: '1rem',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  background: '#4a5568',
+                  color: '#fff',
+                  cursor: 'pointer',
+                }}>
+                  Cancel
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
       </div>
     );
   }
