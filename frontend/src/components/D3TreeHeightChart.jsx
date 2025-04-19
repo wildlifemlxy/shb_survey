@@ -229,12 +229,12 @@ class D3TreeHeightChart extends Component {
     });
   
     // Chart title
-    svg.append("text")
+    /*svg.append("text")
       .attr("x", this.state.width / 2)
       .attr("y", 20)
       .attr("text-anchor", "middle")
       .style("font-size", isMobile ? "14px" : "18px")
-      .text("Tree Heights and SHB Habitation");
+      .text("Tree Heights and SHB Habitation");*/
 
       const legendData = [
         { label: "Seen", color: "#A8E6CF" },
@@ -377,6 +377,7 @@ class D3TreeHeightChart extends Component {
           position: 'relative'
         }}
       >
+        <h2>Tree Heights and SHB Habitation</h2>
         <svg
           ref={this.d3Container}
           width={this.state.width}
