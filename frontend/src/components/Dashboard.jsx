@@ -61,47 +61,34 @@ class Dashboard extends Component {
         backgroundColor: '#ffffff',
         useCORS: true,
         scale: 2,
-        scrollY: -window.scrollY, // Prevents scroll cutoff
+        scrollY: -window.scrollY,
         windowWidth: dashboardElement.scrollWidth,
       });
   
       const imgData = canvas.toDataURL('image/png');
-      const imgWidth = 595.28; // A4 width in pt (portrait)
-      const pageHeight = 841.89; // A4 height in pt
-      const imgProps = {
-        width: canvas.width,
-        height: canvas.height,
-      };
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
   
-      // Calculate aspect ratio
-      const ratio = imgWidth / imgProps.width;
-      const scaledHeight = imgProps.height * ratio;
-  
+      // A4 size in points
       const pdf = new jsPDF({
         orientation,
         unit: 'pt',
         format: 'a4',
       });
   
-      let position = 0;
-      let remainingHeight = scaledHeight;
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
   
-      while (remainingHeight > 0) {
-        pdf.addImage(
-          imgData,
-          'PNG',
-          0,
-          position,
-          imgWidth,
-          scaledHeight
-        );
-        remainingHeight -= pageHeight;
-        position -= pageHeight;
+      // Scale down if needed to fit A4
+      const scale = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
+      const scaledWidth = imgWidth * scale;
+      const scaledHeight = imgHeight * scale;
   
-        if (remainingHeight > 0) {
-          pdf.addPage();
-        }
-      }
+      // Center the image
+      const x = (pageWidth - scaledWidth) / 2;
+      const y = (pageHeight - scaledHeight) / 2;
+  
+      pdf.addImage(imgData, 'PNG', x, y, scaledWidth, scaledHeight);
   
       const saveFileName = fileName && fileName.trim() !== '' ? `${fileName}.pdf` : 'dashboard_with_charts.pdf';
       pdf.save(saveFileName);
@@ -110,7 +97,6 @@ class Dashboard extends Component {
     }
   };
   
-
   handleFilterChange = (e) => {
     const { name, value } = e.target;
     this.setState({ [name]: value }, this.applyFilters);
