@@ -217,6 +217,9 @@ class LocationStats extends Component {
         <h4 style={{ marginTop: 0, color: '#2d3748', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
           Location Observations Report
         </h4>
+        <div style={{ color: '#718096', marginBottom: '1rem', fontSize: '0.9rem' }}>
+          Generated on {new Date().toLocaleDateString()}
+        </div>
         
         {/* Summary Statistics */}
         <h5 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>Summary Statistics</h5>
@@ -416,30 +419,24 @@ class LocationStats extends Component {
   
   performTrendPredictions = (locationData) => {
     try {
-      // For demonstration purposes, we'll create simple trend predictions
-      // In a real implementation, you would use historical data and proper TensorFlow models
-      
-      // Sort locations by total observations
-      const sortedLocations = [...locationData].sort((a, b) => b.Total - a.Total);
-      
-      // Generate simple trend predictions
-      const predictions = sortedLocations.slice(0, 3).map(location => {
-        // Calculate ratios
+      const sortedByTotal = [...locationData].sort((a, b) => b.Total - a.Total); // High to low
+      const topLocationsRaw = sortedByTotal.slice(0, 3);
+      const lowLocationsRaw = sortedByTotal.slice(-3).reverse(); // Get bottom 3
+  
+      const generatePrediction = (location) => {
         const seenRatio = location.Seen / location.Total;
         const heardRatio = location.Heard / location.Total;
         const notFoundRatio = location.NotFound / location.Total;
-        
-        // Make simple predictions based on current ratios
-        // In a real app, this would use proper TensorFlow models
-        const predictedGrowth = 
-          seenRatio > 0.6 ? "High" : 
+  
+        const predictedGrowth =
+          seenRatio > 0.6 ? "High" :
           seenRatio > 0.4 ? "Moderate" : "Low";
-        
-        const predictedTrend = 
+  
+        const predictedTrend =
           seenRatio > heardRatio && seenRatio > notFoundRatio ? "Increasing visibility" :
           heardRatio > seenRatio && heardRatio > notFoundRatio ? "Increasing awareness" :
           "Decreasing presence";
-        
+  
         return {
           location: location.location,
           current: {
@@ -454,21 +451,27 @@ class LocationStats extends Component {
             confidence: (seenRatio * 100).toFixed(1) + "%"
           }
         };
-      });
-      
+      };
+  
+      const topLocations = topLocationsRaw.map(generatePrediction);
+      const lowLocations = lowLocationsRaw.map(generatePrediction);
+  
       return {
-        topLocations: predictions,
-        overallTrend: predictions.length > 0 && 
-                     predictions[0].prediction.growth === "High" ? 
-                     "Positive" : "Stable"
+        topLocations,
+        lowLocations,
+        overallTrend: topLocations.length > 0 && topLocations[0].prediction.growth === "High"
+          ? "Positive"
+          : "Stable"
       };
     } catch (error) {
       console.error("Error in trend predictions:", error);
       return { error: "Failed to generate trend predictions" };
     }
   };
+  
+
   renderInsightsPanel = () => {
-    const { insights, insightsLoading, activeTab } = this.state;
+    const { insights, insightsLoading } = this.state;
     
     if (insightsLoading) {
       return (
@@ -537,30 +540,30 @@ class LocationStats extends Component {
         marginBottom: '1rem'
       }}>
         <button 
-          onClick={() => this.setState({ activeTab: 'population' })}
+          onClick={() => this.setState({ activeTab1: 'population' })}
           style={{ 
             flex: 1,
             padding: '0.75rem 1rem',
-            backgroundColor: this.state.activeTab === 'population' ? '#EBF4FF' : 'transparent',
+            backgroundColor: this.state.activeTab1 === 'population' ? '#EBF4FF' : 'transparent',
             border: 'none',
-            borderBottom: this.state.activeTab === 'population' ? '2px solid #4299E1' : '1px solid #E2E8F0',
-            color: this.state.activeTab === 'population' ? '#3182CE' : '#4A5568',
-            fontWeight: this.state.activeTab === 'population' ? 'bold' : 'normal',
+            borderBottom: this.state.activeTab1 === 'population' ? '2px solid #4299E1' : '1px solid #E2E8F0',
+            color: this.state.activeTab1 === 'population' ? '#3182CE' : '#4A5568',
+            fontWeight: this.state.activeTab1 === 'population' ? 'bold' : 'normal',
             cursor: 'pointer'
           }}
         >
           Population Analysis
         </button>
         <button 
-          onClick={() => this.setState({ activeTab: 'anomalyTrends' })}
+          onClick={() => this.setState({ activeTab1: 'anomalyTrends' })}
           style={{ 
             flex: 1,
             padding: '0.75rem 1rem',
             backgroundColor: this.state.activeTab === 'anomalyTrends' ? '#EBF4FF' : 'transparent',
             border: 'none',
-            borderBottom: this.state.activeTab === 'anomalyTrends' ? '2px solid #4299E1' : '1px solid #E2E8F0',
-            color: this.state.activeTab === 'anomalyTrends' ? '#3182CE' : '#4A5568',
-            fontWeight: this.state.activeTab === 'anomalyTrends' ? 'bold' : 'normal',
+            borderBottom: this.state.activeTabq === 'anomalyTrends' ? '2px solid #4299E1' : '1px solid #E2E8F0',
+            color: this.state.activeTab1 === 'anomalyTrends' ? '#3182CE' : '#4A5568',
+            fontWeight: this.state.activeTab1 === 'anomalyTrends' ? 'bold' : 'normal',
             cursor: 'pointer'
           }}
         >
@@ -777,6 +780,40 @@ class LocationStats extends Component {
                 </div>
               );
             })}
+          
+          <div style={{ fontWeight: 'bold', color: '#4A5568', margin: '1rem 0 0.5rem' }}>
+            Low Location Predictions:
+          </div>
+
+          {trendPredictions.lowLocations
+            .filter(loc => loc.current.total < 10) // adjust threshold as needed
+            .map((location, idx) => {
+              const growthColor =
+                location.prediction.growth === "High" ? "#38A169" :
+                location.prediction.growth === "Moderate" ? "#DD6B20" :
+                location.prediction.growth === "Low" ? "#E53E3E" :
+                "#718096";
+
+              return (
+                <div key={idx} style={{
+                  backgroundColor: "#FFFFFF",
+                  padding: '0.75rem',
+                  borderRadius: '4px',
+                  marginBottom: '0.5rem',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>{location.location}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                    <span>Current Total: {location.current.total}</span>
+                    <span style={{ color: growthColor }}>Growth: {location.prediction.growth}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Prediction: {location.prediction.trend}</span>
+                    <span>Confidence: {location.prediction.confidence}</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
           
           <div style={{ backgroundColor: '#FFFAF0', padding: '0.75rem', borderRadius: '4px', border: '1px solid #FEEBC8' }}>
@@ -821,17 +858,17 @@ class LocationStats extends Component {
           </svg>
           AI Location Insights
         </h4>
-        
-        <div style={{ color: '#718096', marginBottom: '1rem', fontSize: '0.9rem' }}>
-          Generated on {new Date().toLocaleDateString()} using TensorFlow
-        </div>
-        
         {renderTabsNavigation()}
         
-        {this.state.activeTab === 'population' ? renderPopulationTab() : renderAnomalyTrendsTab()}
+        {this.state.activeTab1 === 'population' ? renderPopulationTab() : renderAnomalyTrendsTab()}
       </div>
     );
   };
+
+  componentDidMount() {
+    this.setState({ activeTab1: "population" });
+  }
+
   render() {
     const { data } = this.props;
     const locationData = countByLocation(data);
@@ -909,7 +946,7 @@ class LocationStats extends Component {
             >
               <span role="img" aria-label="AI">🧠</span>
               {showInsightsPanel ? 'Hide Insights' : (
-                <>      
+                <>
                   AI Insights
                 </>
               )}
