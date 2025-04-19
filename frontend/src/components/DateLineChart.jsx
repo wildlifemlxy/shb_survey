@@ -1078,7 +1078,7 @@ class DateLineChart extends Component {
         </ResponsiveContainer>
 
         {/* Render ML Analysis Panel */}
-        { this.state.showMLPanel === true && this.state.showReportPanel === false && this.renderMLPanel()}
+        {this.state.showMLPanel === true && this.state.showReportPanel === false && this.renderMLPanel()}
         {this.state.showMLPanel === false && this.state.showReportPanel === true && this.renderReport()}
 
         {/* Render Statistics Below the Chart */}
