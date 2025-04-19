@@ -60,37 +60,48 @@ class Dashboard extends Component {
       const canvas = await html2canvas(dashboardElement, {
         backgroundColor: '#ffffff',
         useCORS: true,
-        scale: 3, // Higher scale for better resolution
+        scale: 2,
+        scrollY: -window.scrollY, // Prevents scroll cutoff
         windowWidth: dashboardElement.scrollWidth,
-        windowHeight: dashboardElement.scrollHeight,
       });
   
       const imgData = canvas.toDataURL('image/png');
+      const imgWidth = 595.28; // A4 width in pt (portrait)
+      const pageHeight = 841.89; // A4 height in pt
+      const imgProps = {
+        width: canvas.width,
+        height: canvas.height,
+      };
   
-      // Define a fixed page size for PDF (A4 size in pixels at 96 DPI)
-      const pdfWidth = orientation === 'portrait' ? 595.28 : 841.89;
-      const pdfHeight = orientation === 'portrait' ? 841.89 : 595.28;
-  
-      // Get image dimensions
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-  
-      // Calculate image scaling ratio to fit into PDF page
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-      const scaledWidth = imgWidth * ratio;
-      const scaledHeight = imgHeight * ratio;
-  
-      // Center the image in the PDF
-      const x = (pdfWidth - scaledWidth) / 2;
-      const y = (pdfHeight - scaledHeight) / 2;
+      // Calculate aspect ratio
+      const ratio = imgWidth / imgProps.width;
+      const scaledHeight = imgProps.height * ratio;
   
       const pdf = new jsPDF({
         orientation,
         unit: 'pt',
-        format: [pdfWidth, pdfHeight],
+        format: 'a4',
       });
   
-      pdf.addImage(imgData, 'PNG', x, y, scaledWidth, scaledHeight);
+      let position = 0;
+      let remainingHeight = scaledHeight;
+  
+      while (remainingHeight > 0) {
+        pdf.addImage(
+          imgData,
+          'PNG',
+          0,
+          position,
+          imgWidth,
+          scaledHeight
+        );
+        remainingHeight -= pageHeight;
+        position -= pageHeight;
+  
+        if (remainingHeight > 0) {
+          pdf.addPage();
+        }
+      }
   
       const saveFileName = fileName && fileName.trim() !== '' ? `${fileName}.pdf` : 'dashboard_with_charts.pdf';
       pdf.save(saveFileName);
