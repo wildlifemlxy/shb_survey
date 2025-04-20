@@ -8,6 +8,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        // Allow caching files up to 5MB (default is 2MB)
+        maximumFileSizeToCacheInBytes: 1024 * 1024 * 1024,
+      },
       manifest: {
         name: 'My React Vite PWA',
         short_name: 'ReactPWA',
@@ -42,6 +46,7 @@ export default defineConfig({
   mode: 'production',
   build: {
     target: 'es2022',
+    chunkSizeWarningLimit: 3000, // Optional: suppress large chunk warnings
     rollupOptions: {
       output: {
         manualChunks: {
