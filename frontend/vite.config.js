@@ -9,8 +9,10 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        // Allow caching files up to 5MB (default is 2MB)
-        maximumFileSizeToCacheInBytes: 1024 * 1024 * 1024,
+        globDirectory: 'dist',
+        globPatterns: ['**/*.{js,css,html,wasm}'],
+        globIgnores: ['**/node_modules/**/*', 'sw.js', 'workbox-*.js'],
+        maximumFileSizeToCacheInBytes: 1024 * 1024 * 1024, // 5MB
       },
       manifest: {
         name: 'My React Vite PWA',
@@ -46,8 +48,9 @@ export default defineConfig({
   mode: 'production',
   build: {
     target: 'es2022',
-    chunkSizeWarningLimit: 3000, // Optional: suppress large chunk warnings
+    chunkSizeWarningLimit: 3000,
     rollupOptions: {
+      external: ['@fortawesome/fontawesome-svg-core'],
       output: {
         manualChunks: {
           lodash: ['lodash'],
