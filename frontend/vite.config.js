@@ -50,7 +50,7 @@ export default defineConfig({
     target: 'es2022',
     chunkSizeWarningLimit: 3000,
     rollupOptions: {
-      external: ['@fortawesome/fontawesome-svg-core'],
+      //external: ['@fortawesome/fontawesome-svg-core'],
       output: {
         manualChunks: {
           lodash: ['lodash'],
