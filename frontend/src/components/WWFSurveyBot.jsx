@@ -1,5 +1,8 @@
 import React, { Component } from 'react';
 import './WWFSurveyBot.css';
+import { Link } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faHome } from '@fortawesome/free-solid-svg-icons';
 
 class WWFSurveyBot extends Component {
   constructor(props) {
@@ -7,11 +10,17 @@ class WWFSurveyBot extends Component {
     this.state = {
       userMessage: '',
       conversation: [
-        { id: 1, sender: 'bot', text: 'WWF-SG Survey Schedule Bot. Ready to send updates to your Telegram group.', timestamp: new Date() }
+        { id: 1, sender: 'bot', text: 'WWF-SG Survey Schedule Bot. Ready to send updates to your Telegram groups.', timestamp: new Date() }
       ],
       isTyping: false,
       telegramToken: '7968511707:AAF3ZRpt1q4kNik8cEpcskQjbnJy5kVm6N4',
-      telegramGroupChatId: '2136702422',
+      telegramGroups: [
+        { id: '2136702422', name: 'WWF volunteer Telegram'},
+        { id: '611754613', name: 'Moses Personal Chat'}
+      ],
+      newGroupId: '',
+      newGroupName: '',
+      showGroupModal: false,
       isSending: false,
       newParticipantName: '',
       editingListType: null,
@@ -77,8 +86,55 @@ class WWFSurveyBot extends Component {
     this.setState({ telegramToken: e.target.value });
   };
   
-  handleGroupIdChange = (e) => {
-    this.setState({ telegramGroupChatId: e.target.value });
+  // Handle new group ID change
+  handleNewGroupIdChange = (e) => {
+    this.setState({ newGroupId: e.target.value });
+  };
+  
+  // Handle new group name change
+  handleNewGroupNameChange = (e) => {
+    this.setState({ newGroupName: e.target.value });
+  };
+  
+  // Open group management modal
+  openGroupModal = () => {
+    this.setState({
+      showGroupModal: true,
+      newGroupId: '',
+      newGroupName: ''
+    });
+  };
+  
+  // Close group management modal
+  closeGroupModal = () => {
+    this.setState({
+      showGroupModal: false,
+      newGroupId: '',
+      newGroupName: ''
+    });
+  };
+  
+  // Add a new Telegram group
+  addTelegramGroup = () => {
+    const { newGroupId, newGroupName } = this.state;
+    
+    if (!newGroupId.trim() || !newGroupName.trim()) return;
+    
+    this.setState(prevState => ({
+      telegramGroups: [
+        ...prevState.telegramGroups,
+        { id: newGroupId.trim(), name: newGroupName.trim() }
+      ],
+      newGroupId: '',
+      newGroupName: ''
+    }));
+  };
+  
+  // Remove a Telegram group
+  removeTelegramGroup = (index) => {
+    this.setState(prevState => ({
+      telegramGroups: prevState.telegramGroups.filter((_, idx) => idx !== index)
+    }));
   };
   
   handleCustomSurveyChange = (field, e) => {
@@ -318,7 +374,7 @@ class WWFSurveyBot extends Component {
     const botMessage = {
       id: this.state.conversation.length + 1,
       sender: 'bot',
-      text: `Sending the following message to Telegram:\n\n${message}`,
+      text: `Sending the following message to all configured Telegram groups:\n\n${message}`,
       timestamp: new Date()
     };
     
@@ -327,8 +383,8 @@ class WWFSurveyBot extends Component {
       isSending: true
     });
     
-    // Send to Telegram
-    this.sendToTelegram(message);
+    // Send to all Telegram groups
+    this.sendToTelegramGroups(message);
   };
   
   sendCustomMessage = () => {
@@ -350,8 +406,8 @@ class WWFSurveyBot extends Component {
       isSending: true
     });
     
-    // Send to Telegram
-    this.sendToTelegram(userMessage);
+    // Send to all Telegram groups
+    this.sendToTelegramGroups(userMessage);
   };
   
   handleMessageChange = (e) => {
@@ -364,54 +420,63 @@ class WWFSurveyBot extends Component {
     }
   };
   
-  sendToTelegram = (message) => {
-    const { telegramToken, telegramGroupChatId } = this.state;
-    
-    // Using Telegram Bot API to send message
+  // Send message to multiple Telegram groups
+  sendToTelegramGroups = (message) => {
+    const { telegramToken, telegramGroups } = this.state;
     const telegramApiUrl = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
     
-    fetch(telegramApiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        chat_id: telegramGroupChatId,
-        text: message,
-        parse_mode: 'Markdown'
-      }),
-    })
-    .then(response => response.json())
-    .then(data => {
-      // Handle success
-      const successMessage = {
-        id: this.state.conversation.length + 1,
-        sender: 'bot',
-        text: `Message sent to Telegram group successfully!`,
-        timestamp: new Date()
-      };
-      
-      this.setState({
-        conversation: [...this.state.conversation, successMessage],
-        isSending: false
-      });
-    })
-    .catch(error => {
-      // Handle error
-      console.error('Error sending message to Telegram:', error);
-      
-      const errorMessage = {
-        id: this.state.conversation.length + 1,
-        sender: 'bot',
-        text: `Error sending message to Telegram: ${error.message}. Please check your token and group ID.`,
-        timestamp: new Date()
-      };
-      
-      this.setState({
-        conversation: [...this.state.conversation, errorMessage],
-        isSending: false
+    // Create an array of promises for sending messages to each group
+    const sendPromises = telegramGroups.map(group => {
+      return fetch(telegramApiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chat_id: group.id,
+          text: message,
+          parse_mode: 'Markdown'
+        }),
+      })
+      .then(response => response.json())
+      .then(data => {
+        return { success: true, groupName: group.name, data };
+      })
+      .catch(error => {
+        return { success: false, groupName: group.name, error };
       });
     });
+    
+    // Process all sending operations
+    Promise.all(sendPromises)
+      .then(results => {
+        // Process results
+        const successGroups = results.filter(r => r.success).map(r => r.groupName);
+        const failedGroups = results.filter(r => !r.success).map(r => r.groupName);
+        
+        let resultMessage = '';
+        
+        if (successGroups.length > 0) {
+          resultMessage += `Message sent successfully to ${successGroups.length} group(s): ${successGroups.join(', ')}`;
+        }
+        
+        if (failedGroups.length > 0) {
+          if (resultMessage) resultMessage += '\n\n';
+          resultMessage += `Failed to send message to ${failedGroups.length} group(s): ${failedGroups.join(', ')}`;
+        }
+        
+        const resultBotMessage = {
+          id: this.state.conversation.length + 1,
+          sender: 'bot',
+          text: resultMessage,
+          timestamp: new Date()
+        };
+        
+        this.setState({
+          conversation: [...this.state.conversation, resultBotMessage],
+          isSending: false
+        });
+      });
   };
   
   formatTimestamp = (timestamp) => {
@@ -456,7 +521,10 @@ class WWFSurveyBot extends Component {
       isConfigured, 
       isSending, 
       telegramToken, 
-      telegramGroupChatId, 
+      telegramGroups,
+      newGroupId,
+      newGroupName,
+      showGroupModal,
       customSurvey,
       showMapModal,
       mapSearchTerm,
@@ -467,9 +535,45 @@ class WWFSurveyBot extends Component {
     
     return (
       <div className="wwf-bot-container">
+        <div className="message-header" style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 20px',
+              position: 'sticky',
+              top: 0,
+              backgroundColor: 'white', // Adding background color to ensure content doesn't show through
+              zIndex: 1000, // Ensures the header stays on top of other elements
+            }}>
+               <h1 style={{
+              textAlign: 'center',
+              margin: 0,
+              flexGrow: 1
+            }}>
+              <h2>WWF-SG Survey Schedule Telegram Bot</h2>
+            </h1>
+            <Link to="/" style={{
+              color: 'black',
+              padding: '10px 15px',
+              textDecoration: 'none',
+              borderRadius: '5px',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <FontAwesomeIcon icon={faHome} style={{ fontSize: '3rem' }} />
+            </Link>
+          </div>
         <div className="message-header">
-          <h2>WWF-SG Survey Schedule Telegram Bot</h2>
-        </div>
+          <button 
+            className="group-settings-button"
+            onClick={this.openGroupModal}
+            title="Manage Telegram Groups"
+          >
+            👥 Manage Groups ({telegramGroups.length})
+          </button>
+          </div>
         
         {(
           <>
@@ -731,6 +835,72 @@ class WWFSurveyBot extends Component {
                   
                   <div className="participant-modal-actions">
                     <button onClick={this.closeParticipantModal} className="done-button">
+                      Done
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Telegram Groups Management Modal */}
+            {showGroupModal && (
+              <div className="group-modal-overlay">
+                <div className="group-modal">
+                  <h3>Manage Telegram Groups</h3>
+                  
+                  <div className="group-list">
+                    {telegramGroups.length > 0 ? (
+                      telegramGroups.map((group, index) => (
+                        <div key={index} className="group-item">
+                          <span className="group-name">{group.name}</span>
+                          <span className="group-id">ID: {group.id}</span>
+                          {telegramGroups.length > 1 && (
+                            <button
+                              className="remove-group-button"
+                              onClick={() => this.removeTelegramGroup(index)}
+                              title="Remove Group"
+                            >
+                              ❌
+                            </button>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="no-groups-message">No groups configured</div>
+                    )}
+                  </div>
+                  
+                  <div className="add-group-form">
+                    <div className="group-form-row">
+                      <input
+                        type="text"
+                        value={newGroupName}
+                        onChange={this.handleNewGroupNameChange}
+                        placeholder="Group Name (e.g. WWF SG Team)"
+                        className="group-input"
+                      />
+                    </div>
+                    <div className="group-form-row">
+                      <input
+                        type="text"
+                        value={newGroupId}
+                        onChange={this.handleNewGroupIdChange}
+                        placeholder="Group Chat ID (e.g. -1001234567890)"
+                        className="group-input"
+                      />
+                    </div>
+                    
+                    <button
+                      className="add-group-button"
+                      onClick={this.addTelegramGroup}
+                      disabled={!newGroupId.trim() || !newGroupName.trim()}
+                    >
+                      Add Group
+                    </button>
+                  </div>
+                  
+                  <div className="group-modal-actions">
+                    <button onClick={this.closeGroupModal} className="done-button">
                       Done
                     </button>
                   </div>

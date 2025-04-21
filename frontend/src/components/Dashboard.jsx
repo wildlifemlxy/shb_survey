@@ -7,6 +7,9 @@ import D3TreeHeightChart from './D3TreeHeightChart';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { getValidCoordinates, getUniqueLocations, getUniqueActivity } from '../utils/dataProcessing';
+import { Link } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faHome } from '@fortawesome/free-solid-svg-icons';
 
 class Dashboard extends Component {
   constructor(props) {
@@ -269,7 +272,36 @@ class Dashboard extends Component {
 
     return (
       <div className="dashboard">
-        <h1>Straw-headed Bulbul Observation Dashboard</h1>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 20px',
+              position: 'sticky',
+              top: 0,
+              backgroundColor: 'white', // Adding background color to ensure content doesn't show through
+              zIndex: 1000, // Ensures the header stays on top of other elements
+            }}>
+            <h1 style={{
+              textAlign: 'center',
+              margin: 0,
+              flexGrow: 1
+            }}>
+              Straw-headed Bulbul Observation Dashboard
+            </h1>
+            <Link to="/" style={{
+              color: 'black',
+              padding: '10px 15px',
+              textDecoration: 'none',
+              borderRadius: '5px',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <FontAwesomeIcon icon={faHome} style={{ fontSize: '3rem' }} />
+            </Link>
+          </div>  
         {/* Mobile Navigation Tabs */}
         <div className="nav-tabs mb-20">
           <button 

@@ -1,0 +1,111 @@
+.home-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    font-family: Arial, sans-serif;
+    color: #333;
+  }
+  
+  .home-header {
+    text-align: center;
+    margin-bottom: 3rem;
+    background-color: #f8f9fa;
+    padding: 2rem;
+    border-radius: 8px;
+    border-left: 5px solid #1a9641; /* WWF green */
+  }
+  
+  .home-header h1 {
+    font-size: 2.5rem;
+    color: #1a9641; /* WWF green */
+    margin-bottom: 1rem;
+  }
+  
+  .home-header p {
+    font-size: 1.2rem;
+    color: #555;
+  }
+  
+  .features-section {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+    margin-bottom: 3rem;
+  }
+  
+  .feature-card {
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    width: 300px;
+    text-align: center;
+    transition: transform 0.3s ease;
+    border-top: 4px solid #1a9641; /* WWF green */
+  }
+  
+  .feature-card:hover {
+    transform: translateY(-5px);
+  }
+  
+  .feature-card h2 {
+    color: #1a9641; /* WWF green */
+    margin-bottom: 1rem;
+  }
+  
+  .feature-card p {
+    color: #666;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+  }
+  
+  .feature-button {
+    display: inline-block;
+    background-color: #1a9641; /* WWF green */
+    color: white;
+    padding: 0.8rem 1.5rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+  }
+  
+  .feature-button:hover {
+    background-color: #147a32; /* Darker green */
+  }
+  
+  .info-section {
+    background-color: #f8f9fa;
+    padding: 2rem;
+    border-radius: 8px;
+    margin-top: 2rem;
+  }
+  
+  .info-content h3 {
+    color: #1a9641; /* WWF green */
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+  }
+  
+  .info-content p {
+    line-height: 1.6;
+    color: #555;
+  }
+  
+  @media (max-width: 768px) {
+    .features-section {
+      flex-direction: column;
+      align-items: center;
+    }
+    
+    .feature-card {
+        flex-direction: column;
+        align-items: center;
+        width: 75%;
+    }
+    
+    .home-header h1 {
+      font-size: 2rem;
+    }
+  }
