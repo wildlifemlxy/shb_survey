@@ -10,9 +10,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       workbox: {
         globDirectory: 'dist',
-        globPatterns: ['**/*.{js,css,html,wasm}'],
+        globPatterns: ['**/*.{js,css,html,wasm,json,png,svg,ico}'],
         globIgnores: ['**/node_modules/**/*', 'sw.js', 'workbox-*.js'],
-        maximumFileSizeToCacheInBytes: 1024 * 1024 * 1024, // 5MB
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
       manifest: {
         name: 'My React Vite PWA',
@@ -50,7 +50,6 @@ export default defineConfig({
     target: 'es2022',
     chunkSizeWarningLimit: 3000,
     rollupOptions: {
-      //external: ['@fortawesome/fontawesome-svg-core'],
       output: {
         manualChunks: {
           lodash: ['lodash'],
