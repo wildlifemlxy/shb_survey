@@ -13,9 +13,20 @@ class D3TreeHeightChart extends Component {
       height: 0,
       isMobile: false,
       expandedIndex: null,
-      showReport: false
+      showReport: false,
+      showPercentageView: false
     };
   }
+
+  togglePercentageView = () => {
+    this.setState(prevState => ({
+      showPercentageView: !prevState.showPercentageView
+    }), () => {
+      // Re-render the chart with the new view mode
+      this.renderChart();
+    });
+  };
+
 
   componentDidMount() {
     this.updateDimensions();
@@ -69,7 +80,7 @@ class D3TreeHeightChart extends Component {
 
   renderChart() {
     const { data } = this.props;
-    const { isMobile } = this.state;
+    const { isMobile, showPercentageView } = this.state;
     const svg = d3.select(this.d3Container.current);
   
     // Clear existing content
@@ -93,7 +104,9 @@ class D3TreeHeightChart extends Component {
         hasBird,
         seenHeard,
         noBirds,
-        index: index + 1
+        index: index + 1,
+        // Pre-calculate percentage for consistent use
+        birdPercentage: hasBird && treeHeight > 0 ? (birdHeight / treeHeight) * 100 : 0
       };
     });
   
@@ -108,10 +121,11 @@ class D3TreeHeightChart extends Component {
       .range([0, width])
       .padding(isMobile ? 0.2 : 0.3);
   
+    // Modify y scale based on view mode
     const y = d3.scaleLinear()
-      .domain([0, d3.max(pairedData, d => d.treeHeight) * 1.1])
+      .domain(showPercentageView ? [0, 100] : [0, d3.max(pairedData, d => d.treeHeight) * 1.1])
       .range([height, 0]);
-  
+      
     const chartGroup = svg.append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
   
@@ -120,22 +134,14 @@ class D3TreeHeightChart extends Component {
       .attr("class", "y-axis")
       .call(d3.axisLeft(y)
         .ticks(isMobile ? 5 : 10)
-        .tickFormat(d => isMobile && d % 1 !== 0 ? '' : d))
+        .tickFormat(d => {
+          if (isMobile && d % 1 !== 0) return '';
+          return showPercentageView ? `${d}%` : d;
+        }))
       .selectAll("text")
       .style("font-size", isMobile ? "10px" : "12px");
   
-    chartGroup.append("g")
-      .attr("class", "x-axis")
-      .attr("transform", `translate(0,${height})`)
-      .call(d3.axisBottom(x)
-        .tickValues(isMobile && pairedData.length > 10
-          ? pairedData.filter(d => d.index % 2 === 0).map(d => d.index)
-          : null))
-      .selectAll("text")
-      .style("text-anchor", "middle")
-      .style("font-size", isMobile ? "10px" : "12px");
-  
-    // Tooltip
+    // Tooltip setup
     d3.select('.chart-tooltip').remove();
     const tooltip = d3.select("body").append("div")
       .attr("class", "chart-tooltip")
@@ -150,28 +156,7 @@ class D3TreeHeightChart extends Component {
       .style("font-size", isMobile ? "12px" : "14px")
       .style("max-width", isMobile ? "150px" : "200px");
   
-    const showTooltip = (event, d) => {
-      const tooltipWidth = isMobile ? 150 : 200;
-      const windowWidth = window.innerWidth;
-  
-      tooltip.transition()
-        .duration(200)
-        .style("opacity", 0.9);
-  
-      const content = `<strong>Tree #${d.index}</strong><br/>Height: ${d.treeHeight}m<br/>${d.hasBird ? `<strong>Bird(s):</strong><br/>Height: ${d.birdHeight}m` : ''}`;
-      tooltip.html(content);
-  
-      const pageX = event.type.includes('touch') ? event.touches[0].pageX : event.pageX;
-      const pageY = event.type.includes('touch') ? event.touches[0].pageY : event.pageY;
-  
-      const leftPos = Math.min(pageX + 10, windowWidth - tooltipWidth - 10);
-      tooltip.style("left", leftPos + "px").style("top", (pageY - 28) + "px");
-    };
-  
-    const hideTooltip = () => {
-      tooltip.transition().duration(500).style("opacity", 0);
-    };
-  
+    // Tooltip handlers
     const moveTooltip = (event) => {
       const pageX = event.type.includes('touch') ? event.touches[0].pageX : event.pageX;
       const pageY = event.type.includes('touch') ? event.touches[0].pageY : event.pageY;
@@ -181,15 +166,59 @@ class D3TreeHeightChart extends Component {
       tooltip.style("left", leftPos + "px").style("top", (pageY - 28) + "px");
     };
   
-    // Bars
+    const hideTooltip = () => {
+      tooltip.transition().duration(500).style("opacity", 0);
+    };
+  
+    // Show tooltip function
+    const showTooltip = (event, d) => {
+      const tooltipWidth = isMobile ? 150 : 200;
+      const windowWidth = window.innerWidth;
+  
+      tooltip.transition()
+        .duration(200)
+        .style("opacity", 0.9);
+  
+      let content = '';
+      if (showPercentageView) {
+        const percentage = d.birdPercentage.toFixed(1);
+        content = `<strong>Tree #${d.index}</strong><br/>
+                    Bird Position: ${percentage}%`;
+      } else {
+        content = `<strong>Tree #${d.index}</strong><br/>
+                Height: ${d.treeHeight}m<br/>
+                ${d.hasBird ? `<strong>Bird(s):</strong><br/>Height: ${d.birdHeight}m` : ''}`;
+      }
+      tooltip.html(content);
+  
+      const pageX = event.type.includes('touch') ? event.touches[0].pageX : event.pageX;
+      const pageY = event.type.includes('touch') ? event.touches[0].pageY : event.pageY;
+  
+      const leftPos = Math.min(pageX + 10, windowWidth - tooltipWidth - 10);
+      tooltip.style("left", leftPos + "px").style("top", (pageY - 28) + "px");
+    };
+  
+    // Render bars
     chartGroup.selectAll(".bar")
       .data(pairedData)
       .join("rect")
       .attr("class", "bar")
       .attr("x", d => x(d.index))
-      .attr("y", d => y(d.treeHeight))
+      .attr("y", d => {
+        if (showPercentageView) {
+          // In percentage view, all bars start from 0% (bottom)
+          return y(100);
+        }
+        return y(d.treeHeight);
+      })
       .attr("width", x.bandwidth())
-      .attr("height", d => height - y(d.treeHeight))
+      .attr("height", d => {
+        if (showPercentageView) {
+          // In percentage view, all bars are 100% height
+          return height - y(100);
+        }
+        return height - y(d.treeHeight);
+      })
       .attr("fill", d => {
         if (d.seenHeard === "Heard") return "#D1C4E9";
         if (d.seenHeard === "Seen") return "#A8E6CF";
@@ -204,15 +233,38 @@ class D3TreeHeightChart extends Component {
       .on("touchmove", moveTooltip)
       .on("touchend", hideTooltip);
   
+    // X-axis
+    chartGroup.append("g")
+      .attr("class", "x-axis")
+      .attr("transform", `translate(0,${height})`)
+      .call(d3.axisBottom(x)
+        .tickValues(isMobile && pairedData.length > 10
+          ? pairedData.filter(d => d.index % 2 === 0).map(d => d.index)
+          : null))
+      .selectAll("text")
+      .style("text-anchor", "middle")
+      .style("font-size", isMobile ? "10px" : "12px");
+  
     // Bird icons and labels
     pairedData.forEach(d => {
       if (d.hasBird) {
         const iconSize = isMobile ? 15 : 20;
+        
+        // Calculate bird position correctly for percentage view
+        let yPosition;
+        if (showPercentageView) {
+          // Bird position should be at its percentage height from the bottom
+          // Map the percentage value (0-100) to the y-scale
+          yPosition = y(d.birdPercentage);
+        } else {
+          // In normal view, just use the absolute bird height
+          yPosition = y(d.birdHeight);
+        }
   
         chartGroup.append("image")
           .attr("xlink:href", birdLogo)
           .attr("x", x(d.index) + x.bandwidth() / 2 - iconSize / 2)
-          .attr("y", y(d.birdHeight) - iconSize / 2)
+          .attr("y", yPosition - iconSize / 2)
           .attr("width", iconSize)
           .attr("height", iconSize)
           .style("cursor", "pointer")
@@ -225,7 +277,7 @@ class D3TreeHeightChart extends Component {
   
         chartGroup.append("text")
           .attr("x", x(d.index) + x.bandwidth() / 2)
-          .attr("y", y(d.birdHeight))
+          .attr("y", yPosition)
           .attr("text-anchor", "middle")
           .attr("font-size", "12px")
           .attr("dy", "1.5em")
@@ -233,7 +285,8 @@ class D3TreeHeightChart extends Component {
           .style("fill", "black");
       }
     });
-
+  
+    // Legend
     const legendData = [
       { label: "Seen", color: "#A8E6CF" },
       { label: "Heard", color: "#D1C4E9" },
@@ -264,7 +317,7 @@ class D3TreeHeightChart extends Component {
   }
 
   renderTreeStatistics = (treeStatsData) => {
-    const { expandedIndex } = this.state;
+    const { expandedIndex, showPercentageView } = this.state;
   
     // Calculate total summary
     const totalEntry = treeStatsData.reduce(
@@ -272,15 +325,17 @@ class D3TreeHeightChart extends Component {
         totalTrees: acc.totalTrees + 1,
         totalHeight: acc.totalHeight + (curr.treeHeight || 0),
         totalBirds: acc.totalBirds + (curr.noBirds || 0),
-        totalBirdHeight: acc.totalBirdHeight + (curr.birdHeight || 0),
       }),
-      { totalTrees: 0, totalHeight: 0, totalBirds: 0, totalBirdHeight: 0 }
+      { totalTrees: 0, totalHeight: 0, totalBirds: 0}
     );
   
     const totalExpanded = expandedIndex === 'total';
   
     return (
-      <div className="tree-statistics-container" style={{ marginTop: '1rem', maxHeight: '200px', overflowY: 'auto' }}>
+      <div
+        className="tree-statistics-container"
+        style={{ marginTop: '1rem', maxHeight: '200px', overflowY: 'auto' }}
+      >
         {/* Sticky Total Row */}
         <div
           onClick={() => this.setState({ expandedIndex: totalExpanded ? null : 'total' })}
@@ -304,21 +359,20 @@ class D3TreeHeightChart extends Component {
         {/* Individual Tree Stats */}
         {treeStatsData.map((tree, index) => {
           const isExpanded = expandedIndex === index;
-          let backgroundColor = ''; // Default background color
+          let backgroundColor = '';
   
-          // Set background color based on seenHeard status
           switch (tree.seenHeard) {
             case 'Seen':
-              backgroundColor = '#A8E6CF'; // Green color for Seen
+              backgroundColor = '#A8E6CF';
               break;
             case 'Heard':
-              backgroundColor = '#D1C4E9'; // Purple color for Heard
+              backgroundColor = '#D1C4E9';
               break;
             case 'Not found':
-              backgroundColor = '#FFCDD2'; // Red color for Not Found
+              backgroundColor = '#FFCDD2';
               break;
           }
-  
+
           return (
             <div
               key={index}
@@ -327,7 +381,7 @@ class D3TreeHeightChart extends Component {
                 cursor: 'pointer',
                 padding: '0.5rem',
                 borderBottom: '1px solid #ccc',
-                backgroundColor: isExpanded ? '#f9f9f9' : backgroundColor, // Apply background color here
+                backgroundColor: isExpanded ? '#f9f9f9' : backgroundColor,
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -336,10 +390,20 @@ class D3TreeHeightChart extends Component {
                   {tree.seenHeard ?? 'Not recorded'}: {tree.noBirds ?? 0} Bird{(tree.noBirds ?? 0) > 1 ? 's' : ''}
                 </span>
               </div>
+  
               {isExpanded && (
                 <div style={{ marginTop: '0.5rem' }}>
-                  <div><strong>Tree Height:</strong> {tree.treeHeight ?? 'N/A'} m</div>
-                  <div><strong>Bird Height:</strong> {tree.birdHeight ?? '—'} m</div>
+                  {showPercentageView === true ? (
+                    <div>
+                      <strong>Bird Height Position:</strong>{' '}
+                      {`${(tree.birdHeight/tree.treeHeight)*100}%`}
+                    </div>
+                  ) : (
+                    <>
+                      <div><strong>Tree Height:</strong> {tree.treeHeight ?? 'N/A'} m</div>
+                      <div><strong>Bird Height:</strong> {tree.birdHeight ?? '—'} m</div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -347,7 +411,7 @@ class D3TreeHeightChart extends Component {
         })}
       </div>
     );
-  };
+  };  
 
   renderInsightsPanel = () => {
     const { insights, insightsLoading } = this.state;
@@ -745,333 +809,337 @@ class D3TreeHeightChart extends Component {
   };
   
   // Update the generateInsights method to work without countByLocation
-generateInsights = async () => {
-  const { data } = this.props;
-  
-  // Extract the data directly
-  const treeData = extractTreeHeights(data);
-  const birdData = extractBirdHeights(data);
-  const noBirdsData = extractNoBirds(data);
-  const seenHeardData = extractSeenHeard(data);
-  
-  // Create a structured dataset for our analysis
-  const structuredData = treeData.map((treeHeight, index) => ({
-    index: index + 1,
-    treeHeight,
-    birdHeight: birdData[index] !== undefined ? birdData[index] : null,
-    noBirds: noBirdsData[index] !== undefined ? noBirdsData[index] : 0,
-    seenHeard: seenHeardData[index] !== undefined ? seenHeardData[index] : 'Not found'
-  }));
-  
-  this.setState({ insightsLoading: true });
-  
-  try {
-    // Simulate a delay for processing
-    await new Promise(resolve => setTimeout(resolve, 1500));
+  generateInsights = async () => {
+    const { data } = this.props;
     
-    // Process data for insights without relying on location-based grouping
-    const insights = {
-      populationAnalysis: this.performDataAnalysis(structuredData),
-      anomalyDetection: this.detectAnomalies(structuredData),
-      trendPredictions: this.predictTrends(structuredData)
-    };
+    // Extract the data directly
+    const treeData = extractTreeHeights(data);
+    const birdData = extractBirdHeights(data);
+    const noBirdsData = extractNoBirds(data);
+    const seenHeardData = extractSeenHeard(data);
     
-    this.setState({ insights, insightsLoading: false, activeTab1: 'population' });
-  } catch (error) {
-    console.error("Error generating insights:", error);
-    this.setState({ 
-      insightsLoading: false,
-      insights: {
-        error: "Failed to generate insights. Please try again later."
-      }
-    });
-  }
-};
-
-// Replace the previous TensorFlow-based methods with direct calculation methods
-
-// Population analysis without TensorFlow
-performDataAnalysis = (data) => {
-  try {
-    // Create categories based on seenHeard status
-    const seen = data.filter(item => item.seenHeard === 'Seen');
-    const heard = data.filter(item => item.seenHeard === 'Heard');
-    const notFound = data.filter(item => item.seenHeard === 'Not found');
-    
-    // Calculate simple statistics
-    const calculateStats = (items) => {
-      if (items.length === 0) return { mean: '0.00', std: '0.00' };
-      
-      const sum = items.reduce((acc, item) => acc + (item.noBirds || 0), 0);
-      const mean = sum / items.length;
-      
-      const variance = items.reduce((acc, item) => {
-        const diff = (item.noBirds || 0) - mean;
-        return acc + (diff * diff);
-      }, 0) / Math.max(1, items.length);
-      
-      const std = Math.sqrt(variance);
-      
-      return {
-        mean: mean.toFixed(2),
-        std: std.toFixed(2)
-      };
-    };
-    
-    // Calculate stats for each category
-    const seenStats = calculateStats(seen);
-    const heardStats = calculateStats(heard);
-    const notFoundStats = calculateStats(notFound);
-    
-    // Generate insights
-    // Instead of location-based, we'll use tree height ranges as "locations"
-    const heightRanges = [
-      { name: '0-5m', trees: [], birds: 0 },
-      { name: '5-10m', trees: [], birds: 0 },
-      { name: '10-15m', trees: [], birds: 0 },
-      { name: '15m+', trees: [], birds: 0 }
-    ];
-    
-    // Categorize trees by height range
-    data.forEach(tree => {
-      if (tree.treeHeight < 5) {
-        heightRanges[0].trees.push(tree);
-        heightRanges[0].birds += tree.noBirds || 0;
-      } else if (tree.treeHeight < 10) {
-        heightRanges[1].trees.push(tree);
-        heightRanges[1].birds += tree.noBirds || 0;
-      } else if (tree.treeHeight < 15) {
-        heightRanges[2].trees.push(tree);
-        heightRanges[2].birds += tree.noBirds || 0;
-      } else {
-        heightRanges[3].trees.push(tree);
-        heightRanges[3].birds += tree.noBirds || 0;
-      }
-    });
-    
-    // Find most and least active ranges
-    const sortedRanges = [...heightRanges].sort((a, b) => b.birds - a.birds);
-    
-    // Convert to required format for display
-    const mostActive = {
-      location: sortedRanges[0].name,
-      Total: sortedRanges[0].trees.length,
-      Seen: sortedRanges[0].trees.filter(t => t.seenHeard === 'Seen').length,
-      Heard: sortedRanges[0].trees.filter(t => t.seenHeard === 'Heard').length,
-      NotFound: sortedRanges[0].trees.filter(t => t.seenHeard === 'Not found').length,
-    };
-    
-    const leastActive = {
-      location: sortedRanges[sortedRanges.length - 1].name,
-      Total: sortedRanges[sortedRanges.length - 1].trees.length,
-      Seen: sortedRanges[sortedRanges.length - 1].trees.filter(t => t.seenHeard === 'Seen').length,
-      Heard: sortedRanges[sortedRanges.length - 1].trees.filter(t => t.seenHeard === 'Heard').length,
-      NotFound: sortedRanges[sortedRanges.length - 1].trees.filter(t => t.seenHeard === 'Not found').length,
-    };
-    
-    return {
-      statistics: {
-        seen: seenStats,
-        heard: heardStats,
-        notFound: notFoundStats
-      },
-      insights: {
-        mostActive,
-        leastActive,
-        distributionType: seenStats.std > seenStats.mean ? "Highly Varied" : "Evenly Distributed"
-      }
-    };
-  } catch (error) {
-    console.error("Error in data analysis:", error);
-    return { error: "Failed to analyze data" };
-  }
-};
-
-// Anomaly detection without TensorFlow
-detectAnomalies = (data) => {
-  try {
-    // Simple anomaly detection based on statistical outliers
-    
-    // Calculate bird density (birds per meter of tree height)
-    const treeWithDensity = data.map(tree => ({
-      ...tree,
-      density: tree.treeHeight > 0 ? (tree.noBirds || 0) / tree.treeHeight : 0
+    // Create a structured dataset for our analysis
+    const structuredData = treeData.map((treeHeight, index) => ({
+      index: index + 1,
+      treeHeight,
+      birdHeight: birdData[index] !== undefined ? birdData[index] : null,
+      noBirds: noBirdsData[index] !== undefined ? noBirdsData[index] : 0,
+      seenHeard: seenHeardData[index] !== undefined ? seenHeardData[index] : 'Not found'
     }));
     
-    // Calculate mean and standard deviation of density
-    const densities = treeWithDensity.map(t => t.density);
-    const meanDensity = densities.reduce((sum, val) => sum + val, 0) / densities.length;
+    this.setState({ insightsLoading: true });
     
-    const varianceDensity = densities.reduce((sum, val) => {
-      const diff = val - meanDensity;
-      return sum + (diff * diff);
-    }, 0) / densities.length;
-    
-    const stdDensity = Math.sqrt(varianceDensity);
-    
-    // Define threshold for outliers (e.g., 2 standard deviations)
-    const threshold = 2;
-    
-    // Find volume anomalies (unusually high or low bird counts)
-    const volumeAnomalies = treeWithDensity
-      .filter(tree => {
-        const zScore = Math.abs((tree.density - meanDensity) / (stdDensity || 1));
-        return zScore > threshold;
-      })
-      .map(tree => ({
-        location: `Tree #${tree.index}`,
-        Total: tree.noBirds || 0,
-        treeHeight: tree.treeHeight
-      }));
-    
-    // Find ratio anomalies (unusual patterns in seen/heard/not found)
-    // For example, trees that have birds but were only heard, never seen
-    const ratioAnomalies = data
-      .filter(tree => {
-        // Trees with birds that were only heard, never seen
-        if (tree.noBirds > 2 && tree.seenHeard === 'Heard') return true;
-        
-        // Trees with very high positions of birds relative to tree height
-        if (tree.birdHeight && tree.treeHeight && 
-            tree.birdHeight > tree.treeHeight * 0.8) return true;
-            
-        return false;
-      })
-      .map(tree => ({
-        location: `Tree #${tree.index}`,
-        Total: tree.noBirds || 0
-      }));
-    
-    return {
-      volumeAnomalies,
-      ratioAnomalies,
-      anomalyThreshold: threshold,
-      summary: {
-        totalAnomalies: volumeAnomalies.length + ratioAnomalies.length,
-        significance: volumeAnomalies.length > 0 ? "High" : "Low"
-      }
-    };
-  } catch (error) {
-    console.error("Error in anomaly detection:", error);
-    return { error: "Failed to detect anomalies" };
-  }
-};
+    try {
+      // Simulate a delay for processing
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Process data for insights without relying on location-based grouping
+      const insights = {
+        populationAnalysis: this.performDataAnalysis(structuredData),
+        anomalyDetection: this.detectAnomalies(structuredData),
+        trendPredictions: this.predictTrends(structuredData)
+      };
+      
+      this.setState({ insights, insightsLoading: false, activeTab1: 'population' });
+    } catch (error) {
+      console.error("Error generating insights:", error);
+      this.setState({ 
+        insightsLoading: false,
+        insights: {
+          error: "Failed to generate insights. Please try again later."
+        }
+      });
+    }
+  };
 
-// Trend predictions without TensorFlow
-predictTrends = (data) => {
-  try {
-    // Group trees by height ranges for analysis
-    const ranges = [
-      { name: '0-5m', trees: [] },
-      { name: '5-10m', trees: [] },
-      { name: '10-15m', trees: [] },
-      { name: '15m+', trees: [] }
-    ];
-    
-    // Categorize trees
-    data.forEach(tree => {
-      if (tree.treeHeight < 5) {
-        ranges[0].trees.push(tree);
-      } else if (tree.treeHeight < 10) {
-        ranges[1].trees.push(tree);
-      } else if (tree.treeHeight < 15) {
-        ranges[2].trees.push(tree);
-      } else {
-        ranges[3].trees.push(tree);
-      }
-    });
-    
-    // Process each range
-    const processedRanges = ranges.map(range => {
-      const totalBirds = range.trees.reduce((sum, tree) => sum + (tree.noBirds || 0), 0);
-      const seenCount = range.trees.filter(t => t.seenHeard === 'Seen').length;
-      const heardCount = range.trees.filter(t => t.seenHeard === 'Heard').length;
-      const notFoundCount = range.trees.filter(t => t.seenHeard === 'Not found').length;
+  // Replace the previous TensorFlow-based methods with direct calculation methods
+
+  // Population analysis without TensorFlow
+  performDataAnalysis = (data) => {
+    try {
+      // Create categories based on seenHeard status
+      const seen = data.filter(item => item.seenHeard === 'Seen');
+      const heard = data.filter(item => item.seenHeard === 'Heard');
+      const notFound = data.filter(item => item.seenHeard === 'Not found');
       
-      // Calculate percentages for prediction
-      const seenRatio = range.trees.length > 0 ? seenCount / range.trees.length : 0;
-      const heardRatio = range.trees.length > 0 ? heardCount / range.trees.length : 0;
+      // Calculate simple statistics
+      const calculateStats = (items) => {
+        if (items.length === 0) return { mean: '0.00', std: '0.00' };
+        
+        const sum = items.reduce((acc, item) => acc + (item.noBirds || 0), 0);
+        const mean = sum / items.length;
+        
+        const variance = items.reduce((acc, item) => {
+          const diff = (item.noBirds || 0) - mean;
+          return acc + (diff * diff);
+        }, 0) / Math.max(1, items.length);
+        
+        const std = Math.sqrt(variance);
+        
+        return {
+          mean: mean.toFixed(2),
+          std: std.toFixed(2)
+        };
+      };
       
-      // Determine growth prediction
-      let growth = "Low";
-      if (seenRatio > 0.6) growth = "High";
-      else if (seenRatio > 0.4) growth = "Moderate";
+      // Calculate stats for each category
+      const seenStats = calculateStats(seen);
+      const heardStats = calculateStats(heard);
+      const notFoundStats = calculateStats(notFound);
       
-      // Determine trend prediction
-      let trend = "Stable";
-      if (seenRatio > heardRatio && seenRatio > 0.4) trend = "Increasing visibility";
-      else if (heardRatio > seenRatio && heardRatio > 0.4) trend = "Increasing awareness";
-      else if (notFoundCount > (seenCount + heardCount)) trend = "Decreasing presence";
+      // Generate insights
+      // Instead of location-based, we'll use tree height ranges as "locations"
+      const heightRanges = [
+        { name: '0-5m', trees: [], birds: 0 },
+        { name: '5-10m', trees: [], birds: 0 },
+        { name: '10-15m', trees: [], birds: 0 },
+        { name: '15m+', trees: [], birds: 0 }
+      ];
+      
+      // Categorize trees by height range
+      data.forEach(tree => {
+        if (tree.treeHeight < 5) {
+          heightRanges[0].trees.push(tree);
+          heightRanges[0].birds += tree.noBirds || 0;
+        } else if (tree.treeHeight < 10) {
+          heightRanges[1].trees.push(tree);
+          heightRanges[1].birds += tree.noBirds || 0;
+        } else if (tree.treeHeight < 15) {
+          heightRanges[2].trees.push(tree);
+          heightRanges[2].birds += tree.noBirds || 0;
+        } else {
+          heightRanges[3].trees.push(tree);
+          heightRanges[3].birds += tree.noBirds || 0;
+        }
+      });
+      
+      // Find most and least active ranges
+      const sortedRanges = [...heightRanges].sort((a, b) => b.birds - a.birds);
+      
+      // Convert to required format for display
+      const mostActive = {
+        location: sortedRanges[0].name,
+        Total: sortedRanges[0].trees.length,
+        Seen: sortedRanges[0].trees.filter(t => t.seenHeard === 'Seen').length,
+        Heard: sortedRanges[0].trees.filter(t => t.seenHeard === 'Heard').length,
+        NotFound: sortedRanges[0].trees.filter(t => t.seenHeard === 'Not found').length,
+      };
+      
+      const leastActive = {
+        location: sortedRanges[sortedRanges.length - 1].name,
+        Total: sortedRanges[sortedRanges.length - 1].trees.length,
+        Seen: sortedRanges[sortedRanges.length - 1].trees.filter(t => t.seenHeard === 'Seen').length,
+        Heard: sortedRanges[sortedRanges.length - 1].trees.filter(t => t.seenHeard === 'Heard').length,
+        NotFound: sortedRanges[sortedRanges.length - 1].trees.filter(t => t.seenHeard === 'Not found').length,
+      };
       
       return {
-        location: range.name,
-        current: {
-          total: totalBirds,
-          trees: range.trees.length,
-          seen: seenCount,
-          heard: heardCount
+        statistics: {
+          seen: seenStats,
+          heard: heardStats,
+          notFound: notFoundStats
         },
-        prediction: {
-          growth,
-          trend,
-          confidence: (Math.max(seenRatio, heardRatio) * 100).toFixed(1) + "%"
+        insights: {
+          mostActive,
+          leastActive,
+          distributionType: seenStats.std > seenStats.mean ? "Highly Varied" : "Evenly Distributed"
         }
       };
-    });
-    
-    // Sort by bird count for top and low locations
-    const sorted = [...processedRanges].sort((a, b) => b.current.total - a.current.total);
-    const topLocations = sorted.slice(0, 2);
-    const lowLocations = sorted.slice(-2);
-    
-    return {
-      topLocations,
-      lowLocations,
-      overallTrend: topLocations.length > 0 && topLocations[0].prediction.growth === "High"
-        ? "Positive"
-        : "Stable"
-    };
-  } catch (error) {
-    console.error("Error in trend predictions:", error);
-    return { error: "Failed to generate trend predictions" };
-  }
-};
+    } catch (error) {
+      console.error("Error in data analysis:", error);
+      return { error: "Failed to analyze data" };
+    }
+  };
+
+  // Anomaly detection without TensorFlow
+  detectAnomalies = (data) => {
+    try {
+      // Simple anomaly detection based on statistical outliers
+      
+      // Calculate bird density (birds per meter of tree height)
+      const treeWithDensity = data.map(tree => ({
+        ...tree,
+        density: tree.treeHeight > 0 ? (tree.noBirds || 0) / tree.treeHeight : 0
+      }));
+      
+      // Calculate mean and standard deviation of density
+      const densities = treeWithDensity.map(t => t.density);
+      const meanDensity = densities.reduce((sum, val) => sum + val, 0) / densities.length;
+      
+      const varianceDensity = densities.reduce((sum, val) => {
+        const diff = val - meanDensity;
+        return sum + (diff * diff);
+      }, 0) / densities.length;
+      
+      const stdDensity = Math.sqrt(varianceDensity);
+      
+      // Define threshold for outliers (e.g., 2 standard deviations)
+      const threshold = 2;
+      
+      // Find volume anomalies (unusually high or low bird counts)
+      const volumeAnomalies = treeWithDensity
+        .filter(tree => {
+          const zScore = Math.abs((tree.density - meanDensity) / (stdDensity || 1));
+          return zScore > threshold;
+        })
+        .map(tree => ({
+          location: `Tree #${tree.index}`,
+          Total: tree.noBirds || 0,
+          treeHeight: tree.treeHeight
+        }));
+      
+      // Find ratio anomalies (unusual patterns in seen/heard/not found)
+      // For example, trees that have birds but were only heard, never seen
+      const ratioAnomalies = data
+        .filter(tree => {
+          // Trees with birds that were only heard, never seen
+          if (tree.noBirds > 2 && tree.seenHeard === 'Heard') return true;
+          
+          // Trees with very high positions of birds relative to tree height
+          if (tree.birdHeight && tree.treeHeight && 
+              tree.birdHeight > tree.treeHeight * 0.8) return true;
+              
+          return false;
+        })
+        .map(tree => ({
+          location: `Tree #${tree.index}`,
+          Total: tree.noBirds || 0
+        }));
+      
+      return {
+        volumeAnomalies,
+        ratioAnomalies,
+        anomalyThreshold: threshold,
+        summary: {
+          totalAnomalies: volumeAnomalies.length + ratioAnomalies.length,
+          significance: volumeAnomalies.length > 0 ? "High" : "Low"
+        }
+      };
+    } catch (error) {
+      console.error("Error in anomaly detection:", error);
+      return { error: "Failed to detect anomalies" };
+    }
+  };
+
+  // Trend predictions without TensorFlow
+  predictTrends = (data) => {
+    try {
+      // Group trees by height ranges for analysis
+      const ranges = [
+        { name: '0-5m', trees: [] },
+        { name: '5-10m', trees: [] },
+        { name: '10-15m', trees: [] },
+        { name: '15m+', trees: [] }
+      ];
+      
+      // Categorize trees
+      data.forEach(tree => {
+        if (tree.treeHeight < 5) {
+          ranges[0].trees.push(tree);
+        } else if (tree.treeHeight < 10) {
+          ranges[1].trees.push(tree);
+        } else if (tree.treeHeight < 15) {
+          ranges[2].trees.push(tree);
+        } else {
+          ranges[3].trees.push(tree);
+        }
+      });
+      
+      // Process each range
+      const processedRanges = ranges.map(range => {
+        const totalBirds = range.trees.reduce((sum, tree) => sum + (tree.noBirds || 0), 0);
+        const seenCount = range.trees.filter(t => t.seenHeard === 'Seen').length;
+        const heardCount = range.trees.filter(t => t.seenHeard === 'Heard').length;
+        const notFoundCount = range.trees.filter(t => t.seenHeard === 'Not found').length;
+        
+        // Calculate percentages for prediction
+        const seenRatio = range.trees.length > 0 ? seenCount / range.trees.length : 0;
+        const heardRatio = range.trees.length > 0 ? heardCount / range.trees.length : 0;
+        
+        // Determine growth prediction
+        let growth = "Low";
+        if (seenRatio > 0.6) growth = "High";
+        else if (seenRatio > 0.4) growth = "Moderate";
+        
+        // Determine trend prediction
+        let trend = "Stable";
+        if (seenRatio > heardRatio && seenRatio > 0.4) trend = "Increasing visibility";
+        else if (heardRatio > seenRatio && heardRatio > 0.4) trend = "Increasing awareness";
+        else if (notFoundCount > (seenCount + heardCount)) trend = "Decreasing presence";
+        
+        return {
+          location: range.name,
+          current: {
+            total: totalBirds,
+            trees: range.trees.length,
+            seen: seenCount,
+            heard: heardCount
+          },
+          prediction: {
+            growth,
+            trend,
+            confidence: (Math.max(seenRatio, heardRatio) * 100).toFixed(1) + "%"
+          }
+        };
+      });
+      
+      // Sort by bird count for top and low locations
+      const sorted = [...processedRanges].sort((a, b) => b.current.total - a.current.total);
+      const topLocations = sorted.slice(0, 2);
+      const lowLocations = sorted.slice(-2);
+      
+      return {
+        topLocations,
+        lowLocations,
+        overallTrend: topLocations.length > 0 && topLocations[0].prediction.growth === "High"
+          ? "Positive"
+          : "Stable"
+      };
+    } catch (error) {
+      console.error("Error in trend predictions:", error);
+      return { error: "Failed to generate trend predictions" };
+    }
+  };
 
   renderReport = () => {
     const { data } = this.props;
+    const {showPercentageView} = this.state;
     const treeData = extractTreeHeights(data);
     const birdData = extractBirdHeights(data);
     const seenHeardData = extractSeenHeard(data);
     const noBirdsData = extractNoBirds(data);
-    
+
     const pairedData = treeData.map((treeHeight, index) => ({
       index: index + 1,
       treeHeight,
       birdHeight: birdData[index] ?? null,
-      noBirds: noBirdsData[index] ?? 0, 
+      noBirds: noBirdsData[index] ?? 0,
       seenHeard: seenHeardData[index] ?? null,
     }));
-    
+
     // Summary statistics
     const seenCount = pairedData.filter(item => item.seenHeard === "Seen").length;
     const heardCount = pairedData.filter(item => item.seenHeard === "Heard").length;
     const notFoundCount = pairedData.filter(item => item.seenHeard === "Not found").length;
     const totalCount = pairedData.length;
-    
+
+    const calcPercent = (count) => totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
+
     return (
       <div className="report-container" style={{ 
         padding: '1rem',
         backgroundColor: 'white',
         border: '1px solid #e2e8f0',
         borderRadius: '6px',
-        maxHeight: '500px',
+        maxHeight: '200px',
         overflowY: 'auto',
         marginTop: '1.5rem'
       }}>
         <h4 style={{ marginTop: 0, color: '#2d3748', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
           Tree and Bird Observation Report
         </h4>
-        
+
+
         {/* Summary Statistics */}
         <h5 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>Summary Statistics</h5>
         <div style={{ 
@@ -1084,7 +1152,7 @@ predictTrends = (data) => {
           borderRadius: '4px'
         }}>
           <div>
-            <div style={{ fontWeight: 'bold', fontSize: '1.5rem', color: '#6366F1' }}>{totalCount}</div>
+          <div style={{ fontWeight: 'bold', fontSize: '1.5rem', color: '#6366F1' }}>{totalCount}</div>
             <div style={{ color: '#718096' }}>Total Trees</div>
           </div>
           <div>
@@ -1101,64 +1169,110 @@ predictTrends = (data) => {
           </div>
         </div>
 
-        <h5 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>Height Statistics</h5>
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-          gap: '1rem', 
-          marginBottom: '1.5rem',
-          padding: '0.5rem',
-          backgroundColor: '#f7fafc',
-          borderRadius: '4px'
-        }}>
-        </div>
-        
         {/* Tree Data Table */}
         <h5 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>Tree Data</h5>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#f7fafc', borderBottom: '2px solid #e2e8f0' }}>
-                <th style={{ padding: '0.75rem', textAlign: 'left' }}>Tree #</th>
-                <th style={{ padding: '0.75rem', textAlign: 'right' }}>Height (m)</th>
-                <th style={{ padding: '0.75rem', textAlign: 'center' }}>Status</th>
-                <th style={{ padding: '0.75rem', textAlign: 'right' }}>Birds</th>
-                <th style={{ padding: '0.75rem', textAlign: 'right' }}>Bird Height (m)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pairedData.map((tree, idx) => (
-                <tr key={idx} style={{ 
-                  borderBottom: '1px solid #e2e8f0',
-                  backgroundColor: idx % 2 === 0 ? 'white' : '#f7fafc',
-                }}>
-                  <td style={{ padding: '0.75rem' }}>{tree.index}</td>
-                  <td style={{ padding: '0.75rem', textAlign: 'right' }}>{tree.treeHeight}</td>
-                  <td style={{ 
-                    padding: '0.75rem', 
-                    textAlign: 'center',
-                    color: tree.seenHeard === "Seen" ? "#38A169" : 
-                           tree.seenHeard === "Heard" ? "#805AD5" : 
-                           tree.seenHeard === "Not found" ? "#E53E3E" : "#718096"
-                  }}>
-                    {tree.seenHeard || "Not recorded"}
-                  </td>
-                  <td style={{ padding: '0.75rem', textAlign: 'right' }}>{tree.noBirds}</td>
-                  <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                    {tree.birdHeight !== null ? tree.birdHeight : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+         {/* Conditional Rendering Based on showPercentageView */}
+            {showPercentageView ? (
+              <>
+                {/* Table with Percentage View (Show Percentage) */}
+                <div style={{ marginTop: '1.5rem' }}>
+                  <h5 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>Tree Data with Percentages</h5>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f7fafc', borderBottom: '2px solid #e2e8f0' }}>
+                        <th style={{ padding: '0.75rem', textAlign: 'left' }}>Tree #</th>
+                        <th style={{ padding: '0.75rem', textAlign: 'center' }}>Status</th>
+                        <th style={{ padding: '0.75rem', textAlign: 'right' }}>Birds Position</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pairedData.map((tree, idx) => (
+                        <tr key={idx} style={{ 
+                          borderBottom: '1px solid #e2e8f0',
+                          backgroundColor: idx % 2 === 0 ? 'white' : '#f7fafc',
+                        }}>
+                          <td style={{ padding: '0.75rem' }}>{tree.index}</td>
+
+                          {/* Seen/Heard Status */}
+                          <td style={{ padding: '0.75rem', textAlign: 'center', color: tree.seenHeard === "Seen" ? "#38A169" : 
+                              tree.seenHeard === "Heard" ? "#805AD5" : 
+                              tree.seenHeard === "Not found" ? "#E53E3E" : "#718096"
+                          }}>
+                            {tree.seenHeard || "Not recorded"}
+                          </td>
+
+                          {/* Bird Position */}
+                          <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                            {tree.treeHeight && tree.birdHeight !== null
+                              ? isNaN(tree.birdHeight / tree.treeHeight)
+                                ? "NaN"
+                                : ((tree.birdHeight / tree.treeHeight) * 100).toFixed(1) + "%"
+                              : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Original Tree Data Table */}
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f7fafc', borderBottom: '2px solid #e2e8f0' }}>
+                      <th style={{ padding: '0.75rem', textAlign: 'left' }}>Tree #</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'right' }}>Height (m)</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'center' }}>Status</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'right' }}>Birds</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'right' }}>Bird Height (m)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pairedData.map((tree, idx) => (
+                      <tr key={idx} style={{ 
+                        borderBottom: '1px solid #e2e8f0',
+                        backgroundColor: idx % 2 === 0 ? 'white' : '#f7fafc',
+                      }}>
+                        <td style={{ padding: '0.75rem' }}>{tree.index}</td>
+
+                        {/* Tree Height */}
+                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                          {tree.treeHeight}
+                        </td>
+
+                        {/* Seen/Heard Status */}
+                        <td style={{ padding: '0.75rem', textAlign: 'center', color: tree.seenHeard === "Seen" ? "#38A169" : 
+                            tree.seenHeard === "Heard" ? "#805AD5" : 
+                            tree.seenHeard === "Not found" ? "#E53E3E" : "#718096"
+                        }}>
+                          {tree.seenHeard || "Not recorded"}
+                        </td>
+
+                        {/* Number of Birds */}
+                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                          {tree.noBirds}
+                        </td>
+
+                        {/* Bird Height */}
+                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                          {tree.birdHeight !== null ? tree.birdHeight : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
         </div>
       </div>
     );
   };
-  
+    
   render() 
   {
-    const { showInsightsPanel, showReportPanel } = this.state;
+    const { showInsightsPanel, showReportPanel, showPercentageView} = this.state;
     let treeData = extractTreeHeights(this.props.data);
     let birdData = extractBirdHeights(this.props.data);
     let noBirdsData = extractNoBirds(this.props.data);
@@ -1184,7 +1298,7 @@ predictTrends = (data) => {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h2>Tree Heights and SHB Habitation</h2>
-          <div>
+          <div> 
             <button
               onClick={() => this.setState(prevState => ({ 
                 showReportPanel: !prevState.showReportPanel,
@@ -1241,22 +1355,44 @@ predictTrends = (data) => {
       </div>
 
         {/* Chart is always displayed */}
+        <div className="chart-container">
+      {/* Button should be outside SVG */}
+        <button
+          onClick={this.togglePercentageView}
+          style={{
+            background: showPercentageView ? '#EDF2F7' : '#6366F1',
+            color: showPercentageView ? '#4A5568' : 'white',
+            border: 'none',
+            padding: '0.5rem 1rem',
+            borderRadius: '4px',
+            cursor: 'pointer', 
+            fontWeight: '500',
+            marginRight: '0.5rem'
+          }}
+        >
+          {showPercentageView ? 'Normal View' : 'Percentage View'}
+        </button>
+      
+        {/* SVG element separate from button */}
         <svg
           ref={this.d3Container}
           width={this.state.width}
           height={this.state.height}
         />
+        
+        {/* Legend container */}
         <div
-          id="legend-container"
-          className="legend-container"
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginTop: "1rem",
-            marginBottom: "1rem",
-          }}
-        ></div>
+            id="legend-container"
+            className="legend-container"
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginTop: "1rem",
+              marginBottom: "1rem",
+            }}
+          ></div>
+      </div>
 
         {/* Report is only displayed after clicking the Generate Report button */}
         {this.state.showInsightsPanel === true && this.state.showReportPanel === false && this.renderInsightsPanel()}
