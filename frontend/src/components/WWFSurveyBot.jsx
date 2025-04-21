@@ -11,7 +11,7 @@ class WWFSurveyBot extends Component {
       ],
       isTyping: false,
       telegramToken: '7968511707:AAF3ZRpt1q4kNik8cEpcskQjbnJy5kVm6N4',
-      telegramGroupChatId: '611754613',
+      telegramGroupChatId: '2136702422',
       isSending: false,
       newParticipantName: '',
       editingListType: null,
