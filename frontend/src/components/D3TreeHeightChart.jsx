@@ -3,6 +3,8 @@ import * as d3 from 'd3';
 import { extractTreeHeights, extractBirdHeights, extractSeenHeard, extractNoBirds } from '../utils/dataProcessing';
 import birdLogo from '../assets/bird-logo.png';
 
+//OK
+
 class D3TreeHeightChart extends Component {
   constructor(props) {
     super(props);
