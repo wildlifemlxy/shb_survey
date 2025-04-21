@@ -280,7 +280,7 @@ class Dashboard extends Component {
               position: 'sticky',
               top: 0,
               backgroundColor: 'white', // Adding background color to ensure content doesn't show through
-              zIndex: 1000, // Ensures the header stays on top of other elements
+              zIndex: 1005, // Ensures the header stays on top of other elements
             }}>
             <h1 style={{
               textAlign: 'center',
