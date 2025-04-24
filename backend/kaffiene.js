@@ -2,7 +2,7 @@
 const axios = require('axios');
 const cron = require('node-cron');
 
-const pingUrl = 'https://your-azure-app-name.azurewebsites.net/ping';
+const pingUrl = 'hhttps://shb-backend.azurewebsites.net/ping';
 
 const pingApp = async () => {
   try {
