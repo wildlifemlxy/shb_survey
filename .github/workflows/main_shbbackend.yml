@@ -67,7 +67,8 @@ jobs:
           fi
 
       - name: Debug changes detected
-        run: echo "Changes detected: ${{ steps.check_changes.outputs.changes_detected }}"
+        #if: ${{ steps.check_changes.outputs.changes_detected == 'true' }}  
+        run: 'echo "Changes detected: ${{ steps.check_changes.outputs.changes_detected }}"'
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
