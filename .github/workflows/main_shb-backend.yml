@@ -22,6 +22,10 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '22.x'
+      
+      - name: Go to backend folder
+        run: | 
+          cd backend;
 
       - name: npm install, build, and test
         run: |

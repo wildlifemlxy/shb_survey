@@ -612,7 +612,7 @@ app.post('/api/telegram/send', async (req, res) => {
 });
 
 // Schedule cron job to check for upcoming surveys (runs every day at 1430 hrs/ 2:30 PM )
-cron.schedule('45 14 * * *', async () => {
+cron.schedule('0 15 * * *', async () => {
   try {
     await checkAndSendReminders();
   } catch (error) {
