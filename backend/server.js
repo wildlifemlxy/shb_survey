@@ -611,20 +611,14 @@ app.post('/api/telegram/send', async (req, res) => {
   }
 });
 
-    // Check if running on localhost
-    const isLocalhost = ['localhost', '127.0.0.1'].includes(os.hostname()) || process.env.NODE_ENV === 'development';
-
-    // Define the cron expression
-    const cronTime = isLocalhost ? '30 18 * * *' : '30 10 * * *'; // 18:25 or 10:25
-
-    // Schedule the cron job
-    cron.schedule(cronTime, async () => {
-      try {
-        await checkAndSendReminders();
-      } catch (error) {
-        console.error('Error in scheduled reminder check:', error);
-      }
-    });
+// Schedule cron job to check for upcoming surveys (runs every day at 1430 hrs/ 2:30 PM )
+cron.schedule('38 10 * * *', async () => {
+  try {
+    await checkAndSendReminders();
+  } catch (error) {
+    console.error('Error in scheduled reminder check:', error);
+  }
+});
 
 // Initial data fetch on server start
 (async () => {
