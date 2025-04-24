@@ -440,7 +440,7 @@ const checkAndSendReminders = async () => {
     
     // Calculate two days from now
     const twoDaysFromNow = new Date(today);
-    twoDaysFromNow.setDate(today.getDate() + 2);
+    twoDaysFromNow.setDate(today.getDate() + 1/*2*/);
     
     // Check if the survey date is the same as two days from now
     return surveyDate.getDate() === twoDaysFromNow.getDate() &&
@@ -612,7 +612,7 @@ app.post('/api/telegram/send', async (req, res) => {
 });
 
 // Schedule cron job to check for upcoming surveys (runs every day at 1430 hrs/ 2:30 PM )
-cron.schedule('55 15 * * *', async () => {
+cron.schedule('15 16 * * *', async () => {
   try {
     await checkAndSendReminders();
   } catch (error) {
