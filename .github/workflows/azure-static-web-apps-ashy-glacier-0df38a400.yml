@@ -1,4 +1,4 @@
-name: Deploy React + Vite
+name: Deploy React + Vite App
 on:
   push:
     branches:
