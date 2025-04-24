@@ -556,13 +556,14 @@ class WWFSurveyBot extends Component {
   };
   
   formatStandardSurveyMessage = (survey) => {
+    console.log("Survey162:", survey);
     // Helper function to ensure URLs are properly formatted
     const formatUrl = (url) => {
       if (!url) return '';
       // Make sure URL starts with http:// or https://
       return url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`;
     };
-  
+    
     // Helper function to escape HTML special characters
     const escapeHtml = (text) => {
       if (!text) return '';
@@ -574,9 +575,9 @@ class WWFSurveyBot extends Component {
         .replace(/'/g, "&#039;");
     };
     
-    let message = `Hi everyone! Please find the details for tomorrow's (${escapeHtml(survey.date)}) survey below:\n\n`;
-    message += `<b>Survey Details</b>\n`;
-    message += `Location: ${escapeHtml(survey.location)}\n`;
+    let messageText = `Hi everyone! Please find the details for tomorrow's (${escapeHtml(survey.date)}) survey below:\n\n`;
+    messageText += `<b>Survey Details</b>\n`;
+    messageText += `Location: ${escapeHtml(survey.location)}\n`;
     
     let meetingPointUrl = survey.meetingPoint;
     if (!meetingPointUrl && survey.location && survey.location !== "TBC") {
@@ -586,35 +587,58 @@ class WWFSurveyBot extends Component {
     if (meetingPointUrl) {
       const formattedUrl = formatUrl(meetingPointUrl);
       // Using HTML <a> tag for hyperlink
-      message += `Meeting Point: <a href="${formattedUrl}">${escapeHtml(survey.location || 'Click here')}</a>`;
+      messageText += `Meeting Point: <a href="${formattedUrl}">${escapeHtml(survey.location || 'Click here')}</a>`;
       if (survey.meetingPointDesc) {
-        message += ` (${escapeHtml(survey.meetingPointDesc)})`;
+        messageText += ` (${escapeHtml(survey.meetingPointDesc)})`;
       }
-      message += '\n';
+      messageText += '\n';
     }
     
-    message += `Time: ${escapeHtml(survey.time)}\n\n`;
-    message += `<b>Participant List</b> &lt;- please add your name if you want to join\n`;
+    messageText += `Time: ${escapeHtml(survey.time)}\n\n`;
+    messageText += `<b>Participant List</b> - please vote if you're attending\n`;
     
+    // Create keyboard buttons
+    const keyboardButtons = [];
+    
+    // Add participant list to message text
     if (survey.participants && survey.participants.length > 0) {
       survey.participants.forEach((participant, index) => {
-        message += `${index + 1}. ${escapeHtml(participant)}\n`;
+        messageText += `${index + 1}. ${escapeHtml(participant)}\n`;
       });
     }
     
+    // Add "Yes I'll attend" and "No I can't attend" buttons
+    /*keyboardButtons.push([
+      { text: "✅ Yes, I'll attend", callback_data: "add_to_list" },
+      { text: "❌ No, I can't attend", callback_data: "remove_from_list" }
+    ]);    
+    // Add "See who's coming" button
+    keyboardButtons.push([
+      { text: "👥 See who's coming", callback_data: "show_participants" }
+    ]);*/
+    
     // Add the training materials link
     const trainingUrl = formatUrl("https://drive.google.com/drive/folders/1aztfMfCVlNGqro492FS-3gvdaRA6kCGk?usp=drive_link");
-    message += `\n<a href="${trainingUrl}">Training Materials</a>`;
+    messageText += `\n<a href="${trainingUrl}">Training Materials</a>`;
     
-    return message;
+    // Return an object containing both the message text and the poll-like inline keyboard markup
+    return {
+      text: messageText,
+      markup: {
+        inline_keyboard: keyboardButtons
+      }
+    };
   };
-  
+
   sendFormattedSurveyInfo = (surveyType) => {
+    console.log("Survey 1121:", this.state.surveyData);
     let survey;
     
-    if (surveyType === 'voluteer-led') {
+    if (surveyType.includes('volunteer-led')) {
       const index = parseInt(surveyType.split('-')[2]) - 1;
+      console.log("Index Volunteer Led:", index);
       survey = this.state.surveyData.volunteerLed[index];
+      //console.log("Survey1234:",  this.state.surveyData.volunteerLed[index]); 
     } else if (surveyType === 'custom') {
       survey = this.state.customSurvey;
     } else {
@@ -674,73 +698,40 @@ class WWFSurveyBot extends Component {
   };
   
   // Send message to multiple Telegram groups
-  sendToTelegramGroups = (message) => {
-    const { telegramToken, telegramGroups } = this.state;
-    const telegramApiUrl = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
-    
-    // Create an array of promises for sending messages to each group
-    const sendPromises = telegramGroups.map(group => {
-      return fetch(telegramApiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          chat_id: group.id,
-          text: message,
-          //parse_mode: 'Markdown'
-          parse_mode: "HTML"
-        }),
-      })
-      .then(response => {
-        if (!response.ok) {
-          // Log the full response if there's an error
-          return response.json().then(errorData => {
-            console.error(`Error sending to ${group.name}:`, errorData);
-            return { success: false, groupName: group.name, error: errorData };
-          });
-        }
-        return response.json().then(data => {
-          return { success: true, groupName: group.name, data };
-        });
-      })
-      .catch(error => {
-        console.error(`Error sending to ${group.name}:`, error);
-        return { success: false, groupName: group.name, error };
-      });
-    });
-    
-    // Process all sending operations
-    Promise.all(sendPromises)
-      .then(results => {
-        // Process results
-        const successGroups = results.filter(r => r.success).map(r => r.groupName);
-        const failedGroups = results.filter(r => !r.success).map(r => r.groupName);
-        
-        let resultMessage = '';
-        
-        if (successGroups.length > 0) {
-          resultMessage += `Message sent successfully to ${successGroups.length} group(s): ${successGroups.join(', ')}`;
-        }
-        
-        if (failedGroups.length > 0) {
-          if (resultMessage) resultMessage += '\n\n';
-          resultMessage += `Failed to send message to ${failedGroups.length} group(s): ${failedGroups.join(', ')}`;
-        }
-        
-        const resultBotMessage = {
-          id: this.state.conversation.length + 1,
-          sender: 'bot',
-          text: resultMessage,
-          timestamp: new Date()
-        };
-        
-        this.setState({
-          conversation: [...this.state.conversation, resultBotMessage],
-          isSending: false
-        });
-      });
+  sendToTelegramGroups = (formattedMessage) => {
+  const { telegramToken, telegramGroups } = this.state;
+  const telegramApiUrl = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
+  
+  // Format the message with your survey data
+  const survey = {
+    date: "26 April 2025",
+    location: "TBC",
+    meetingPoint: "",
+    meetingPointDesc: "",
+    participants: ['Feng Yun', 'Tseng Wen', 'Keon', 'Tvish'],
+    time: "0730hrs - 0930hrs"
   };
+  
+  // Send to each group
+  const sendPromises = telegramGroups.map(group => {
+    return fetch(telegramApiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        chat_id: group.id,
+        text: formattedMessage.text,
+        parse_mode: "HTML",
+        reply_markup: formattedMessage.markup
+      }),
+    })
+    .then(/* your existing promise handling code */)
+    .catch(/* your existing error handling code */);
+  });
+  
+  // Process results with Promise.all as in your original code
+};
   
   formatTimestamp = (timestamp) => {
     return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -849,7 +840,7 @@ class WWFSurveyBot extends Component {
                 return (
                   <div key={index} className="survey-button-group">
                     <button onClick={() => this.sendFormattedSurveyInfo(`wwf-led-${index+1}`)}>
-                      Send Mandai T15 Survey Info (16 Apr)
+                      Send {survey.location} Survey Info ({survey.date})
                     </button>
                     <button 
                       className="map-button" 
