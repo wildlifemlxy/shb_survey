@@ -5,13 +5,15 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "node app.js",
+    "stop": "forever stop app.js"
   },
   "dependencies": {
     "axios": "^1.8.4",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
     "express": "^4.21.2",
+    "forever": "^4.0.3",
     "fs": "^0.0.1-security",
     "node-cron": "^3.0.3",
     "path": "^0.12.7",
