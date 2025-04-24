@@ -1,4 +1,4 @@
-/*const express = require('express');
+const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const cron = require('node-cron');
@@ -612,7 +612,7 @@ app.post('/api/telegram/send', async (req, res) => {
 });
 
 // Schedule cron job to check for upcoming surveys (runs every day at 1430 hrs/ 2:30 PM )
-cron.schedule('38 10 * * *', async () => {
+cron.schedule('55 15 * * *', async () => {
   try {
     await checkAndSendReminders();
   } catch (error) {
@@ -633,34 +633,4 @@ cron.schedule('38 10 * * *', async () => {
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-});*/
-
-
-// Import required modules
-const forever = require('forever');
-const path = require('path');
-const fs = require('fs');
-
-// Create logs directory if it doesn't exist
-const logsDir = path.join(__dirname, 'logs');
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
-}
-
-// Define options for Forever
-const options = {
-  silent: false,
-  uid: 'survey-app',
-  append: true,
-  watch: true,
-  watchDirectory: __dirname,
-  logFile: path.join(logsDir, 'forever.log'),
-  outFile: path.join(logsDir, 'app-out.log'),
-  errFile: path.join(logsDir, 'app-err.log'),
-  command: 'node',
-  args: ['app.js'] // Replace with your actual main file name
-};
-
-// Start the process
-forever.startDaemon('app.js', options);
-console.log('Survey application started with Forever');
+});
