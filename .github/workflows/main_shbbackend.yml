@@ -77,13 +77,13 @@ jobs:
 
       - name: Install, Build, and Test (Backend Only)
         run: |
-          cd backend
+          cd node/backend
           npm install
           npm run build --if-present
 
       - name: Zip backend folder for deployment
         run: |
-          cd backend
+          cd node/backend
           zip -r ../release.zip .
 
       - name: Upload deployment artifact
