@@ -8,7 +8,7 @@ const path = require('path');
 const bodyParser = require('body-parser');
 
 const app = express();
-const PORT = process.env.PORT || '8080';
+const PORT = process.env.PORT || '3001';
 
 // Middleware
 app.use(cors());
@@ -617,10 +617,10 @@ const isProduction = process.env.NODE_ENV === 'production';
 // For 9:50 AM SST (09:50):
 // - Local SST time: '50 9 * * *'
 // - UTC equivalent: '50 1 * * *' (because SST is UTC+8)
-const cronTime = isProduction ? '15 2 * * *' : '15 10* * *';
+const cronTime = isProduction ? '05 3 * * *' : '05 11* * *';
 
 // Schedule cron job to check for upcoming surveys
-console.log(`Setting up cron job to run at ${isProduction ? '02:15 UTC' : '10:15 SST'}`);
+console.log(`Setting up cron job to run at ${isProduction ? '03:05 UTC' : '11:05 SST'}`);
 cron.schedule(cronTime, async () => {
   try {
     console.log(`Reminder check running at ${new Date().toLocaleString()}`);
