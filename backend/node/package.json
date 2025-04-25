@@ -4,8 +4,8 @@
   "description": "Backend for WWF Survey Telegram Bot",
   "main": "server.js",
 "scripts": {
-    "start": "pm2 start server.js --name main-server",
-    "dev": "pm2 start app.js --name dev-app --watch",
+    "start": "pm2 start server.js --name main-server1",
+    "dev": "pm2 start server.js --name dev-app --watch",
     "stop": "pm2 stop all",
     "list": "pm2 list",
     "logs": "pm2 logs",
