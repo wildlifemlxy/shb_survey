@@ -433,7 +433,7 @@ const checkAndSendReminders = async () => {
     
     // Calculate two days from now
     const twoDaysFromNow = new Date(today);
-    twoDaysFromNow.setDate(today.getDate() + 1/*2*/);
+    twoDaysFromNow.setDate(today.getDate() + 2);
     
     // Check if the survey date is the same as two days from now
     return surveyDate.getDate() === twoDaysFromNow.getDate() &&
@@ -610,10 +610,10 @@ console.log("isProduction ijij:", isProduction);
 
 // For 9:50 AM SST (09:50):
 // - Local SST time: '50 9 * * *'
-const cronTime = isProduction ? '15 11 * * *' : '15 19 * * *';
+const cronTime = isProduction ? '0 10 * * *' : '0 18 * * *';
 
 // Schedule cron job to check for upcoming surveys
-console.log(`Setting up cron job to run at ${isProduction ? '11:15 UTC' : '19:15 SST'}`);
+console.log(`Setting up cron job to run at ${isProduction ? '10:00 UTC' : '19:00 SST'}`);
 cron.schedule(cronTime, async () => {
   try {
     console.log(`Reminder check running at ${new Date().toLocaleString()}`);
