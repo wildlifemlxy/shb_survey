@@ -620,7 +620,7 @@ console.log("isProduction ijij:", isProduction);
 // For 9:50 AM SST (09:50):
 // - Local SST time: '50 9 * * *'
 // - UTC equivalent: '50 1 * * *' (because SST is UTC+8)
-const cronTime = isProduction ? '25 6 * * *' : '25 14 * * *';
+const cronTime = isProduction ? '45 6 * * *' : '45 14 * * *';
 
 // Schedule cron job to check for upcoming surveys
 console.log(`Setting up cron job to run at ${isProduction ? '05:42 UTC' : '13:42 SST'}`);
