@@ -617,10 +617,10 @@ const isProduction = process.env.NODE_ENV === 'production';
 // For 9:50 AM SST (09:50):
 // - Local SST time: '50 9 * * *'
 // - UTC equivalent: '50 1 * * *' (because SST is UTC+8)
-const cronTime = isProduction ? '05 2 * * *' : '00 15 * * *';
+const cronTime = isProduction ? '10 2 * * *' : '10 10* * *';
 
 // Schedule cron job to check for upcoming surveys
-console.log(`Setting up cron job to run at ${isProduction ? '02:05 UTC' : '10:05 SST'}`);
+console.log(`Setting up cron job to run at ${isProduction ? '02:10 UTC' : '10:10 SST'}`);
 cron.schedule(cronTime, async () => {
   try {
     console.log(`Reminder check running at ${new Date().toLocaleString()}`);
