@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faHome } from '@fortawesome/free-solid-svg-icons';
 import * as XLSX from 'xlsx'; // Import the xlsx library
+import axios from 'axios';
 
 
 class WWFSurveyBot extends Component {
@@ -575,7 +576,7 @@ class WWFSurveyBot extends Component {
         .replace(/'/g, "&#039;");
     };
     
-    let messageText = `Hi everyone! Please find the details for tomorrow's (${escapeHtml(survey.date)}) survey below:\n\n`;
+    let messageText = `Hi everyone!\nPlease find the details for tomorrow's (${escapeHtml(survey.date)}) survey below:\n\n`;
     messageText += `<b>Survey Details</b>\n`;
     messageText += `Location: ${escapeHtml(survey.location)}\n`;
     
@@ -606,14 +607,18 @@ class WWFSurveyBot extends Component {
         messageText += `${index + 1}. ${escapeHtml(participant)}\n`;
       });
     }
+    else
+    {
+      messageText += `No one has confirmed yet. Be the first to confirm!`;
+    }
     
     // Add "Yes I'll attend" and "No I can't attend" buttons
-    /*keyboardButtons.push([
+    keyboardButtons.push([
       { text: "✅ Yes, I'll attend", callback_data: "add_to_list" },
       { text: "❌ No, I can't attend", callback_data: "remove_from_list" }
     ]);    
     // Add "See who's coming" button
-    keyboardButtons.push([
+    /*keyboardButtons.push([
       { text: "👥 See who's coming", callback_data: "show_participants" }
     ]);*/
     
@@ -628,6 +633,186 @@ class WWFSurveyBot extends Component {
         inline_keyboard: keyboardButtons
       }
     };
+  };
+
+  handleWebhookRequest = (req, res) => {
+    // Extract the callback query from the request
+    const update = req.body;
+    
+    // Check if this is a callback query (button click)
+    if (update && update.callback_query) {
+      this.handleTelegramCallback(update.callback_query);
+      res.status(200).send('OK');
+    } else {
+      res.status(200).send('Not a callback query');
+    }
+  };
+  
+  // Function to handle button clicks
+  handleTelegramCallback = async (callbackQuery) => {
+    const { telegramToken } = this.state;
+    const { id, from, data, message } = callbackQuery;
+    
+    console.log('Received callback:', callbackQuery);
+    
+    // Extract the current attendees list from the message
+    const messageText = message.text;
+    const attendeesSection = messageText.split('<b>Confirmed Attendees:</b>')[1];
+    const currentAttendees = [];
+    
+    // Parse attendees if they exist
+    if (attendeesSection && !attendeesSection.includes('No one has confirmed yet')) {
+      const attendeeLines = attendeesSection.trim().split('\n');
+      for (const line of attendeeLines) {
+        if (line.match(/^\d+\.\s+/)) {
+          const name = line.replace(/^\d+\.\s+/, '').trim();
+          if (name) currentAttendees.push(name);
+        }
+      }
+    }
+    
+    // Process the user's selection
+    let responseText = '';
+    let userName = from.first_name + (from.last_name ? ` ${from.last_name}` : '');
+    
+    if (data === 'attend_yes') {
+      // Add user to attendees if not already present
+      if (!currentAttendees.includes(userName)) {
+        currentAttendees.push(userName);
+      }
+      responseText = `${userName} is attending!`;
+    } else if (data === 'attend_no') {
+      // Remove user from attendees if present
+      const index = currentAttendees.indexOf(userName);
+      if (index > -1) {
+        currentAttendees.splice(index, 1);
+      }
+      responseText = `${userName} can't attend.`;
+    }
+    
+    // Answer the callback query to show a notification to the user who clicked
+    const answerCallbackUrl = `https://api.telegram.org/bot${telegramToken}/answerCallbackQuery`;
+    fetch(answerCallbackUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        callback_query_id: id,
+        text: responseText,
+        show_alert: false // Just a small notification, not a popup
+      })
+    });
+    
+    // Update the original message with new attendees list
+    // First, prepare the updated attendees section
+    let updatedAttendeesSection;
+    if (currentAttendees.length > 0) {
+      updatedAttendeesSection = currentAttendees
+        .map((name, i) => `${i+1}. ${name}`)
+        .join('\n');
+    } else {
+      updatedAttendeesSection = 'No one has confirmed yet. Be the first to confirm!';
+    }
+    
+    // Replace the attendees section in the message
+    const messageBeforeAttendees = messageText.split('<b>Confirmed Attendees:</b>')[0];
+    const updatedMessageText = `${messageBeforeAttendees}<b>Confirmed Attendees:</b>\n${updatedAttendeesSection}`;
+    
+    // Call the Telegram API to edit the message
+    const editMessageUrl = `https://api.telegram.org/bot${telegramToken}/editMessageText`;
+    await fetch(editMessageUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: message.chat.id,
+        message_id: message.message_id,
+        text: updatedMessageText,
+        parse_mode: 'HTML',
+        reply_markup: message.reply_markup // Keep the same buttons
+      })
+    })
+    .then(response => response.json())
+    .then(data => console.log('Message updated:', data))
+    .catch(error => console.error('Error updating message:', error));
+  };
+  
+  // Setting up the webhook - to be called on component mount or when configuring the bot
+  setupTelegramWebhook = async () => {
+    const { telegramToken } = this.state;
+    
+    // Your webhook endpoint - this should be a publicly accessible HTTPS URL
+    // For example, an HTTPS endpoint created with Express, AWS Lambda, Vercel, etc.
+    const webhookUrl = 'https://your-app-domain.com/api/telegram-webhook';
+    
+    const setWebhookUrl = `https://api.telegram.org/bot${telegramToken}/setWebhook`;
+    
+    try {
+      const response = await fetch(setWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: webhookUrl,
+          allowed_updates: ['callback_query']
+        })
+      });
+      
+      const data = await response.json();
+      console.log('Webhook set:', data);
+      
+      if (data.ok) {
+        this.setState(prevState => ({
+          conversation: [
+            ...prevState.conversation,
+            {
+              id: prevState.conversation.length + 1,
+              sender: 'bot',
+              text: 'Telegram webhook successfully configured. The bot will now respond to button clicks.',
+              timestamp: new Date()
+            }
+          ]
+        }));
+      } else {
+        throw new Error(data.description || 'Failed to set webhook');
+      }
+    } catch (error) {
+      console.error('Error setting webhook:', error);
+      this.setState(prevState => ({
+        conversation: [
+          ...prevState.conversation,
+          {
+            id: prevState.conversation.length + 1,
+            sender: 'bot',
+            text: `Error setting webhook: ${error.message}`,
+            timestamp: new Date()
+          }
+        ]
+      }));
+    }
+  };
+  
+  // Add this function to see the current webhook status
+  checkWebhookStatus = async () => {
+    const { telegramToken } = this.state;
+    const getWebhookInfoUrl = `https://api.telegram.org/bot${telegramToken}/getWebhookInfo`;
+    
+    try {
+      const response = await fetch(getWebhookInfoUrl);
+      const data = await response.json();
+      console.log('Current webhook info:', data);
+      
+      this.setState(prevState => ({
+        conversation: [
+          ...prevState.conversation,
+          {
+            id: prevState.conversation.length + 1,
+            sender: 'bot',
+            text: `Current webhook URL: ${data.result?.url || 'None'}\nLast error: ${data.result?.last_error_message || 'None'}`,
+            timestamp: new Date()
+          }
+        ]
+      }));
+    } catch (error) {
+      console.error('Error checking webhook:', error);
+    }
   };
 
   sendFormattedSurveyInfo = (surveyType) => {
@@ -699,39 +884,51 @@ class WWFSurveyBot extends Component {
   
   // Send message to multiple Telegram groups
   sendToTelegramGroups = (formattedMessage) => {
-  const { telegramToken, telegramGroups } = this.state;
-  const telegramApiUrl = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
-  
-  // Format the message with your survey data
-  const survey = {
-    date: "26 April 2025",
-    location: "TBC",
-    meetingPoint: "",
-    meetingPointDesc: "",
-    participants: ['Feng Yun', 'Tseng Wen', 'Keon', 'Tvish'],
-    time: "0730hrs - 0930hrs"
-  };
-  
-  // Send to each group
-  const sendPromises = telegramGroups.map(group => {
-    return fetch(telegramApiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        chat_id: group.id,
-        text: formattedMessage.text,
-        parse_mode: "HTML",
-        reply_markup: formattedMessage.markup
-      }),
-    })
-    .then(/* your existing promise handling code */)
-    .catch(/* your existing error handling code */);
-  });
-  
-  // Process results with Promise.all as in your original code
-};
+    const { telegramToken, telegramGroups } = this.state;
+        const telegramApiUrl = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
+        
+        const sendPromises = telegramGroups.map(group => {
+          return axios.post(telegramApiUrl, {
+            chat_id: group.id,
+            text: formattedMessage.text,
+            parse_mode: "HTML",
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: "Yes, I'll attend", callback_data: "vote_yes" },
+                  { text: "No, I can't attend", callback_data: "vote_no" },
+                  { text: "Maybe/Not sure", callback_data: "vote_maybe" }
+                ]
+              ]
+            }
+          })
+          .then(response => {
+            console.log(`Message sent to group ${group.name} (${group.id})`);
+            
+            // Generate a unique poll ID
+            const pollId = `${group.id}_${response.data.result.message_id}`;
+            
+            // Initialize poll data
+            polls[pollId] = {
+              attendees: {
+                yes: [],
+                no: [],
+                maybe: []
+              },
+              totalVotes: 0,
+              createdAt: Date.now()
+            };
+            
+            return { success: true, group, messageId: response.data.result.message_id };
+          })
+          .catch(error => {
+            console.error(`Error sending message to group ${group.name} (${group.id}):`, error.response?.data || error.message);
+            return { success: false, group, error: error.response?.data || error.message };
+          });
+        });
+        
+        return Promise.all(sendPromises);
+      };
   
   formatTimestamp = (timestamp) => {
     return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

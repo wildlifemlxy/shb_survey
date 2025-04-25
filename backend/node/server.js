@@ -8,8 +8,8 @@ const path = require('path');
 const bodyParser = require('body-parser');
 
 const app = express();
-//const port = process.env.PORT || 8080;
 const port = process.env.PORT || 3001;
+const polls = {};
 
 //const port = 8080;
 
@@ -382,6 +382,7 @@ const formatStandardSurveyMessage = (survey) => {
 };
 
 // Function to send message to Telegram
+// Function to send message to Telegram
 const sendToTelegramGroups = async (formattedMessage) => {
   const { token, groups } = telegramConfig;
   const telegramApiUrl = `https://api.telegram.org/bot${token}/sendMessage`;
@@ -391,11 +392,34 @@ const sendToTelegramGroups = async (formattedMessage) => {
       chat_id: group.id,
       text: formattedMessage.text,
       parse_mode: "HTML",
-      reply_markup: formattedMessage.markup
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "Yes, I'll attend", callback_data: "vote_yes" },
+            { text: "No, I can't attend", callback_data: "vote_no" },
+            { text: "Maybe/Not sure", callback_data: "vote_maybe" }
+          ]
+        ]
+      }
     })
     .then(response => {
       console.log(`Message sent to group ${group.name} (${group.id})`);
-      return { success: true, group };
+      
+      // Generate a unique poll ID
+      const pollId = `${group.id}_${response.data.result.message_id}`;
+      
+      // Initialize poll data
+      polls[pollId] = {
+        attendees: {
+          yes: [],
+          no: [],
+          maybe: []
+        },
+        totalVotes: 0,
+        createdAt: Date.now()
+      };
+      
+      return { success: true, group, messageId: response.data.result.message_id };
     })
     .catch(error => {
       console.error(`Error sending message to group ${group.name} (${group.id}):`, error.response?.data || error.message);
@@ -621,7 +645,7 @@ console.log("isProduction ijij:", isProduction);
 // For 9:50 AM SST (09:50):
 // - Local SST time: '50 9 * * *'
 // - UTC equivalent: '50 1 * * *' (because SST is UTC+8)
-const cronTime = isProduction ? '00 10 * * *' : '18 00 * * *';
+const cronTime = isProduction ? '00 10 * * *' : '27 16 * * *';
 
 // Schedule cron job to check for upcoming surveys
 console.log(`Setting up cron job to run at ${isProduction ? '10:00 UTC' : '18:00 SST'}`);
@@ -649,6 +673,182 @@ cron.schedule(cronTime, async () => {
   }
 })();
 
+
+// Endpoint to receive webhook events from Telegram
+app.post('/api/telegram-webhook', async (req, res) => {
+  console.log('Received webhook event:', req.body);
+  
+  // Check if this is a callback query (button click)
+  if (req.body && req.body.callback_query) {
+    const callbackQuery = req.body.callback_query;
+    // Process the callback query
+    await handleTelegramCallback(callbackQuery);
+    // Respond to Telegram
+    res.status(200).send('OK');
+  } else {
+    res.status(200).send('Not a callback query');
+  }
+});
+
+// Function to handle Telegram callback queries
+async function handleTelegramCallback(callbackQuery) {
+  const { id, from, data, message } = callbackQuery;
+  const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
+  
+  if (!telegramToken) {
+    console.error('Telegram bot token not configured');
+    return;
+  }
+  
+  // Generate a unique ID for this poll (chat_id + message_id)
+  const pollId = `${message.chat.id}_${message.message_id}`;
+  
+  // Ensure we have a record for this poll
+  if (!polls[pollId]) {
+    polls[pollId] = {
+      attendees: {
+        yes: [],
+        no: [],
+        maybe: []
+      },
+      totalVotes: 0
+    };
+  }
+  
+  // Parse the callback data (expected format: "vote_yes", "vote_no", "vote_maybe")
+  const [action, choice] = data.split('_');
+  
+  if (action === 'vote') {
+    // Remove user from any previous selections
+    Object.keys(polls[pollId].attendees).forEach(option => {
+      polls[pollId].attendees[option] = polls[pollId].attendees[option].filter(
+        userId => userId !== from.id
+      );
+    });
+    
+    // Add user to the selected option
+    if (choice === 'yes' || choice === 'no' || choice === 'maybe') {
+      polls[pollId].attendees[choice].push(from.id);
+      polls[pollId].totalVotes += 1;
+    }
+    
+    // Update the message with new counts
+    await updatePollMessage(telegramToken, message.chat.id, message.message_id, polls[pollId]);
+    
+    // Answer the callback query to remove the loading state
+    await answerCallbackQuery(telegramToken, id, `You voted: ${choice}`);
+  }
+}
+
+// Function to update the poll message with current results
+async function updatePollMessage(token, chatId, messageId, pollData) {
+  const yesCount = pollData.attendees.yes.length;
+  const noCount = pollData.attendees.no.length;
+  const maybeCount = pollData.attendees.maybe.length;
+  
+  const updatedText = `Poll Results:\n👍 Yes: ${yesCount}\n👎 No: ${noCount}\n🤔 Maybe: ${maybeCount}`;
+  
+  const inlineKeyboard = {
+    inline_keyboard: [
+      [
+        { text: `Yes (${yesCount})`, callback_data: 'vote_yes' },
+        { text: `No (${noCount})`, callback_data: 'vote_no' },
+        { text: `Maybe (${maybeCount})`, callback_data: 'vote_maybe' }
+      ]
+    ]
+  };
+  
+  try {
+    await axios.post(`https://api.telegram.org/bot${token}/editMessageText`, {
+      chat_id: chatId,
+      message_id: messageId,
+      text: updatedText,
+      reply_markup: inlineKeyboard
+    });
+  } catch (error) {
+    console.error('Error updating message:', error.response?.data || error.message);
+  }
+}
+
+// Function to answer callback query
+async function answerCallbackQuery(token, callbackQueryId, text) {
+  try {
+    await axios.post(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
+      callback_query_id: callbackQueryId,
+      text: text,
+      show_alert: false
+    });
+  } catch (error) {
+    console.error('Error answering callback query:', error.response?.data || error.message);
+  }
+}
+
+// Endpoint to create a new poll
+app.post('/api/create-poll', async (req, res) => {
+  const { chatId, question, options } = req.body;
+  const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
+  
+  if (!telegramToken) {
+    return res.status(500).json({ error: 'Telegram token not configured' });
+  }
+  
+  try {
+    const response = await axios.post(`https://api.telegram.org/bot${token}/sendMessage`, {
+      chat_id: chatId,
+      text: `Poll: ${question}\n\nPlease vote:`,
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: 'Yes (0)', callback_data: 'vote_yes' },
+            { text: 'No (0)', callback_data: 'vote_no' },
+            { text: 'Maybe (0)', callback_data: 'vote_maybe' }
+          ]
+        ]
+      }
+    });
+    
+    const messageId = response.data.result.message_id;
+    const pollId = `${chatId}_${messageId}`;
+    
+    polls[pollId] = {
+      question,
+      attendees: {
+        yes: [],
+        no: [],
+        maybe: []
+      },
+      totalVotes: 0
+    };
+    
+    res.status(201).json({ success: true, pollId });
+  } catch (error) {
+    console.error('Error creating poll:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to create poll' });
+  }
+});
+
+// Clean up old polls periodically
+setInterval(() => {
+  const oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+  Object.keys(polls).forEach(pollId => {
+    if (polls[pollId].createdAt && polls[pollId].createdAt < oneWeekAgo) {
+      delete polls[pollId];
+    }
+  });
+}, 24 * 60 * 60 * 1000); // Run once a day
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'healthy', activePolls: Object.keys(polls).length });
+});
+
+// For PM2 process management
+process.on('SIGINT', () => {
+  console.log('Gracefully shutting down');
+  process.exit(0);
+});
+
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
+
