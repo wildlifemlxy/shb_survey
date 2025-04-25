@@ -1,10 +1,15 @@
 module.exports = {
-  apps : [{
-    script: 'index.js',
-    watch: '.'
-  }, {
-    script: './service-worker/',
-    watch: ['./service-worker']
+  apps: [{
+    name: "wwf-survey-bot",
+    script: "./server.js",
+    watch: false, // Set to true if you want automatic reloading on file changes
+    instances: 1,
+    autorestart: true,
+    max_memory_restart: "300M",
+    env: {
+      NODE_ENV: "production",
+      PORT: 8080
+    }
   }],
 
   deploy : {
