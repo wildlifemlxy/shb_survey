@@ -9,8 +9,12 @@ const bodyParser = require('body-parser');
 
 const app = express();
 <<<<<<< HEAD
+<<<<<<< HEAD
 const port = process.env.PORT || 3001;
 const polls = {};
+=======
+//const port = process.env.PORT || 8080;
+>>>>>>> parent of ce67868 (Update server.js)
 =======
 //const port = process.env.PORT || 8080;
 >>>>>>> parent of ce67868 (Update server.js)
@@ -650,7 +654,11 @@ console.log("isProduction ijij:", isProduction);
 // - Local SST time: '50 9 * * *'
 // - UTC equivalent: '50 1 * * *' (because SST is UTC+8)
 <<<<<<< HEAD
+<<<<<<< HEAD
 const cronTime = isProduction ? '00 10 * * *' : '27 16 * * *';
+=======
+const cronTime = isProduction ? '45 6 * * *' : '45 14 * * *';
+>>>>>>> parent of ce67868 (Update server.js)
 =======
 const cronTime = isProduction ? '45 6 * * *' : '45 14 * * *';
 >>>>>>> parent of ce67868 (Update server.js)
