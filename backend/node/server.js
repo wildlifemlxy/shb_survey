@@ -616,11 +616,12 @@ app.post('/api/telegram/send', async (req, res) => {
 
 // Determine if running in a production environment
 const isProduction = process.env.NODE_ENV === 'production';
+console.log("isProduction ijij:", isProduction);
 
 // For 9:50 AM SST (09:50):
 // - Local SST time: '50 9 * * *'
 // - UTC equivalent: '50 1 * * *' (because SST is UTC+8)
-const cronTime = isProduction ? '49 3 * * *' : '49 11 * * *';
+const cronTime = isProduction ? '20 3 * * *' : '20 12 * * *';
 
 // Schedule cron job to check for upcoming surveys
 console.log(`Setting up cron job to run at ${isProduction ? '03:05 UTC' : '11:05 SST'}`);
