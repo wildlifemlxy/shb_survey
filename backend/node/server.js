@@ -355,9 +355,6 @@ const formatStandardSurveyMessage = (survey) => {
   messageText += `Time: ${escapeHtml(survey.time)}\n\n`;
   messageText += `<b>Participant List</b> - please vote if you're attending\n`;
   
-  // Create keyboard buttons
-  const keyboardButtons = [];
-  
   // Add participant list to message text
   if (survey.participants && survey.participants.length > 0) {
     survey.participants.forEach((participant, index) => {
@@ -371,10 +368,7 @@ const formatStandardSurveyMessage = (survey) => {
   
   // Return an object containing both the message text and the poll-like inline keyboard markup
   return {
-    text: messageText,
-    markup: {
-      inline_keyboard: keyboardButtons
-    }
+    text: messageText
   };
 };
 
@@ -387,16 +381,7 @@ const sendToTelegramGroups = async (formattedMessage) => {
     return axios.post(telegramApiUrl, {
       chat_id: group.id,
       text: formattedMessage.text,
-      parse_mode: "HTML",
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: "Yes, I'll attend", callback_data: "vote_yes" },
-            { text: "No, I can't attend", callback_data: "vote_no" },
-            { text: "Maybe/Not sure", callback_data: "vote_maybe" }
-          ]
-        ]
-      }
+      parse_mode: "HTML"
     })
     .then(response => {
       console.log(`Message sent to group ${group.name} (${group.id})`);
@@ -625,10 +610,10 @@ console.log("isProduction ijij:", isProduction);
 
 // For 9:50 AM SST (09:50):
 // - Local SST time: '50 9 * * *'
-const cronTime = isProduction ? '00 10 * * *' : '45 16 * * *';
+const cronTime = isProduction ? '15 11 * * *' : '15 19 * * *';
 
 // Schedule cron job to check for upcoming surveys
-console.log(`Setting up cron job to run at ${isProduction ? '10:00 UTC' : '18:00 SST'}`);
+console.log(`Setting up cron job to run at ${isProduction ? '11:15 UTC' : '19:15 SST'}`);
 cron.schedule(cronTime, async () => {
   try {
     console.log(`Reminder check running at ${new Date().toLocaleString()}`);
