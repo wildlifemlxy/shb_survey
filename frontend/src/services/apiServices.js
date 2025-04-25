@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // dynamically choose between your local and prod backends
-const BASE_URL =
+/*const BASE_URL =
   window.location.hostname === 'localhost'
     ? 'http://localhost:3001/api'
     : 'https://shb-backend.azurewebsites.net/api';
@@ -11,7 +11,7 @@ const BASE_URL =
 const api = axios.create({
   baseURL: BASE_URL,
   // you can add headers, timeouts, interceptors, etc. here
-});
+});*/
 
 const apiService = {
   // Survey related endpoints
