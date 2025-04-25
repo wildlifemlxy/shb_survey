@@ -1,4 +1,4 @@
-name: Deploy React + Vite App
+name: Deploy React + Vite App - For Strawheaded Bulbul Survey (Frontend)
 on:
   push:
     branches:
