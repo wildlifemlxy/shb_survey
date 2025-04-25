@@ -611,13 +611,27 @@ app.post('/api/telegram/send', async (req, res) => {
   }
 });
 
-// Schedule cron job to check for upcoming surveys (runs every day at 1430 hrs/ 2:30 PM )
-cron.schedule('15 16 * * *', async () => {
+// Determine if running in a production environment
+const isProduction = process.env.NODE_ENV === 'production';
+
+// For 9:50 AM SST (09:50):
+// - Local SST time: '50 9 * * *'
+// - UTC equivalent: '50 1 * * *' (because SST is UTC+8)
+const cronTime = isProduction ? '05 2 * * *' : '00 15 * * *';
+
+// Schedule cron job to check for upcoming surveys
+console.log(`Setting up cron job to run at ${isProduction ? '02:05 UTC' : '10:05 SST'}`);
+cron.schedule(cronTime, async () => {
   try {
+    console.log(`Reminder check running at ${new Date().toLocaleString()}`);
     await checkAndSendReminders();
+    console.log('Reminder check completed');
   } catch (error) {
     console.error('Error in scheduled reminder check:', error);
   }
+}, {
+  // Setting timezone works in both environments but is a backup
+  timezone: isProduction ? 'UTC' : 'Asia/Singapore'
 });
 
 // Initial data fetch on server start
