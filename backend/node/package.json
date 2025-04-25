@@ -4,13 +4,13 @@
   "description": "Backend for WWF Survey Telegram Bot",
   "main": "server.js",
 "scripts": {
-    "start": "pm2 start server.js --name main-server1",
-    "dev": "pm2 start server.js --name dev-app --watch",
-    "stop": "pm2 stop all",
-    "list": "pm2 list",
-    "logs": "pm2 logs",
-    "restart": "pm2 restart all"
-  },
+  "start": "node server.js",
+  "dev": "pm2 start server.js --name dev-app --watch",
+  "stop": "pm2 stop all",
+  "list": "pm2 list",
+  "logs": "pm2 logs",
+  "restart": "pm2 restart all"
+},
   "dependencies": {
     "axios": "^1.8.4",
     "body-parser": "^1.20.2",

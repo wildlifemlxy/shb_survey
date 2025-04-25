@@ -8,10 +8,7 @@ const path = require('path');
 const bodyParser = require('body-parser');
 
 const app = express();
-// Keep your original port preference
-const PORT = process.env.PORT || '3001';
-// Add support for the required deployment port
-const DEPLOYMENT_PORT = 8080;
+const port = process.env.PORT || 8080;
 
 // Middleware
 app.use(cors());
@@ -649,23 +646,6 @@ cron.schedule(cronTime, async () => {
   }
 })();
 
-// Start the server on the desired port (3001 for local development)
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
 });
-
-// If we're in production, also listen on port 8080 for the deployment environment
-if (PORT !== '8080' && PORT !== 8080) {
-  const deploymentServer = app.listen(DEPLOYMENT_PORT, () => {
-    console.log(`Server also running on deployment port ${DEPLOYMENT_PORT}`);
-  });
-  
-  // Handle errors for the deployment server
-  deploymentServer.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      console.log(`Port ${DEPLOYMENT_PORT} is already in use. Continuing with only port ${PORT}.`);
-    } else {
-      console.error(`Error starting server on port ${DEPLOYMENT_PORT}:`, err);
-    }
-  });
-}
