@@ -26,7 +26,8 @@ let telegramConfig = {
   token: '7968511707:AAF3ZRpt1q4kNik8cEpcskQjbnJy5kVm6N4',
   groups: [
     { id: '2136702422', name: 'WWF volunteer Telegram'},
-    { id: '611754613', name: 'Moses Personal Chat'}
+    { id: '611754613', name: 'Moses Personal Chat'},
+    { id: -1002415651477, name: "WWF-SG Straw-headed Bulbul Citizen Science Programme"}
   ]
 };
 
