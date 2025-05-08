@@ -1,7 +1,7 @@
 {
   "wwfLed": [
     {
-      "date": "10 May 2025",
+      "date": "17 May 2025",
       "location": "",
       "meetingPoint": "",
       "meetingPointDesc": "",
@@ -10,7 +10,7 @@
         "Tseng Wen",
         "Anya"
       ],
-      "reminderSent": true
+      "reminderSent": false
     },
     {
       "date": "18 May 2025",
@@ -36,7 +36,7 @@
         "Testing 1",
         "Testing 2"
       ],
-      "reminderSent": true
+      "reminderSent": false
     }
   ]
 }

@@ -327,7 +327,7 @@ const formatStandardSurveyMessage = (survey) => {
     return url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`;
   };
   
-  let messageText = `Hi everyone! Please find the details for tomorrow's (${escapeHtml(survey.date)}) survey below:\n\n`;
+  let messageText = `<b>Automated Message</b>\nHi everyone! Please find the details for tomorrow's (${escapeHtml(survey.date)}) survey below:\n\n`;
   messageText += `<b>Survey Details</b>\n`;
   messageText += `Location: ${escapeHtml(survey.location)}\n`;
   
@@ -606,7 +606,7 @@ console.log("isProduction ijij:", isProduction);
 // For 9:50 AM SST (09:50):
 // - Local SST time: '50 9 * * *'
 //const cronTime = isProduction ? '0 10 * * *' : '0 18 * * *';
-const cronTime = isProduction ? '50 11 * * *' : '50 19 * * *';
+const cronTime = isProduction ? '45 11 * * *' : '45 19 * * *';
 // Schedule cron job to check for upcoming surveys
 console.log(`Setting up cron job to run at ${isProduction ? '10:00 UTC' : '19:00 SST'}`);
 cron.schedule(cronTime, async () => {
