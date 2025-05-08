@@ -937,6 +937,77 @@ removeParticipant = (participantIndex) => {
           <>
             <div className="survey-controls">
               <h3>Send Survey Information</h3>
+              <div className="legend" style={{ fontSize: '0.9rem', color: '#333', marginBottom: '1rem' }}>
+                {/* Legend Title */}
+                <div style={{ marginBottom: '1rem' }}>
+                  <strong>Legend:</strong>
+                </div>
+
+                {/* Main Row - Button Colors and Icons in One Row */}
+                <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                  
+                  {/* Button Colors Section */}
+                  <div style={{ display: 'flex', flexDirection: 'column', width: '48%' }}>
+                    <strong>Button Colors:</strong>
+
+                    {/* WWF-Led Survey Color */}
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <span style={{
+                        marginRight: '0.5rem',
+                        backgroundColor: '#E74C3C',  // Red background
+                        padding: '6px 12px',
+                        borderRadius: '4px',
+                        display: 'inline-block',
+                        width: '10px',  // Show the color sample
+                        height: '10px'  // Show the color sample
+                      }}></span>
+                      <strong>WWF-Led Survey</strong>
+                    </div>
+
+                    {/* Volunteer-Led Survey Color */}
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <span style={{
+                        marginRight: '0.5rem',
+                        backgroundColor: '#4A90E2',  // Blue background
+                        padding: '6px 12px',
+                        borderRadius: '4px',
+                        display: 'inline-block',
+                        width: '10px',  // Show the color sample
+                        height: '10px'  // Show the color sample
+                      }}></span>
+                      <strong>Volunteer-Led Survey</strong>
+                    </div>
+                  </div>
+
+                  {/* Icons Section */}
+                  <div style={{ display: 'flex', flexDirection: 'column', width: '48%' }}>
+                    <strong>Icons:</strong>
+
+                    {/* Meeting Point Icon */}
+                    {/* Add Meeting Point Icon */}
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <span style={{
+                        marginRight: '0.5rem',
+                        padding: '6px 12px',
+                        borderRadius: '4px',
+                        display: 'inline-block'
+                      }}>➕📍</span>
+                      <strong>Meeting Point</strong>
+                    </div>
+
+                    {/* Add/Remove Participants Icon */}
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <span style={{
+                        marginRight: '0.5rem',
+                        padding: '6px 12px',
+                        borderRadius: '4px',
+                        display: 'inline-block'
+                      }}>👥</span>
+                      <strong>Edit Participants List</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div className="survey-buttons">
               {console.log("WWF-Led Survey1234:", surveyData)}
                 {surveyData.wwfLed.map((survey, index) => {
@@ -963,13 +1034,14 @@ removeParticipant = (participantIndex) => {
                         title="Edit Participants List"
                         style={{ borderColor: '#E74C3C', backgroundColor: '#F7B7B2'}}
                       >
-                        👥 Edit List
+                        👥
                       </button>
                     </div>
                   );
                 })}
 
                 {surveyData.volunteerLed.map((survey, index) => (
+                  <>
                   <div key={index} className="survey-button-group">
                   <button 
                       onClick={() => this.sendFormattedSurveyInfo(`volunteer-led-${index+1}`)} 
@@ -982,7 +1054,7 @@ removeParticipant = (participantIndex) => {
                       className="map-button"
                       onClick={() => this.openMapModal('volunteer-led', index)}
                       title="Set Google Maps Location"
-                      style={{ borderColor: '#4A90E2', backgroundColor: '#4A90E2' }}
+                      style={{ borderColor: '#4A90E2', backgroundColor: '#A4C8F1' }}
                     >
                       {survey.meetingPoint ? '📍' : '➕📍'}
                     </button>
@@ -990,17 +1062,20 @@ removeParticipant = (participantIndex) => {
                       className="participants-button"
                       onClick={() => this.openParticipantModal('volunteer-led', index)}
                       title="Edit Participants List"
-                      style={{ borderColor: '#4A90E2',  backgroundColor: '#4A90E2'}}
+                      style={{ borderColor: '#4A90E2',  backgroundColor: '#A4C8F1'}}
                     >
                       👥 Edit List
                     </button>
                   </div>
+                  </>
                 ))}
               </div>
             </div>
             
             <div className="custom-survey-form">
-              <h3>Create Custom Survey Announcement</h3>
+              <h3>Create Customized Volunteer-Led Survey Announcement</h3>
+              <p>Volunteers may initiate the survey; however, the details will not be stored in Excel.</p>  
+              <p>To successfully send the survey announcement to Telegram, please adhere strictly to the provided format and set the map link using the Add Meeting Point button, if a location has been determined.</p>
               <div className="survey-form-grid">
                 <div className="form-group">
                   <label>Date:</label>
@@ -1008,7 +1083,7 @@ removeParticipant = (participantIndex) => {
                     type="text" 
                     value={customSurvey.date}
                     onChange={(e) => this.handleCustomSurveyChange('date', e)}
-                    placeholder="e.g., 16 Apr"
+                    placeholder="e.g., 16 April 2025"
                   />
                 </div>
                 <div className="form-group">
@@ -1084,7 +1159,7 @@ removeParticipant = (participantIndex) => {
                 disabled={isSending || !customSurvey.date || !customSurvey.location || !customSurvey.time}
                 className="send-custom-survey"
               >
-                Send Custom Survey Announcement
+                Send Survey Announcement To Telegram
               </button>
             </div>
           
@@ -1112,7 +1187,7 @@ removeParticipant = (participantIndex) => {
               )}
             </div>
             
-            <div className="message-input-container">
+            {/*<div className="message-input-container">
               <input
                 type="text"
                 className="message-input"
@@ -1128,7 +1203,7 @@ removeParticipant = (participantIndex) => {
               >
                 {isSending ? 'Sending...' : 'Send Custom Message'}
               </button>
-            </div>
+            </div>*/}
             
             {/* Map Selection Modal */}
             {showMapModal && (

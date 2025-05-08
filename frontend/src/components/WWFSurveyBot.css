@@ -211,8 +211,8 @@
 }
 
 .send-custom-survey {
-  background-color: #2c8e46;
-  color: white;
+  background-color: #F1C40F; /* Darker yellow */
+  color: white; /* Text color */
   border: none;
   border-radius: 6px;
   padding: 12px 20px;
@@ -224,11 +224,11 @@
 }
 
 .send-custom-survey:hover {
-  background-color: #247a3d;
+  background-color: #F39C12; /* Even darker yellow on hover */
 }
 
 .send-custom-survey:disabled {
-  background-color: #b7d6bf;
+  background-color: #F9E68D; /* Very light yellow when disabled */
   cursor: not-allowed;
 }
 
