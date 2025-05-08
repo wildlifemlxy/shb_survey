@@ -87,9 +87,21 @@ class WWFSurveyBot extends Component {
         
         // Process the survey data by columns
         const surveysByType = this.processSurveyData(rawData);
+        const originalKey = Object.keys(surveysByType).find(
+          key => key.includes("WWF-led")
+        );
+        
+        // If the key is found, rename it
+        if (originalKey) {
+          console.log("Original Key:", originalKey,  surveysByType[originalKey]);
+          surveysByType["WWF-led (WWF staff will be present)"] = surveysByType[originalKey];
+          delete surveysByType[originalKey];
+        }
+        console.log("Original Data1111222:", surveysByType);
         
         // Helper function to check if a survey has already passed
         const isSurveyPassed = (surveyDate, surveyTime) => {
+          console.log("Date/Time11111", surveyDate, surveyTime);
           if (!surveyDate || !surveyTime) return false;
           
           // Parse the date (format: "12 April 2025")
@@ -125,10 +137,11 @@ class WWFSurveyBot extends Component {
           const currentDateTime = new Date();
           
           console.log("Survey date/time:", surveyDateTime);
-          console.log("Current date/time:", currentDateTime);
+          console.log("Current date/time:", currentDateTime, surveyDateTime < currentDateTime);
           
           return surveyDateTime < currentDateTime;
         };
+
         
         // Transform data to match expected structure
         this.setState(prevState => {
@@ -137,26 +150,34 @@ class WWFSurveyBot extends Component {
             wwfLed: [],
             volunteerLed: []
           };
-          
+
+        
           // Filter and update WWF-led data if available
           const wwfSurveys = surveysByType["WWF-led (WWF staff will be present)"];
+          console.log("Filter WWF Surveys:",  wwfSurveys);
           if (wwfSurveys && wwfSurveys.length > 0) {
             // Filter out past surveys
             const futureWwfSurveys = wwfSurveys.filter(survey => 
               !isSurveyPassed(survey.date, survey.time)
             );
+
+            console.log("Future123:", futureWwfSurveys);
+
+            const filteredSurveys = futureWwfSurveys.filter(survey => survey.date !== "");
             
-            if (futureWwfSurveys.length > 0) {
-              updatedData.wwfLed = futureWwfSurveys.map(survey => ({
+           if (filteredSurveys.length > 0) {
+              updatedData.wwfLed = filteredSurveys.map(survey => ({
                 date: survey.date || "",
                 location: survey.location || "",
                 meetingPoint: "", // Empty initially
                 meetingPointDesc: "",
                 time: survey.time || "",
                 participants: survey.participants?.map(p => p.name) || []
-              }))[0]; // Take the first item since wwfLed is a single object, not an array
+              })); // Take the first item since wwfLed is a single object, not an array
             }
           }
+
+          console.log("updatedData.wwfLed", updatedData);
             
           // Filter and update volunteer-led data if available
           const volunteerSurveys = surveysByType["Volunteer-led"];
@@ -165,18 +186,23 @@ class WWFSurveyBot extends Component {
             const futureVolunteerSurveys = volunteerSurveys.filter(survey => 
               !isSurveyPassed(survey.date, survey.time)
             );
-            
-            updatedData.volunteerLed = futureVolunteerSurveys.map(survey => ({
-              date: survey.date || "",
-              location: survey.location || "",
-              meetingPoint: "", // Empty initially
-              meetingPointDesc: "",
-              time: survey.time || "",
-              participants: survey.participants?.map(p => p.name) || []
-            }));
+
+            const filteredSurveys1 = futureVolunteerSurveys.filter(survey => survey.date !== "");
+
+
+            if (filteredSurveys1.length > 0) {
+              updatedData.volunteerLed = filteredSurveys1.map(survey => ({
+                date: survey.date || "",
+                location: survey.location || "",
+                meetingPoint: "", // Empty initially
+                meetingPointDesc: "",
+                time: survey.time || "",
+                participants: survey.participants?.map(p => p.name) || []
+              }));
+            }
           }
-          
-          // Add one empty volunteer survey if none exist
+
+          /*// Add one empty volunteer survey if none exist
           if (updatedData.volunteerLed.length === 0) {
             updatedData.volunteerLed = [{
               date: "",
@@ -186,7 +212,10 @@ class WWFSurveyBot extends Component {
               time: "",
               participants: []
             }];
-          }
+          }*/
+
+          console.log("Survey Data123:", updatedData);
+          console.log("Survey Type:", surveysByType);
           
           return {
             surveyData: updatedData,
@@ -203,6 +232,7 @@ class WWFSurveyBot extends Component {
   };
 
   processSurveyData = (rawData) => {
+    console.log("Process Survey Data:", rawData);
     // Object to store surveys organized by type
     const surveysByType = {
       "WWF-led": [],
@@ -215,12 +245,14 @@ class WWFSurveyBot extends Component {
     for (let rowIndex = 0; rowIndex < rawData.length; rowIndex++) {
       // Check if we have a valid row
       const row = rawData[rowIndex];
+      console.log("Row Data:", row);
       if (!row || !row.length) continue;
       
       // Check column A for survey type indicators
       const cellA = row[0];
       if (cellA && typeof cellA === 'string') {
         const cellText = cellA.trim().toLowerCase();
+        console.log("Cell Text Data:", cellText);
         
         // Update current type if we find an indicator
         if (cellText.includes('wwf')) {
@@ -266,7 +298,7 @@ class WWFSurveyBot extends Component {
             }
           }
           
-          console.log("Survey Data:", surveyData);
+          console.log("Survey Data11123:", surveyData);
           
           // Extract participants from rows below until we hit an empty row or a new header
           let participantRow = rowIndex; // Start after date/location/time
@@ -395,7 +427,8 @@ class WWFSurveyBot extends Component {
   };
   
   // Open participant modal to edit participant list
-  openParticipantModal = (listType, index = null) => {
+  openParticipantModal = (listType, index) => {
+    console.log("List Type:", listType);
     this.setState({
       showParticipantModal: true,
       editingListType: listType,
@@ -415,7 +448,7 @@ class WWFSurveyBot extends Component {
   };
   
   // Add participant to the list
-  addParticipant = () => {
+  /*addParticipant = () => {
     const { newParticipantName, editingListType, editingListIndex } = this.state;
     
     if (!newParticipantName.trim()) return;
@@ -424,8 +457,8 @@ class WWFSurveyBot extends Component {
       let updatedState = { ...prevState };
       
       if (editingListType === 'wwf-led') {
-        updatedState.surveyData.wwfLed.participants = [
-          ...prevState.surveyData.wwfLed.participants,
+        updatedState.surveyData.wwfLed[editingListIndex].participants = [
+          ...prevState.surveyData.wwfLed[editingListIndex].participants,
           newParticipantName.trim()
         ];
       } else if (editingListType === 'volunteer-led') {
@@ -445,30 +478,90 @@ class WWFSurveyBot extends Component {
         newParticipantName: ''
       };
     });
-  };
+  };*/
+
+  addParticipant = () => {
+    const { newParticipantName, editingListType, editingListIndex } = this.state;
   
-  // Remove participant from the list
-  removeParticipant = (participantIndex) => {
-    const { editingListType, editingListIndex } = this.state;
-    
+    if (!newParticipantName.trim()) return;
+  
     this.setState(prevState => {
       let updatedState = { ...prevState };
       
+      // Helper function to check if the participant already exists in the list
+      const participantExists = (participants) => 
+        participants.some(participant => participant === newParticipantName.trim());
+  
       if (editingListType === 'wwf-led') {
-        updatedState.surveyData.wwfLed.participants = prevState.surveyData.wwfLed.participants
-          .filter((_, index) => index !== participantIndex);
+        const participants = prevState.surveyData.wwfLed[editingListIndex].participants || [];
+        if (participantExists(participants)) {
+          return prevState; // Don't update state if participant already exists
+        }
+  
+        updatedState.surveyData.wwfLed[editingListIndex].participants = [
+          ...participants,
+          newParticipantName.trim()
+        ];
+  
       } else if (editingListType === 'volunteer-led') {
-        updatedState.surveyData.volunteerLed[editingListIndex].participants = 
-          prevState.surveyData.volunteerLed[editingListIndex].participants
-            .filter((_, index) => index !== participantIndex);
+        const participants = prevState.surveyData.volunteerLed[editingListIndex].participants || [];
+        if (participantExists(participants)) {
+          return prevState; // Don't update state if participant already exists
+        }
+  
+        updatedState.surveyData.volunteerLed[editingListIndex].participants = [
+          ...participants,
+          newParticipantName.trim()
+        ];
+  
       } else if (editingListType === 'custom') {
-        updatedState.customSurvey.participants = prevState.customSurvey.participants
-          .filter((_, index) => index !== participantIndex);
+        const participants = prevState.customSurvey.participants || [];
+        if (participantExists(participants)) {
+          return prevState; // Don't update state if participant already exists
+        }
+  
+        updatedState.customSurvey.participants = [
+          ...participants,
+          newParticipantName.trim()
+        ];
       }
-      
-      return updatedState;
+  
+      return {
+        ...updatedState,
+        newParticipantName: '' // Reset input field after adding
+      };
     });
   };
+  
+  
+// Remove participant from the list
+removeParticipant = (participantIndex) => {
+  const { editingListType, editingListIndex } = this.state;
+  
+  this.setState(prevState => {
+    let updatedState = { ...prevState };
+
+    if (editingListType === 'wwf-led') {
+      // Ensure we're accessing the correct participants array and updating it
+      const updatedParticipants = prevState.surveyData.wwfLed[editingListIndex].participants
+        .filter((_, index) => index !== participantIndex); // Remove the participant at the specified index
+      updatedState.surveyData.wwfLed[editingListIndex].participants = updatedParticipants;
+    
+    } else if (editingListType === 'volunteer-led') {
+      const updatedParticipants = prevState.surveyData.volunteerLed[editingListIndex].participants
+        .filter((_, index) => index !== participantIndex); // Remove the participant at the specified index
+      updatedState.surveyData.volunteerLed[editingListIndex].participants = updatedParticipants;
+    
+    } else if (editingListType === 'custom') {
+      const updatedParticipants = prevState.customSurvey.participants
+        .filter((_, index) => index !== participantIndex); // Remove the participant at the specified index
+      updatedState.customSurvey.participants = updatedParticipants;
+    }
+    
+    return updatedState;
+  });
+};
+
   
   // Open map modal to select a location
   openMapModal = (locationType, index = null) => {
@@ -632,16 +725,21 @@ class WWFSurveyBot extends Component {
     } else if (surveyType === 'custom') {
       survey = this.state.customSurvey;
     } else {
-      survey = this.state.surveyData.wwfLed;
+      const index = parseInt(surveyType.split('-')[2]) - 1;
+      survey = this.state.surveyData.wwfLed[index];
     }
+
+    console.log("Formatted Survey:", survey)
     
     const message = this.formatStandardSurveyMessage(survey);
+    const message1 = JSON.stringify(this.formatStandardSurveyMessage(survey));
+
     
     // Add bot message to conversation showing what's being sent
     const botMessage = {
       id: this.state.conversation.length + 1,
       sender: 'bot',
-      text: `Sending the following message to all configured Telegram groups:\n\n${message}`,
+      text: `Sending the following message to all configured Telegram groups:\n\n${message1}`,
       timestamp: new Date()
     };
     
@@ -716,36 +814,63 @@ class WWFSurveyBot extends Component {
     return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
   
-  // Get the current participants list being edited
   getCurrentParticipantsList = () => {
-    const { editingListType, editingListIndex } = this.state;
-    
+    const { editingListType, editingListIndex, surveyData, customSurvey } = this.state;
+    console.log("surveyData123:", surveyData)
     if (editingListType === 'wwf-led') {
-      return this.state.surveyData.wwfLed.participants;
+      const surveys = surveyData.wwfLed || [];
+      for (let i = 0; i < surveys.length; i++) {
+        if (i === editingListIndex) {
+          console.log("Participants123:", surveys[i].participants)
+          return surveys[i].participants || [];
+        }
+      }
     } else if (editingListType === 'volunteer-led') {
-      return this.state.surveyData.volunteerLed[editingListIndex].participants;
+      const surveys = surveyData.volunteerLed || [];
+      for (let i = 0; i < surveys.length; i++) {
+        if (i === editingListIndex) {
+          return surveys[i].participants || [];
+        }
+      }
     } else if (editingListType === 'custom') {
-      return this.state.customSurvey.participants;
+      return customSurvey?.participants || [];
     }
-    
+  
     return [];
   };
   
-  // Get the current list title
+  
   getCurrentListTitle = () => {
     const { editingListType, editingListIndex, surveyData } = this.state;
-    
+    console.log("Editing List Type:", editingListType);
+  
     if (editingListType === 'wwf-led') {
-      return `${surveyData.wwfLed.location} (${surveyData.wwfLed.date})`;
+      console.log("surveyData.wwfLed", surveyData.wwfLed);
+      const surveys = surveyData.wwfLed || [];
+      for (let i = 0; i < surveys.length; i++) {
+        console.log("I1234", i, editingListIndex);
+        if (i === editingListIndex) {
+          const survey = surveys[i];
+          console.log("Each Survey is:", surveys[i]);
+          console.log("Return12344:", `${survey.location || 'Unknown Location'} (${survey.date || 'Unknown Date'})`)
+          return `${survey.location || 'Unknown Location'} (${survey.date || 'Unknown Date'})`;
+        }
+      }
     } else if (editingListType === 'volunteer-led') {
-      const survey = surveyData.volunteerLed[editingListIndex];
-      return `${survey.location} (${survey.date})`;
+      const surveys = surveyData.volunteerLed || [];
+      for (let i = 0; i < surveys.length; i++) {
+        if (i === editingListIndex) {
+          const survey = surveys[i];
+          return `${survey.location || 'Unknown Location'} (${survey.date || 'Unknown Date'})`;
+        }
+      }
     } else if (editingListType === 'custom') {
       return 'Custom Survey';
     }
-    
+  
     return 'Participants';
   };
+  
   
   render() {
     const { 
@@ -813,31 +938,31 @@ class WWFSurveyBot extends Component {
             <div className="survey-controls">
               <h3>Send Survey Information</h3>
               <div className="survey-buttons">
-              
-              {surveyData.wwfLed.map((survey, index) => {
-                console.log("survey:", survey);
-                return (
-                  <div key={index} className="survey-button-group">
-                    <button onClick={() => this.sendFormattedSurveyInfo(`wwf-led-${index+1}`)}>
-                      Send {survey.location} Survey Info ({survey.date})
-                    </button>
-                    <button 
-                      className="map-button" 
-                      onClick={() => this.openMapModal('wwf-led')}
-                      title="Set Google Maps Location"
-                    >
-                      {survey.meetingPoint ? '📍' : '➕📍'}
-                    </button>
-                    <button
-                      className="participants-button"
-                      onClick={() => this.openParticipantModal('wwf-led')}
-                      title="Edit Participants List"
-                    >
-                      👥 Edit List
-                    </button>
-                  </div>
-                );
-              })}
+              {console.log("WWF-Led Survey1234:", surveyData)}
+                {surveyData.wwfLed.map((survey, index) => {
+                  console.log("survey:", survey);
+                  return (
+                    <div key={index} className="survey-button-group">
+                      <button onClick={() => this.sendFormattedSurveyInfo(`wwf-led-${index+1}`)}>
+                        Send {survey.location} Survey Info ({survey.date})
+                      </button>
+                      <button 
+                        className="map-button" 
+                        onClick={() => this.openMapModal('wwf-led')}
+                        title="Set Google Maps Location"
+                      >
+                        {survey.meetingPoint ? '📍' : '➕📍'}
+                      </button>
+                      <button
+                        className="participants-button"
+                        onClick={() => this.openParticipantModal('wwf-led', index)}
+                        title="Edit Participants List"
+                      >
+                        👥 Edit List
+                      </button>
+                    </div>
+                  );
+                })}
 
                 {surveyData.volunteerLed.map((survey, index) => (
                   <div key={index} className="survey-button-group">
@@ -1034,6 +1159,7 @@ class WWFSurveyBot extends Component {
               <div className="participant-modal-overlay">
                 <div className="participant-modal">
                   <h3>Edit Participants for {this.getCurrentListTitle()}</h3>
+                  {console.log("Current List Title:", this.getCurrentListTitle())}
                   
                   <div className="participant-list">
                     {this.getCurrentParticipantsList().length > 0 ? (
@@ -1065,7 +1191,7 @@ class WWFSurveyBot extends Component {
                     />
                     <button
                       className="add-participant-button"
-                      onClick={this.addParticipant}
+                      onClick={() => this.addParticipant()}
                       disabled={!newParticipantName.trim()}
                     >
                       Add Participant
