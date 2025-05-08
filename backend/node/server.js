@@ -25,9 +25,9 @@ let surveyData = {
 let telegramConfig = {
   token: '7968511707:AAF3ZRpt1q4kNik8cEpcskQjbnJy5kVm6N4',
   groups: [
-    //{ id: '2136702422', name: 'WWF volunteer Telegram'},
+    { id: '2136702422', name: 'WWF volunteer Telegram'},
     { id: '611754613', name: 'Moses Personal Chat'},
-    //{ id: -1002415651477, name: "WWF-SG Straw-headed Bulbul Citizen Science Programme"}
+    { id: -1002415651477, name: "WWF-SG Straw-headed Bulbul Citizen Science Programme"}
   ]
 };
 
@@ -605,8 +605,8 @@ console.log("isProduction ijij:", isProduction);
 
 // For 9:50 AM SST (09:50):
 // - Local SST time: '50 9 * * *'
-//const cronTime = isProduction ? '0 10 * * *' : '0 18 * * *';
-const cronTime = isProduction ? '45 11 * * *' : '45 19 * * *';
+const cronTime = isProduction ? '0 10 * * *' : '0 18 * * *';
+//const cronTime = isProduction ? '45 11 * * *' : '45 19 * * *';
 // Schedule cron job to check for upcoming surveys
 console.log(`Setting up cron job to run at ${isProduction ? '10:00 UTC' : '19:00 SST'}`);
 cron.schedule(cronTime, async () => {
