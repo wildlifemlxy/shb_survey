@@ -943,13 +943,17 @@ removeParticipant = (participantIndex) => {
                   console.log("survey:", survey);
                   return (
                     <div key={index} className="survey-button-group">
-                      <button onClick={() => this.sendFormattedSurveyInfo(`wwf-led-${index+1}`)}>
+                      <button 
+                        onClick={() => this.sendFormattedSurveyInfo(`wwf-led-${index+1}`)}
+                        style={{ backgroundColor: '#E74C3C', color: 'white' }}
+                      >
                         Send {survey.location} Survey Info ({survey.date})
                       </button>
                       <button 
                         className="map-button" 
                         onClick={() => this.openMapModal('wwf-led')}
                         title="Set Google Maps Location"
+                        style={{ borderColor: '#E74C3C', backgroundColor: '#F7B7B2'}}
                       >
                         {survey.meetingPoint ? '📍' : '➕📍'}
                       </button>
@@ -957,6 +961,7 @@ removeParticipant = (participantIndex) => {
                         className="participants-button"
                         onClick={() => this.openParticipantModal('wwf-led', index)}
                         title="Edit Participants List"
+                        style={{ borderColor: '#E74C3C', backgroundColor: '#F7B7B2'}}
                       >
                         👥 Edit List
                       </button>
@@ -966,9 +971,10 @@ removeParticipant = (participantIndex) => {
 
                 {surveyData.volunteerLed.map((survey, index) => (
                   <div key={index} className="survey-button-group">
-                    <button 
+                  <button 
                       onClick={() => this.sendFormattedSurveyInfo(`volunteer-led-${index+1}`)} 
                       disabled={isSending}
+                      style={{ backgroundColor: '#4A90E2', color: 'white' }}
                     >
                       Send {survey.location} Survey Info ({survey.date})
                     </button>
@@ -976,6 +982,7 @@ removeParticipant = (participantIndex) => {
                       className="map-button"
                       onClick={() => this.openMapModal('volunteer-led', index)}
                       title="Set Google Maps Location"
+                      style={{ borderColor: '#4A90E2', backgroundColor: '#4A90E2' }}
                     >
                       {survey.meetingPoint ? '📍' : '➕📍'}
                     </button>
@@ -983,6 +990,7 @@ removeParticipant = (participantIndex) => {
                       className="participants-button"
                       onClick={() => this.openParticipantModal('volunteer-led', index)}
                       title="Edit Participants List"
+                      style={{ borderColor: '#4A90E2',  backgroundColor: '#4A90E2'}}
                     >
                       👥 Edit List
                     </button>
