@@ -25,9 +25,9 @@ let surveyData = {
 let telegramConfig = {
   token: '7968511707:AAF3ZRpt1q4kNik8cEpcskQjbnJy5kVm6N4',
   groups: [
-    { id: '2136702422', name: 'WWF volunteer Telegram'},
+    //{ id: '2136702422', name: 'WWF volunteer Telegram'},
     { id: '611754613', name: 'Moses Personal Chat'},
-    { id: -1002415651477, name: "WWF-SG Straw-headed Bulbul Citizen Science Programme"}
+    //{ id: -1002415651477, name: "WWF-SG Straw-headed Bulbul Citizen Science Programme"}
   ]
 };
 
@@ -59,6 +59,7 @@ const saveTelegramConfig = () => {
 
 // Process survey data from spreadsheet
 const processSurveyData = (rawData) => {
+  console.log("Raw Data:", rawData);
   // Object to store surveys organized by type
   const surveysByType = {
     "WWF-led": [],
@@ -151,7 +152,7 @@ const processSurveyData = (rawData) => {
       }
     }
   }
-  
+  console.log("Survey By Type:", surveysByType);
   return surveysByType;
 };
 
@@ -183,6 +184,7 @@ const fetchSurveyDataFromSheet = async (url) => {
     
     // Process the survey data by columns
     const surveysByType = processSurveyData(rawData);
+    console.log("Survey By Type123:", surveysByType);
     
     // Helper function to check if a survey has already passed
     const isSurveyPassed = (surveyDate, surveyTime) => {
@@ -258,32 +260,24 @@ const fetchSurveyDataFromSheet = async (url) => {
       const futureVolunteerSurveys = volunteerSurveys.filter(survey => 
         !isSurveyPassed(survey.date, survey.time)
       );
-      
-      updatedData.volunteerLed = futureVolunteerSurveys.map(survey => ({
-        date: survey.date || "",
-        location: survey.location || "",
-        meetingPoint: "", // Empty initially
-        meetingPointDesc: "",
-        time: survey.time || "",
-        participants: survey.participants?.map(p => p.name) || [],
-        reminderSent: false // Track if reminder has been sent
-      }));
+
+      if (futureVolunteerSurveys.length > 0) {
+        updatedData.volunteerLed = futureVolunteerSurveys.map(survey => ({
+          date: survey.date || "",
+          location: survey.location || "",
+          meetingPoint: "", // Empty initially
+          meetingPointDesc: "",
+          time: survey.time || "",
+          participants: survey.participants?.map(p => p.name) || [],
+          reminderSent: false // Track if reminder has been sent
+        }));
+      }
     }
-    
-    // Add one empty volunteer survey if none exist
-    if (updatedData.volunteerLed.length === 0) {
-      updatedData.volunteerLed = [{
-        date: "",
-        location: "",
-        meetingPoint: "",
-        meetingPointDesc: "",
-        time: "",
-        participants: [],
-        reminderSent: false
-      }];
-    }
+
+    console.log("updatedData.volunteerLed:", updatedData.volunteerLed);
     
     surveyData = updatedData;
+    console.log("Updated Data:", surveyData);
     saveSurveyData();
     
     return updatedData;
@@ -356,7 +350,7 @@ const formatStandardSurveyMessage = (survey) => {
   messageText += `Time: ${escapeHtml(survey.time)}\n\n`;
   messageText += `<b>Participant List</b> - please vote if you're attending\n`;
   
-  // Add participant list to message text
+  // Add participant list to message textx
   if (survey.participants && survey.participants.length > 0) {
     survey.participants.forEach((participant, index) => {
       messageText += `${index + 1}. ${escapeHtml(participant)}\n`;
@@ -611,8 +605,8 @@ console.log("isProduction ijij:", isProduction);
 
 // For 9:50 AM SST (09:50):
 // - Local SST time: '50 9 * * *'
-const cronTime = isProduction ? '0 10 * * *' : '0 18 * * *';
-
+//const cronTime = isProduction ? '0 10 * * *' : '0 18 * * *';
+const cronTime = isProduction ? '12 11 * * *' : '27 19 * * *';
 // Schedule cron job to check for upcoming surveys
 console.log(`Setting up cron job to run at ${isProduction ? '10:00 UTC' : '19:00 SST'}`);
 cron.schedule(cronTime, async () => {
