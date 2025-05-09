@@ -745,11 +745,20 @@ class D3TreeHeightChart extends Component {
                 color: '#4A5568', 
                 marginBottom: '0.75rem'
               }}>
-                Overall Trend: <span style={{
-                  color: trendPredictions.overallTrend === "Positive" ? "#38A169" : "#718096"
-                }}>
-                  {trendPredictions.overallTrend}
-                </span>
+              Overall Trend: <span
+                style={{
+                  color:
+                    trendPredictions.overallTrend === "Positive"
+                      ? "#40E0D0" // Turquoise
+                      : trendPredictions.overallTrend === "Stable"
+                      ? "#CD7F32" // Bronze
+                      : trendPredictions.overallTrend === "Negative"
+                      ? "#800000" // Maroon red
+                      : "#718096", // Default gray fallback
+                }}
+              >
+                {trendPredictions.overallTrend}
+              </span>
               </div>
               {/* Bird Tree Visualization Toggle */}
               <div style={{ fontWeight: 'bold', color: '#4A5568', marginBottom: '0.5rem' }}>
@@ -808,13 +817,7 @@ class D3TreeHeightChart extends Component {
                     <div>
                       <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>Bird Height Analysis</div>
                       {console.log("Remder123:", anomalyDetection)}
-                      
-                      <div style={{ marginBottom: '0.25rem' }}>
-                      <strong>Crown (75-100%):</strong>{' '}
-                      {anomalyDetection.birdPositionDistribution ? 
-                          `${((anomalyDetection.birdPositionDistribution["Crown (75-100%)"] / totalBirds) * 100).toFixed(1)}%` : 
-                          '0%'}
-                      </div>
+
                       <div style={{ marginBottom: '0.25rem' }}>
                         <strong>Crown (75-100%):</strong>{' '}
                         {anomalyDetection.birdPositionDistribution ? 
