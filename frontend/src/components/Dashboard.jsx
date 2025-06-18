@@ -7,9 +7,11 @@ import D3TreeHeightChart from './D3TreeHeightChart';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { getValidCoordinates, getUniqueLocations, getUniqueActivity } from '../utils/dataProcessing';
+import { standardizeCoordinates } from '../utils/coordinateStandardization';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faHome } from '@fortawesome/free-solid-svg-icons';
+import './Dashboard.css';
 
 class Dashboard extends Component {
   constructor(props) {
@@ -159,6 +161,25 @@ class Dashboard extends Component {
     window.addEventListener('resize', this.handleResize);
   }
 
+  componentDidUpdate(prevProps) {
+    // Update state when data props change
+    if (prevProps.data !== this.props.data) {
+      console.log('Dashboard: Data updated, recalculating filters');
+      const uniqueLocations = getUniqueLocations(this.props.data);
+      const uniqueActivity = getUniqueActivity(this.props.data);
+      
+      this.setState({ 
+        data: this.props.data,
+        filteredData: this.props.data,
+        locations: uniqueLocations, 
+        activitys: uniqueActivity, 
+      }, () => {
+        // Re-apply filters with new data
+        this.applyFilters();
+      });
+    }
+  }
+
   componentWillUnmount() {
     window.removeEventListener('resize', this.handleResize);
   }
@@ -169,7 +190,10 @@ class Dashboard extends Component {
 
   render() {
     const { filteredData, filterLocation, filterActivity, activeTab, locations, activitys, showExportPopup, fileName, orientation } = this.state;
-    const validCoordinates = getValidCoordinates(filteredData);  // Use this.props.data instead of filteredData
+    
+    // Standardize coordinates for consistent mapping
+    const standardizedFilteredData = standardizeCoordinates(filteredData);
+    const validCoordinates = getValidCoordinates(standardizedFilteredData);  // Use standardized data
 
     const totalBirds = filteredData.reduce((sum, obs) => {
         const count = parseInt(obs["Number of Birds"], 10);
@@ -367,55 +391,172 @@ class Dashboard extends Component {
           </div>
         </div>
 
-        {/* Stats are always visible */}
+        {/* Enhanced Statistics Cards */}
         {(activeTab === 'dashboard' || window.innerWidth >= 1024) && (
-        <div className="stats-grid">
-          <div className="stats-summary">
-            <h1>Total Observations</h1>
-            <h2 className="stat-value" style={{ color: '#8884d8' }}>{filteredData.length}</h2>
-            <h3 className="stat-value" style={{ color: '#6DAE80' }}>Seen: {filteredData.filter(item => item["Seen/Heard"] === "Seen").length}</h3>
-            <h3 className="stat-value" style={{ color: '#B39DDB' }}>Heard: {filteredData.filter(item => item["Seen/Heard"] === "Heard").length}</h3>
-            <h3 className="stat-value" style={{ color: '#EF9A9A' }}>Not Found: {filteredData.filter(item => item["Seen/Heard"] === "Not found").length}</h3>
+          <div className="stats-section">
+            <div className="stats-grid">
+              {/* Observation Summary Card */}
+              <div className="stat-card">
+                <div className="stat-icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C10.89 2 10 2.89 10 4S10.89 6 12 6 14 5.11 14 4 13.11 2 12 2M21 9V7L15 1H5C3.89 1 3 1.89 3 3V19A2 2 0 0 0 5 21H11V19.5L11.11 19H5V3H13V9H21Z"/>
+                  </svg>
+                </div>
+                <div className="stat-content">
+                  <h3>Total Observations</h3>
+                  <div className="stat-value">{filteredData.length}</div>
+                  <p>
+                    Success Rate: {filteredData.length > 0 ? 
+                      Math.round(((filteredData.filter(item => item["Seen/Heard"] !== "Not found").length) / filteredData.length) * 100) : 0}%
+                  </p>
+                  <div className="stat-breakdown">
+                    <span className="breakdown-item seen">
+                      ✓ Seen: {filteredData.filter(item => item["Seen/Heard"] === "Seen").length}
+                    </span>
+                    <span className="breakdown-item heard">
+                      ♪ Heard: {filteredData.filter(item => item["Seen/Heard"] === "Heard").length}
+                    </span>
+                    <span className="breakdown-item not-found">
+                      ✗ Not Found: {filteredData.filter(item => item["Seen/Heard"] === "Not found").length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Location Coverage Card */}
+              <div className="stat-card">
+                <div className="stat-icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12,2Z"/>
+                  </svg>
+                </div>
+                <div className="stat-content">
+                  <h3>Location Coverage</h3>
+                  <div className="stat-value">{new Set(filteredData.map(item => item.Location)).size}</div>
+                  <p>
+                    Unique locations surveyed
+                  </p>
+                  <div className="stat-breakdown">
+                    <span className="breakdown-item seen">
+                      Successful: {new Set(filteredData.filter(item => item["Seen/Heard"] !== "Not found").map(item => item.Location)).size}
+                    </span>
+                    <span className="breakdown-item not-found">
+                      No Detection: {new Set(filteredData.filter(item => item["Seen/Heard"] === "Not found").map(item => item.Location)).size}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bird Count Card */}
+              <div className="stat-card">
+                <div className="stat-icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M23,11.5L22.4,10.1C21.9,10.8 21.1,11.2 20.2,11.2C18.7,11.2 17.5,10 17.5,8.5C17.5,7 18.7,5.8 20.2,5.8C21.1,5.8 21.9,6.2 22.4,6.9L23,5.5C22.2,4.6 21.1,4 19.9,4C17.6,4 15.8,5.8 15.8,8.1C15.8,10.4 17.6,12.2 19.9,12.2C21.1,12.2 22.2,11.6 23,10.7V11.5M19.6,9.5L17,12.1L15,10.1L13.4,11.7L17,15.3L21.2,11.1L19.6,9.5M14,8.5C14,5.5 11.5,3 8.5,3S3,5.5 3,8.5S5.5,14 8.5,14S14,11.5 14,8.5Z"/>
+                  </svg>
+                </div>
+                <div className="stat-content">
+                  <h3>Total Birds Counted</h3>
+                  <div className="stat-value">{totalBirds}</div>
+                  <p>
+                    Average per observation: {filteredData.length > 0 ? (totalBirds / filteredData.length).toFixed(1) : 0}
+                  </p>
+                  <div className="stat-breakdown">
+                    <span className="breakdown-item seen">
+                      Seen: {totalSeenBirds} ({totalBirds > 0 ? Math.round((totalSeenBirds / totalBirds) * 100) : 0}%)
+                    </span>
+                    <span className="breakdown-item heard">
+                      Heard: {totalHeardBirds} ({totalBirds > 0 ? Math.round((totalHeardBirds / totalBirds) * 100) : 0}%)
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Data Quality Card */}
+              <div className="stat-card">
+                <div className="stat-icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17M11,9H13V7H11V9Z"/>
+                  </svg>
+                </div>
+                <div className="stat-content">
+                  <h3>Data Quality</h3>
+                  <div className="stat-value">
+                    {Math.round(((getValidCoordinates(filteredData).length) / filteredData.length) * 100)}%
+                  </div>
+                  <p>Records with valid coordinates</p>
+                  <div className="stat-breakdown">
+                    <span className="breakdown-item seen">
+                      Valid GPS: {getValidCoordinates(filteredData).length}
+                    </span>
+                    <span className="breakdown-item not-found">
+                      Missing GPS: {filteredData.length - getValidCoordinates(filteredData).length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Activity Distribution Card */}
+              <div className="stat-card">
+                <div className="stat-icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M16,6L18.29,8.29L13.41,13.17L9.41,9.17L2,16.59L3.41,18L9.41,12L13.41,16L19.71,9.71L22,12V6H16Z"/>
+                  </svg>
+                </div>
+                <div className="stat-content">
+                  <h3>Activity Types</h3>
+                  <div className="stat-value">{getUniqueActivity(filteredData).length}</div>
+                  <p>Different behaviors recorded</p>
+                  <div className="stat-breakdown">
+                    {getUniqueActivity(filteredData).slice(0, 3).map((activity, index) => {
+                      const count = filteredData.filter(item => 
+                        item["Activity (foraging, preening, calling, perching, others)"] === activity
+                      ).length;
+                      return (
+                        <span key={index} className="breakdown-item seen">
+                          {activity}: {count}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Survey Efficiency Card */}
+              <div className="stat-card">
+                <div className="stat-icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9Z"/>
+                  </svg>
+                </div>
+                <div className="stat-content">
+                  <h3>Survey Efficiency</h3>
+                  <div className="stat-value">
+                    {filteredData.length > 0 ? 
+                      Math.round(((filteredData.filter(item => item["Seen/Heard"] === "Seen").length) / filteredData.length) * 100) : 0}%
+                  </div>
+                  <p>Visual detection rate</p>
+                  <div className="stat-breakdown">
+                    <span className="breakdown-item seen">
+                      Direct sighting: {Math.round(((filteredData.filter(item => item["Seen/Heard"] === "Seen").length) / filteredData.length) * 100)}%
+                    </span>
+                    <span className="breakdown-item heard">
+                      Audio only: {Math.round(((filteredData.filter(item => item["Seen/Heard"] === "Heard").length) / filteredData.length) * 100)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="stats-summary">
-            <h1>Unique Location Status </h1>
-            <h2 style={{ color: '#8884d8' }}>
-              {new Set(filteredData.map(item => `${item.Location}-${item["Seen/Heard"]}`)).size}
-            </h2>
-            <h3 className="stat-value" style={{ color: '#6DAE80' }}>
-              Seen: {new Set(filteredData.filter(item => item["Seen/Heard"] === "Seen").map(item => item.Location)).size}
-            </h3>
-            <h3 className="stat-value" style={{ color: '#B39DDB' }}>
-              Heard: {new Set(filteredData.filter(item => item["Seen/Heard"] === "Heard").map(item => item.Location)).size}
-            </h3>
-            <h3 className="stat-value" style={{ color: '#EF9A9A' }}>
-              Not Found: {new Set(filteredData.filter(item => item["Seen/Heard"] === "Not found").map(item => item.Location)).size}
-            </h3>
-          </div>
-          <div className="stats-summary">
-            <h1>Total Birds</h1>
-            <h2 className="stat-value" style={{ color: '#8884d8' }}>
-              {totalBirds}
-            </h2>
-            <h3 className="stat-value" style={{ color: '#6DAE80' }}>
-              Seen: {totalSeenBirds}
-            </h3>
-            <h3 className="stat-value" style={{ color: '#B39DDB' }}>
-              Heard: {totalHeardBirds}
-            </h3>
-            <h3 className="stat-value" style={{ color: '#EF9A9A' }}>
-              Not Found: {totalNotFoundBirds}
-            </h3>
-          </div>
-        </div>
-      )}
+        )}
 
           {/* Dashboard View */}
           {(activeTab === 'dashboard' || window.innerWidth >= 1024) && (
             <div className="charts-grid">
-              <DateLineChart data={filteredData} />
-              <LocationStats data={filteredData} />
-              <D3TreeHeightChart data={filteredData} />
+              <DateLineChart data={standardizedFilteredData} />
+              <LocationStats data={standardizedFilteredData} />
+              <div className="chart-full-width">
+                <D3TreeHeightChart data={standardizedFilteredData} />
+              </div>
             </div>
           )}
 
@@ -438,7 +579,7 @@ class Dashboard extends Component {
           <div className="table-section">
             <h2>Observation Data</h2>
             <div className="table-container">
-              <ObservationTable data={filteredData} />
+              <ObservationTable data={standardizedFilteredData} />
             </div>
           </div>
         )}

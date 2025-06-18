@@ -31,8 +31,9 @@ export const getUniqueActivity = (data) => {
   const activities = new Set(); // Set automatically ensures uniqueness
 
   data.forEach(observation => {
-    if (observation["Activity (foraging, preening, calling, perching, others)"]) {
-      activities.add(observation["Activity (foraging, preening, calling, perching, others)"]); // Add location to the set
+    const activity = observation["Activity (foraging, preening, calling, perching, others)"];
+    if (activity && typeof activity === 'string') {
+      activities.add(activity); // Add activity to the set
     }
   });
 
@@ -45,8 +46,9 @@ export const countByActivity = (data) => {
   const counts = {};
   
   data.forEach(observation => {
-    if (observation["Activity (foraging, preening, calling, perching, others)"]) {
-      const activities = observation["Activity (foraging, preening, calling, perching, others)"].split(',').map(act => act.trim());
+    const activity = observation["Activity (foraging, preening, calling, perching, others)"];
+    if (activity && typeof activity === 'string') {
+      const activities = activity.split(',').map(act => act.trim());
       
       activities.forEach(activity => {
         if (activity && !activity.includes('flew off')) {

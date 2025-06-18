@@ -1,41 +1,48 @@
 {
   "wwfLed": [
     {
-      "date": "17 May 2025",
-      "location": "",
+      "date": "Fri, 20 June 2025",
+      "location": "Mandai Boardwalk",
       "meetingPoint": "",
       "meetingPointDesc": "",
       "time": "0730hrs - 0930hrs",
       "participants": [
-        "Tseng Wen",
-        "Anya"
+        "Anya",
+        "Keon",
+        "Germaine "
       ],
       "reminderSent": false
     },
     {
-      "date": "18 May 2025",
-      "location": "",
+      "date": "Thurs, 26 June 2025",
+      "location": "TBC",
       "meetingPoint": "",
       "meetingPointDesc": "",
       "time": "0730hrs - 0930hrs",
-      "participants": [
-        "Tvish",
-        "Raymond"
-      ],
+      "participants": [],
       "reminderSent": false
     }
   ],
   "volunteerLed": [
     {
-      "date": "10 May 2025",
-      "location": "Testing",
+      "date": "Sat, 21 June 2025",
+      "location": "TBC",
       "meetingPoint": "",
       "meetingPointDesc": "",
-      "time": "0730hrs - 0930hrs",
+      "time": "0730 - 0930",
       "participants": [
-        "Testing 1",
-        "Testing 2"
+        "Anya",
+        "Germaine "
       ],
+      "reminderSent": false
+    },
+    {
+      "date": "Sun, 22 June 2025",
+      "location": "TBC",
+      "meetingPoint": "",
+      "meetingPointDesc": "",
+      "time": "0730 - 0930",
+      "participants": [],
       "reminderSent": false
     }
   ]

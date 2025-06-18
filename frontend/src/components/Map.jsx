@@ -3,12 +3,14 @@ import { MapContainer, TileLayer, Marker, Popup, ZoomControl } from 'react-leafl
 import 'leaflet/dist/leaflet.css';
 import MarkerClusterGroup from 'react-leaflet-markercluster';
 import L from 'leaflet';
+import { standardizeCoordinates } from '../utils/coordinateStandardization';
 
 class Map extends Component {
   constructor(props) {
     super(props);
     this.state = {
       windowWidth: window.innerWidth,
+      mapStyle: 'satellite', // 'satellite', 'terrain', 'street'
       statistics: {
         totalObservations: 0,
         seen: 0,
@@ -158,10 +160,89 @@ class Map extends Component {
     });
   };
 
+  getTileLayerConfig = () => {
+    const { mapStyle } = this.state;
+    
+    switch (mapStyle) {
+      case 'satellite':
+        return {
+          url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+          attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+          overlay: {
+            url: "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+            opacity: 0.8
+          }
+        };
+      case 'terrain':
+        return {
+          url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+          attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a>'
+        };
+      case 'street':
+        return {
+          url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        };
+      default:
+        return this.getTileLayerConfig(); // Default to satellite
+    }
+  };
+
+  renderMapStyleSelector = () => {
+    const { mapStyle } = this.state;
+    
+    return (
+      <div style={{
+        position: 'absolute',
+        top: '10px',
+        right: '10px',
+        background: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: '8px',
+        padding: '8px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        zIndex: 1000,
+        fontSize: '12px'
+      }}>
+        <div style={{ fontWeight: 600, marginBottom: '8px', color: '#DC2626' }}>🗺️ Map Style</div>
+        
+        {['satellite', 'terrain', 'street'].map(style => (
+          <button
+            key={style}
+            onClick={() => this.setState({ mapStyle: style })}
+            style={{
+              display: 'block',
+              width: '100%',
+              background: mapStyle === style ? '#DC2626' : '#F3F4F6',
+              color: mapStyle === style ? 'white' : '#374151',
+              border: 'none',
+              padding: '6px 12px',
+              borderRadius: '4px',
+              fontSize: '11px',
+              cursor: 'pointer',
+              marginBottom: '4px',
+              textAlign: 'left'
+            }}
+          >
+            {style === 'satellite' && '🛰️'} 
+            {style === 'terrain' && '🏔️'} 
+            {style === 'street' && '🗺️'} 
+            {style.charAt(0).toUpperCase() + style.slice(1)}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
   render() {
     const { data } = this.props;
     console.log("Map Data:", data);
+    
+    // Standardize coordinates for same locations
+    const standardizedData = standardizeCoordinates(data);
+    console.log("Standardized Map Data:", standardizedData);
+    
     const singaporeCenter = [1.3521, 103.8198];
+    const tileConfig = this.getTileLayerConfig();
 
     // Define the observation types and their colors for the legend
     const observationTypes = [
@@ -185,9 +266,23 @@ class Map extends Component {
           maxBoundsViscosity={1.0}
         >
           <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            key={this.state.mapStyle}
+            url={tileConfig.url}
+            attribution={tileConfig.attribution}
+            maxZoom={20}
           />
+          {/* Optional overlay for satellite with labels */}
+          {tileConfig.overlay && (
+            <TileLayer
+              url={tileConfig.overlay.url}
+              attribution=""
+              maxZoom={20}
+              opacity={tileConfig.overlay.opacity}
+            />
+          )}
+          
+          {/* Map Style Selector */}
+          {this.renderMapStyleSelector()}
           
           {/* Custom legend */}
           <div className="map-legend" style={{
@@ -220,10 +315,10 @@ class Map extends Component {
           </div>
 
           <MarkerClusterGroup 
-            key={JSON.stringify(data)}
+            key={JSON.stringify(standardizedData)}
             iconCreateFunction={this.createClusterCustomIcon}
           >
-            {data.map((observation, index) => (
+            {standardizedData.map((observation, index) => (
               observation.Lat && observation.Long ? (
                  <Marker 
                   key={index} 
@@ -266,6 +361,8 @@ class Map extends Component {
             <p style={{ color: '#B39DDB' }}><strong>Heard:</strong> {this.state.statistics.heard}</p>
             <p style={{ color: '#EF9A9A' }}p><strong>Not Found:</strong> {this.state.statistics.notFound}</p>
           </div>
+
+          {this.renderMapStyleSelector()}
         </MapContainer>
       </div>
     );

@@ -327,7 +327,7 @@ const formatStandardSurveyMessage = (survey) => {
     return url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`;
   };
   
-  let messageText = `<b>Automated Message</b>\nHi everyone! Please find the details for tomorrow's (${escapeHtml(survey.date)}) survey below:\n\n`;
+  let messageText = `<b>Automated Message</b>\nHi everyone! Please find the details for ${escapeHtml(survey.date)} survey below:\n\n`;
   messageText += `<b>Survey Details</b>\n`;
   messageText += `Location: ${escapeHtml(survey.location)}\n`;
   

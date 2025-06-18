@@ -71,16 +71,21 @@ class LocationStats extends Component {
         <div
           style={{
             backgroundColor: '#fff',
-            padding: '10px',
+            padding: '12px',
             borderRadius: '8px',
-            boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+            boxShadow: '0 4px 12px rgba(220, 38, 38, 0.15)',
+            border: '2px solid #DC2626'
           }}
         >
-          <div><strong>{location}</strong></div>
-          <div style={{ color: '#A8E6CF' }}><strong>Seen:</strong> {Seen}</div>
-          <div style={{ color: '#D1C4E9' }}><strong>Heard:</strong> {Heard}</div>
-          <div style={{ color: '#FFCDD2' }}><strong>Not Found:</strong> {NotFound}</div>
-          <div style={{ color: '#8884d8' }}><strong>Total:</strong> {Total}</div>
+          <div style={{ fontWeight: 'bold', color: '#DC2626', marginBottom: '8px' }}>
+            🇸🇬 {location}
+          </div>
+          <div style={{ color: '#059669', fontWeight: '500' }}><strong>Seen:</strong> {Seen}</div>
+          <div style={{ color: '#7C3AED', fontWeight: '500' }}><strong>Heard:</strong> {Heard}</div>
+          <div style={{ color: '#DC2626', fontWeight: '500' }}><strong>Not Found:</strong> {NotFound}</div>
+          <div style={{ color: '#1F2937', fontWeight: 'bold', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #E5E7EB' }}>
+            <strong>Total:</strong> {Total}
+          </div>
         </div>
       );
     }
@@ -181,12 +186,26 @@ class LocationStats extends Component {
   };
   
   getColorForIndex = (index) => {
-    // Generate a scale of distinct colors using HSL (Hue, Saturation, Lightness)
-    // The hue will be spaced out by a fixed interval to ensure distinctiveness
-    const hue = (index * 137.5) % 360; // 137.5 is a golden angle, ensuring a good spread of colors
-    const color = chroma.hsl(hue, 0.75, 0.5).hex(); // Saturation = 0.75, Lightness = 0.5, adjust as needed
-  
-    return color;
+    // Distinct, different colors following Singapore conservation theme
+    const distinctColors = [
+      '#DC2626', // Singapore Red
+      '#059669', // Conservation Green  
+      '#1D4ED8', // Ocean Blue
+      '#F59E0B', // Sunset Orange
+      '#7C3AED', // Tropical Purple
+      '#EC4899', // Orchid Pink
+      '#0D9488', // Emerald Teal
+      '#B45309', // Earth Brown
+      '#4F46E5', // Deep Indigo
+      '#DB2777', // Vibrant Magenta
+      '#0891B2', // Sky Blue
+      '#CA8A04', // Golden Yellow
+      '#7C2D12', // Mahogany
+      '#166534', // Forest Green
+      '#991B1B'  // Deep Crimson
+    ];
+    
+    return distinctColors[index % distinctColors.length];
   };
   
   // Generate report similar to DateLineChart
@@ -875,21 +894,32 @@ class LocationStats extends Component {
     const { showLegend, activeIndex, showReportPanel, showInsightsPanel, insightsLoading } = this.state;
 
     return (
-      <div className="chart-container">
+      <div className="chart-container singapore-theme">
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '1rem'
+          marginBottom: '1rem',
+          padding: '1rem',
+          background: 'linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)',
+          borderRadius: '8px',
+          color: 'white'
         }}>
-          <h2>Observations by Location</h2>
           <div>
-            <button
+            <h2 style={{ margin: 0, color: 'white', fontSize: '1.5rem' }}>
+              🐦 Bird Distribution Analysis
+            </h2>
+            <p style={{ margin: '0.5rem 0 0 0', color: '#FEE2E2', fontSize: '0.9rem' }}>
+              Straw-headed Bulbul distribution across Singapore
+            </p>
+          </div>
+          <div>
+           {/* <button
               onClick={this.toggleLegend}
               style={{
-                background: showLegend ? '#EDF2F7' : '#6366F1',
-                color: showLegend ? '#4A5568' : 'white',
-                border: 'none',
+                background: showLegend ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)',
+                color: 'white',
+                border: '1px solid rgba(255,255,255,0.3)',
                 padding: '0.5rem 1rem',
                 borderRadius: '4px',
                 cursor: 'pointer',
@@ -898,7 +928,7 @@ class LocationStats extends Component {
               }}
             >
               {showLegend ? 'Hide Legend' : 'Show Legend'}
-            </button>
+            </button>*/}
             <button
               onClick={() => this.setState(prevState => ({ 
                 showReportPanel: !prevState.showReportPanel,
@@ -906,9 +936,9 @@ class LocationStats extends Component {
                 showLegend: false
               }))}
               style={{
-                background: showReportPanel ? '#EDF2F7' : '#6366F1',
-                color: showReportPanel ? '#4A5568' : 'white',
-                border: 'none',
+                background: showReportPanel ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)',
+                color: 'white',
+                border: '1px solid rgba(255,255,255,0.3)',
                 padding: '0.5rem 1rem',
                 borderRadius: '4px',
                 cursor: 'pointer',
@@ -932,9 +962,9 @@ class LocationStats extends Component {
                 }
               }}
               style={{
-                background: showInsightsPanel ? '#EDF2F7' : '#6366F1',
-                color: showInsightsPanel ? '#4A5568' : 'white',
-                border: 'none',
+                background: showInsightsPanel ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)',
+                color: 'white',
+                border: '1px solid rgba(255,255,255,0.3)',
                 padding: '0.5rem 1rem',
                 borderRadius: '4px',
                 cursor: 'pointer',
@@ -959,14 +989,19 @@ class LocationStats extends Component {
             className="legend-popup"
             style={{
               backgroundColor: '#fff',
-              border: '1px solid #e2e8f0',
+              border: '2px solid #DC2626',
               padding: '1rem',
               borderRadius: '8px',
-              boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+              boxShadow: '0 4px 12px rgba(220, 38, 38, 0.15)',
               marginBottom: '1rem'
             }}
           >
-            <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>Location Legend</div>
+            <div style={{ 
+              fontWeight: 'bold', 
+              marginBottom: '0.5rem',
+              color: '#DC2626',
+              fontSize: '1.1rem'
+            }}>🇸🇬 Singapore Location Legend</div>
             <div style={{ 
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
@@ -982,7 +1017,10 @@ class LocationStats extends Component {
                       display: 'flex',
                       alignItems: 'center',
                       cursor: 'pointer',
-                      padding: '0.25rem'
+                      padding: '0.25rem',
+                      borderRadius: '4px',
+                      transition: 'background-color 0.2s',
+                      ':hover': { backgroundColor: '#FEE2E2' }
                     }}
                   >
                     <div style={{ 
@@ -990,9 +1028,10 @@ class LocationStats extends Component {
                       height: '12px',
                       backgroundColor: color,
                       marginRight: '8px',
-                      borderRadius: '2px'
+                      borderRadius: '2px',
+                      border: '1px solid #fff'
                     }}></div>
-                    <span style={{ color }}>{entry.location}</span>
+                    <span style={{ color: '#1F2937', fontWeight: '500' }}>{entry.location}</span>
                   </div>
                 );
               })}

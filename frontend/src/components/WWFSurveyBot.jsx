@@ -893,317 +893,404 @@ removeParticipant = (participantIndex) => {
     
     return (
       <div className="wwf-bot-container">
-        <div className="message-header" style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '10px 20px',
-              position: 'sticky',
-              top: 0,
-              backgroundColor: 'white', // Adding background color to ensure content doesn't show through
-              zIndex: 1000, // Ensures the header stays on top of other elements
-            }}>
-               <h1 style={{
-              textAlign: 'center',
-              margin: 0,
-              flexGrow: 1
-            }}>
-              <h2>WWF-SG Survey Schedule Telegram Bot</h2>
-            </h1>
-            <Link to="/" style={{
-              color: 'black',
-              padding: '10px 15px',
-              textDecoration: 'none',
-              borderRadius: '5px',
-              fontWeight: 'bold',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <FontAwesomeIcon icon={faHome} style={{ fontSize: '3rem' }} />
-            </Link>
-          </div>
-        <div className="message-header">
-          <button 
-            className="group-settings-button"
-            onClick={this.openGroupModal}
-            title="Manage Telegram Groups"
-          >
-            👥 Manage Groups ({telegramGroups.length})
-          </button>
-          </div>
-        
-        {(
-          <>
-            <div className="survey-controls">
-              <h3>Send Survey Information</h3>
-              <div className="legend" style={{ fontSize: '0.9rem', color: '#333', marginBottom: '1rem' }}>
-                {/* Legend Title */}
-                <div style={{ marginBottom: '1rem' }}>
-                  <strong>Legend:</strong>
-                </div>
-
-                {/* Main Row - Button Colors and Icons in One Row */}
-                <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                  
-                  {/* Button Colors Section */}
-                  <div style={{ display: 'flex', flexDirection: 'column', width: '48%' }}>
-                    <strong>Button Colors:</strong>
-
-                    {/* WWF-Led Survey Color */}
-                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <span style={{
-                        marginRight: '0.5rem',
-                        backgroundColor: '#E74C3C',  // Red background
-                        padding: '6px 12px',
-                        borderRadius: '4px',
-                        display: 'inline-block',
-                        width: '10px',  // Show the color sample
-                        height: '10px'  // Show the color sample
-                      }}></span>
-                      <strong>WWF-Led Survey</strong>
-                    </div>
-
-                    {/* Volunteer-Led Survey Color */}
-                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <span style={{
-                        marginRight: '0.5rem',
-                        backgroundColor: '#4A90E2',  // Blue background
-                        padding: '6px 12px',
-                        borderRadius: '4px',
-                        display: 'inline-block',
-                        width: '10px',  // Show the color sample
-                        height: '10px'  // Show the color sample
-                      }}></span>
-                      <strong>Volunteer-Led Survey</strong>
-                    </div>
-                  </div>
-
-                  {/* Icons Section */}
-                  <div style={{ display: 'flex', flexDirection: 'column', width: '48%' }}>
-                    <strong>Icons:</strong>
-
-                    {/* Meeting Point Icon */}
-                    {/* Add Meeting Point Icon */}
-                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <span style={{
-                        marginRight: '0.5rem',
-                        padding: '6px 12px',
-                        borderRadius: '4px',
-                        display: 'inline-block'
-                      }}>➕📍</span>
-                      <strong>Meeting Point</strong>
-                    </div>
-
-                    {/* Add/Remove Participants Icon */}
-                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <span style={{
-                        marginRight: '0.5rem',
-                        padding: '6px 12px',
-                        borderRadius: '4px',
-                        display: 'inline-block'
-                      }}>👥</span>
-                      <strong>Edit Participants List</strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="survey-buttons">
-              {console.log("WWF-Led Survey1234:", surveyData)}
-                {surveyData.wwfLed.map((survey, index) => {
-                  console.log("survey:", survey);
-                  return (
-                    <div key={index} className="survey-button-group">
-                      <button 
-                        onClick={() => this.sendFormattedSurveyInfo(`wwf-led-${index+1}`)}
-                        style={{ backgroundColor: '#E74C3C', color: 'white' }}
-                      >
-                        Send {survey.location} Survey Info ({survey.date})
-                      </button>
-                      <button 
-                        className="map-button" 
-                        onClick={() => this.openMapModal('wwf-led')}
-                        title="Set Google Maps Location"
-                        style={{ borderColor: '#E74C3C', backgroundColor: '#F7B7B2'}}
-                      >
-                        {survey.meetingPoint ? '📍' : '➕📍'}
-                      </button>
-                      <button
-                        className="participants-button"
-                        onClick={() => this.openParticipantModal('wwf-led', index)}
-                        title="Edit Participants List"
-                        style={{ borderColor: '#E74C3C', backgroundColor: '#F7B7B2'}}
-                      >
-                        👥
-                      </button>
-                    </div>
-                  );
-                })}
-
-                {surveyData.volunteerLed.map((survey, index) => (
-                  <>
-                  <div key={index} className="survey-button-group">
-                  <button 
-                      onClick={() => this.sendFormattedSurveyInfo(`volunteer-led-${index+1}`)} 
-                      disabled={isSending}
-                      style={{ backgroundColor: '#4A90E2', color: 'white' }}
-                    >
-                      Send {survey.location} Survey Info ({survey.date})
-                    </button>
-                    <button 
-                      className="map-button"
-                      onClick={() => this.openMapModal('volunteer-led', index)}
-                      title="Set Google Maps Location"
-                      style={{ borderColor: '#4A90E2', backgroundColor: '#A4C8F1' }}
-                    >
-                      {survey.meetingPoint ? '📍' : '➕📍'}
-                    </button>
-                    <button
-                      className="participants-button"
-                      onClick={() => this.openParticipantModal('volunteer-led', index)}
-                      title="Edit Participants List"
-                      style={{ borderColor: '#4A90E2',  backgroundColor: '#A4C8F1'}}
-                    >
-                      👥 Edit List
-                    </button>
-                  </div>
-                  </>
-                ))}
-              </div>
+        {/* Modern Header */}
+        <header className="bot-header">
+          <div className="header-content">
+            <div className="header-title">
+              <h1>Survey Management Bot</h1>
+              <p>Automated Telegram messaging for WWF conservation surveys</p>
             </div>
-            
-            <div className="custom-survey-form">
-              <h3>Create Customized Volunteer-Led Survey Announcement</h3>
-              <p>Volunteers may initiate the survey; however, the details will not be stored in Excel.</p>  
-              <p>To successfully send the survey announcement to Telegram, please adhere strictly to the provided format and set the map link using the Add Meeting Point button, if a location has been determined.</p>
-              <div className="survey-form-grid">
-                <div className="form-group">
-                  <label>Date:</label>
-                  <input 
-                    type="text" 
-                    value={customSurvey.date}
-                    onChange={(e) => this.handleCustomSurveyChange('date', e)}
-                    placeholder="e.g., 16 April 2025"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Location:</label>
-                  <input 
-                    type="text" 
-                    value={customSurvey.location}
-                    onChange={(e) => this.handleCustomSurveyChange('location', e)}
-                    placeholder="e.g., Mandai Track 15"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Meeting Point URL:</label>
-                  <div className="input-with-button">
-                    <input 
-                      type="text" 
-                      value={customSurvey.meetingPoint}
-                      onChange={(e) => this.handleCustomSurveyChange('meetingPoint', e)}
-                      placeholder="Google Maps URL"
-                      readOnly
-                    />
-                    <button 
-                      className="map-button"
-                      onClick={() => this.openMapModal('custom')}
-                      title="Set Google Maps Location"
-                    >
-                      {customSurvey.meetingPoint ? '📍' : '➕📍'}
-                    </button>
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label>Meeting Point Description:</label>
-                  <input 
-                    type="text" 
-                    value={customSurvey.meetingPointDesc}
-                    onChange={(e) => this.handleCustomSurveyChange('meetingPointDesc', e)}
-                    placeholder="e.g., Central Catchment Park Connector"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Time:</label>
-                  <input 
-                    type="text" 
-                    value={customSurvey.time}
-                    onChange={(e) => this.handleCustomSurveyChange('time', e)}
-                    placeholder="e.g., 07:30am - 09:30am"
-                  />
-                </div>
-                <div className="form-group full-width participant-list-container">
-                  <div className="participant-header">
-                    <label>Participants:</label>
-                    <button
-                      className="edit-participants-button"
-                      onClick={() => this.openParticipantModal('custom')}
-                      title="Edit Participants List"
-                    >
-                      👥 Edit List
-                    </button>
-                  </div>
-                  <div className="participants-preview">
-                    {customSurvey.participants.length > 0 ? (
-                      customSurvey.participants.map((name, idx) => (
-                        <span key={idx} className="participant-chip">{name}</span>
-                      ))
-                    ) : (
-                      <span className="no-participants">No participants added yet</span>
-                    )}
-                  </div>
-                </div>
-              </div>
+            <div className="header-actions">
+              <Link to="/" className="btn btn-secondary">
+                <FontAwesomeIcon icon={faHome} />
+                Home
+              </Link>
               <button 
-                onClick={() => this.sendFormattedSurveyInfo('custom')} 
-                disabled={isSending || !customSurvey.date || !customSurvey.location || !customSurvey.time}
-                className="send-custom-survey"
+                className="btn btn-primary"
+                onClick={this.openGroupModal}
+                title="Manage Telegram Groups"
               >
-                Send Survey Announcement To Telegram
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M16 4C16.55 4 17 4.45 17 5S16.55 6 16 6H8C7.45 6 7 5.55 7 5S7.45 4 8 4H16ZM3 18V16H21V18H3ZM21 11H3V13H21V11Z"/>
+                </svg>
+                Manage Groups ({telegramGroups.length})
               </button>
             </div>
-          
-            <div className="message-list">
-              {conversation.map(msg => (
-                <div 
-                  key={msg.id} 
-                  className={`message-item ${msg.sender === 'user' ? 'user-message' : 'bot-message'}`}
-                >
-                  <div className="message-bubble">
-                    <div className="message-text">{msg.text}</div>
-                    <div className="message-time">{this.formatTimestamp(msg.timestamp)}</div>
-                  </div>
-                </div>
-              ))}
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="bot-main">
+          <div className="bot-content">
+            {/* Survey Controls Section */}
+            <section className="survey-controls">
+              <div className="section-header">
+                <h2>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM19 19H5V5H19V19ZM17 12H7V10H17V12ZM13 16H7V14H13V16ZM17 8H7V6H17V8Z"/>
+                  </svg>
+                  Scheduled Surveys
+                </h2>
+                <p>Send announcements for upcoming surveys from the Excel database</p>
+              </div>
               
-              {isSending && (
-                <div className="message-item bot-message">
-                  <div className="message-bubble typing-indicator">
-                    <span></span>
-                    <span></span>
-                    <span></span>
+              <div className="section-content">
+                {/* Survey Legend */}
+                <div className="survey-legend">
+                  <h4>Legend</h4>
+                  <div className="legend-items">
+                    <div className="legend-item">
+                      <div className="legend-color wwf-led"></div>
+                      <span>WWF-Led Survey</span>
+                    </div>
+                    <div className="legend-item">
+                      <div className="legend-color volunteer-led"></div>
+                      <span>Volunteer-Led Survey</span>
+                    </div>
+                    <div className="legend-item">
+                      <span className="legend-icon">📍</span>
+                      <span>Meeting Point</span>
+                    </div>
+                    <div className="legend-item">
+                      <span className="legend-icon">👥</span>
+                      <span>Edit Participants</span>
+                    </div>
                   </div>
                 </div>
-              )}
+
+                {/* WWF-Led Surveys */}
+                {surveyData.wwfLed.length > 0 && (
+                  <div className="survey-type-section">
+                    <h4>WWF-Led Surveys</h4>
+                    <div className="survey-cards">
+                      {surveyData.wwfLed.map((survey, index) => (
+                        <div key={index} className="survey-card wwf-led">
+                          <div className="survey-info">
+                            <h5>{survey.location || 'Unknown Location'}</h5>
+                            <p className="survey-date">{survey.date}</p>
+                            <p className="survey-time">{survey.time}</p>
+                            <p className="survey-participants">
+                              {survey.participants?.length || 0} participants
+                            </p>
+                          </div>
+                          <div className="survey-actions">
+                            <button 
+                              className="btn-large btn-send"
+                              onClick={() => this.sendFormattedSurveyInfo(`wwf-led-${index+1}`)}
+                              disabled={isSending}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M2.01 21L23 12L2.01 3L2 10L17 12L2 14L2.01 21Z"/>
+                              </svg>
+                              Send Announcement
+                            </button>
+                            <button 
+                              className="btn-icon btn-secondary"
+                              onClick={() => this.openMapModal('wwf-led')}
+                              title="Set Meeting Point"
+                            >
+                              {survey.meetingPoint ? '📍' : '➕📍'}
+                            </button>
+                            <button
+                              className="btn-icon btn-secondary"
+                              onClick={() => this.openParticipantModal('wwf-led', index)}
+                              title="Edit Participants"
+                            >
+                              👥
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Volunteer-Led Surveys */}
+                {surveyData.volunteerLed.length > 0 && (
+                  <div className="survey-type-section">
+                    <h4>Volunteer-Led Surveys</h4>
+                    <div className="survey-cards">
+                      {surveyData.volunteerLed.map((survey, index) => (
+                        <div key={index} className="survey-card volunteer-led">
+                          <div className="survey-info">
+                            <h5>{survey.location || 'Unknown Location'}</h5>
+                            <p className="survey-date">{survey.date}</p>
+                            <p className="survey-time">{survey.time}</p>
+                            <p className="survey-participants">
+                              {survey.participants?.length || 0} participants
+                            </p>
+                          </div>
+                          <div className="survey-actions">
+                            <button 
+                              className="btn-large btn-send"
+                              onClick={() => this.sendFormattedSurveyInfo(`volunteer-led-${index+1}`)}
+                              disabled={isSending}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M2.01 21L23 12L2.01 3L2 10L17 12L2 14L2.01 21Z"/>
+                              </svg>
+                              Send Announcement
+                            </button>
+                            <button 
+                              className="btn-icon btn-secondary"
+                              onClick={() => this.openMapModal('volunteer-led', index)}
+                              title="Set Meeting Point"
+                            >
+                              {survey.meetingPoint ? '📍' : '➕📍'}
+                            </button>
+                            <button
+                              className="btn-icon btn-secondary"
+                              onClick={() => this.openParticipantModal('volunteer-led', index)}
+                              title="Edit Participants"
+                            >
+                              👥
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(surveyData.wwfLed.length === 0 && surveyData.volunteerLed.length === 0) && (
+                  <div className="no-surveys">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM19 19H5V5H19V19Z"/>
+                    </svg>
+                    <h4>No Upcoming Surveys</h4>
+                    <p>No scheduled surveys found in the database. Create a custom survey below or check back later.</p>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Custom Survey Section */}
+            <section className="survey-controls">
+              <div className="section-header">
+                <h2>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+                  </svg>
+                  Create Custom Survey
+                </h2>
+                <p>Create and send a custom survey announcement not in the database</p>
+              </div>
+              
+              <div className="section-content">
+                <form className="survey-form">
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">Date</label>
+                      <input 
+                        className="form-input"
+                        type="text" 
+                        value={customSurvey.date}
+                        onChange={(e) => this.handleCustomSurveyChange('date', e)}
+                        placeholder="e.g., 16 April 2025"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Time</label>
+                      <input 
+                        className="form-input"
+                        type="text" 
+                        value={customSurvey.time}
+                        onChange={(e) => this.handleCustomSurveyChange('time', e)}
+                        placeholder="e.g., 07:30am - 09:30am"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">Location</label>
+                      <input 
+                        className="form-input"
+                        type="text" 
+                        value={customSurvey.location}
+                        onChange={(e) => this.handleCustomSurveyChange('location', e)}
+                        placeholder="e.g., Mandai Track 15"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Meeting Point Description</label>
+                      <input 
+                        className="form-input"
+                        type="text" 
+                        value={customSurvey.meetingPointDesc}
+                        onChange={(e) => this.handleCustomSurveyChange('meetingPointDesc', e)}
+                        placeholder="e.g., Central Catchment Park Connector"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Meeting Point URL</label>
+                    <div className="input-group">
+                      <input 
+                        className="form-input"
+                        type="text" 
+                        value={customSurvey.meetingPoint}
+                        onChange={(e) => this.handleCustomSurveyChange('meetingPoint', e)}
+                        placeholder="Google Maps URL"
+                        readOnly
+                      />
+                      <button 
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => this.openMapModal('custom')}
+                        title="Set Google Maps Location"
+                      >
+                        {customSurvey.meetingPoint ? '📍' : '➕📍'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="participant-section">
+                    <div className="participant-header">
+                      <h3>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M16 4C18.2 4 20 5.8 20 8S18.2 12 16 12S12 10.2 12 8S13.8 4 16 4ZM16 14C20.4 14 24 15.8 24 18V20H8V18C8 15.8 11.6 14 16 14ZM8 12C5.8 12 4 10.2 4 8S5.8 4 8 4S12 5.8 12 8S10.2 12 8 12ZM8 13C3.6 13 0 14.8 0 17V19H7V17C7 15.3 7.6 13.9 8.6 13H8Z"/>
+                        </svg>
+                        Participants
+                      </h3>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => this.openParticipantModal('custom')}
+                      >
+                        👥 Edit List
+                      </button>
+                    </div>
+                    
+                    <div className="participant-list">
+                      {customSurvey.participants.length > 0 ? (
+                        customSurvey.participants.map((name, idx) => (
+                          <div key={idx} className="participant-item">
+                            <span className="participant-name">{name}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="no-participants">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L12 1L3 7V9H4L8 23H9L12 14L15 23H16L20 9H21Z"/>
+                          </svg>
+                          <p>No participants added yet. Click "Edit List" to add participants.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="action-buttons">
+                    <button 
+                      type="button"
+                      className="btn-large btn-send"
+                      onClick={() => this.sendFormattedSurveyInfo('custom')} 
+                      disabled={isSending || !customSurvey.date || !customSurvey.location || !customSurvey.time}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M2.01 21L23 12L2.01 3L2 10L17 12L2 14L2.01 21Z"/>
+                      </svg>
+                      Send Custom Announcement
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </section>
+
+            {/* Conversation Section */}
+            <section className="conversation-section">
+              <div className="conversation-header">
+                <h3>Bot Activity Log</h3>
+                <div className="conversation-status">
+                  {isSending ? 'Sending...' : 'Ready'}
+                </div>
+              </div>
+              
+              <div className="conversation-messages">
+                {conversation.map(msg => (
+                  <div 
+                    key={msg.id} 
+                    className={`message ${msg.sender}`}
+                  >
+                    <div className="message-content">
+                      {msg.text}
+                    </div>
+                    <span className="message-time">
+                      {this.formatTimestamp(msg.timestamp)}
+                    </span>
+                  </div>
+                ))}
+                
+                {isSending && (
+                  <div className="message bot">
+                    <div className="loading-indicator">
+                      <span>Sending message</span>
+                      <div className="loading-dots">
+                        <div className="loading-dot"></div>
+                        <div className="loading-dot"></div>
+                        <div className="loading-dot"></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
+
+          {/* Sidebar */}
+          <aside className="bot-sidebar">
+            {/* Quick Stats */}
+            <div className="sidebar-section">
+              <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M3.5 18.49L9 12.99L13 16.99L22 6.92L20.59 5.51L13 13.1L9 9.1L2.09 16.01L3.5 18.49Z"/>
+                </svg>
+                Quick Stats
+              </h3>
+              <div className="quick-stats">
+                <div className="stat-item">
+                  <div className="stat-value">{surveyData.wwfLed.length + surveyData.volunteerLed.length}</div>
+                  <div className="stat-label">Scheduled Surveys</div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-value">{telegramGroups.length}</div>
+                  <div className="stat-label">Telegram Groups</div>
+                </div>
+              </div>
             </div>
-            
-            {/*<div className="message-input-container">
-              <input
-                type="text"
-                className="message-input"
-                value={userMessage}
-                onChange={this.handleMessageChange}
-                onKeyPress={this.handleKeyPress}
-                placeholder="Type a custom message to send..."
-              />
-              <button 
-                className="send-button"
-                onClick={this.sendCustomMessage}
-                disabled={!userMessage.trim() || isSending}
-              >
-                {isSending ? 'Sending...' : 'Send Custom Message'}
-              </button>
-            </div>*/}
+
+            {/* Telegram Groups */}
+            <div className="sidebar-section">
+              <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M20 2H4C2.9 2 2 2.9 2 4V20C2 21.1 2.9 22 4 22H20C21.1 22 22 21.1 22 20V4C22 2.9 21.1 2 20 2ZM20 20H4V4H20V20Z"/>
+                </svg>
+                Active Groups
+              </h3>
+              <div className="telegram-groups">
+                {telegramGroups.length > 0 ? (
+                  telegramGroups.map((group, index) => (
+                    <div key={index} className="group-item">
+                      <div className="group-info">
+                        <div className="group-name">{group.name}</div>
+                        <div className="group-id">ID: {group.id}</div>
+                      </div>
+                      <div className="group-status"></div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="no-groups">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M20 2H4C2.9 2 2 2.9 2 4V20C2 21.1 2.9 22 4 22H20C21.1 22 22 21.1 22 20V4C22 2.9 21.1 2 20 2Z"/>
+                    </svg>
+                    <p>No Telegram groups configured. Click "Manage Groups" to add groups.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </aside>
+        </main>
             
             {/* Map Selection Modal */}
             {showMapModal && (
@@ -1355,8 +1442,6 @@ removeParticipant = (participantIndex) => {
                 </div>
               </div>
             )}
-          </>
-        )}
       </div>
     );
   }

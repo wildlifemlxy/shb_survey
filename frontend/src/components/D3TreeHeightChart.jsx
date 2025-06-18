@@ -1,1786 +1,1318 @@
-import React, { Component } from 'react';
+import React, { Component, createRef } from 'react';
 import * as d3 from 'd3';
-import { extractTreeHeights, extractBirdHeights, extractSeenHeard, extractNoBirds } from '../utils/dataProcessing';
-import birdLogo from '../assets/bird-logo.png';
-
-//OK
 
 class D3TreeHeightChart extends Component {
   constructor(props) {
     super(props);
-    this.d3Container = React.createRef();
-    this.chartContainer = React.createRef();
+    this.svgRef = createRef();
+    this.containerRef = createRef();
     this.state = {
-      width: 0,
-      height: 0,
-      isMobile: false,
-      expandedIndex: null,
-      showReport: false,
-      showPercentageView: false
+      viewMode: 'normal', // 'normal' or 'percentage'
+      showInsights: false, // toggle insights visibility
+      selectedTreeIndex: null, // for individual tree statistics
+      showIndividualStats: false // hide by default
     };
   }
 
-  togglePercentageView = () => {
-    this.setState(prevState => ({
-      showPercentageView: !prevState.showPercentageView
-    }), () => {
-      // Re-render the chart with the new view mode
-      this.renderChart();
-    });
-  };
-
-
   componentDidMount() {
-    this.updateDimensions();
     this.renderChart();
-    window.addEventListener('resize', this.updateDimensions);
   }
 
   componentDidUpdate(prevProps, prevState) {
-    if (
-      prevProps.data !== this.props.data ||
-      prevState.width !== this.state.width ||
-      prevState.height !== this.state.height
-    ) {
+    if (prevProps.data !== this.props.data || prevState.viewMode !== this.state.viewMode) {
       this.renderChart();
     }
   }
 
-  componentWillUnmount() {
-    window.removeEventListener('resize', this.updateDimensions);
-    // Remove any tooltips that might be left
-    d3.select('.chart-tooltip').remove();
+  setViewMode = (mode) => {
+    this.setState({ viewMode: mode });
   }
 
-  updateDimensions = () => {
-    if (!this.chartContainer.current) return;
-    
-    const containerWidth = this.chartContainer.current.clientWidth;
-    const windowWidth = window.innerWidth;
-    
-    // Determine if we're on mobile
-    const isMobile = windowWidth < 768;
-    
-    // Set appropriate height based on screen size
-    let height = 400; // Default height
-    if (isMobile) {
-      height = 300; // Smaller height for mobile
-    } else if (windowWidth < 1024) {
-      height = 350; // Medium height for tablets
-    }
-    
-    this.setState({
-      width: containerWidth,
-      height: height,
-      isMobile: isMobile
-    });
-  };
+  toggleInsights = () => {
+    this.setState(prevState => ({ showInsights: !prevState.showInsights }));
+  }
 
-  generateReport = () => {
-    this.setState({ showReport: true });
-  };
+  toggleIndividualStats = () => {
+    this.setState(prevState => ({ showIndividualStats: !prevState.showIndividualStats }));
+  }
 
-  renderChart() {
+  selectTree = (index) => {
+    this.setState({ selectedTreeIndex: index });
+  }
+
+  renderChart = () => {
     const { data } = this.props;
-    const { isMobile, showPercentageView } = this.state;
-    const svg = d3.select(this.d3Container.current);
-  
-    // Clear existing content
-    svg.selectAll("*").remove();
-  
-    // Parse and pair data
-    const treeData = extractTreeHeights(data);
-    const birdData = extractBirdHeights(data);
-    const seenHeardData = extractSeenHeard(data);
-    const noBirdsData = extractNoBirds(data);
-  
-    const pairedData = treeData.map((treeHeight, index) => {
-      let birdHeight = birdData[index];
-      let seenHeard = seenHeardData[index];
-      let noBirds = noBirdsData[index];
-      const hasBird = birdHeight !== null && birdHeight !== 'N/A' && !isNaN(birdHeight);
-  
-      return {
-        treeHeight,
-        birdHeight: hasBird ? birdHeight : null,
-        hasBird,
-        seenHeard,
-        noBirds,
-        index: index + 1,
-        // Pre-calculate percentage for consistent use
-        birdPercentage: hasBird && treeHeight > 0 ? (birdHeight / treeHeight) * 100 : 0
-      };
+    const { viewMode } = this.state;
+
+    if (!data || data.length === 0) return;
+
+    // Clear previous chart
+    d3.select(this.svgRef.current).selectAll("*").remove();
+
+    // Filter data to only include records with valid tree height data
+    const validData = data.filter(d => {
+      const treeHeight = parseFloat(d['Height of tree/m']);
+      const birdHeight = parseFloat(d['Height of bird/m']);
+      return !isNaN(treeHeight) && !isNaN(birdHeight) && treeHeight > 0 && birdHeight > 0;
     });
 
-    const seenOnlyData = pairedData.filter(item => item.seenHeard === "Seen");
-  
-    // Setup dimensions
-    const margin = isMobile ? { top: 30, right: 15, bottom: 40, left: 35 } : { top: 30, right: 30, bottom: 50, left: 50 };
-    const width = this.state.width - margin.left - margin.right;
-    const height = this.state.height - margin.top - margin.bottom;
-  
-    // Create scales
-    const x = d3.scaleBand()
-      .domain(seenOnlyData.map(d => d.index))
-      .range([0, width])
-      .padding(isMobile ? 0.2 : 0.3);
-  
-    // Modify y scale based on view mode
-    const y = d3.scaleLinear()
-      .domain(showPercentageView ? [0, 100] : [0, d3.max(seenOnlyData, d => d.treeHeight) * 1.1])
-      .range([height, 0]);
+    if (validData.length === 0) return;
+
+    // Process data based on view mode - ONE TREE PER DATA POINT
+    const processedData = validData.map((d, index) => {
+      const originalTreeHeight = parseFloat(d['Height of tree/m']);
+      const originalBirdHeight = parseFloat(d['Height of bird/m']);
       
-    const chartGroup = svg.append("g")
-      .attr("transform", `translate(${margin.left},${margin.top})`);
-  
-    // Add axes
-    chartGroup.append("g")
-      .attr("class", "y-axis")
-      .call(d3.axisLeft(y)
-        .ticks(isMobile ? 5 : 10)
-        .tickFormat(d => {
-          if (isMobile && d % 1 !== 0) return '';
-          return showPercentageView ? `${d}%` : d;
-        }))
-      .selectAll("text")
-      .style("font-size", isMobile ? "10px" : "12px");
-  
-    // Tooltip setup
-    d3.select('.chart-tooltip').remove();
-    const tooltip = d3.select("body").append("div")
-      .attr("class", "chart-tooltip")
-      .style("position", "absolute")
-      .style("background-color", "rgba(0, 0, 0, 0.8)")
-      .style("color", "white")
-      .style("padding", "8px")
-      .style("border-radius", "5px")
-      .style("pointer-events", "none")
-      .style("opacity", 0)
-      .style("z-index", 1000)
-      .style("font-size", isMobile ? "12px" : "14px")
-      .style("max-width", isMobile ? "150px" : "200px");
-  
-    // Tooltip handlers
-    const moveTooltip = (event) => {
-      const pageX = event.type.includes('touch') ? event.touches[0].pageX : event.pageX;
-      const pageY = event.type.includes('touch') ? event.touches[0].pageY : event.pageY;
-      const tooltipWidth = isMobile ? 150 : 200;
-      const windowWidth = window.innerWidth;
-      const leftPos = Math.min(pageX + 10, windowWidth - tooltipWidth - 10);
-      tooltip.style("left", leftPos + "px").style("top", (pageY - 28) + "px");
-    };
-  
-    const hideTooltip = () => {
-      tooltip.transition().duration(500).style("opacity", 0);
-    };
-  
-    // Show tooltip function
-    const showTooltip = (event, d) => {
-      const tooltipWidth = isMobile ? 150 : 200;
-      const windowWidth = window.innerWidth;
-  
-      tooltip.transition()
-        .duration(200)
-        .style("opacity", 0.9);
-  
-      let content = '';
-      if (showPercentageView) {
-        const percentage = d.birdPercentage.toFixed(1);
-        content = `<strong>Tree #${d.index}</strong><br/>
-                    Bird Position: ${percentage}%`;
+      if (viewMode === 'percentage') {
+        return {
+          ...d,
+          displayTreeHeight: 100, // Normalize tree height to 100%
+          displayBirdHeight: Math.min((originalBirdHeight / originalTreeHeight) * 100, 100), // Cap at 100%
+          originalTreeHeight,
+          originalBirdHeight,
+          index
+        };
       } else {
-        content = `<strong>Tree #${d.index}</strong><br/>
-                Height: ${d.treeHeight}m<br/>
-                ${d.hasBird ? `<strong>Bird(s):</strong><br/>Height: ${d.birdHeight}m` : ''}`;
+        return {
+          ...d,
+          displayTreeHeight: originalTreeHeight,
+          displayBirdHeight: originalBirdHeight,
+          originalTreeHeight,
+          originalBirdHeight,
+          index
+        };
       }
-      tooltip.html(content);
-  
-      const pageX = event.type.includes('touch') ? event.touches[0].pageX : event.pageX;
-      const pageY = event.type.includes('touch') ? event.touches[0].pageY : event.pageY;
-  
-      const leftPos = Math.min(pageX + 10, windowWidth - tooltipWidth - 10);
-      tooltip.style("left", leftPos + "px").style("top", (pageY - 28) + "px");
-    };
-  
-    // Render bars
-    chartGroup.selectAll(".bar")
-      .data(seenOnlyData)
-      .join("rect")
-      .attr("class", "bar")
-      .attr("x", d => x(d.index))
-      .attr("y", d => {
-        if (showPercentageView) {
-          // In percentage view, all bars start from 0% (bottom)
-          return y(100);
-        }
-        return y(d.treeHeight);
-      })
-      .attr("width", x.bandwidth())
-      .attr("height", d => {
-        if (showPercentageView) {
-          // In percentage view, all bars are 100% height
-          return height - y(100);
-        }
-        return height - y(d.treeHeight);
-      })
-      .attr("fill", d => {
-        if (d.seenHeard === "Heard") return "#D1C4E9";
-        if (d.seenHeard === "Seen") return "#A8E6CF";
-        if (d.seenHeard === "Not found") return "#FFCDD2";
-        return "#ccc";
-      })
-      .style("cursor", "pointer")
-      .on("mouseover", showTooltip)
-      .on("mousemove", moveTooltip)
-      .on("mouseout", hideTooltip)
-      .on("touchstart", showTooltip)
-      .on("touchmove", moveTooltip)
-      .on("touchend", hideTooltip);
-  
-    // X-axis
-    chartGroup.append("g")
+    });
+
+    // Get container width for full-width visualization (100% page width)
+    const containerWidth = this.containerRef.current?.offsetWidth || window.innerWidth - 40;
+    
+    // 2D Chart Configuration - Full Page Width with proper margins for axes
+    const margin = { top: 80, right: 80, bottom: 120, left: 80 };
+    const width = containerWidth - margin.left - margin.right;
+    const height = 600 - margin.top - margin.bottom;
+
+    // Create SVG with clean 2D styling
+    const svg = d3.select(this.svgRef.current)
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+      .style("background", "linear-gradient(180deg, #87CEEB 0%, #98FB98 50%, #228B22 100%)")
+      .style("border-radius", "12px")
+      .style("box-shadow", "0 10px 25px rgba(0,0,0,0.1)")
+      .style("border", "2px solid #228B22");
+
+    // Add definitions for gradients and patterns
+    const defs = svg.append("defs");
+    
+    // Tree trunk gradient
+    const trunkGradient = defs.append("linearGradient")
+      .attr("id", "trunkGradient")
+      .attr("x1", "0%").attr("y1", "0%").attr("x2", "100%").attr("y2", "0%");
+    trunkGradient.append("stop").attr("offset", "0%").attr("stop-color", "#8B4513");
+    trunkGradient.append("stop").attr("offset", "50%").attr("stop-color", "#A0522D");
+    trunkGradient.append("stop").attr("offset", "100%").attr("stop-color", "#654321");
+
+    // Tree crown gradient
+    const crownGradient = defs.append("radialGradient")
+      .attr("id", "crownGradient")
+      .attr("cx", "30%").attr("cy", "30%");
+    crownGradient.append("stop").attr("offset", "0%").attr("stop-color", "#90EE90");
+    crownGradient.append("stop").attr("offset", "50%").attr("stop-color", "#32CD32");
+    crownGradient.append("stop").attr("offset", "100%").attr("stop-color", "#228B22");
+
+    // Bird gradient
+    const birdGradient = defs.append("radialGradient")
+      .attr("id", "birdGradient")
+      .attr("cx", "30%").attr("cy", "30%");
+    birdGradient.append("stop").attr("offset", "0%").attr("stop-color", "#FF6B6B");
+    birdGradient.append("stop").attr("offset", "100%").attr("stop-color", "#DC143C");
+
+    // Tree shadow filter
+    const shadow = defs.append("filter")
+      .attr("id", "treeShadow")
+      .attr("x", "-50%").attr("y", "-50%").attr("width", "200%").attr("height", "200%");
+    shadow.append("feGaussianBlur").attr("in", "SourceAlpha").attr("stdDeviation", "3");
+    shadow.append("feOffset").attr("dx", "2").attr("dy", "4").attr("result", "offset");
+    shadow.append("feFlood").attr("flood-color", "#000000").attr("flood-opacity", "0.3");
+    shadow.append("feComposite").attr("in2", "offset").attr("operator", "in");
+    const merge = shadow.append("feMerge");
+    merge.append("feMergeNode");
+    merge.append("feMergeNode").attr("in", "SourceGraphic");
+
+    const g = svg.append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    // Scales
+    const xScale = d3.scaleBand()
+      .domain(processedData.map((d, i) => i))
+      .range([0, width])
+      .padding(0.3);
+
+    const maxHeight = d3.max(processedData, d => d.displayTreeHeight);
+    const yScale = d3.scaleLinear()
+      .domain([0, maxHeight * 1.1])
+      .range([height, 0]);
+
+    // Create axes
+    const xAxis = d3.axisBottom(xScale)
+      .tickFormat(i => `Tree ${parseInt(i) + 1}`);
+
+    const yAxis = d3.axisLeft(yScale)
+      .tickFormat(d => viewMode === 'percentage' ? `${d}%` : `${d}m`);
+
+    // Add X axis
+    g.append("g")
       .attr("class", "x-axis")
       .attr("transform", `translate(0,${height})`)
-      .call(d3.axisBottom(x)
-        .tickValues(isMobile && seenOnlyData.length > 10
-          ? seenOnlyData.filter(d => d.index % 2 === 0).map(d => d.index)
-          : null))
+      .call(xAxis)
       .selectAll("text")
+      .style("font-size", "10px")
+      .style("fill", "#2D4A22")
+      .style("font-weight", "bold")
+      .attr("transform", "rotate(-45)")
+      .style("text-anchor", "end");
+
+    // Add Y axis
+    g.append("g")
+      .attr("class", "y-axis")
+      .call(yAxis)
+      .selectAll("text")
+      .style("font-size", "12px")
+      .style("fill", "#2D4A22")
+      .style("font-weight", "bold");
+
+    // Style axes
+    g.selectAll(".x-axis path, .y-axis path")
+      .style("stroke", "#2D4A22")
+      .style("stroke-width", "2px");
+
+    g.selectAll(".x-axis line, .y-axis line")
+      .style("stroke", "#2D4A22")
+      .style("stroke-width", "1px");
+
+    // Add axis labels
+    g.append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 0 - margin.left + 20)
+      .attr("x", 0 - (height / 2))
+      .attr("dy", "1em")
       .style("text-anchor", "middle")
-      .style("font-size", isMobile ? "10px" : "12px");
-  
-    // Bird icons and labels
-    seenOnlyData.forEach(d => {
-      if (d.hasBird) {
-        const iconSize = isMobile ? 15 : 20;
-        
-        // Calculate bird position correctly for percentage view
-        let yPosition;
-        if (showPercentageView) {
-          // Bird position should be at its percentage height from the bottom
-          // Map the percentage value (0-100) to the y-scale
-          yPosition = y(d.birdPercentage);
-        } else {
-          // In normal view, just use the absolute bird height
-          yPosition = y(d.birdHeight);
-        }
-  
-        chartGroup.append("image")
-          .attr("xlink:href", birdLogo)
-          .attr("x", x(d.index) + x.bandwidth() / 2 - iconSize / 2)
-          .attr("y", yPosition - iconSize / 2)
-          .attr("width", iconSize)
-          .attr("height", iconSize)
-          .style("cursor", "pointer")
-          .on("mouseover", (event) => showTooltip(event, d))
-          .on("mousemove", moveTooltip)
-          .on("mouseout", hideTooltip)
-          .on("touchstart", (event) => showTooltip(event, d))
-          .on("touchmove", moveTooltip)
-          .on("touchend", hideTooltip);
-  
-        chartGroup.append("text")
-          .attr("x", x(d.index) + x.bandwidth() / 2)
-          .attr("y", yPosition)
-          .attr("text-anchor", "middle")
-          .attr("font-size", "12px")
-          .attr("dy", "1.5em")
-          .text(d.noBirds)
-          .style("fill", "black");
+      .style("font-size", "16px")
+      .style("font-weight", "bold")
+      .style("fill", "#2D4A22")
+      .text(viewMode === 'percentage' ? 'Height (%)' : 'Height (meters)');
+
+    g.append("text")
+      .attr("transform", `translate(${width / 2}, ${height + margin.bottom - 30})`)
+      .style("text-anchor", "middle")
+      .style("font-size", "16px")
+      .style("font-weight", "bold")
+      .style("fill", "#2D4A22")
+      .text('Bird Observation Points');
+
+    // Create tooltip
+    const tooltip = d3.select("body").append("div")
+      .attr("class", "tree-tooltip-2d")
+      .style("position", "absolute")
+      .style("padding", "12px")
+      .style("background", "rgba(0,0,0,0.9)")
+      .style("color", "white")
+      .style("border-radius", "8px")
+      .style("border", "2px solid #FFD700")
+      .style("pointer-events", "none")
+      .style("opacity", 0)
+      .style("font-size", "12px")
+      .style("box-shadow", "0 8px 20px rgba(0,0,0,0.4)")
+      .style("max-width", "220px");
+
+    // Add grid lines
+    g.selectAll(".grid-line")
+      .data(yScale.ticks(8))
+      .enter()
+      .append("line")
+      .attr("class", "grid-line")
+      .attr("x1", 0)
+      .attr("x2", width)
+      .attr("y1", d => yScale(d))
+      .attr("y2", d => yScale(d))
+      .attr("stroke", "#e5e7eb")
+      .attr("stroke-dasharray", "2,2")
+      .attr("opacity", 0.3);
+
+    // Render realistic trees and birds
+    processedData.forEach((tree, index) => {
+      const barX = xScale(index);
+      const barWidth = xScale.bandwidth();
+      const treeHeight = tree.displayTreeHeight;
+      const birdHeight = tree.displayBirdHeight;
+
+      // Create tree group
+      const treeGroup = g.append("g")
+        .attr("class", "tree-group")
+        .style("filter", "url(#treeShadow)");
+
+      // Tree base/roots
+      const rootWidth = barWidth * 1.2;
+      treeGroup.append("ellipse")
+        .attr("cx", barX + barWidth / 2)
+        .attr("cy", height + 5)
+        .attr("rx", rootWidth / 2)
+        .attr("ry", 8)
+        .attr("fill", "#8B4513")
+        .attr("opacity", 0.6);
+
+      // Tree trunk with texture
+      const trunkWidth = Math.max(barWidth * 0.3, 8);
+      const trunkHeight = (height - yScale(treeHeight)) * 0.92; // Adjusted to 92% for 90-95% range
+      
+      // Main trunk
+      treeGroup.append("rect")
+        .attr("x", barX + barWidth / 2 - trunkWidth / 2)
+        .attr("y", height - trunkHeight)
+        .attr("width", trunkWidth)
+        .attr("height", trunkHeight)
+        .attr("fill", "url(#trunkGradient)")
+        .attr("stroke", "#654321")
+        .attr("stroke-width", 1)
+        .attr("rx", trunkWidth / 4);
+
+      // Trunk texture lines
+      for (let i = 0; i < 3; i++) {
+        treeGroup.append("line")
+          .attr("x1", barX + barWidth / 2 - trunkWidth / 3)
+          .attr("x2", barX + barWidth / 2 + trunkWidth / 3)
+          .attr("y1", height - trunkHeight * 0.2 - (i * trunkHeight * 0.2))
+          .attr("y2", height - trunkHeight * 0.2 - (i * trunkHeight * 0.2))
+          .attr("stroke", "#654321")
+          .attr("stroke-width", 1)
+          .attr("opacity", 0.5);
       }
+
+      // Tree crown - multiple layers for realism with proper branch coverage
+      const crownCenterX = barX + barWidth / 2;
+      const crownCenterY = yScale(treeHeight);
+      const crownRadius = Math.max(barWidth * 0.6, 15);
+
+      // Use tree index as seed for consistent randomness across renders
+      const seed = index;
+      const seededRandom = (min = 0, max = 1) => {
+        const x = Math.sin(seed * 9999) * 10000;
+        return min + (x - Math.floor(x)) * (max - min);
+      };
+
+      // Tree branches - draw BEFORE crown so leaves overlap branches
+      const numBranches = 8;
+      const branchPositions = []; // Store branch endpoints for leaf placement
+      
+      for (let i = 0; i < numBranches; i++) {
+        const angle = (i * 2 * Math.PI) / numBranches;
+        
+        // Start branches from the top of the trunk
+        const trunkTopY = height - trunkHeight;
+        const startX = crownCenterX + (Math.cos(angle) * trunkWidth * 0.4);
+        const startY = trunkTopY + seededRandom(0, crownRadius * 0.2);
+        
+        // End branches inside the crown area (shorter for realism)
+        const endX = crownCenterX + Math.cos(angle) * (crownRadius * 0.5); // Reduced from 0.7 to 0.5
+        const endY = crownCenterY + Math.sin(angle) * (crownRadius * 0.3); // Reduced from 0.5 to 0.3
+        
+        // Store branch endpoint for consistent leaf placement
+        branchPositions.push({ x: endX, y: endY, angle });
+        
+        // Only draw branches that go outward and upward
+        if (endY <= startY + crownRadius * 0.3) {
+          // Main branch
+          treeGroup.append("line")
+            .attr("x1", startX)
+            .attr("y1", startY)
+            .attr("x2", endX)
+            .attr("y2", endY)
+            .attr("stroke", "#8B4513")
+            .attr("stroke-width", Math.max(2, barWidth * 0.06))
+            .attr("opacity", 0.8)
+            .attr("stroke-linecap", "round");
+          
+          // Add smaller twigs - also using seeded random
+          const numTwigs = 2;
+          for (let j = 0; j < numTwigs; j++) {
+            const twigAngle = angle + (j === 0 ? -0.3 : 0.3);
+            const twigLength = crownRadius * 0.2;
+            const twigStartX = startX + Math.cos(angle) * (crownRadius * 0.4);
+            const twigStartY = startY + Math.sin(angle) * (crownRadius * 0.2);
+            const twigEndX = twigStartX + Math.cos(twigAngle) * twigLength;
+            const twigEndY = twigStartY + Math.sin(twigAngle) * twigLength * 0.5;
+            
+            treeGroup.append("line")
+              .attr("x1", twigStartX)
+              .attr("y1", twigStartY)
+              .attr("x2", twigEndX)
+              .attr("y2", twigEndY)
+              .attr("stroke", "#654321")
+              .attr("stroke-width", 1)
+              .attr("opacity", 0.6)
+              .attr("stroke-linecap", "round");
+          }
+        }
+      }
+
+      // Crown layers - draw AFTER branches so leaves cover branches
+      for (let layer = 0; layer < 3; layer++) {
+        const layerRadius = crownRadius * (1 - layer * 0.1);
+        const layerY = crownCenterY - (layer * layerRadius * 0.05);
+        
+        // Main crown circle - larger to ensure branch coverage
+        treeGroup.append("circle")
+          .attr("cx", crownCenterX)
+          .attr("cy", layerY)
+          .attr("r", layerRadius)
+          .attr("fill", layer === 0 ? "url(#crownGradient)" : 
+                       layer === 1 ? "#32CD32" : "#228B22")
+          .attr("stroke", "#228B22")
+          .attr("stroke-width", 1)
+          .attr("opacity", 0.9);
+        
+        // Add leaf clusters positioned exactly at branch endpoints for consistent coverage
+        if (layer === 0) {
+          // First, add clusters at exact branch endpoints
+          branchPositions.forEach((branch, i) => {
+            treeGroup.append("circle")
+              .attr("cx", branch.x)
+              .attr("cy", branch.y)
+              .attr("r", layerRadius * 0.35) // Slightly larger to ensure coverage
+              .attr("fill", "#32CD32")
+              .attr("stroke", "#228B22")
+              .attr("stroke-width", 0.5)
+              .attr("opacity", 0.9);
+          });
+          
+          // Then add additional random clusters for fullness (but using seeded random)
+          for (let i = 0; i < 6; i++) {
+            const angle = (i * 2 * Math.PI) / 6;
+            const clusterDistance = layerRadius * (0.5 + seededRandom(0, 0.4));
+            const clusterX = crownCenterX + Math.cos(angle) * clusterDistance;
+            const clusterY = layerY + Math.sin(angle) * clusterDistance * 0.7;
+            
+            treeGroup.append("circle")
+              .attr("cx", clusterX)
+              .attr("cy", clusterY)
+              .attr("r", layerRadius * (0.2 + seededRandom(0, 0.15)))
+              .attr("fill", "#32CD32")
+              .attr("stroke", "#228B22")
+              .attr("stroke-width", 0.5)
+              .attr("opacity", 0.85);
+          }
+        }
+      }
+
+      // Bird positioning - position bird image at trunk indicator location
+      const birdPositionY = height - (trunkHeight * (tree.displayBirdHeight / tree.displayTreeHeight));
+      const birdX = barX + barWidth / 2; // Center on trunk
+      const birdY = birdPositionY; // Same Y position as trunk indicator
+
+      // Add bird position indicator on tree trunk (behind the bird image)
+      treeGroup.append("circle")
+        .attr("cx", birdX)
+        .attr("cy", birdY)
+        .attr("r", 3)
+        .attr("fill", "#FFD700")
+        .attr("stroke", "#FF6B6B")
+        .attr("stroke-width", 2)
+        .style("opacity", 0.8);
+
+      // Bird group - using shb.png image scaled to trunk size
+      const birdGroup = g.append("g")
+        .attr("class", "bird-group")
+        .style("cursor", "pointer");
+
+      // Calculate bird image size based on trunk width - made larger and more prominent
+      const birdImageSize = Math.max(trunkWidth * 1.5, 60); // Increased scale and minimum size
+
+      // Straw-headed Bulbul image - positioned exactly over trunk indicator
+      birdGroup.append("image")
+        .attr("href", "/shb.png")
+        .attr("x", birdX - birdImageSize / 2)
+        .attr("y", birdY - birdImageSize / 2)
+        .attr("width", birdImageSize)
+        .attr("height", birdImageSize)
+        .style("filter", "drop-shadow(2px 2px 4px rgba(0,0,0,0.4)) brightness(1.1) contrast(1.2)")
+        .style("background", "transparent")
+        .style("border-radius", "50%")
+        .style("clip-path", "circle(45%)");
+
+      // Interactions
+      const showTooltip = (event) => {
+        tooltip.transition()
+          .duration(200)
+          .style("opacity", 1);
+
+          console.log("Selected Tree:", tree);
+        
+        tooltip.html(`
+          <div style="line-height: 1.5;">
+            <div style="color: #FFD700; font-weight: bold; margin-bottom: 8px; text-align: center;">🌳 ${tree.Location || 'Observation ' + (index + 1)}</div>
+            <div style="margin-bottom: 4px;">🌲 Tree Height: <strong>${tree.originalTreeHeight}m</strong></div>
+            <div style="margin-bottom: 4px;">🐦 Bird Height: <strong>${tree.originalBirdHeight}m</strong></div>
+            ${viewMode === 'percentage' ? `<div style="margin-bottom: 4px;">📊 Position: <strong>${Math.round(tree.displayBirdHeight)}%</strong> of tree</div>` : ''}
+            <div style="color: #90EE90;">📍 Activity: <strong>${tree["Activity (foraging, preening, calling, perching, others)"]}</strong></div>
+          </div>
+        `)
+          .style("left", (event.pageX + 15) + "px")
+          .style("top", (event.pageY - 80) + "px");
+      };
+
+      const hideTooltip = () => {
+        tooltip.transition()
+          .duration(300)
+          .style("opacity", 0);
+      };
+
+      // Tree interactions
+      treeGroup.style("cursor", "pointer")
+        .on("mouseover", showTooltip)
+        .on("mouseout", hideTooltip)
+        .on("click", () => {
+          this.selectTree(index);
+          this.setState({ showIndividualStats: true });
+        });
+
+      // Bird interactions
+      birdGroup.on("mouseover", function(event) {
+        d3.select(this)
+          .transition()
+          .duration(200)
+        showTooltip(event);
+      })
+      .on("mouseout", function() {
+        d3.select(this)
+          .transition()
+          .duration(200)
+        hideTooltip();
+      })
+      .on("click", () => {
+        this.selectTree(index);
+        this.setState({ showIndividualStats: true });
+      });
     });
-  
-    // Legend
-    const legendData = [
-      { label: "Seen", color: "#A8E6CF" },
-      //{ label: "Heard", color: "#D1C4E9" },
-      //{ label: "Not found", color: "#FFCDD2" }
-    ];
-    
-    const legendContainer = d3.select("#legend-container");
-    legendContainer.html(""); // Clear existing legend
-    
-    legendData.forEach(item => {
-      const legendItem = legendContainer.append("div")
-        .attr("class", "legend-item")
-        .style("display", "inline-flex")
-        .style("align-items", "center")
-        .style("margin-right", "1rem");
-    
-      legendItem.append("span")
-        .style("display", "inline-block")
-        .style("width", "12px")
-        .style("height", "12px")
-        .style("background-color", item.color)
-        .style("margin-right", "0.5rem");
-    
-      legendItem.append("span")
-        .style("font-size", isMobile ? "10px" : "12px")
-        .text(item.label);
-    });      
+
+    // Add chart title
+    g.append("text")
+      .attr("x", width / 2)
+      .attr("y", -40)
+      .attr("text-anchor", "middle")
+      .style("font-size", "24px")
+      .style("font-weight", "bold")
+      .style("fill", "#2D4A22")
+      .style("text-shadow", "2px 2px 4px rgba(0,0,0,0.2)");
+
+    // Cleanup function
+    this.cleanupTooltip = () => {
+      d3.select("body").selectAll(".tree-tooltip-2d").remove();
+    };
   }
 
-  renderTreeStatistics = (treeStatsData) => {
-    const { expandedIndex, showPercentageView } = this.state;
-  
-    // Calculate total summary
-    const totalEntry = treeStatsData.reduce(
-      (acc, curr) => ({
-        totalTrees: acc.totalTrees + 1,
-        totalHeight: acc.totalHeight + (curr.treeHeight || 0),
-        totalBirds: acc.totalBirds + (curr.noBirds || 0),
-      }),
-      { totalTrees: 0, totalHeight: 0, totalBirds: 0}
-    );
-  
-    const totalExpanded = expandedIndex === 'total';
-  
+  componentWillUnmount() {
+    if (this.cleanupTooltip) {
+      this.cleanupTooltip();
+    }
+  }
+
+  render() {
+    const { data } = this.props;
+    const { viewMode, showInsights } = this.state;
+
+    if (!data || data.length === 0) {
+      return (
+        <div className="chart-container" style={{ 
+          padding: '40px', 
+          textAlign: 'center', 
+          border: '2px solid #228B22', 
+          borderRadius: '12px', 
+          background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+          boxShadow: '0 5px 15px rgba(0,0,0,0.1)'
+        }}>
+          <h3 style={{ color: '#2D4A22', marginBottom: '15px', fontSize: '18px' }}>
+            🌲 Bird Survey Chart 🐦
+          </h3>
+          <p style={{ color: '#6b7280', fontStyle: 'italic', fontSize: '14px' }}>
+            No data available for visualization
+          </p>
+        </div>
+      );
+    }
+
+    const validDataCount = data.filter(d => {
+      const treeHeight = parseFloat(d['Height of tree/m']);
+      const birdHeight = parseFloat(d['Height of bird/m']);
+      return !isNaN(treeHeight) && !isNaN(birdHeight) && treeHeight > 0 && birdHeight > 0;
+    }).length;
+
+    // Generate insights and statistics
+    const validData = data.filter(d => {
+      const treeHeight = parseFloat(d['Height of tree/m']);
+      const birdHeight = parseFloat(d['Height of bird/m']);
+      return !isNaN(treeHeight) && !isNaN(birdHeight) && treeHeight > 0 && birdHeight > 0;
+    });
+
+    const insights = {
+      totalObservations: validData.length,
+      avgTreeHeight: validData.reduce((sum, d) => sum + parseFloat(d['Height of tree/m']), 0) / validData.length,
+      avgBirdHeight: validData.reduce((sum, d) => sum + parseFloat(d['Height of bird/m']), 0) / validData.length,
+      maxTreeHeight: Math.max(...validData.map(d => parseFloat(d['Height of tree/m']))),
+      minTreeHeight: Math.min(...validData.map(d => parseFloat(d['Height of tree/m']))),
+      avgBirdPosition: validData.reduce((sum, d) => {
+        const treeHeight = parseFloat(d['Height of tree/m']);
+        const birdHeight = parseFloat(d['Height of bird/m']);
+        return sum + (birdHeight / treeHeight) * 100;
+      }, 0) / validData.length,
+      highPositionBirds: validData.filter(d => {
+        const treeHeight = parseFloat(d['Height of tree/m']);
+        const birdHeight = parseFloat(d['Height of bird/m']);
+        return (birdHeight / treeHeight) > 0.8;
+      }).length
+    };
+
     return (
-      <div
-        className="tree-statistics-container"
-        style={{ marginTop: '1rem', maxHeight: '200px', overflowY: 'auto' }}
-      >
-        {/* Sticky Total Row */}
-        <div
-          onClick={() => this.setState({ expandedIndex: totalExpanded ? null : 'total' })}
-          style={{
-            position: 'sticky',
-            top: 0,
-            backgroundColor: totalExpanded ? '#f0f0f0' : '#fff',
-            zIndex: 1,
-            padding: '0.5rem',
-            borderBottom: '2px solid #000',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>Total Trees: {totalEntry.totalTrees}</span>
-            <span>Total Birds: {totalEntry.totalBirds}</span>
-          </div>
-        </div>
-  
-        {/* Individual Tree Stats */}
-        {treeStatsData.map((tree, index) => {
-          const isExpanded = expandedIndex === index;
-          let backgroundColor = '';
-  
-          switch (tree.seenHeard) {
-            case 'Seen':
-              backgroundColor = '#A8E6CF';
-              break;
-          }
-
-          return (
-            <div
-              key={index}
-              onClick={() => this.setState({ expandedIndex: isExpanded ? null : index })}
-              style={{
-                cursor: 'pointer',
-                padding: '0.5rem',
-                borderBottom: '1px solid #ccc',
-                backgroundColor: isExpanded ? '#f9f9f9' : backgroundColor,
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span><strong>Tree #{tree.index}</strong></span>
-                <span>
-                  {tree.seenHeard ?? 'Not recorded'}: {tree.noBirds ?? 0} Bird{(tree.noBirds ?? 0) > 1 ? 's' : ''}
-                </span>
-              </div>
-  
-              {isExpanded && (
-                <div style={{ marginTop: '0.5rem' }}>
-                  {showPercentageView === true ? (
-                    <div>
-                      <strong>Bird Height Position:</strong>{' '}
-                      {`${(tree.birdHeight/tree.treeHeight)*100}%`}
-                    </div>
-                  ) : (
-                    <>
-                      <div><strong>Tree Height:</strong> {tree.treeHeight ?? 'N/A'} m</div>
-                      <div><strong>Bird Height:</strong> {tree.birdHeight ?? '—'} m</div>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
-  };  
-
-  renderInsightsPanel = () => {
-    const { insights, insightsLoading, showPercentageView } = this.state;
-    
-    if (insightsLoading) {
-      return (
-        <div className="insights-loading" style={{ 
-          padding: '2rem',
-          textAlign: 'center',
-          backgroundColor: 'white',
-          border: '1px solid #e2e8f0',
-          borderRadius: '6px',
-          marginTop: '1rem'
-        }}>
-          <div style={{ 
-            color: '#6366F1', 
-            fontWeight: 'bold', 
-            marginBottom: '1rem' 
-          }}>
-            Generating AI Insights...
-          </div>
-          <div style={{ width: '100%', backgroundColor: '#EDF2F7', height: '8px', borderRadius: '4px' }}>
-            <div 
-              style={{ 
-                width: '40%', 
-                backgroundColor: '#6366F1', 
-                height: '100%', 
-                borderRadius: '4px',
-                animation: 'loading 1.5s infinite ease-in-out',
-              }}
-            />
-          </div>
-          <style>{`
-            @keyframes loading {
-              0% { width: 10%; }
-              50% { width: 70%; }
-              100% { width: 10%; }
-            }
-          `}</style>
-        </div>
-      );
-    }
-    
-    if (!insights) {
-      return null;
-    }
-    
-    if (insights.error) {
-      return (
-        <div className="insights-error" style={{ 
-          padding: '1rem',
-          backgroundColor: '#FEF2F2',
-          border: '1px solid #FCA5A5',
-          borderRadius: '6px',
-          color: '#B91C1C'
-        }}>
-          <h4 style={{ marginTop: 0 }}>Error</h4>
-          <p>{insights.error}</p>
-        </div>
-      );
-    }
-  
-    const { populationAnalysis, anomalyDetection, trendPredictions } = insights;
-
-  
-    // Tabs navigation
-    const renderTabsNavigation = () => (
-      <div style={{
-        display: 'flex',
-        borderBottom: '1px solid #e2e8f0',
-        marginBottom: '1rem',
-        marginTop: '1rem',
-        width: '100%'
+      <div ref={this.containerRef} className="chart-container" style={{ 
+        width: '100%',
+        maxWidth: '100vw',
+        margin: '0 auto',
+        padding: '20px',
+        backgroundColor: '#ffffff',
+        borderRadius: '12px',
+        border: '3px solid #228B22',
+        boxShadow: '0 15px 30px rgba(0,0,0,0.15)',
+        fontFamily: 'Arial, sans-serif'
       }}>
-        <button 
-          onClick={() => this.setState({ activeTab1: 'population' })}
-          style={{ 
-            flex: 1,
-            padding: '0.75rem 1rem',
-            backgroundColor: this.state.activeTab1 === 'population' ? '#EBF4FF' : 'transparent',
-            border: 'none',
-            borderBottom: this.state.activeTab1 === 'population' ? '2px solid #4299E1' : '1px solid #E2E8F0',
-            color: this.state.activeTab1 === 'population' ? '#3182CE' : '#4A5568',
-            fontWeight: this.state.activeTab1 === 'population' ? 'bold' : 'normal',
-            cursor: 'pointer'
-          }}
-        >
-          Population Analysis
-        </button>
-        <button 
-          onClick={() => this.setState({ activeTab1: 'anomalyTrends' })}
-          style={{ 
-            flex: 1,
-            padding: '0.75rem 1rem',
-            backgroundColor: this.state.activeTab1 === 'anomalyTrends' ? '#EBF4FF' : 'transparent',
-            border: 'none',
-            borderBottom: this.state.activeTab1 === 'anomalyTrends' ? '2px solid #4299E1' : '1px solid #E2E8F0',
-            color: this.state.activeTab1 === 'anomalyTrends' ? '#3182CE' : '#4A5568',
-            fontWeight: this.state.activeTab1 === 'anomalyTrends' ? 'bold' : 'normal',
-            cursor: 'pointer'
-          }}
-        >
-          Anomalies & Trends
-        </button>
-      </div>
-    );
-  
-    // Standard Population Analysis Tab Content
-    const renderStandardPopulationTab = () => (
-      <div style={{ marginBottom: '2rem' }}>
-        <h5 style={{ 
-          color: '#4a5568', 
-          marginBottom: '0.5rem',
-          display: 'flex',
-          alignItems: 'center'
-        }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#805AD5" strokeWidth="2" style={{ marginRight: '8px' }}>
-            <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
-            <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
-            <line x1="6" y1="1" x2="6" y2="4"></line>
-    
-          </svg>
-          Population Analysis
-        </h5>
-        
-        <div style={{ padding: '0.75rem', backgroundColor: '#F7FAFC', borderRadius: '4px', marginBottom: '1rem' }}>
-          <div style={{ marginBottom: '0.5rem' }}>
-            <span style={{ fontWeight: 'bold', color: '#4A5568' }}>Distribution Type:</span> {populationAnalysis.insights.distributionType}
-          </div>
-          <div style={{ fontWeight: 'bold', color: '#4A5568', marginBottom: '0.5rem' }}>Location Statistics:</div>
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(3, 1fr)', 
-            gap: '0.5rem'
-          }}>
-            <div style={{ backgroundColor: '#FFFFFF', padding: '0.5rem', borderRadius: '4px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-              <div style={{ color: '#A8E6CF', fontWeight: 'bold' }}>Seen</div>
-              <div>Mean: {populationAnalysis.statistics.seen.mean}</div>
-              <div>Std Dev: {populationAnalysis.statistics.seen.std}</div>
-            </div>
-          </div>
-        </div>
-        
+        {/* Header without Logo */}
         <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(2, 1fr)', 
-          gap: '1rem'
+          textAlign: 'center', 
+          marginBottom: '20px'
         }}>
-          <div style={{ 
-            backgroundColor: '#F0FFF4', 
-            padding: '0.75rem', 
-            borderRadius: '4px',
-            border: '1px solid #C6F6D5'
+          <h3 style={{ 
+            color: '#2D4A22', 
+            fontSize: '24px', 
+            margin: '0 0 5px 0',
+            fontWeight: 'bold',
+            textShadow: '1px 1px 2px rgba(0,0,0,0.1)'
           }}>
-            <div style={{ fontWeight: 'bold', color: '#2F855A', marginBottom: '0.25rem' }}>Most Active Location</div>
-            <div style={{ fontWeight: 'bold' }}>{populationAnalysis.insights.mostActive.location}</div>
-            <div>Total: {populationAnalysis.insights.mostActive.Total} observations</div>
-            <div>Seen: {populationAnalysis.insights.mostActive.Seen}</div>
-          </div>
-          <div style={{ 
-            backgroundColor: '#EBF8FF', 
-            padding: '0.75rem', 
-            borderRadius: '4px',
-            border: '1px solid #BEE3F8'
+            🌲 Straw-headed Bulbul Survey Tree Distribution
+          </h3>
+          <p style={{ 
+            color: '#4A5D23', 
+            fontSize: '16px', 
+            margin: '0',
+            fontWeight: '500'
           }}>
-            <div style={{ fontWeight: 'bold', color: '#2C5282', marginBottom: '0.25rem' }}>Least Active Location</div>
-            <div style={{ fontWeight: 'bold' }}>{populationAnalysis.insights.leastActive.location}</div>
-            <div>Total: {populationAnalysis.insights.leastActive.Total} observations</div>
-            <div>Seen: {populationAnalysis.insights.leastActive.Seen}</div>
-          </div>
+            Detailed visualization of all {validDataCount} bird observations with realistic tree representations
+          </p>
         </div>
-      </div>
-    );
-  
-    const renderPercentagePopulationTab = () => {
-      const positionStats = populationAnalysis.insights.positionStats || [];
-      return (
-        <div style={{ marginBottom: '2rem' }}>
-          <h5 style={{
-            color: '#4a5568',
-            marginBottom: '0.5rem',
-            display: 'flex',
-            alignItems: 'center'
-          }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#805AD5" strokeWidth="2" style={{ marginRight: '8px' }}>
-              <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
-              <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
-              <line x1="6" y1="1" x2="6" y2="4"></line>
-              <line x1="10" y1="1" x2="10" y2="4"></line>
-              <line x1="14" y1="1" x2="14" y2="4"></line>
-            </svg>
-            Population Analysis (Percentage View by Tree Position)
-          </h5>
 
-          {positionStats.length === 0 ? (
-            <div style={{ color: '#718096' }}>No positional data available.</div>
-          ) : (
+        {/* Chart Container */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          overflowX: 'auto',
+          position: 'relative',
+          padding: '10px'
+        }}>
+          <svg ref={this.svgRef}></svg>
+        </div>
+
+        {/* Tab System Below Chart */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          marginTop: '25px',
+          gap: '15px'
+        }}>
+          <button
+            onClick={() => this.setViewMode('normal')}
+            style={{
+              background: viewMode === 'normal' ? '#6366F1' : '#f8f9fa',
+              color: viewMode === 'normal' ? 'white' : '#4A5568',
+              border: 'none',
+              padding: '0.5rem 1rem',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: '500',
+              fontSize: '14px',
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem'
+            }}
+          >
+            📏 Height View
+          </button>
+          <button
+            onClick={() => this.setViewMode('percentage')}
+            style={{
+              background: viewMode === 'percentage' ? '#6366F1' : '#f8f9fa',
+              color: viewMode === 'percentage' ? 'white' : '#4A5568',
+              border: 'none',
+              padding: '0.5rem 1rem',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: '500',
+              fontSize: '14px',
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem'
+            }}
+          >
+            📊 Percentage View
+          </button>
+          <button
+            onClick={this.toggleIndividualStats}
+            style={{
+              background: this.state.showIndividualStats ? '#EDF2F7' : '#6366F1',
+              color: this.state.showIndividualStats ? '#4A5568' : 'white',
+              border: 'none',
+              padding: '0.5rem 1rem',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: '500',
+              fontSize: '14px',
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem'
+            }}
+          >
+            🌳 Tree Summary
+          </button>
+        </div>
+
+        {/* Individual Tree Statistics Panel */}
+        {this.state.showIndividualStats && (
+          <div style={{
+            marginTop: '25px',
+            padding: '20px',
+            backgroundColor: '#ffffff',
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '15px',
+              borderBottom: '1px solid #e2e8f0',
+              paddingBottom: '10px'
+            }}>
+              <h4 style={{
+                color: '#2d3748',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                margin: '0'
+              }}>
+                🌳 Tree Analysis Summary
+              </h4>
+              <button
+                onClick={() => this.setState({ showIndividualStats: false, selectedTreeIndex: null })}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  color: '#4A5568',
+                  border: '1px solid #e2e8f0',
+                  padding: '0.3rem 0.8rem',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '500'
+                }}
+              >
+                ✕ Close
+              </button>
+            </div>
+            
+            {/* Summary Section - Two Tree Representations */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '1rem',
-              padding: '0.75rem',
-              backgroundColor: '#F7FAFC',
-              borderRadius: '4px',
-              marginBottom: '1rem'
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '20px',
+              marginBottom: '20px'
             }}>
-              {positionStats.map((pos, index) => {
-                const total = pos.Total || 1;
-                const seenPercent = ((pos.Seen / total) * 100).toFixed(1);
-
-                return (
-                  <div key={index} style={{
-                    backgroundColor: '#FFFFFF',
-                    padding: '0.75rem',
-                    borderRadius: '6px',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                    border: '1px solid #E2E8F0'
+              {/* Tree 1: Number of Birds by Layer */}
+              <div style={{
+                padding: '20px',
+                backgroundColor: '#f0f9ff',
+                borderRadius: '12px',
+                border: '2px solid #3b82f6',
+                textAlign: 'center'
+              }}>
+                <h5 style={{
+                  color: '#1e40af',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  marginBottom: '15px'
+                }}>
+                  🌳 Birds by Tree Layer (Count)
+                </h5>
+                
+                {/* Tree visualization showing bird counts */}
+                <div style={{
+                  position: 'relative',
+                  height: '200px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  marginBottom: '10px'
+                }}>
+                  {/* Tree Crown - Upper Layer */}
+                  <div style={{
+                    width: '80px',
+                    height: '60px',
+                    backgroundColor: '#22c55e',
+                    borderRadius: '50%',
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '5px',
+                    border: '2px solid #16a34a'
                   }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#4A5568' }}>
-                      Position: {pos.position}
-                    </div>
-                    <div>Total Observations: {pos.Total}</div>
-                    <div style={{ marginTop: '0.5rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.25rem' }}>
-                        <div style={{ width: '10px', height: '10px', backgroundColor: '#A8E6CF', marginRight: '8px' }}></div>
-                        <div>Seen: <strong>{seenPercent}%</strong></div>
+                    <span style={{
+                      color: 'white',
+                      fontWeight: 'bold',
+                      fontSize: '14px'
+                    }}>
+                      {validData.filter(d => {
+                        const treeHeight = parseFloat(d['Height of tree/m']);
+                        const birdHeight = parseFloat(d['Height of bird/m']);
+                        return (birdHeight / treeHeight) > 0.7;
+                      }).length} 🐦
+                    </span>
+                  </div>
+                  
+                  {/* Tree Crown - Middle Layer */}
+                  <div style={{
+                    width: '90px',
+                    height: '60px',
+                    backgroundColor: '#16a34a',
+                    borderRadius: '50%',
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '5px',
+                    border: '2px solid #15803d'
+                  }}>
+                    <span style={{
+                      color: 'white',
+                      fontWeight: 'bold',
+                      fontSize: '14px'
+                    }}>
+                      {validData.filter(d => {
+                        const treeHeight = parseFloat(d['Height of tree/m']);
+                        const birdHeight = parseFloat(d['Height of bird/m']);
+                        const position = birdHeight / treeHeight;
+                        return position > 0.4 && position <= 0.7;
+                      }).length} 🐦
+                    </span>
+                  </div>
+                  
+                  {/* Tree Trunk */}
+                  <div style={{
+                    width: '25px',
+                    height: '80px',
+                    backgroundColor: '#92400e',
+                    borderRadius: '8px',
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '2px solid #78350f'
+                  }}>
+                    <span style={{
+                      color: 'white',
+                      fontWeight: 'bold',
+                      fontSize: '12px',
+                      writingMode: 'vertical-lr',
+                      textOrientation: 'mixed'
+                    }}>
+                      {validData.filter(d => {
+                        const treeHeight = parseFloat(d['Height of tree/m']);
+                        const birdHeight = parseFloat(d['Height of bird/m']);
+                        return (birdHeight / treeHeight) <= 0.4;
+                      }).length}🐦
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Legend */}
+                <div style={{ fontSize: '12px', color: '#4a5568' }}>
+                  <div>Upper: 70-100% height</div>
+                  <div>Middle: 40-70% height</div>
+                  <div>Lower: 0-40% height</div>
+                </div>
+              </div>
+
+              {/* Tree 2: Percentage of Birds by Layer */}
+              <div style={{
+                padding: '20px',
+                backgroundColor: '#fef3c7',
+                borderRadius: '12px',
+                border: '2px solid #f59e0b',
+                textAlign: 'center'
+              }}>
+                <h5 style={{
+                  color: '#92400e',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  marginBottom: '15px'
+                }}>
+                  🌳 Birds by Tree Layer (%)
+                </h5>
+                
+                {/* Tree visualization showing bird percentages */}
+                <div style={{
+                  position: 'relative',
+                  height: '200px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  marginBottom: '10px'
+                }}>
+                  {(() => {
+                    const upperCount = validData.filter(d => {
+                      const treeHeight = parseFloat(d['Height of tree/m']);
+                      const birdHeight = parseFloat(d['Height of bird/m']);
+                      return (birdHeight / treeHeight) > 0.7;
+                    }).length;
+                    
+                    const middleCount = validData.filter(d => {
+                      const treeHeight = parseFloat(d['Height of tree/m']);
+                      const birdHeight = parseFloat(d['Height of bird/m']);
+                      const position = birdHeight / treeHeight;
+                      return position > 0.4 && position <= 0.7;
+                    }).length;
+                    
+                    const lowerCount = validData.filter(d => {
+                      const treeHeight = parseFloat(d['Height of tree/m']);
+                      const birdHeight = parseFloat(d['Height of bird/m']);
+                      return (birdHeight / treeHeight) <= 0.4;
+                    }).length;
+                    
+                    const total = validData.length;
+                    const upperPercent = total > 0 ? ((upperCount / total) * 100).toFixed(1) : '0.0';
+                    const middlePercent = total > 0 ? ((middleCount / total) * 100).toFixed(1) : '0.0';
+                    const lowerPercent = total > 0 ? ((lowerCount / total) * 100).toFixed(1) : '0.0';
+                    
+                    return (
+                      <React.Fragment>
+                        {/* Tree Crown - Upper Layer */}
+                        <div style={{
+                          width: '80px',
+                          height: '60px',
+                          backgroundColor: '#fbbf24',
+                          borderRadius: '50%',
+                          position: 'relative',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginBottom: '5px',
+                          border: '2px solid #f59e0b'
+                        }}>
+                          <span style={{
+                            color: 'white',
+                            fontWeight: 'bold',
+                            fontSize: '14px'
+                          }}>
+                            {upperPercent}%
+                          </span>
+                        </div>
+                        
+                        {/* Tree Crown - Middle Layer */}
+                        <div style={{
+                          width: '90px',
+                          height: '60px',
+                          backgroundColor: '#f59e0b',
+                          borderRadius: '50%',
+                          position: 'relative',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginBottom: '5px',
+                          border: '2px solid #d97706'
+                        }}>
+                          <span style={{
+                            color: 'white',
+                            fontWeight: 'bold',
+                            fontSize: '14px'
+                          }}>
+                            {middlePercent}%
+                          </span>
+                        </div>
+                        
+                        {/* Tree Trunk */}
+                        <div style={{
+                          width: '25px',
+                          height: '80px',
+                          backgroundColor: '#92400e',
+                          borderRadius: '8px',
+                          position: 'relative',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '2px solid #78350f'
+                        }}>
+                          <span style={{
+                            color: 'white',
+                            fontWeight: 'bold',
+                            fontSize: '11px',
+                            writingMode: 'vertical-lr',
+                            textOrientation: 'mixed'
+                          }}>
+                            {lowerPercent}%
+                          </span>
+                        </div>
+                      </React.Fragment>
+                    );
+                  })()}
+                </div>
+                
+                {/* Legend */}
+                <div style={{ fontSize: '12px', color: '#4a5568' }}>
+                  <div>Distribution of birds across tree layers</div>
+                  <div>Total: {validData.length} observations</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Overall Statistics */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+              gap: '15px',
+              marginBottom: '20px',
+              padding: '15px',
+              backgroundColor: '#f8fafc',
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0'
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#1e40af' }}>
+                  {validData.length}
+                </div>
+                <div style={{ fontSize: '11px', color: '#6b7280' }}>Total Trees</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#dc2626' }}>
+                  {validData.length}
+                </div>
+                <div style={{ fontSize: '11px', color: '#6b7280' }}>Birds Observed</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#059669' }}>
+                  {insights.avgBirdPosition.toFixed(0)}%
+                </div>
+                <div style={{ fontSize: '11px', color: '#6b7280' }}>Avg. Position</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#7c2d12' }}>
+                  {insights.avgTreeHeight.toFixed(1)}m
+                </div>
+                <div style={{ fontSize: '11px', color: '#6b7280' }}>Avg. Height</div>
+              </div>
+            </div>
+            
+            <div style={{ 
+              maxHeight: '300px', 
+              overflowY: 'auto',
+              padding: '10px 0'
+            }}>
+              {validData.map((tree, index) => {
+                const isSelected = this.state.selectedTreeIndex === index;
+                const treeHeight = parseFloat(tree['Height of tree/m']);
+                const birdHeight = parseFloat(tree['Height of bird/m']);
+                const birdPosition = ((birdHeight / treeHeight) * 100).toFixed(1);
+                
+                return (
+                  <div
+                    key={index}
+                    onClick={() => this.selectTree(index)}
+                    style={{
+                      padding: '12px',
+                      marginBottom: '8px',
+                      backgroundColor: isSelected ? '#f0f9ff' : '#f8f9fa',
+                      border: isSelected ? '2px solid #3b82f6' : '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      ...(isSelected ? { boxShadow: '0 4px 12px rgba(59,130,246,0.15)' } : {})
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '8px'
+                    }}>
+                      <span style={{ 
+                        fontWeight: 'bold', 
+                        color: isSelected ? '#1e40af' : '#2d3748',
+                        fontSize: '14px'
+                      }}>
+                        🌲 Tree {index + 1} - {tree.Location || 'Unknown Location'}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ 
+                          fontSize: '12px', 
+                          color: '#6b7280',
+                          backgroundColor: 'white',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          border: '1px solid #e2e8f0'
+                        }}>
+                          {birdPosition}% height
+                        </span>
+                        <span style={{ 
+                          fontSize: '11px', 
+                          color: '#9ca3af',
+                          fontStyle: 'italic'
+                        }}>
+                          {Array.isArray(tree.Activity) ? tree.Activity.join(', ') : tree.Activity || 'Observation'}
+                        </span>
                       </div>
                     </div>
+                    
+                    {isSelected && (
+                      <div style={{ 
+                        fontSize: '13px', 
+                        color: '#4a5568',
+                        lineHeight: '1.5',
+                        marginTop: '10px',
+                        padding: '10px',
+                        backgroundColor: 'white',
+                        borderRadius: '6px',
+                        border: '1px solid #e2e8f0'
+                      }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                          <div><strong>🌳 Tree Height:</strong> {treeHeight}m</div>
+                          <div><strong>🐦 Bird Height:</strong> {birdHeight}m</div>
+                          <div><strong>📍 Location:</strong> {tree.Location || 'Not specified'}</div>
+                          <div><strong>🎯 Activity:</strong> {Array.isArray(tree.Activity) ? tree.Activity.join(', ') : tree.Activity || 'Observation'}</div>
+                          <div><strong>📅 Date:</strong> {tree.Date || 'Not recorded'}</div>
+                          <div><strong>⏰ Time:</strong> {tree.Time || 'Not recorded'}</div>
+                        </div>
+                        
+                        <div style={{
+                          marginTop: '10px',
+                          padding: '8px',
+                          backgroundColor: birdPosition > 80 ? '#fef3c7' : birdPosition > 50 ? '#ecfdf5' : '#fef2f2',
+                          borderRadius: '4px',
+                          fontSize: '12px'
+                        }}>
+                          <strong>🔍 Analysis:</strong> {
+                            birdPosition > 80 ? 'High canopy position - likely foraging or territorial behavior' :
+                            birdPosition > 50 ? 'Mid canopy position - typical feeding or nesting area' :
+                            'Lower canopy position - possible cautious or protective behavior'
+                          }
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
-          )}
-        </div>
-      );
-    };
-
-    const renderAnomalyTrendsTab = () => {
-      const totalBirds = Object.values(anomalyDetection.birdPositionDistribution).reduce((total, count) => total + count, 0);
-      return (
-        <>
-          {/* Anomaly Detection Section */}
-          <div style={{ marginBottom: '2rem' }}>
-            <h5 style={{ 
-              color: '#4a5568', 
-              marginBottom: '0.5rem',
-              display: 'flex',
-              alignItems: 'center'
-            }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E53E3E" strokeWidth="2" style={{ marginRight: '8px' }}>
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                <line x1="12" y1="9" x2="12" y2="13"></line>
-                <line x1="12" y1="17" x2="12.01" y2="17"></line>
-              </svg>
-              Anomaly Detection
-            </h5>
-            {console.log("Anomaly Detection:", anomalyDetection)}
-            
-            {/* Commented out anomaly summary section
-            <div style={{ 
-              backgroundColor: anomalyDetection.summary.significance === "High" ? "#FFF5F5" : "#F7FAFC", 
-              padding: '0.75rem', 
-              borderRadius: '4px',
-              marginBottom: '1rem',
-              border: anomalyDetection.summary.significance === "High" ? "1px solid #FED7D7" : "1px solid #E2E8F0"
-            }}>
-              <div style={{ fontWeight: 'bold', color: '#4A5568', marginBottom: '0.5rem' }}>
-                Anomaly Summary: <span style={{ 
-                  color: anomalyDetection.summary.significance === "High" ? "#C53030" : "#4A5568"
-                }}>
-                  {anomalyDetection.summary.totalAnomalies} anomalies detected ({anomalyDetection.summary.significance} significance)
-                </span>
-              </div>
-              
-              {anomalyDetection.volumeAnomalies.length > 0 && (
-                <div style={{ marginBottom: '0.5rem' }}>
-                  <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>Volume Anomalies:</div>
-                  <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
-                    {anomalyDetection.volumeAnomalies.map((anomaly, idx) => (
-                      <li key={idx} style={{ marginBottom: '0.25rem' }}>
-                        <strong>{anomaly.location}</strong>: {anomaly.Total} observations 
-                        (unusually {anomaly.Total > anomalyDetection.anomalyThreshold ? "high" : "low"})
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              
-              {anomalyDetection.ratioAnomalies.length > 0 && (
-                <div>
-                  <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>Distribution Anomalies:</div>
-                  <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
-                    {anomalyDetection.ratioAnomalies.map((anomaly, idx) => (
-                      <li key={idx}>
-                        <strong>{anomaly.location}</strong>: Unusual ratio of Seen
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              
-              {anomalyDetection.volumeAnomalies.length === 0 && anomalyDetection.ratioAnomalies.length === 0 && (
-                <div style={{ color: '#718096' }}>No significant anomalies detected in the data.</div>
-              )}
-            </div>
-            */}
           </div>
-          {console.log("Trend Prediction:", trendPredictions)}
-          {/* Trend Predictions Section */}
-          <div>
-            <h5 style={{ 
-              color: '#4a5568', 
-              marginBottom: '0.5rem',
-              display: 'flex',
-              alignItems: 'center'
-            }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3182CE" strokeWidth="2" style={{ marginRight: '8px' }}>
-                <path d="M23 6l-9.5 9.5-5-5L1 18"></path>
-                <path d="M17 6h6v6"></path>
-              </svg>
-              Trend Predictions
-            </h5>
-            
-            <div style={{ 
-              backgroundColor: "#F7FAFC", 
-              padding: '0.75rem', 
-              borderRadius: '4px',
-              marginBottom: '1rem',
-              border: "1px solid #E2E8F0"
-            }}>
-              <div style={{ 
-                fontWeight: 'bold', 
-                color: '#4A5568', 
-                marginBottom: '0.75rem'
-              }}>
-              Overall Trend: <span
-                style={{
-                  color:
-                    trendPredictions.overallTrend === "Positive"
-                      ? "#40E0D0" // Turquoise
-                      : trendPredictions.overallTrend === "Stable"
-                      ? "#CD7F32" // Bronze
-                      : trendPredictions.overallTrend === "Negative"
-                      ? "#800000" // Maroon red
-                      : "#718096", // Default gray fallback
-                }}
-              >
-                {trendPredictions.overallTrend}
-              </span>
-              </div>
-              {/* Bird Tree Visualization Toggle */}
-              <div style={{ fontWeight: 'bold', color: '#4A5568', marginBottom: '0.5rem' }}>
-                {this.state.showPercentageView ? "Bird Height Positions (percentage):" : "Bird Height Positions:"}
-              </div>
-              
-              {/* Toggle between percentage view and original view */}
-              {this.state.showPercentageView ? (
-                // Bird height percentage view
-                <div style={{ 
-                  backgroundColor: "#FFFFFF", 
-                  padding: '0.75rem', 
-                  borderRadius: '4px',
-                  marginBottom: '0.5rem',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
-                    <svg width="100" height="150" viewBox="0 0 100 150" style={{ marginRight: '1rem' }}>
-                      {/* Tree visualization with height markers */}
-                      <path d="M50,130 L50,50" stroke="#8B4513" strokeWidth="6" /> {/* Tree trunk */}
-                      <ellipse cx="50" cy="40" rx="30" ry="35" fill="#2F855A" /> {/* Tree crown */}
-                      
-                      {/* Height marker lines */}
-                      <line x1="15" y1="130" x2="85" y2="130" stroke="#718096" strokeWidth="1" strokeDasharray="2" />
-                      <text x="5" y="134" fontSize="8" fill="#718096">0%</text>
-                      
-                      <line x1="15" y1="85" x2="85" y2="85" stroke="#718096" strokeWidth="1" strokeDasharray="2" />
-                      <text x="5" y="89" fontSize="8" fill="#718096">50%</text>
-                      
-                      <line x1="15" y1="40" x2="85" y2="40" stroke="#718096" strokeWidth="1" strokeDasharray="2" />
-                      <text x="5" y="44" fontSize="8" fill="#718096">100%</text>
-                      
-                      {/* Bird positions */}
-                      {console.log("trendPredictions1111:", trendPredictions)}
-                      {trendPredictions.topLocations.map((location, idx) => {
-                        // Calculate bird position based on height percentage
-                        const heightPercentage = (location.tree && location.tree.birdHeight && location.tree.treeHeight) 
-                          ? (location.tree.birdHeight / location.tree.treeHeight) * 100 
-                          : 50; // Default to middle if data missing
-                        
-                        // Position the bird vertically based on height percentage (130 = bottom, 40 = top)
-                        const birdY = 130 - (heightPercentage * 0.9); // Scale to fit SVG
-                        const birdX = 50 + ((idx % 5) * 6 - 12); // Distribute horizontally
-                        
-                        return (
-                          <g key={idx}>
-                            <circle cx={birdX} cy={birdY} r="3" fill="#C53030" />
-                            <text x={birdX + 5} y={birdY} fontSize="8" fill="#000000">
-                              {Math.round(heightPercentage)}%
-                            </text>
-                          </g>
-                        );
-                      })}
-                    </svg>
-                    
-                    <div>
-                      <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>Bird Height Analysis</div>
-                      {console.log("Remder123:", anomalyDetection)}
+        )}
 
-                      <div style={{ marginBottom: '0.25rem' }}>
-                        <strong>Crown (75-100%):</strong>{' '}
-                        {anomalyDetection.birdPositionDistribution ? 
-                          `${((anomalyDetection.birdPositionDistribution["Crown (75-100%)"] / totalBirds) * 100).toFixed(1)}%` : 
-                          '0%'}
-                      </div>
-
-                      <div style={{ marginBottom: '0.25rem' }}>
-                        <strong>Upper (50-75%):</strong>{' '}
-                        {anomalyDetection.birdPositionDistribution ? 
-                          `${((anomalyDetection.birdPositionDistribution["Upper (50-75%)"] / totalBirds) * 100).toFixed(1)}%` : 
-                          '0%'}
-                      </div>
-
-                      <div style={{ marginBottom: '0.25rem' }}>
-                        <strong>Lower (25-50%):</strong>{' '}
-                        {anomalyDetection.birdPositionDistribution ? 
-                          `${((anomalyDetection.birdPositionDistribution["Lower (25-50%)"] / totalBirds) * 100).toFixed(1)}%` : 
-                          '0%'} 
-                      </div>
-
-                      <div>
-                        <strong>Base (0-25%):</strong>{' '}
-                        {anomalyDetection.birdPositionDistribution ? 
-                          `${((anomalyDetection.birdPositionDistribution["Base (0-25%)"] / totalBirds) * 100).toFixed(1)}%` : 
-                          '0%'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ 
-                  backgroundColor: "#FFFFFF", 
-                  padding: '0.75rem', 
-                  borderRadius: '4px',
-                  marginBottom: '0.5rem',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
-                    <svg width="100" height="150" viewBox="0 0 100 150" style={{ marginRight: '1rem' }}>
-                      {/* Tree visualization with height markers */}
-                      <path d="M50,130 L50,50" stroke="#8B4513" strokeWidth="6" /> {/* Tree trunk */}
-                      <ellipse cx="50" cy="40" rx="30" ry="35" fill="#2F855A" /> {/* Tree crown */}
-                      
-                      {/* Height marker lines */}
-                      <line x1="15" y1="130" x2="85" y2="130" stroke="#718096" strokeWidth="1" strokeDasharray="2" />
-                      <text x="5" y="134" fontSize="8" fill="#718096">0%</text>
-                      
-                      <line x1="15" y1="85" x2="85" y2="85" stroke="#718096" strokeWidth="1" strokeDasharray="2" />
-                      <text x="5" y="89" fontSize="8" fill="#718096">50%</text>
-                      
-                      <line x1="15" y1="40" x2="85" y2="40" stroke="#718096" strokeWidth="1" strokeDasharray="2" />
-                      <text x="5" y="44" fontSize="8" fill="#718096">100%</text>
-                      
-                      {/* Bird positions */}
-                      {console.log("trendPredictions1111:", trendPredictions)}
-                      {trendPredictions.topLocations.map((location, idx) => {
-                        // Calculate bird position based on height percentage
-                        const heightPercentage = (location.tree && location.tree.birdHeight && location.tree.treeHeight) 
-                          ? (location.tree.birdHeight / location.tree.treeHeight) * 100 
-                          : 50; // Default to middle if data missing
-                        
-                        // Position the bird vertically based on height percentage (130 = bottom, 40 = top)
-                        const birdY = 130 - (heightPercentage * 0.9); // Scale to fit SVG
-                        const birdX = 50 + ((idx % 5) * 6 - 12); // Distribute horizontally
-                        
-                        return (
-                          <g key={idx}>
-                            <circle cx={birdX} cy={birdY} r="3" fill="#C53030" />
-                            <text x={birdX + 5} y={birdY} fontSize="8" fill="#000000">
-                              {Math.round(heightPercentage)}%
-                            </text>
-                          </g>
-                        );
-                      })}
-                    </svg>
-                    
-                    <div>
-                      <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>Bird Height Analysis</div>
-                      {console.log("Remder123:", anomalyDetection)}
-                      {/* Calculate the total dynamically */}
-                      
-                      {console.log("Total Birds:", totalBirds)}
-                      
-                      <div style={{ marginBottom: '0.25rem' }}>
-                      <strong>Crown (75-100%):</strong>{' '}
-                        {anomalyDetection.birdPositionDistribution ? anomalyDetection.birdPositionDistribution["Crown (75-100%)"] : 0} birds
-                      </div>
-                      <div style={{ marginBottom: '0.25rem' }}>
-                        <strong>Upper (50-75%):</strong>{' '}
-                        {anomalyDetection.birdPositionDistribution ? anomalyDetection.birdPositionDistribution["Upper (50-75%)"] : 0} birds
-                      </div>
-                      
-                      <div style={{ marginBottom: '0.25rem' }}>
-                        <strong>Lower (25-50%):</strong>{' '}
-                        {anomalyDetection.birdPositionDistribution ? anomalyDetection.birdPositionDistribution["Lower (25-50%)"] : 0} birds
-                      </div>
-                      
-                      <div>
-                        <strong>Base (0-25%):</strong>{' '}
-                        {anomalyDetection.birdPositionDistribution ? anomalyDetection.birdPositionDistribution["Base (0-25%)"] : 0} birds
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            <div style={{ backgroundColor: '#FFFAF0', padding: '0.75rem', borderRadius: '4px', border: '1px solid #FEEBC8' }}>
-              <div style={{ display: 'flex', alignItems: 'start' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DD6B20" strokeWidth="2" style={{ marginRight: '8px', marginTop: '2px' }}>
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="12" y1="8" x2="12" y2="12"></line>
-                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                </svg>
-                <div>
-                  <div style={{ fontWeight: 'bold', color: '#DD6B20', marginBottom: '0.25rem' }}>Note on Predictions</div>
-                  <div style={{ color: '#744210', fontSize: '0.9rem' }}>
-                    {this.state.showPercentageView ? 
-                      "Bird height percentages indicate relative position on trees. Higher percentages suggest preference for tree canopies and crowns." :
-                      "These predictions are based on current patterns and may change as more data becomes available. For more accurate predictions, consider collecting historical data over longer time periods."}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      );
-    };
-  
-    // Toggle button for switching between standard and percentage views
-    const renderViewToggle = () => (
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-      </div>
-    );
-  
-    return (
-      <>
-        {renderTabsNavigation()}
-        
-        {this.state.activeTab1 === 'population' && renderViewToggle()}
-        
-        {this.state.activeTab1 === 'population' 
-          ? (showPercentageView ? renderPercentagePopulationTab() : renderStandardPopulationTab())
-          : renderAnomalyTrendsTab()}
-      </>
-    );
-  };
-    
-  generateInsights = async () => {
-    const { data } = this.props;
-    console.log("showPercentageView in generateInsights:", this.state.showPercentageView); // Log the value here
-    
-    // Extract the data directly
-    const treeData = extractTreeHeights(data);
-    const birdData = extractBirdHeights(data);
-    const noBirdsData = extractNoBirds(data);
-    const seenHeardData = extractSeenHeard(data);
-    
-    // Create a structured dataset for our analysis
-    const structuredData = treeData.map((treeHeight, index) => ({
-      index: index + 1,
-      treeHeight,
-      birdHeight: birdData[index] !== undefined ? birdData[index] : null,
-      noBirds: noBirdsData[index] !== undefined ? noBirdsData[index] : 0,
-      seenHeard: seenHeardData[index] !== undefined ? seenHeardData[index] : 'Not found'
-    }));
-    
-    this.setState({ insightsLoading: true });
-    
-    try {
-      // Simulate a delay for processing
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Process data for insights without relying on location-based grouping
-      const insights = {
-        populationAnalysis: this.performDataAnalysis(structuredData, this.state.showPercentageView),
-        anomalyDetection: this.detectAnomalies(structuredData, this.state.showPercentageView),
-        trendPredictions: this.predictTrends(structuredData, this.state.showPercentageView)
-      };
-
-      console.log("Insights1111:", insights);
-      
-      this.setState({ insights, insightsLoading: false, activeTab1: 'population' });
-    } catch (error) {
-      console.error("Error generating insights:", error);
-      this.setState({ 
-        insightsLoading: false,
-        insights: {
-          error: "Failed to generate insights. Please try again later."
-        }
-      });
-    }
-  };
-  
-
-    // Replace the previous TensorFlow-based methods with direct calculation methods
-
-    performDataAnalysis = (data, showPercentageView) => {
-      try {
-        const seen = data.filter(item => item.seenHeard === 'Seen');
-    
-        const calculateStats = (items) => {
-          if (items.length === 0) return { mean: '0.00', std: '0.00' };
-    
-          const sum = items.reduce((acc, item) => acc + (item.noBirds || 0), 0);
-          const mean = sum / items.length;
-    
-          const variance = items.reduce((acc, item) => {
-            const diff = (item.noBirds || 0) - mean;
-            return acc + (diff * diff);
-          }, 0) / Math.max(1, items.length);
-    
-          const std = Math.sqrt(variance);
-    
-          return {
-            mean: mean.toFixed(2),
-            std: std.toFixed(2)
-          };
-        };
-    
-        const seenStats = calculateStats(seen);
-    
-        const heightRanges = [
-          { name: '0-5m', trees: [], birds: 0 },
-          { name: '5-10m', trees: [], birds: 0 },
-          { name: '10-15m', trees: [], birds: 0 },
-          { name: '15m+', trees: [], birds: 0 }
-        ];
-    
-        // Categorize trees by height range
-        data.forEach(tree => {
-          const height = tree.treeHeight || 0;
-          const birds = tree.noBirds || 0;
-    
-          if (height < 5) {
-            heightRanges[0].trees.push(tree);
-            heightRanges[0].birds += birds;
-          } else if (height < 10) {
-            heightRanges[1].trees.push(tree);
-            heightRanges[1].birds += birds;
-          } else if (height < 15) {
-            heightRanges[2].trees.push(tree);
-            heightRanges[2].birds += birds;
-          } else {
-            heightRanges[3].trees.push(tree);
-            heightRanges[3].birds += birds;
-          }
-        });
-    
-        const totalBirds = heightRanges.reduce((acc, range) => acc + range.birds, 0);
-    
-        // Prepare height range data with optional percentage view
-        const processedRanges = heightRanges.map(range => {
-          const birdCount = range.birds;
-          const percentage = totalBirds > 0 ? ((birdCount / totalBirds) * 100).toFixed(2) + '%' : '0.00%';
-          return {
-            ...range,
-            birds: showPercentageView ? percentage : birdCount
-          };
-        });
-    
-        // Choose sorting method based on view type
-        const sortedRanges = showPercentageView
-          ? [...heightRanges]
-              .map(r => ({
-                ...r,
-                birdPercentage: totalBirds > 0 ? (r.birds / totalBirds) * 100 : 0
-              }))
-              .sort((a, b) => b.birdPercentage - a.birdPercentage)
-          : [...heightRanges].sort((a, b) => b.birds - a.birds);
-    
-        const mostActive = {
-          location: sortedRanges[0].name,
-          Total: sortedRanges[0].trees.length,
-          Seen: sortedRanges[0].trees.filter(t => t.seenHeard === 'Seen').length,
-          Percentage: showPercentageView
-            ? sortedRanges[0].birdPercentage.toFixed(2) + '%'
-            : undefined
-        };
-    
-        const leastActive = {
-          location: sortedRanges[sortedRanges.length - 1].name,
-          Total: sortedRanges[sortedRanges.length - 1].trees.length,
-          Seen: sortedRanges[sortedRanges.length - 1].trees.filter(t => t.seenHeard === 'Seen').length,
-          Percentage: showPercentageView
-            ? sortedRanges[sortedRanges.length - 1].birdPercentage.toFixed(2) + '%'
-            : undefined
-        };
-    
-        return {
-          statistics: {
-            seen: seenStats
-          },
-          insights: {
-            mostActive,
-            leastActive,
-            distributionType: seenStats.std > seenStats.mean ? "Highly Varied" : "Evenly Distributed"
-          },
-          heightRangeData: processedRanges
-        };
-      } catch (error) {
-        console.error("Error in data analysis:", error);
-        return { error: "Failed to analyze data" };
-      }
-    };
-    
-    // Anomaly detection with bird position in tree
-    // Anomaly detection with bird position in tree (with showPercentageView flag)
-    detectAnomalies = (data, showPercentageView) => {
-      console.log("Show Percentage View:", showPercentageView);
-      try {
-        // Function to categorize bird position with your specific zones
-        const categorizeBirdPosition = (birdPositionRatio) => {
-          if (birdPositionRatio === null || birdPositionRatio === undefined) {
-            return "Unknown";
-          }
-          
-          if (birdPositionRatio >= 0.75) {
-            return "Crown (75-100%)";
-          } else if (birdPositionRatio >= 0.5) {
-            return "Upper (50-75%)";
-          } else if (birdPositionRatio >= 0.25) {
-            return "Lower (25-50%)";
-          } else {
-            return "Base (0-25%)";
-          }
-        };
-    
-        // Step 1: Calculate bird density (birds per meter of tree height)
-        const treeWithDensity = data.map(tree => {
-          const density = tree.treeHeight > 0 ? (tree.noBirds || 0) / tree.treeHeight : 0;
-          const birdPositionRatio = (tree.birdHeight && tree.treeHeight > 0)
-            ? tree.birdHeight / tree.treeHeight
-            : null; // If no birdHeight or treeHeight, set to null or 0
-          
-          // Add position category
-          const positionCategory = categorizeBirdPosition(birdPositionRatio)
-    
-          return {
-            ...tree,
-            density,
-            birdPositionRatio,
-            positionCategory
-          };
-        }).filter(tree => tree.seenHeard === "Seen");
-    
-        // Step 2: Calculate mean and standard deviation of density
-        const densities = treeWithDensity.map(t => t.density);
-        const meanDensity = densities.reduce((sum, val) => sum + val, 0) / densities.length;
-    
-        const varianceDensity = densities.reduce((sum, val) => {
-          const diff = val - meanDensity;
-          return sum + (diff * diff);
-        }, 0) / densities.length;
-    
-        const stdDensity = Math.sqrt(varianceDensity);
-    
-        // Step 3: Define threshold for outliers (e.g., 2 standard deviations)
-        const threshold = 2;
-    
-        // Step 4: Find volume anomalies (unusually high or low bird counts)
-        const volumeAnomalies = treeWithDensity
-          .filter(tree => {
-            const zScore = Math.abs((tree.density - meanDensity) / (stdDensity || 1));
-            return zScore > threshold;
-          })
-          .map(tree => ({
-            location: `Tree #${tree.index}`,
-            Total: tree.noBirds || 0,
-            treeHeight: tree.treeHeight,
-            birdPosition: showPercentageView
-              ? (tree.birdPositionRatio ? (tree.birdPositionRatio * 100).toFixed(2) + "%" : "N/A") // Show as percentage
-              : (tree.birdPositionRatio ? `${(tree.birdPositionRatio * tree.treeHeight).toFixed(2)} meters` : "N/A"), // Show as location (in meters)
-            positionCategory: tree.positionCategory || "Unknown"
-          }));
-    
-        console.log("Tree with Density:", treeWithDensity);
-        
-        // Step 5: Find ratio anomalies (unusual patterns in seen/heard/not found)
-        // For example, trees that have birds but were only heard, never seen
-        const ratioAnomalies = data
-          .filter(tree => {
-            // Trees with birds that were only heard, never seen
-            if (tree.noBirds > 2 && tree.seenHeard === 'Heard') return true;
-    
-            // Trees with very high positions of birds relative to tree height
-            if (tree.birdHeight && tree.treeHeight && tree.birdHeight > tree.treeHeight * 0.8) return true;
-    
-            return false;
-          })
-          .map(tree => {
-            const birdPositionRatio = (tree.birdHeight && tree.treeHeight > 0)
-              ? tree.birdHeight / tree.treeHeight
-              : null;
-            
-            const positionCategory = categorizeBirdPosition(birdPositionRatio);
-            
-            return {
-              location: `Tree #${tree.index}`,
-              Total: tree.noBirds || 0,
-              birdPosition: showPercentageView
-                ? (birdPositionRatio ? (birdPositionRatio * 100).toFixed(2) + "%" : "N/A") // Show as percentage
-              : (birdPositionRatio ? `${(birdPositionRatio * tree.treeHeight).toFixed(2)} meters` : "N/A"), // Show as location (in meters)
-              positionCategory: positionCategory
-            };
-          });
-    
-          console.log("Ratio:", ratioAnomalies);
-        // Count birds by position category
-        const positionCounts = {
-          "Crown (75-100%)": 0,
-          "Upper (50-75%)": 0,
-          "Lower (25-50%)": 0,
-          "Base (0-25%)": 0,
-          "Unknown": 0
-        };
-    
-        // Make sure to properly count all birds in each category
-        treeWithDensity.forEach(tree => {
-          if (tree.noBirds && tree.positionCategory) {
-            positionCounts[tree.positionCategory] += parseInt(tree.noBirds);
-          }
-        });
-    
-        // Generate bird height analysis text
-        const birdHeightAnalysis = `**Bird Height Analysis**
-    **Crown (75-100%):** ${positionCounts["Crown (75-100%)"]} birds
-    **Upper (50-75%):** ${positionCounts["Upper (50-75%)"]} birds
-    **Lower (25-50%):** ${positionCounts["Lower (25-50%)"]} birds
-    **Base (0-25%):** ${positionCounts["Base (0-25%)"]} birds`
-
-        console.log("Bird Height Analysis:", birdHeightAnalysis);
-    
-        // Step 6: Return anomalies and summary
-        return {
-          volumeAnomalies,
-          ratioAnomalies,
-          anomalyThreshold: threshold,
-          birdPositionDistribution: positionCounts,
-          birdHeightAnalysis,
-          summary: {
-            totalAnomalies: volumeAnomalies.length + ratioAnomalies.length,
-            significance: volumeAnomalies.length > 0 ? "High" : "Low"
-          }
-        };
-      } catch (error) {
-        console.error("Error in anomaly detection:", error);
-        return { error: "Failed to detect anomalies" };
-      }
-    };
-
-    predictTrends = (data, showPercentageView) => {
-      console.log("Data111:", data);
-      try {
-        // Initialize bird position distribution
-        const birdPositionDistribution = { base: 0, lower: 0, upper: 0, crown: 0 };
-    
-        // Process each tree data
-        const processedRanges = data.map(tree => {
-          const totalBirds = tree.noBirds || 0;
-    
-          // Bird height distribution
-          let weightedSum = 0;
-          let birdCountForPosition = 0;
-    
-          if (tree.treeHeight && tree.birdHeight) {
-            const ratio = tree.birdHeight / tree.treeHeight;
-    
-            // Distribute birds by height ratio
-            if (ratio <= 0.25) birdPositionDistribution.base += tree.noBirds;
-            else if (ratio <= 0.5) birdPositionDistribution.lower += tree.noBirds;
-            else if (ratio <= 0.75) birdPositionDistribution.upper += tree.noBirds;
-            else birdPositionDistribution.crown += tree.noBirds;
-    
-            // Weight the bird positions
-            let weight = 0;
-            if (ratio <= 0.25) weight = 12.5;
-            else if (ratio <= 0.5) weight = 37.5;
-            else if (ratio <= 0.75) weight = 62.5;
-            else weight = 87.5;
-            weightedSum += weight;
-            birdCountForPosition += 1;
-          }
-    
-          // Calculate weighted average for bird positions
-          const weightedPositionAverage = birdCountForPosition > 0
-            ? (weightedSum / birdCountForPosition)
-            : 0;
-    
-          const seenCount = tree.seenHeard === 'Seen' ? 1 : 0;
-          const seenRatio = totalBirds > 0 ? seenCount / totalBirds : 0;
-    
-          // Calculate growth prediction based on the seen ratio
-          let growth = "Low";
-          if (seenRatio > 0.6) growth = "High";
-          else if (seenRatio > 0.4) growth = "Moderate";
-    
-          let trend = "Stable";
-          if (seenRatio > 0.5) trend = "Increasing visibility";
-          else if (seenRatio < 0.2) trend = "Decreasing presence";
-    
-          // Prepare data for prediction
-          return {
-            current: {
-              total: totalBirds,
-              seen: seenCount,
-            },
-            prediction: {
-              growth,
-              trend,
-              confidence: (seenRatio * 100).toFixed(1) + "%",
-            },
-            tree: {
-              treeHeight: tree.treeHeight || 0,
-              birdHeight: tree.birdHeight || 0,
-            },
-            birdPositionDistribution,
-            weightedPositionAverage: parseFloat(weightedPositionAverage.toFixed(1)),
-          };
-        });
-    
-        // Sorting data by total birds seen
-        const sorted = [...processedRanges].sort((a, b) => b.current.total - a.current.total);
-        const topLocations = sorted.slice(0, 2);
-        const lowLocations = sorted.slice(-2);
-    
-        // If showPercentageView is true, calculate position percentage
-        if (showPercentageView) {
-          const addPositionPercentage = (location) => {
-            if (location.tree && location.tree.treeHeight && location.tree.birdHeight) {
-              location.positionPercentage = (location.tree.birdHeight / location.tree.treeHeight) * 100;
-            }
-          };
-          topLocations.forEach(addPositionPercentage);
-          lowLocations.forEach(addPositionPercentage);
-        }
-    
-        // Tree parts trend calculation for top and low locations
-        const calculateTreePartsTrend = (location) => {
-          const totalBirdsPosition = Object.values(location.birdPositionDistribution).reduce((a, b) => a + b, 0);
-    
-          let treePartsTrend = "Balanced";
-          let treePartsDistribution = { base: 0, lower: 0, upper: 0, crown: 0 };
-    
-          if (totalBirdsPosition > 0) {
-            const crownPerc = (location.birdPositionDistribution.crown / totalBirdsPosition) * 100;
-            const upperPerc = (location.birdPositionDistribution.upper / totalBirdsPosition) * 100;
-            const lowerPerc = (location.birdPositionDistribution.lower / totalBirdsPosition) * 100;
-            const basePerc = (location.birdPositionDistribution.base / totalBirdsPosition) * 100;
-    
-            treePartsDistribution = {
-              base: location.birdPositionDistribution.base,
-              lower: location.birdPositionDistribution.lower,
-              upper: location.birdPositionDistribution.upper,
-              crown: location.birdPositionDistribution.crown
-            };
-    
-            if (crownPerc >= 70) {
-              treePartsTrend = "Crown-dominant activity";
-            } else if (upperPerc >= 50) {
-              treePartsTrend = "Upper tree parts activity";
-            } else if (lowerPerc >= 40) {
-              treePartsTrend = "Lower tree parts presence";
-            } else if (basePerc > 0) {
-              treePartsTrend = "Base-level activity";
-            } else {
-              treePartsTrend = "Mixed presence across tree parts";
-            }
-          }
-    
-          return { treePartsTrend, treePartsDistribution };
-        };
-    
-        const topLocationTreeParts = calculateTreePartsTrend(topLocations[0]);
-        const lowLocationTreeParts = calculateTreePartsTrend(lowLocations[0]);
-    
-        return {
-          topLocations,
-          lowLocations,
-          topLocationTreeParts,
-          lowLocationTreeParts,
-          overallTrend: topLocations.length > 0 && topLocations[0].prediction.growth === "High"
-            ? "Positive"
-            : "Stable",
-          processedRanges,
-        };
-      } catch (error) {
-        console.error("Error in trend predictions:", error);
-        return { error: "Failed to generate trend predictions" };
-      }
-    };
-    
-
-    // Helper method to calculate bird positions
-    calculateBirdPositions = (trees) => {
-      const positions = {
-        crown: 0,   // 75-100%
-        upper: 0,   // 50-75%
-        lower: 0,   // 25-50%
-        base: 0     // 0-25%
-      };
-  
-  trees.forEach(tree => {
-    if (tree.birdHeight && tree.treeHeight && tree.treeHeight > 0 && tree.noBirds > 0) {
-      const heightPercentage = (tree.birdHeight / tree.treeHeight) * 100;
-      
-      // Count birds in each position category
-      if (heightPercentage >= 75) {
-        positions.crown += tree.noBirds;
-      } else if (heightPercentage >= 50) {
-        positions.upper += tree.noBirds;
-      } else if (heightPercentage >= 25) {
-        positions.lower += tree.noBirds;
-      } else {
-        positions.base += tree.noBirds;
-      }
-    }
-  });
-  
-  return positions;
-};
-
-// Calculate overall position statistics
-calculatePositionStats = (data) => {
-  const positions = {
-    crown: 0,   // 75-100%
-    upper: 0,   // 50-75%
-    lower: 0,   // 25-50%
-    base: 0     // 0-25%
-  };
-  
-  let totalBirdsWithPosition = 0;
-  
-  data.forEach(tree => {
-    if (tree.birdHeight && tree.treeHeight && tree.treeHeight > 0 && tree.noBirds > 0) {
-      const heightPercentage = (tree.birdHeight / tree.treeHeight) * 100;
-      totalBirdsWithPosition += tree.noBirds;
-      console.log("Height Percentage:", heightPercentage);
-      console.log("Total Birds:", totalBirdsWithPosition);
-      
-      // Count birds in each position category
-      if (heightPercentage >= 75) {
-        positions.crown += tree.noBirds;
-      } else if (heightPercentage >= 50) {
-        positions.upper += tree.noBirds;
-      } else if (heightPercentage >= 25) {
-        positions.lower += tree.noBirds;
-      } else {
-        positions.base += tree.noBirds;
-      }
-    }
-  });
-  
-  // Calculate percentages
-  const positionPercentages = {
-    crown: totalBirdsWithPosition > 0 ? (positions.crown / totalBirdsWithPosition * 100).toFixed(1) : 0,
-    upper: totalBirdsWithPosition > 0 ? (positions.upper / totalBirdsWithPosition * 100).toFixed(1) : 0,
-    lower: totalBirdsWithPosition > 0 ? (positions.lower / totalBirdsWithPosition * 100).toFixed(1) : 0,
-    base: totalBirdsWithPosition > 0 ? (positions.base / totalBirdsWithPosition * 100).toFixed(1) : 0,
-    total: totalBirdsWithPosition
-  };
-
-  console.log("Position Percentage:", positions);
-  
-  return positions;
-};
-
-  renderReport = () => {
-    const { data } = this.props;
-    const {showPercentageView} = this.state;
-    const treeData = extractTreeHeights(data);
-    const birdData = extractBirdHeights(data);
-    const seenHeardData = extractSeenHeard(data);
-    const noBirdsData = extractNoBirds(data);
-
-    const pairedData = treeData.map((treeHeight, index) => ({
-      index: index + 1,
-      treeHeight,
-      birdHeight: birdData[index] ?? null,
-      noBirds: noBirdsData[index] ?? 0,
-      seenHeard: seenHeardData[index] ?? null,
-    }));
-
-    const seenOnlyData = pairedData.filter(item => item.seenHeard === "Seen");
-
-    // Summary statistics
-    const seenCount = seenOnlyData.filter(item => item.seenHeard === "Seen").length;
-    const totalCount = seenOnlyData.length;
-
-    const calcPercent = (count) => totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
-
-    return (
-      <div className="report-container" style={{ 
-        padding: '1rem',
-        backgroundColor: 'white',
-        border: '1px solid #e2e8f0',
-        borderRadius: '6px',
-        maxHeight: '200px',
-        overflowY: 'auto',
-        marginTop: '1.5rem'
-      }}>
-        <h4 style={{ marginTop: 0, color: '#2d3748', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
-          Tree and Bird Observation Report
-        </h4>
-
-
-        {/* Summary Statistics */}
-        <h5 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>Summary Statistics</h5>
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
-          gap: '1rem', 
-          marginBottom: '1.5rem',
-          padding: '0.5rem',
-          backgroundColor: '#f7fafc',
-          borderRadius: '4px'
+        {/* Insights Report Section - Togglable */}
+        <div style={{
+          marginTop: '30px',
+          padding: '25px',
+          backgroundColor: 'white',
+          borderRadius: '8px',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
         }}>
-          <div>
-          <div style={{ fontWeight: 'bold', fontSize: '1.5rem', color: '#6366F1' }}>{totalCount}</div>
-            <div style={{ color: '#718096' }}>Total Trees</div>
-          </div>
-          <div>
-            <div style={{ fontWeight: 'bold', fontSize: '1.5rem', color: '#A8E6CF' }}>{seenCount}</div>
-            <div style={{ color: '#718096' }}>Seen ({Math.round(seenCount / totalCount * 100)}%)</div>
-          </div>
-        </div>
-
-        {/* Tree Data Table */}
-        <h5 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>Tree Data</h5>
-        <div style={{ overflowX: 'auto' }}>
-         {/* Conditional Rendering Based on showPercentageView */}
-            {showPercentageView ? (
-              <>
-                {/* Table with Percentage View (Show Percentage) */}
-                <div style={{ marginTop: '1.5rem' }}>
-                  <h5 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>Tree Data with Percentages</h5>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-                    <thead>
-                      <tr style={{ backgroundColor: '#f7fafc', borderBottom: '2px solid #e2e8f0' }}>
-                        <th style={{ padding: '0.75rem', textAlign: 'left' }}>Tree #</th>
-                        <th style={{ padding: '0.75rem', textAlign: 'right' }}>Birds Position</th>
-                        <th style={{ padding: '0.75rem', textAlign: 'center' }}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {seenOnlyData.map((tree, idx) => (
-                        <tr key={idx} style={{ 
-                          borderBottom: '1px solid #e2e8f0',
-                          backgroundColor: idx % 2 === 0 ? 'white' : '#f7fafc',
-                        }}>
-                          <td style={{ padding: '0.75rem' }}>{tree.index}</td>
-
-                          
-                          {/* Bird Position */}
-                          <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                            {tree.treeHeight && tree.birdHeight !== null
-                              ? isNaN(tree.birdHeight / tree.treeHeight)
-                                ? "NaN"
-                                : ((tree.birdHeight / tree.treeHeight) * 100).toFixed(1) + "%"
-                              : "—"}
-                          </td>
-
-                          {/* Seen/Heard Status */}
-                          <td style={{ padding: '0.75rem', textAlign: 'center', color: "#38A169" 
-                          }}>
-                            {tree.seenHeard || "Seen"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            ) : (
-              <>
-                {/* Original Tree Data Table */}
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: '#f7fafc', borderBottom: '2px solid #e2e8f0' }}>
-                      <th style={{ padding: '0.75rem', textAlign: 'left' }}>Tree #</th>
-                      <th style={{ padding: '0.75rem', textAlign: 'right' }}>Birds</th>
-                      <th style={{ padding: '0.75rem', textAlign: 'right' }}>Height (m)</th>
-                      <th style={{ padding: '0.75rem', textAlign: 'right' }}>Bird Height (m)</th>
-                      <th style={{ padding: '0.75rem', textAlign: 'center' }}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {seenOnlyData.map((tree, idx) => (
-                      <tr key={idx} style={{ 
-                        borderBottom: '1px solid #e2e8f0',
-                        backgroundColor: idx % 2 === 0 ? 'white' : '#f7fafc',
-                      }}>
-                        <td style={{ padding: '0.75rem' }}>{tree.index}</td>
-
-                        {/* Number of Birds */}
-                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                          {tree.noBirds}
-                        </td>
-
-                        {/* Tree Height */}
-                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                          {tree.treeHeight}
-                        </td>
-
-                        {/* Bird Height */}
-                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                          {tree.birdHeight !== null ? tree.birdHeight : "—"}
-                        </td>
-
-                        {/* Seen/Heard Status */}
-                        <td style={{ padding: '0.75rem', textAlign: 'center', color: tree.seenHeard === "Seen" ? "#38A169" : 
-                            tree.seenHeard === "Heard" ? "#805AD5" : 
-                            tree.seenHeard === "Not found" ? "#E53E3E" : "#718096"
-                        }}>
-                          {tree.seenHeard || "Not recorded"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </>
-            )}
-        </div>
-      </div>
-    );
-  };
-    
-  render() 
-  {
-    const { showInsightsPanel, showReportPanel, showPercentageView} = this.state;
-    let treeData = extractTreeHeights(this.props.data);
-    let birdData = extractBirdHeights(this.props.data);
-    let noBirdsData = extractNoBirds(this.props.data);
-    let seenHeardData = extractSeenHeard(this.props.data);
-    
-    const pairedData = treeData.map((treeHeight, index) => ({
-      index: index + 1,
-      treeHeight,
-      birdHeight: birdData[index] ?? null, // Use null if birdHeight is undefined
-      noBirds: noBirdsData[index] ?? 0, // Use 0 if noBirdsData is undefined
-      seenHeard: seenHeardData[index] ?? null, // Use the corresponding value from seenHeardData
-    }));
-
-    const seenOnlyData = pairedData.filter(item => item.seenHeard === "Seen");
-
-    return (
-      <>
-      <div 
-        ref={this.chartContainer}
-        className="chart-container" 
-        style={{
-          overflowX: 'auto',
-          position: 'relative', 
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2>Tree Heights and SHB Habitation</h2>
-          <div> 
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '20px',
+            padding: '1rem',
+            background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
+            borderRadius: '8px',
+            color: 'white'
+          }}>
+            <h4 style={{
+              color: 'white',
+              fontSize: '20px',
+              fontWeight: 'bold',
+              margin: '0'
+            }}>
+              📊 Survey Analysis & Insights
+            </h4>
             <button
-              onClick={() => this.setState(prevState => ({ 
-                showReportPanel: !prevState.showReportPanel,
-                showInsightsPanel: false,
-                showLegend: false
-              }))}
+              onClick={this.toggleInsights}
               style={{
-                background: showReportPanel ? '#EDF2F7' : '#6366F1',
-                color: showReportPanel ? '#4A5568' : 'white',
-                border: 'none',
+                background: showInsights ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)',
+                color: 'white',
+                border: '1px solid rgba(255,255,255,0.3)',
                 padding: '0.5rem 1rem',
                 borderRadius: '4px',
                 cursor: 'pointer',
                 fontWeight: '500',
-                marginRight: '0.5rem'
-              }}
-            >
-              {showReportPanel ? 'Hide Report' : 'Generate Report'}
-            </button>
-            <button
-              onClick={() => {
-                const newShowInsights = !this.state.showInsightsPanel;
-                this.setState({ 
-                  showInsightsPanel: newShowInsights,
-                  showReportPanel: false,
-                  showLegend: false
-                });
-                
-                if (newShowInsights && !this.state.insights) {
-                  this.generateInsights();
-                }
-              }}
-              style={{
-                background: showInsightsPanel ? '#EDF2F7' : '#6366F1',
-                color: showInsightsPanel ? '#4A5568' : 'white',
-                border: 'none',
-                padding: '0.5rem 1rem',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: '500',
+                fontSize: '12px',
+                transition: 'all 0.3s ease',
                 display: 'flex',
                 alignItems: 'center',
-                marginTop: "0.5rem"
+                gap: '6px'
               }}
             >
-              <span role="img" aria-label="AI">🧠</span>
-              {showInsightsPanel ? 'Hide Insights' : (
-                <>
-                  AI Insights
-                </>
-              )}
+              <span role="img" aria-label="insights">📊</span>
+              {showInsights ? 'Hide Details' : 'Show Details'}
             </button>
+          </div>
+          
+          {showInsights && (
+            <>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                gap: '20px',
+                marginBottom: '20px'
+              }}>
+                <div style={{
+                  backgroundColor: 'white',
+                  padding: '18px',
+                  borderRadius: '12px',
+                  border: '1px solid #e2e8f0',
+                  textAlign: 'center',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                }}>
+                  <div style={{ fontSize: '24px', marginBottom: '8px' }}>🌳</div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#228B22' }}>
+                    {insights.totalObservations}
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#64748b' }}>Total Observations</div>
+                </div>
+
+                <div style={{
+                  backgroundColor: 'white',
+                  padding: '18px',
+                  borderRadius: '12px',
+                  border: '1px solid #e2e8f0',
+                  textAlign: 'center',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                }}>
+                  <div style={{ fontSize: '24px', marginBottom: '8px' }}>📏</div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#3b82f6' }}>
+                    {insights.avgTreeHeight.toFixed(1)}m
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#64748b' }}>Average Tree Height</div>
+                </div>
+
+                <div style={{
+                  backgroundColor: 'white',
+                  padding: '18px',
+                  borderRadius: '12px',
+                  border: '1px solid #e2e8f0',
+                  textAlign: 'center',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                }}>
+                  <div style={{ fontSize: '24px', marginBottom: '8px' }}>🐦</div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#ef4444' }}>
+                    {insights.avgBirdHeight.toFixed(1)}m
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#64748b' }}>Average Bird Height</div>
+                </div>
+
+                <div style={{
+                  backgroundColor: 'white',
+                  padding: '18px',
+                  borderRadius: '12px',
+                  border: '1px solid #e2e8f0',
+                  textAlign: 'center',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                }}>
+                  <div style={{ fontSize: '24px', marginBottom: '8px' }}>📊</div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#8b5cf6' }}>
+                    {insights.avgBirdPosition.toFixed(1)}%
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#64748b' }}>Avg. Position in Tree</div>
+                </div>
+              </div>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                gap: '20px'
+              }}>
+                <div style={{
+                  backgroundColor: 'white',
+                  padding: '20px',
+                  borderRadius: '12px',
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                }}>
+                  <h5 style={{ color: '#2D4A22', fontSize: '16px', fontWeight: 'bold', marginBottom: '15px' }}>
+                    🌲 Tree Height Distribution
+                  </h5>
+                  <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#4a5568' }}>
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong>Tallest Tree:</strong> {insights.maxTreeHeight}m
+                    </div>
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong>Shortest Tree:</strong> {insights.minTreeHeight}m
+                    </div>
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong>Height Range:</strong> {(insights.maxTreeHeight - insights.minTreeHeight).toFixed(1)}m
+                    </div>
+                    <div style={{ 
+                      padding: '10px', 
+                      backgroundColor: '#f0f9ff', 
+                      borderRadius: '8px', 
+                      borderLeft: '4px solid #3b82f6',
+                      marginTop: '12px'
+                    }}>
+                      <strong>Insight:</strong> Trees show a height variation of {((insights.maxTreeHeight - insights.minTreeHeight) / insights.avgTreeHeight * 100).toFixed(1)}% from the average.
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{
+                  backgroundColor: 'white',
+                  padding: '20px',
+                  borderRadius: '12px',
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                }}>
+                  <h5 style={{ color: '#2D4A22', fontSize: '16px', fontWeight: 'bold', marginBottom: '15px' }}>
+                    🐦 Bird Positioning Patterns
+                  </h5>
+                  <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#4a5568' }}>
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong>High Position Birds:</strong> {insights.highPositionBirds} ({((insights.highPositionBirds / insights.totalObservations) * 100).toFixed(1)}%)
+                    </div>
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong>Preferred Height:</strong> {insights.avgBirdPosition < 50 ? 'Lower canopy' : insights.avgBirdPosition < 75 ? 'Mid canopy' : 'Upper canopy'}
+                    </div>
+                    <div style={{ 
+                      padding: '10px', 
+                      backgroundColor: insights.avgBirdPosition > 60 ? '#fef3c7' : '#ecfdf5', 
+                      borderRadius: '8px', 
+                      borderLeft: `4px solid ${insights.avgBirdPosition > 60 ? '#f59e0b' : '#10b981'}`,
+                      marginTop: '12px'
+                    }}>
+                      <strong>Behavior:</strong> {insights.avgBirdPosition > 60 
+                        ? 'Straw-headed Bulbuls prefer upper canopy positions, indicating active foraging behavior.' 
+                        : 'Birds show preference for lower-mid canopy, suggesting cautious or nesting behavior.'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
-      </div>
 
-        {/* Chart is always displayed */}
-        <div className="chart-container" >
-      {/* Button should be outside SVG */}
-        <button
-          onClick={this.togglePercentageView}
-          style={{
-            background: showPercentageView ? '#EDF2F7' : '#6366F1',
-            color: showPercentageView ? '#4A5568' : 'white',
-            border: 'none',
-            padding: '0.5rem 1rem',
-            borderRadius: '4px',
-            cursor: 'pointer', 
-            fontWeight: '500',
-            marginRight: '0.5rem',
-          }}
-        >
-          {showPercentageView ? 'Normal View' : 'Percentage View'}
-        </button>
-      
-        {/* SVG element separate from button */}
-        <svg
-          ref={this.d3Container}
-          width={this.state.width}
-          height={this.state.height}
-        />
-        
-        {/* Legend container */}
-        <div
-            id="legend-container"
-            className="legend-container"
-            style={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginTop: "1rem",
-              marginBottom: "1rem",
-            }}
-          ></div>
       </div>
-
-        {/* Report is only displayed after clicking the Generate Report button */}
-        {this.state.showInsightsPanel === true && this.state.showReportPanel === false && this.renderInsightsPanel()}
-        {this.state.showInsightsPanel === false && this.state.showReportPanel === true && this.renderReport()}
-        
-        {/* Statistics are always displayed */}
-        {this.renderTreeStatistics(seenOnlyData)}
-        
-      </div>
-      </>
     );
   }
 }
