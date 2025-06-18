@@ -3,14 +3,15 @@
   "version": "1.0.0",
   "description": "Backend for WWF Survey Telegram Bot",
   "main": "server.js",
-"scripts": {
-  "start": "pm2 start server.js --no-daemon",
-  "dev": "pm2 start server.js --name dev-app --watch",
-  "stop": "pm2 stop all",
-  "list": "pm2 list",
-  "logs": "pm2 logs",
-  "restart": "pm2 restart all"
-},
+  "scripts": {
+    "start": "npx pm2 start server.js --no-daemon",
+    "dev": "npx pm2 start server.js --name dev-app --watch",
+    "stop": "npx pm2 stop all",
+    "list": "npx pm2 list",
+    "logs": "npx pm2 logs",
+    "restart": "npx pm2 restart all",
+    "start-simple": "node server.js"
+  },
   "dependencies": {
     "axios": "^1.8.4",
     "body-parser": "^1.20.2",
@@ -20,6 +21,7 @@
     "fs": "^0.0.1-security",
     "node-cron": "^3.0.3",
     "path": "^0.12.7",
+    "pm2": "^6.0.8",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
