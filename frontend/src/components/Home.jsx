@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import shbData from '../data/shbData.js';
 import fallbackData from '../data/fallbackData.js';
 import { getUniqueLocations } from '../utils/dataProcessing.jsx';
 import { standardizeCoordinates } from '../utils/coordinateStandardization';
@@ -75,12 +76,12 @@ const calculateStatistics = (data) => {
   };
 };
 
-const Home = ({ shbData, isLoading, dataSource }) => {
+const Home = () => {
   const [statistics, setStatistics] = useState({
-    totalObservations: '0',       // Will be calculated from real data
-    uniqueLocations: '0',         // Will be calculated from real data
-    totalVolunteers: '0',         // Will be calculated from real data
-    yearsActive: '0'              // Will be calculated from real data
+    totalObservations: '18',      // Actual count from fallback data
+    uniqueLocations: '13',        // Updated to show 13 locations as requested
+    totalVolunteers: '31+',       // Keep as requested (don't change)
+    yearsActive: '1'              // Updated to show 1 year as requested
   });
 
   useEffect(() => {
@@ -88,35 +89,53 @@ const Home = ({ shbData, isLoading, dataSource }) => {
       try {
         let dataToUse = null;
         
-        // Use the data passed from App component
+        // Check if we have valid array data
         if (shbData && Array.isArray(shbData) && shbData.length > 0) {
           dataToUse = standardizeCoordinates(shbData);
-          console.log('Home: Using provided shbData with', shbData.length, 'observations');
         } else {
           dataToUse = standardizeCoordinates(fallbackData);
-          console.log('Home: Using fallback data with', fallbackData.length, 'observations');
         }
         
         if (dataToUse && dataToUse.length > 0) {
           const stats = calculateStatistics(dataToUse);
-          console.log('Home: Calculated statistics:', stats);
           setStatistics(stats);
+        } else {
+          // If data is still loading, try again after a short delay
+          setTimeout(async () => {
+            try {
+              const { default: freshData } = await import('../data/shbData.js');
+              if (freshData && Array.isArray(freshData) && freshData.length > 0) {
+                const standardizedFreshData = standardizeCoordinates(freshData);
+                const stats = calculateStatistics(standardizedFreshData);
+                setStatistics(stats);
+              } else {
+                // Use fallback if fresh data also fails
+                const standardizedFallbackData = standardizeCoordinates(fallbackData);
+                const stats = calculateStatistics(standardizedFallbackData);
+                setStatistics(stats);
+              }
+            } catch (importError) {
+              // Use fallback data as last resort
+              const standardizedFallbackData = standardizeCoordinates(fallbackData);
+              const stats = calculateStatistics(standardizedFallbackData);
+              setStatistics(stats);
+            }
+          }, 2000);
         }
       } catch (error) {
-        console.error('Home: Error calculating statistics:', error);
         // Use fallback data if there's an error
         try {
           const standardizedFallbackData = standardizeCoordinates(fallbackData);
           const stats = calculateStatistics(standardizedFallbackData);
           setStatistics(stats);
         } catch (fallbackError) {
-          console.error('Home: Error with fallback data:', fallbackError);
+          // Keep default values if everything fails
         }
       }
     };
 
     loadStatistics();
-  }, [shbData]); // Re-run when shbData changes
+  }, []);
 
   return (
     <div className="home-container">
@@ -247,13 +266,14 @@ const Home = ({ shbData, isLoading, dataSource }) => {
                 alt="Feng Yun Traditional Chinese Painting - Artistic representation of nature and wildlife conservation"
                 className="feng-yun-painting"
                 onError={(e) => {
-                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgdmlld0JveD0iMCAwIDQwMCA0MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSIjRjBGREY0Ii8+CjxwYXRoIGQ9Ik0yMDAgMTAwQzI1NSAxMDAgMzAwIDE0NSAzMDAgMjAwQzMwMCAyNTUgMjU1IDMwMCAyMDAgMzAwQzE0NSAzMDAgMTAwIDI1NSAxMDAgMjAwQzEwMCAxNDUgMTQ1IDEwMCAyMDAgMTAwWiIgZmlsbD0iIzIyQzU1RSIgZmlsbC1vcGFjaXR5PSIwLjIiLz4KPHN2ZyB4PSIxNjAiIHk9IjE2MCIgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9IiMyMkM1NUUiPgo8cGF0aCBkPSJNMTIgMkw5IDEySDEzTDE1IDIyTDIxIDEwSDE4TDEyIDJaTTEyIDZMMTQuNSA5SDE2TDE0IDEzTDE2IDE4SDEyTDEwIDE4TDEyIDEzTDkuNSA5SDExTDEyIDZaIi8+Cjwvc3ZnPgo8L3N2Zz4K';
+                  e.target.src = '/Feng Yun Painting.jpg';
                 }}
               />
               <div className="painting-overlay">
                 <div className="painting-caption">
-                  <h4>Traditional Art Meets Conservation</h4>
-                  <p>Feng Yun painting celebrating the harmony between traditional Chinese artistry and modern wildlife conservation efforts</p>
+                  <h4>Art Inspiring Conservation</h4>
+                  <p>Credits: Feng Yun</p>
+                  <p>Capturing the delicate beauty of Singapore's endangered birds and inspiring deeper connection with nature through artistic expression</p>
                 </div>
               </div>
             </div>
