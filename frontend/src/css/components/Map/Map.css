@@ -1,0 +1,188 @@
+/* Map Component Styles for Exact Coordinate Precision */
+
+/* Map container to prevent cut-off and movement - Enhanced Stability */
+.map-container {
+  width: 100% !important;
+  height: 100% !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  transform: translateZ(0) !important;
+  backface-visibility: hidden !important;
+  contain: layout style paint !important; /* CSS containment for stability */
+  isolation: isolate !important;
+  will-change: auto !important;
+}
+
+/* Leaflet map improvements with absolute stability */
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  position: relative !important;
+  outline: none !important;
+  background: transparent !important;
+  transform: translateZ(0) !important;
+  contain: layout style paint !important;
+  isolation: isolate !important;
+  pointer-events: auto !important;
+}
+
+.leaflet-map-pane {
+  position: relative !important;
+  transform: translateZ(0) !important; /* Stable positioning */
+}
+
+.leaflet-control-container {
+  position: relative !important;
+  transform: translateZ(0) !important; /* Prevents movement */
+}
+
+/* Heatmap circle styles - ZERO movement policy */
+.heatmap-circle {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  transition: none !important; /* Remove ALL transitions to prevent movement */
+  will-change: auto !important;
+  transform: translateZ(0) !important;
+  contain: layout !important;
+  backface-visibility: hidden !important;
+}
+
+.heatmap-circle:hover {
+  /* NO changes on hover to prevent ANY movement */
+}
+
+/* Custom popup styles for exact coordinates */
+.leaflet-popup-content-wrapper {
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.map-popup {
+  max-width: 320px !important;
+  font-size: 13px !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+.map-popup h3 {
+  margin: 0 0 10px 0 !important;
+  color: #2563eb !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  padding-bottom: 6px !important;
+}
+
+.map-popup p {
+  margin: 6px 0 !important;
+  line-height: 1.5 !important;
+  color: #374151 !important;
+}
+
+.map-popup p strong {
+  color: #1f2937 !important;
+  font-weight: 600 !important;
+}
+
+/* Marker cluster improvements - stable hover */
+.custom-cluster-icon {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 50% !important;
+  font-weight: 600 !important;
+  color: white !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+  border: 2px solid white !important;
+  cursor: pointer !important;
+  transition: opacity 0.15s ease !important; /* Only opacity change */
+  transform: translateZ(0) !important; /* Stable positioning */
+  will-change: opacity !important;
+}
+
+.custom-cluster-icon:hover {
+  opacity: 0.9 !important; /* Subtle visual feedback without movement */
+}
+
+/* Custom pin icon improvements - stable hover */
+.custom-pin-icon {
+  cursor: pointer !important;
+  transition: opacity 0.15s ease !important; /* Only opacity change */
+  transform: translateZ(0) !important; /* Stable positioning */
+  will-change: opacity !important;
+}
+
+.custom-pin-icon:hover {
+  opacity: 0.9 !important; /* Subtle visual feedback without movement */
+}
+
+/* Statistics and controls styling */
+.map-statistics-panel {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+.map-legend {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Zoom control positioning */
+.leaflet-control-zoom {
+  position: absolute !important;
+  bottom: 20px !important;
+  right: 20px !important;
+  z-index: 1000 !important;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .map-popup {
+    max-width: 280px !important;
+    font-size: 12px !important;
+  }
+  
+  .map-popup h3 {
+    font-size: 14px !important;
+  }
+  
+  .map-statistics-panel,
+  .map-legend {
+    font-size: 12px !important;
+    padding: 8px !important;
+  }
+}
+
+/* Ensure proper tile loading */
+.leaflet-tile-container img {
+  max-width: none !important;
+  height: auto !important;
+}
+
+/* Prevent scrollbar issues */
+.leaflet-container .leaflet-control-attribution {
+  display: none !important;
+}
+
+/* Tooltip styles for heatmap */
+.leaflet-tooltip {
+  background: rgba(0, 0, 0, 0.8) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  padding: 4px 8px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.leaflet-tooltip-top:before {
+  border-top-color: rgba(0, 0, 0, 0.8) !important;
+}

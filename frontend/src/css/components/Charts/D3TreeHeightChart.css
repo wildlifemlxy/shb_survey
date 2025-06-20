@@ -1,0 +1,1438 @@
+/* D3TreeHeightChart Component Styles */
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+/* Modal Content */
+.modal-content {
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 0px;
+  max-width: 800px;
+  width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+  border: 2px solid #228b22;
+  position: relative;
+  cursor: default;
+}
+
+/* Modal Close Button */
+.modal-close-button {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid #ddd;
+  border-radius: 50%;
+  width: 35px;
+  height: 35px;
+  font-size: 18px;
+  color: #666;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+  transition: all 0.2s ease;
+}
+
+.modal-close-button:hover {
+  background: #f44336;
+  color: white;
+  border-color: #f44336;
+}
+
+/* Modal Body */
+.modal-body {
+  padding: 30px;
+  padding-top: 50px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333;
+}
+
+/* Empty State Styles */
+.empty-state {
+  padding: 20px;
+  text-align: center;
+  border: 2px solid #228b22;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #87ceeb 0%, #b8e994 50%, #228b22 100%);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  position: relative;
+  min-height: 400px;
+  overflow: hidden;
+}
+
+.empty-state-title {
+  color: #2d4a22;
+  margin-bottom: 10px;
+  font-size: 18px;
+  position: relative;
+  z-index: 10;
+  text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+}
+
+.empty-state-description {
+  color: #2d4a22;
+  font-style: italic;
+  font-size: 14px;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 10;
+  text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+}
+
+.forest-svg-background {
+  position: absolute;
+  top: 80px;
+  left: 0;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+/* View Mode Controls */
+.view-mode-controls {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.view-mode-button {
+  padding: 0.5rem 1rem;
+  border: none;
+  background: #f8f9fa;
+  color: #4a5568;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.view-mode-button:hover {
+  background: #e2e8f0;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.view-mode-button.active {
+  background: #6366f1;
+  color: white;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+/* Chart Title */
+.chart-title {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #2d4a22;
+  font-size: 28px;
+  font-weight: bold;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.chart-subtitle {
+  text-align: center;
+  margin-bottom: 30px;
+  color: #666;
+  font-size: 16px;
+  font-style: italic;
+}
+
+/* Analysis Content Styles */
+.observation-summary {
+  background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border-left: 5px solid #228b22;
+}
+
+.observation-summary h3 {
+  color: #2d4a22;
+  margin: 0 0 15px 0;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.observation-summary h3 span {
+  margin-right: 10px;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.metric-card {
+  background: rgba(255, 255, 255, 0.7);
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.metric-card strong {
+  color: #2d4a22;
+}
+
+.metric-value {
+  color: #0066cc;
+  font-weight: bold;
+}
+
+.bird-metric-value {
+  color: #ff6b35;
+  font-weight: bold;
+}
+
+/* Observation Details */
+.observation-details {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+}
+
+.observation-details h4 {
+  color: #2d4a22;
+  margin: 0 0 15px 0;
+  display: flex;
+  align-items: center;
+}
+
+.observation-details h4 span {
+  margin-right: 8px;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.details-grid div:last-child {
+  grid-column: 1 / -1;
+}
+
+/* Ecological Analysis */
+.ecological-analysis {
+  background: linear-gradient(135deg, #fff8e7 0%, #fffbf0 100%);
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border-left: 5px solid #ffa500;
+}
+
+.ecological-analysis h4 {
+  color: #b8860b;
+  margin: 0 0 15px 0;
+  display: flex;
+  align-items: center;
+}
+
+.ecological-analysis h4 span {
+  margin-right: 8px;
+}
+
+.behavior-context {
+  margin-bottom: 15px;
+}
+
+.behavior-context strong {
+  color: #b8860b;
+}
+
+.context-description {
+  margin: 8px 0;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 6px;
+}
+
+.habitat-significance strong {
+  color: #b8860b;
+}
+
+/* Conservation Insights */
+.conservation-insights {
+  background: linear-gradient(135deg, #e8f4fd 0%, #f0f8ff 100%);
+  padding: 20px;
+  border-radius: 12px;
+  border-left: 5px solid #4a90e2;
+}
+
+.conservation-insights h4 {
+  color: #2c5282;
+  margin: 0 0 15px 0;
+  display: flex;
+  align-items: center;
+}
+
+.conservation-insights h4 span {
+  margin-right: 8px;
+}
+
+.conservation-insight-item {
+  margin-bottom: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+}
+
+.conservation-insight-mature {
+  border-left: 3px solid #228b22;
+}
+
+.conservation-insight-feeding {
+  border-left: 3px solid #ffa500;
+}
+
+.conservation-insight-canopy {
+  border-left: 3px solid #4a90e2;
+}
+
+.conservation-insight-action {
+  border-left: 3px solid #dc3545;
+}
+
+/* Tooltip Styles */
+.tree-tooltip-group,
+.tree-tooltip-2d {
+  position: absolute;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  border-radius: 8px;
+  border: 2px solid #ffd700;
+  pointer-events: none;
+  opacity: 0;
+  font-size: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  z-index: 9999;
+  transition: opacity 0.2s ease;
+}
+
+.tree-tooltip-group {
+  max-width: 280px;
+}
+
+.tree-tooltip-2d {
+  max-width: 220px;
+}
+
+.tooltip-header {
+  color: #ffd700;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.tooltip-section {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.tooltip-metric {
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.tooltip-metric-value {
+  font-weight: bold;
+}
+
+.tooltip-tree-value {
+  color: #90ee90;
+}
+
+.tooltip-bird-value {
+  color: #ffb347;
+}
+
+.tooltip-position-value {
+  color: #87ceeb;
+}
+
+.tooltip-footer {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #666;
+  font-size: 11px;
+  color: #ffd700;
+  text-align: center;
+}
+
+.tooltip-click-hint {
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* Tree Tooltip Styles */
+.tree-tooltip-content {
+  line-height: 1.5;
+  max-width: 320px;
+}
+
+.tree-tooltip-header {
+  color: #ffd700;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.tree-tooltip-section {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.tree-tooltip-row {
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.tree-tooltip-row:last-child {
+  margin-bottom: 0;
+}
+
+.tree-tooltip-row.simple {
+  margin-bottom: 3px;
+  display: block;
+}
+
+.tree-height-value {
+  color: #90ee90;
+  font-weight: bold;
+}
+
+.bird-height-value {
+  color: #ffb347;
+  font-weight: bold;
+}
+
+.position-value {
+  color: #87ceeb;
+  font-weight: bold;
+}
+
+.tree-tooltip-footer {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #666;
+  font-size: 11px;
+  color: #ffd700;
+  text-align: center;
+}
+
+.tree-tooltip-click-hint {
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* SVG Chart Styles */
+.chart-svg {
+  background: transparent;
+}
+
+.x-axis text,
+.y-axis text {
+  font-size: 12px;
+  fill: #2d4a22;
+  font-weight: bold;
+}
+
+.x-axis text {
+  font-size: 10px;
+  transform: rotate(-45deg);
+  text-anchor: end;
+}
+
+.x-axis path,
+.y-axis path {
+  stroke: #2d4a22;
+  stroke-width: 2px;
+}
+
+.x-axis line,
+.y-axis line {
+  stroke: #2d4a22;
+  stroke-width: 1px;
+}
+
+.axis-label {
+  text-anchor: middle;
+  font-size: 16px;
+  font-weight: bold;
+  fill: #2d4a22;
+}
+
+/* Tree Elements */
+.tree-group {
+  cursor: pointer;
+}
+
+.tree-group:hover rect,
+.tree-group:hover circle {
+  filter: brightness(1.2) drop-shadow(3px 3px 6px rgba(255, 215, 0, 0.5));
+  stroke-width: 2px;
+}
+
+.tropical-tree-background {
+  opacity: 0.5;
+}
+
+.tropical-tree-middle {
+  opacity: 0.75;
+}
+
+.tropical-tree-foreground {
+  opacity: 1.0;
+}
+
+.tropical-tree-individual {
+  cursor: pointer;
+}
+
+.tropical-tree-individual:hover {
+  filter: drop-shadow(4px 4px 8px rgba(255, 215, 0, 0.6)) brightness(1.2);
+}
+
+/* Bird Elements */
+.bird-element {
+  pointer-events: none;
+}
+
+.bird-image {
+  filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.4));
+  clip-path: circle(45%);
+  pointer-events: none;
+}
+
+.bird-perch {
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+/* Tree Analysis Modal Content */
+.tree-analysis-content {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  color: #333;
+}
+
+/* Tree Analysis Header */
+.tree-analysis-header {
+  background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border-left: 5px solid #228b22;
+}
+
+.tree-analysis-title {
+  color: #2d4a22;
+  margin: 0 0 15px 0;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.tree-analysis-title .emoji {
+  margin-right: 10px;
+}
+
+/* Tree Metrics Grid */
+.tree-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.tree-metrics-card {
+  background: rgba(255, 255, 255, 0.7);
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.tree-metrics-label {
+  color: #2d4a22;
+  font-weight: bold;
+}
+
+.tree-metric-value {
+  color: #0066cc;
+  font-weight: bold;
+}
+
+.bird-metric-value {
+  color: #ff6b35;
+  font-weight: bold;
+}
+
+/* Observation Details Section */
+.observation-details {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+}
+
+.observation-details-title {
+  color: #2d4a22;
+  margin: 0 0 15px 0;
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+}
+
+.observation-details-title .emoji {
+  margin-right: 8px;
+}
+
+.observation-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.observation-details-full-width {
+  grid-column: 1 / -1;
+}
+
+/* Ecological Analysis Section */
+.ecological-analysis {
+  background: linear-gradient(135deg, #fff8e7 0%, #fffbf0 100%);
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border-left: 5px solid #ffa500;
+}
+
+.ecological-analysis-title {
+  color: #b8860b;
+  margin: 0 0 15px 0;
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+}
+
+.ecological-analysis-title .emoji {
+  margin-right: 8px;
+}
+
+.ecological-analysis-section {
+  margin-bottom: 15px;
+}
+
+.ecological-analysis-label {
+  color: #b8860b;
+  font-weight: bold;
+}
+
+.ecological-analysis-content {
+  margin: 8px 0;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 6px;
+}
+
+/* Conservation Insights Section */
+.conservation-insights {
+  background: linear-gradient(135deg, #e8f4fd 0%, #f0f8ff 100%);
+  padding: 20px;
+  border-radius: 12px;
+  border-left: 5px solid #4a90e2;
+}
+
+.conservation-insights-title {
+  color: #2c5282;
+  margin: 0 0 15px 0;
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+}
+
+.conservation-insights-title .emoji {
+  margin-right: 8px;
+}
+
+.conservation-insight-item {
+  margin-bottom: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  border-left: 3px solid #228b22;
+}
+
+.conservation-insight-item.feeding {
+  border-left-color: #ffa500;
+}
+
+.conservation-insight-item.habitat {
+  border-left-color: #4a90e2;
+}
+
+.conservation-insight-item.protection {
+  border-left-color: #dc143c;
+}
+
+.conservation-insight-label {
+  font-weight: bold;
+}
+
+/* Tooltip Styles */
+.tree-tooltip-group,
+.tree-tooltip-2d {
+  position: absolute;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  border-radius: 8px;
+  border: 2px solid #ffd700;
+  pointer-events: none;
+  opacity: 0;
+  font-size: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  z-index: 9999;
+  transition: opacity 0.2s ease;
+}
+
+.tree-tooltip-group {
+  max-width: 280px;
+}
+
+.tree-tooltip-2d {
+  max-width: 220px;
+}
+
+.tooltip-header {
+  color: #ffd700;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.tooltip-section {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.tooltip-metric {
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.tooltip-metric-value {
+  font-weight: bold;
+}
+
+.tooltip-tree-value {
+  color: #90ee90;
+}
+
+.tooltip-bird-value {
+  color: #ffb347;
+}
+
+.tooltip-position-value {
+  color: #87ceeb;
+}
+
+.tooltip-footer {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #666;
+  font-size: 11px;
+  color: #ffd700;
+  text-align: center;
+}
+
+.tooltip-click-hint {
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* Tree Tooltip Styles */
+.tree-tooltip-content {
+  line-height: 1.5;
+  max-width: 320px;
+}
+
+.tree-tooltip-header {
+  color: #ffd700;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.tree-tooltip-section {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.tree-tooltip-row {
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.tree-tooltip-row:last-child {
+  margin-bottom: 0;
+}
+
+.tree-tooltip-row.simple {
+  margin-bottom: 3px;
+  display: block;
+}
+
+.tree-height-value {
+  color: #90ee90;
+  font-weight: bold;
+}
+
+.bird-height-value {
+  color: #ffb347;
+  font-weight: bold;
+}
+
+.position-value {
+  color: #87ceeb;
+  font-weight: bold;
+}
+
+.tree-tooltip-footer {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #666;
+  font-size: 11px;
+  color: #ffd700;
+  text-align: center;
+}
+
+.tree-tooltip-click-hint {
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* SVG Chart Styles */
+.chart-svg {
+  background: transparent;
+}
+
+.x-axis text,
+.y-axis text {
+  font-size: 12px;
+  fill: #2d4a22;
+  font-weight: bold;
+}
+
+.x-axis text {
+  font-size: 10px;
+  transform: rotate(-45deg);
+  text-anchor: end;
+}
+
+.x-axis path,
+.y-axis path {
+  stroke: #2d4a22;
+  stroke-width: 2px;
+}
+
+.x-axis line,
+.y-axis line {
+  stroke: #2d4a22;
+  stroke-width: 1px;
+}
+
+.axis-label {
+  text-anchor: middle;
+  font-size: 16px;
+  font-weight: bold;
+  fill: #2d4a22;
+}
+
+/* Tree Elements */
+.tree-group {
+  cursor: pointer;
+}
+
+.tree-group:hover rect,
+.tree-group:hover circle {
+  filter: brightness(1.2) drop-shadow(3px 3px 6px rgba(255, 215, 0, 0.5));
+  stroke-width: 2px;
+}
+
+.tropical-tree-background {
+  opacity: 0.5;
+}
+
+.tropical-tree-middle {
+  opacity: 0.75;
+}
+
+.tropical-tree-foreground {
+  opacity: 1.0;
+}
+
+.tropical-tree-individual {
+  cursor: pointer;
+}
+
+.tropical-tree-individual:hover {
+  filter: drop-shadow(4px 4px 8px rgba(255, 215, 0, 0.6)) brightness(1.2);
+}
+
+/* Bird Elements */
+.bird-element {
+  pointer-events: none;
+}
+
+.bird-image {
+  filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.4));
+  clip-path: circle(45%);
+  pointer-events: none;
+}
+
+.bird-perch {
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+/* Tree Analysis Modal Content */
+.tree-analysis-content {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  color: #333;
+}
+
+/* Tree Analysis Header */
+.tree-analysis-header {
+  background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border-left: 5px solid #228b22;
+}
+
+.tree-analysis-title {
+  color: #2d4a22;
+  margin: 0 0 15px 0;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.tree-analysis-title .emoji {
+  margin-right: 10px;
+}
+
+/* Tree Metrics Grid */
+.tree-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.tree-metrics-card {
+  background: rgba(255, 255, 255, 0.7);
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.tree-metrics-label {
+  color: #2d4a22;
+  font-weight: bold;
+}
+
+.tree-metric-value {
+  color: #0066cc;
+  font-weight: bold;
+}
+
+.bird-metric-value {
+  color: #ff6b35;
+  font-weight: bold;
+}
+
+/* Observation Details Section */
+.observation-details {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+}
+
+.observation-details-title {
+  color: #2d4a22;
+  margin: 0 0 15px 0;
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+}
+
+.observation-details-title .emoji {
+  margin-right: 8px;
+}
+
+.observation-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.observation-details-full-width {
+  grid-column: 1 / -1;
+}
+
+/* Ecological Analysis Section */
+.ecological-analysis {
+  background: linear-gradient(135deg, #fff8e7 0%, #fffbf0 100%);
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border-left: 5px solid #ffa500;
+}
+
+.ecological-analysis-title {
+  color: #b8860b;
+  margin: 0 0 15px 0;
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+}
+
+.ecological-analysis-title .emoji {
+  margin-right: 8px;
+}
+
+.ecological-analysis-section {
+  margin-bottom: 15px;
+}
+
+.ecological-analysis-label {
+  color: #b8860b;
+  font-weight: bold;
+}
+
+.ecological-analysis-content {
+  margin: 8px 0;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 6px;
+}
+
+/* Conservation Insights Section */
+.conservation-insights {
+  background: linear-gradient(135deg, #e8f4fd 0%, #f0f8ff 100%);
+  padding: 20px;
+  border-radius: 12px;
+  border-left: 5px solid #4a90e2;
+}
+
+.conservation-insights-title {
+  color: #2c5282;
+  margin: 0 0 15px 0;
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+}
+
+.conservation-insights-title .emoji {
+  margin-right: 8px;
+}
+
+.conservation-insight-item {
+  margin-bottom: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  border-left: 3px solid #228b22;
+}
+
+.conservation-insight-item.feeding {
+  border-left-color: #ffa500;
+}
+
+.conservation-insight-item.habitat {
+  border-left-color: #4a90e2;
+}
+
+.conservation-insight-item.protection {
+  border-left-color: #dc143c;
+}
+
+.conservation-insight-label {
+  font-weight: bold;
+}
+
+/* Tooltip Styles */
+.tree-tooltip-group,
+.tree-tooltip-2d {
+  position: absolute;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  border-radius: 8px;
+  border: 2px solid #ffd700;
+  pointer-events: none;
+  opacity: 0;
+  font-size: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  z-index: 9999;
+  transition: opacity 0.2s ease;
+}
+
+.tree-tooltip-group {
+  max-width: 280px;
+}
+
+.tree-tooltip-2d {
+  max-width: 220px;
+}
+
+.tooltip-header {
+  color: #ffd700;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.tooltip-section {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.tooltip-metric {
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.tooltip-metric-value {
+  font-weight: bold;
+}
+
+.tooltip-tree-value {
+  color: #90ee90;
+}
+
+.tooltip-bird-value {
+  color: #ffb347;
+}
+
+.tooltip-position-value {
+  color: #87ceeb;
+}
+
+.tooltip-footer {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #666;
+  font-size: 11px;
+  color: #ffd700;
+  text-align: center;
+}
+
+.tooltip-click-hint {
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* Tree Tooltip Styles */
+.tree-tooltip-content {
+  line-height: 1.5;
+  max-width: 320px;
+}
+
+.tree-tooltip-header {
+  color: #ffd700;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.tree-tooltip-section {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.tree-tooltip-row {
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.tree-tooltip-row:last-child {
+  margin-bottom: 0;
+}
+
+.tree-tooltip-row.simple {
+  margin-bottom: 3px;
+  display: block;
+}
+
+.tree-height-value {
+  color: #90ee90;
+  font-weight: bold;
+}
+
+.bird-height-value {
+  color: #ffb347;
+  font-weight: bold;
+}
+
+.position-value {
+  color: #87ceeb;
+  font-weight: bold;
+}
+
+.tree-tooltip-footer {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #666;
+  font-size: 11px;
+  color: #ffd700;
+  text-align: center;
+}
+
+.tree-tooltip-click-hint {
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* SVG Chart Styles */
+.chart-svg {
+  background: transparent;
+}
+
+.x-axis text,
+.y-axis text {
+  font-size: 12px;
+  fill: #2d4a22;
+  font-weight: bold;
+}
+
+.x-axis text {
+  font-size: 10px;
+  transform: rotate(-45deg);
+  text-anchor: end;
+}
+
+.x-axis path,
+.y-axis path {
+  stroke: #2d4a22;
+  stroke-width: 2px;
+}
+
+.x-axis line,
+.y-axis line {
+  stroke: #2d4a22;
+  stroke-width: 1px;
+}
+
+.axis-label {
+  text-anchor: middle;
+  font-size: 16px;
+  font-weight: bold;
+  fill: #2d4a22;
+}
+
+/* Tree Elements */
+.tree-group {
+  cursor: pointer;
+}
+
+.tree-group:hover rect,
+.tree-group:hover circle {
+  filter: brightness(1.2) drop-shadow(3px 3px 6px rgba(255, 215, 0, 0.5));
+  stroke-width: 2px;
+}
+
+.tropical-tree-background {
+  opacity: 0.5;
+}
+
+.tropical-tree-middle {
+  opacity: 0.75;
+}
+
+.tropical-tree-foreground {
+  opacity: 1.0;
+}
+
+.tropical-tree-individual {
+  cursor: pointer;
+}
+
+.tropical-tree-individual:hover {
+  filter: drop-shadow(4px 4px 8px rgba(255, 215, 0, 0.6)) brightness(1.2);
+}
+
+/* Bird Elements */
+.bird-element {
+  pointer-events: none;
+}
+
+.bird-image {
+  filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.4));
+  clip-path: circle(45%);
+  pointer-events: none;
+}
+
+.bird-perch {
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+/* Analysis Toggle Buttons */
+.analysis-toggle-section {
+  margin: 15px 0;
+  text-align: center;
+}
+
+.analysis-toggle-button {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.analysis-toggle-button:hover {
+  background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.analysis-toggle-button .emoji {
+  margin-right: 8px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 98%;
+    max-height: 95vh;
+    margin: 10px;
+  }
+
+  .modal-body {
+    padding: 20px;
+    padding-top: 40px;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .view-mode-controls {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .view-mode-button {
+    width: 100%;
+    max-width: 200px;
+  }
+
+  .chart-title {
+    font-size: 22px;
+  }
+
+  .chart-subtitle {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-content {
+    width: 95%;
+    border-radius: 12px;
+  }
+
+  .modal-body {
+    padding: 15px;
+    padding-top: 35px;
+  }
+
+  .observation-summary,
+  .observation-details,
+  .ecological-analysis,
+  .conservation-insights {
+    padding: 15px;
+  }
+
+  .chart-title {
+    font-size: 18px;
+  }
+
+  .tree-tooltip-group,
+  .tree-tooltip-2d {
+    max-width: 250px;
+    font-size: 11px;
+  }
+}
+
+/* Display Value Styling */
+.display-value {
+  color: #ffd700;
+  font-weight: bold;
+}

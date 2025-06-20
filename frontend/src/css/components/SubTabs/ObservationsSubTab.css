@@ -1,0 +1,143 @@
+/* ObservationsSubTab.css */
+.observations-subtab {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2.5rem 2rem;
+  background: linear-gradient(120deg, #f8fafc 60%, #f0fdf4 100%);
+  border-radius: 2rem;
+  box-shadow: 0 8px 32px 0 rgba(34,197,94,0.10), 0 1.5px 6px 0 rgba(0,0,0,0.04);
+  position: relative;
+  z-index: 1;
+  overflow: visible;
+  transition: box-shadow 0.2s, background 0.2s;
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+  gap: 2.5rem;
+  align-items: stretch;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.chart-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #15803d;
+  margin-bottom: 1rem;
+  text-align: center;
+  letter-spacing: -0.02em;
+  word-break: break-word;
+  flex-shrink: 0;
+}
+
+/* Chart content wrapper */
+.chart-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 400px;
+  width: 100%;
+  overflow: visible;
+}
+
+.chart-description {
+  color: #64748b;
+  font-size: 1.05rem;
+  margin-bottom: 20px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.date-chart-wrapper {
+  width: 100%;
+  height: 400px;
+  position: relative;
+  overflow-x: auto;
+}
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: #6b7280;
+  font-size: 1.1rem;
+}
+
+.error-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: #dc2626;
+  font-size: 1.1rem;
+  text-align: center;
+  flex-direction: column;
+}
+
+.error-state .error-icon {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+.section-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  color: #15803d;
+  letter-spacing: -0.02em;
+}
+
+.section-description {
+  color: #64748b;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+@media (max-width: 1024px) {
+  .observations-subtab {
+    padding: 2rem 1rem;
+  }
+  .charts-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  .chart-content {
+    min-height: 350px;
+  }
+}
+
+@media (max-width: 768px) {
+  .observations-subtab {
+    padding: 1.5rem 1rem;
+    border-radius: 1.5rem;
+  }
+  .charts-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  .chart-content {
+    min-height: 300px;
+  }
+  .date-chart-wrapper {
+    height: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .observations-subtab {
+    padding: 1rem 0.75rem;
+    border-radius: 1rem;
+  }
+  .chart-content {
+    min-height: 250px;
+  }
+  .date-chart-wrapper {
+    height: 250px;
+  }
+}

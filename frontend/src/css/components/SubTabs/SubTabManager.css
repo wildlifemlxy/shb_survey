@@ -1,0 +1,293 @@
+/* SubTabManager.css */
+.subtab-manager {
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: visible;
+  box-sizing: border-box;
+}
+
+.subtab-manager-header {
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.subtab-manager-title {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 8px;
+}
+
+.subtab-manager-description {
+  color: #6b7280;
+  font-size: 1rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Tabs container */
+.subtabs-container {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  position: relative;
+  z-index: 1;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(34, 197, 94, 0.3) rgba(0, 0, 0, 0.1);
+}
+
+.subtabs-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.subtabs-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.subtabs-container::-webkit-scrollbar-thumb {
+  background: rgba(34, 197, 94, 0.3);
+  border-radius: 3px;
+}
+
+.subtabs-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 197, 94, 0.5);
+}
+
+/* Tab buttons */
+.subtab-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 12px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #374151;
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+  min-height: 44px;
+  flex-shrink: 0;
+  min-width: fit-content;
+}
+
+.subtab-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.1));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+}
+
+.subtab-button:hover:not(.active)::before {
+  opacity: 1;
+}
+
+.subtab-button:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(34, 197, 94, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.subtab-button.active {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+  transform: translateY(-1px);
+}
+
+.subtab-button.active::before {
+  display: none;
+}
+
+.subtab-button.active:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(34, 197, 94, 0.4);
+}
+
+.subtab-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.subtab-icon svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.subtab-label {
+  font-weight: inherit;
+  line-height: 1.2;
+}
+
+/* Content area */
+.subtab-content-area {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-height: calc(100vh - 250px);
+  overflow-x: hidden;
+  overflow-y: visible;
+  box-sizing: border-box;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+/* Loading and error states */
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: #6b7280;
+  font-size: 1.1rem;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.loading-state .loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e5e7eb;
+  border-top: 4px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: #dc2626;
+  font-size: 1.1rem;
+  text-align: center;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  margin: 20px 0;
+}
+
+.error-state .error-icon {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+/* Animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .subtab-content-area {
+    min-height: calc(100vh - 220px);
+  }
+}
+
+@media (max-width: 768px) {
+  .subtab-content-area {
+    min-height: calc(100vh - 200px);
+  }
+}
+
+@media (max-width: 640px) {
+  .subtab-content-area {
+    min-height: calc(100vh - 180px);
+    padding-bottom: 120px; /* Extra padding for mobile navigation */
+  }
+}
+
+@media (max-width: 768px) {
+  .subtab-button {
+    justify-content: center;
+    text-align: center;
+    padding: 0.8rem 1.2rem;
+    font-size: 0.85rem;
+    gap: 0.4rem;
+  }
+  
+  .subtab-manager-title {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .subtabs-container {
+    gap: 0.75rem;
+    padding: 0 0.5rem;
+  }
+  
+  .subtab-button {
+    padding: 0.7rem 1rem;
+    font-size: 0.8rem;
+    gap: 0.3rem;
+  }
+  
+  .subtab-manager-title {
+    font-size: 1.3rem;
+  }
+  
+  .subtab-manager-description {
+    font-size: 0.9rem;
+  }
+}
+
+/* Focus states for accessibility */
+.subtab-button:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.subtab-button:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .subtab-button {
+    border-width: 2px;
+  }
+  
+  .subtab-button.active {
+    background: #000;
+    color: #fff;
+    border-color: #000;
+  }
+}

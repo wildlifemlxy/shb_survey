@@ -1,0 +1,285 @@
+/* GenericSubTab.css */
+.generic-subtab {
+  width: 100%;
+  max-width: 1400px;
+  min-height: calc(100vh - 300px);
+  margin: 0 auto;
+  padding: 2.5rem 2rem;
+  background: linear-gradient(120deg, #f8fafc 60%, #f0fdf4 100%);
+  border-radius: 2rem;
+  box-shadow: 0 8px 32px 0 rgba(34,197,94,0.10), 0 1.5px 6px 0 rgba(0,0,0,0.04);
+  position: relative;
+  z-index: 1;
+  overflow-x: hidden;
+  overflow-y: visible;
+  transition: box-shadow 0.2s, background 0.2s;
+  box-sizing: border-box;
+}
+
+.subtab-header {
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.subtab-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 6px;
+}
+
+.subtab-description {
+  color: #6b7280;
+  font-size: 1rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Layout options */
+.subtab-content.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+  gap: 2.5rem;
+  align-items: stretch;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.subtab-content.flex {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.subtab-content.columns {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2.5rem;
+}
+
+.subtab-content.single {
+  display: block;
+  width: 100%;
+}
+
+/* Chart containers */
+.chart-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #15803d;
+  margin-bottom: 1rem;
+  text-align: center;
+  letter-spacing: -0.02em;
+  word-break: break-word;
+  flex-shrink: 0;
+}
+
+.chart-description {
+  color: #64748b;
+  font-size: 1.05rem;
+  margin-bottom: 1rem;
+  text-align: center;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+
+.chart-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 400px;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* Chart ResponsiveContainer styling */
+.chart-wrapper .recharts-responsive-container {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 400px !important;
+  max-width: 100% !important;
+}
+
+/* Ensure charts fill their containers properly */
+.chart-wrapper > div {
+  flex: 1;
+  min-height: 400px;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Specifically target the date-line-chart within chart-wrapper */
+.chart-wrapper .date-line-chart {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  height: fit-content !important;
+}
+
+/* Loading and error states */
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: #6b7280;
+  font-size: 1.1rem;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.loading-state .loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e5e7eb;
+  border-top: 4px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: #dc2626;
+  font-size: 1.1rem;
+  text-align: center;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.error-state .error-icon {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .subtab-content.grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .subtab-content.columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Responsive styles */
+@media (max-width: 1024px) {
+  .generic-subtab {
+    padding: 2rem 1rem;
+    min-height: calc(100vh - 220px);
+  }
+  .subtab-content.grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  .chart-wrapper {
+    min-height: 350px;
+  }
+}
+
+@media (max-width: 768px) {
+  .generic-subtab {
+    padding: 1.5rem 1rem;
+    border-radius: 1.5rem;
+    min-height: calc(100vh - 200px);
+  }
+  .subtab-content.grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  .chart-wrapper {
+    min-height: 300px;
+  }
+  .subtab-title {
+    font-size: 1.5rem;
+  }
+  .chart-title {
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .generic-subtab {
+    padding: 1rem 0.75rem;
+    border-radius: 1rem;
+    min-height: calc(100vh - 180px);
+  }
+  .chart-wrapper {
+    min-height: 250px;
+  }
+  .chart-title {
+    font-size: 1rem;
+  }
+}
+
+/* Chart ResponsiveContainer styling */
+.chart-wrapper .recharts-responsive-container {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 400px !important;
+}
+
+/* Ensure charts fill their containers properly */
+.chart-wrapper > div {
+  flex: 1;
+  min-height: 400px;
+}
+
+/* Responsive ResponsiveContainer adjustments */
+@media (max-width: 1024px) {
+  .chart-wrapper .recharts-responsive-container {
+    min-height: 350px !important;
+  }
+  .chart-wrapper > div {
+    min-height: 350px;
+  }
+}
+
+@media (max-width: 768px) {
+  .chart-wrapper .recharts-responsive-container {
+    min-height: 300px !important;
+  }
+  .chart-wrapper > div {
+    min-height: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .chart-wrapper .recharts-responsive-container {
+    min-height: 250px !important;
+  }
+  .chart-wrapper > div {
+    min-height: 250px;
+  }
+}
+
+/* Animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.generic-subtab {
+  animation: fadeInUp 0.3s ease-out;
+}

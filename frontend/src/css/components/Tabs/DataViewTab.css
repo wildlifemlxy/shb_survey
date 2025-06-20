@@ -1,0 +1,59 @@
+/* Data View Tab Styles */
+.data-view-tab {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+/* Table Container Specific Styles */
+.data-view-tab .table-container {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all var(--transition-medium);
+  position: relative;
+  overflow: hidden;
+  margin-top: 1rem;
+}
+
+.data-view-tab .table-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(135deg, var(--primary-green), var(--forest-green));
+}
+
+.data-view-tab .table-container:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+}
+
+/* Animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .data-view-tab .table-container {
+    padding: 1.5rem;
+    margin-top: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .data-view-tab .table-container {
+    padding: 1rem;
+  }
+}

@@ -44,8 +44,17 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    host: true, // Enable access from network
+    open: true, // Auto-open browser
+    hmr: {
+      overlay: true // Show HMR overlay on errors
+    },
+    watch: {
+      usePolling: true, // Enable polling for file changes
+      interval: 100 // Check for changes every 100ms
+    }
   },
-  mode: 'production',
+  mode: 'development', // Change to development mode for auto-refresh
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 3000,
