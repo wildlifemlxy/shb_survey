@@ -23,12 +23,14 @@ jobs:
         with:
           node-version: '22.x'
 
-      - name: npm install, build, and test
+      - name: npm install pm2 globally, install deps, and test start
         working-directory: backend/node
         run: |
+          npm install -g pm2
           npm install
           npm run build --if-present
           npm run test --if-present
+          npm start
 
 
       - name: Zip artifact for deployment
@@ -73,4 +75,3 @@ jobs:
           app-name: 'shb-backend'
           slot-name: 'Production'
           package: .
-          
