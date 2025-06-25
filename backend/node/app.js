@@ -9,26 +9,27 @@ var app = express(); // Initialize the Express app
 
 var surveyRoutes = require('./routes/surveyRoutes'); // Import MongoDB survey routes
 
-app.use(cors()); // Enable CORS
+// Set up CORS for both local dev and Azure Static Web App
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://ashy-glacier-0df38a400.6.azurestaticapps.net'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Content-Disposition'],
+  exposedHeaders: ['Content-Disposition'],
+  credentials: true
+}));
+
 app.use(logger('dev')); // HTTP request logger
 app.use(express.json()); // For parsing JSON
 app.use(express.urlencoded({ extended: true })); // For parsing URL-encoded data
 app.use(cookieParser()); // For parsing cookies
 
-// Set up views (if you're using templates)okok
+// Set up views (if you're using templates)
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug'); // You can change to 'ejs' or others if needed
 
-app.use(logger('dev'));
-app.use(cors({
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Add any other methods you want to support
-  allowedHeaders: ['Content-Type', 'Authorization', 'Content-Disposition'], 
-  exposedHeaders: ['Content-Disposition'], // Add this line to expose the header
-}));
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/surveys', surveyRoutes); // Register MongoDB survey routes under /api
