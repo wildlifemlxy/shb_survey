@@ -1,7 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Deploy Node + Express App - For Strawheaded Bulbul Survey (Backend)
+name: Build and deploy Node.js app to Azure Web App - shb-backend
 
 on:
   push:
@@ -30,8 +30,8 @@ jobs:
           npm run build --if-present
           npm run test --if-present
 
-
       - name: Zip artifact for deployment
+        working-directory: backend/node
         run: zip release.zip ./* -r
 
       - name: Upload artifact for deployment job
@@ -43,9 +43,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build
-    environment:
-      name: 'Production'
-      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     permissions:
       id-token: write #This is required for requesting the JWT
       contents: read #This is required for actions/checkout
