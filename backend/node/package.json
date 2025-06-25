@@ -4,6 +4,7 @@
   "main": "app.js",
   "scripts": {
     "start": "pm2-runtime start ./bin/www",
+    "stop": "pm2 delete all || true",
     "dev": "nodemon ./bin/www",
     "start-simple": "node ./bin/www"
   },

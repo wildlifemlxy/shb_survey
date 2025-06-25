@@ -9,6 +9,7 @@ router.post('/', async function(req, res, next)
         try {
             var controller = new SurveyController();
             var result = await controller.getAllSurveys();
+            console.log('Surveys retrieved successfully:', result);
             return res.json({"result": result}); 
         } catch (error) {
             console.error('Error retrieving surveys:', error);

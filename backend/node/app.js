@@ -12,7 +12,7 @@ var surveyRoutes = require('./routes/surveyRoutes'); // Import MongoDB survey ro
 // Set up CORS for both local dev and Azure Static Web App
 app.use(cors({
   origin: [
-    'http://localhost:5173',
+    'http://localhost:3000',
     'https://ashy-glacier-0df38a400.6.azurestaticapps.net'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
