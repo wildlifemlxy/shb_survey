@@ -32,13 +32,13 @@ jobs:
 
       - name: Zip artifact for deployment
         working-directory: backend/node
-        run: zip -r ../../release.zip ./*
+        run: zip -r release.zip ./*
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: ../../release.zip
+          path: backend/node/release.zip
 
   deploy:
     runs-on: ubuntu-latest
