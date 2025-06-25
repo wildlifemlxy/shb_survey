@@ -27,7 +27,6 @@ jobs:
         working-directory: backend/node
         run: |
           npm install
-          npm install pm2 -g
           npm run build --if-present
           npm run test --if-present
 
