@@ -31,8 +31,8 @@ jobs:
                const coredemo = require('@actions/core')
                return await coredemo.getIDToken()
            result-encoding: string
-      - name: Install dependencies (with legacy-peer-deps)
-        run: npm install --legacy-peer-deps
+      - name: Install dependencies
+        run: npm install
         working-directory: ./frontend
       - name: Build app
         run: npm run build
