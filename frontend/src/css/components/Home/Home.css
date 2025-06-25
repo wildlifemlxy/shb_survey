@@ -208,13 +208,6 @@
   box-shadow: var(--shadow-md);
 }
 
-/* Info Section */
-.info-section {
-  padding: 6rem 2rem;
-  background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
-  position: relative;
-}
-
 .info-container {
   max-width: 1000px;
   margin: 0 auto;
@@ -455,10 +448,8 @@
   }
   
   .info-section {
-    background-color: #f8f9fa;
     padding: 2rem;
     border-radius: 8px;
-    margin-top: 2rem;
   }
   
   .info-content h3 {

@@ -1,0 +1,90 @@
+/* Report Panel Styles for renderReport() */
+.report-container {
+   padding: 1.5rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  max-height: 540px;
+  overflow-y: auto;
+  margin-top: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.report-header {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+.report-timestamp {
+  font-size: 0.95rem;
+  color: #888;
+  margin-bottom: 1.5rem;
+}
+.report-section-title, .monthly-breakdown-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.5rem 0;
+  color: #444;
+}
+.report-summary-grid {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+}
+.report-stat-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+}
+.report-stat-value.total { color: #6366F1; }
+.report-stat-value.seen { color: #43A047; }
+.report-stat-value.heard { color: #7E57C2; }
+.report-stat-value.not-found { color: #E53935; }
+.report-stat-label {
+  font-size: 0.95rem;
+  color: #666;
+}
+.monthly-table-container {
+  overflow-x: auto;
+  margin-top: 1rem;
+}
+.monthly-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fafbfc;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.monthly-table-header th {
+  background: #f3f4f6;
+  color: #333;
+  font-weight: 600;
+  padding: 0.7rem 0.5rem;
+  border-bottom: 2px solid #e0e0e0;
+  text-align: left;
+}
+.monthly-table-cell {
+  padding: 0.6rem 0.5rem;
+  font-size: 1rem;
+}
+.monthly-table-cell.right {
+  text-align: right;
+}
+.monthly-table-cell.bold {
+  font-weight: 600;
+}
+.monthly-table-row {
+  transition: background 0.2s;
+}
+.monthly-table-row:nth-child(even) {
+  background: #f7f8fa;
+}
+.monthly-table-row.anomaly {
+  background: #fff3f0;
+}
+.anomaly-indicator {
+  margin-left: 0.4em;
+  color: #E53935;
+  font-size: 1.1em;
+  vertical-align: middle;
+}

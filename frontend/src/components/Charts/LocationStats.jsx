@@ -250,10 +250,10 @@ class LocationStats extends Component {
         
         {/* Location Breakdown */}
         <h5 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>Location Breakdown</h5>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+        <div className="location-table-container" style={{ maxHeight: '260px', overflowY: 'auto', overflowX: 'auto', marginBottom: '1rem' }}>
+          <table className="location-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
             <thead>
-              <tr style={{ backgroundColor: '#f7fafc', borderBottom: '2px solid #e2e8f0' }}>
+              <tr className="location-table-header" style={{ backgroundColor: '#f7fafc', borderBottom: '2px solid #e2e8f0' }}>
                 <th style={{ padding: '0.75rem', textAlign: 'left' }}>Location</th>
                 <th style={{ padding: '0.75rem', textAlign: 'right' }}>Total</th>
                 <th style={{ padding: '0.75rem', textAlign: 'right' }}>Seen</th>
@@ -266,7 +266,7 @@ class LocationStats extends Component {
               {locationData.map((entry, idx) => {
                 const percentage = ((entry.Total / totalEntry.Total) * 100).toFixed(1);
                 return (
-                  <tr key={idx} style={{ 
+                  <tr key={idx} className={idx % 2 === 0 ? '' : 'alt'} style={{ 
                     borderBottom: '1px solid #e2e8f0',
                     backgroundColor: idx % 2 === 0 ? 'white' : '#f7fafc'
                   }}>

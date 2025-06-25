@@ -7,7 +7,9 @@ class OverviewTab extends Component {
     super(props);
     this.state = {
       expandedCards: {},
-      showAllStats: false
+      showAllStats: false,
+      showDataQualityPercent: false, // Toggle for Data Quality view
+      activityTab: 'behavior' // Track which tab is active for Activity Types
     };
   }
 
@@ -26,36 +28,75 @@ class OverviewTab extends Component {
     }));
   };
 
+  toggleDataQualityPercent = () => {
+    this.setState(prevState => ({
+      showDataQualityPercent: !prevState.showDataQualityPercent
+    }));
+  };
+
   render() {
     const { data, filteredData } = this.props;
-    const { expandedCards, showAllStats } = this.state;
+    const { expandedCards, showAllStats, showDataQualityPercent } = this.state;
+
+    // If data is not loaded or empty, render blank
+    if (!filteredData || !Array.isArray(filteredData) || filteredData.length === 0) {
+      return <div className="overview-tab" />;
+    }
+
+    // Defensive: filter out any rows where SHB individual ID is missing or invalid
+    const safeFilteredData = filteredData.filter(obs => {
+      const id = obs["SHB individual ID"];
+      return id !== undefined && id !== null && id !== '';
+    });
 
     // Calculate comprehensive statistics
-    const totalBirds = filteredData.reduce((sum, obs) => {
-      const count = parseInt(obs["Number of Birds"], 10);
-      return sum + (isNaN(count) ? 0 : count);
+    const totalBirds = safeFilteredData.reduce((sum, obs) => {
+      if (
+        obs["Seen/Heard"] &&
+        (obs["Seen/Heard"] === "Seen" || obs["Seen/Heard"] === "Heard")
+      ) {
+        let count = obs["Number of Birds"];
+        if (typeof count === 'string') count = count.trim();
+        const parsed = parseInt(count, 10);
+        if (!isNaN(parsed) && isFinite(parsed) && parsed > 0 && parsed < 1000) {
+          return sum + parsed;
+        }
+      }
+      return sum;
     }, 0);
 
-    const totalSeenBirds = filteredData.reduce((sum, obs) => {
+    const totalSeenBirds = safeFilteredData.reduce((sum, obs) => {
       if (obs["Seen/Heard"] === "Seen") {
-        const count = parseInt(obs["Number of Birds"], 10);
-        return sum + (isNaN(count) ? 0 : count);
+        let count = obs["Number of Birds"];
+        if (typeof count === 'string') count = count.trim();
+        const parsed = parseInt(count, 10);
+        if (!isNaN(parsed) && isFinite(parsed) && parsed > 0 && parsed < 1000) {
+          return sum + parsed;
+        }
       }
       return sum;
     }, 0);
 
-    const totalHeardBirds = filteredData.reduce((sum, obs) => {
+    const totalHeardBirds = safeFilteredData.reduce((sum, obs) => {
       if (obs["Seen/Heard"] === "Heard") {
-        const count = parseInt(obs["Number of Birds"], 10);
-        return sum + (isNaN(count) ? 0 : count);
+        let count = obs["Number of Birds"];
+        if (typeof count === 'string' ) count = count.trim();
+        const parsed = parseInt(count, 10);
+        if (!isNaN(parsed) && isFinite(parsed) && parsed > 0 && parsed < 1000) {
+          return sum + parsed;
+        }
       }
       return sum;
     }, 0);
 
-    const totalNotFoundBirds = filteredData.reduce((sum, obs) => {
+    const totalNotFoundBirds = safeFilteredData.reduce((sum, obs) => {
       if (obs["Seen/Heard"] === "Not found") {
-        const count = parseInt(obs["Number of Birds"], 10);
-        return sum + (isNaN(count) ? 0 : count);
+        let count = obs["Number of Birds"];
+        if (typeof count === 'string') count = count.trim();
+        const parsed = parseInt(count, 10);
+        if (!isNaN(parsed) && isFinite(parsed) && parsed > 0 && parsed < 1000) {
+          return sum + parsed;
+        }
       }
       return sum;
     }, 0);
@@ -97,8 +138,40 @@ class OverviewTab extends Component {
         if (typeof date === 'number') {
           return convertExcelSerialDate(date);
         } else if (typeof date === 'string' && date.includes('/')) {
-          const [day, month, year] = date.split('/');
-          return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          // dd/mm/yyyy or d/m/yyyy or dd/mm/yy
+          const parts = date.split('/');
+          if (parts.length === 3) {
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10);
+            let year = parseInt(parts[2], 10);
+            // If year is 2 digits, treat as 2000+YY (e.g., 01 -> 2001)
+            if (parts[2].length === 2) {
+              year = 2000 + year;
+            }
+            return new Date(year, month - 1, day);
+          }
+        } else if (typeof date === 'string' && date.match(/^\d{1,2}-[A-Za-z]{3}-\d{2,4}$/)) {
+          // e.g. 15-Dec-24 or 5-Jan-2025
+          const [d, m, y] = date.split('-');
+          const months = {
+            Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+            Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11
+          };
+          let year = parseInt(y, 10);
+          // If year is 2 digits, treat as 2000+YY (e.g., 24 -> 2024)
+          if (y.length === 2) {
+            year = 2000 + year;
+          }
+          return new Date(year, months[m], parseInt(d, 10));
+        } else if (typeof date === 'string' && date.match(/^\d{1,2}-[A-Za-z]{3}$/)) {
+          // e.g. 31-Mar or 20-Jun (no year)
+          const [d, m] = date.split('-');
+          const months = {
+            Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+            Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11
+          };
+          const year = new Date().getFullYear();
+          return new Date(year, months[m], parseInt(d, 10));
         }
         return new Date(date);
       }).filter(date => !isNaN(date.getTime()));
@@ -133,17 +206,67 @@ class OverviewTab extends Component {
       return successRate > bestRate ? { location, stats } : best;
     }, {});
 
-    // Activity analysis
-    const activityStats = {};
+    // Activity analysis (split comma-separated behaviors and count each individually)
+    const behaviorStats = {};
     filteredData.forEach(item => {
       const activity = item["Activity (foraging, preening, calling, perching, others)"];
       if (activity) {
-        activityStats[activity] = (activityStats[activity] || 0) + 1;
+        activity.split(',').forEach(raw => {
+          const behavior = raw.trim();
+          if (behavior) {
+            behaviorStats[behavior] = (behaviorStats[behavior] || 0) + 1;
+          }
+        });
       }
     });
-    const topActivities = Object.entries(activityStats)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 5);
+
+    // Type analysis (split comma-separated types and count each individually)
+    const typeStats = {};
+    filteredData.forEach(item => {
+      const type = item["Type (adult, juvenile, pair, group, etc.)"];
+      if (type) {
+        type.split(',').forEach(raw => {
+          const t = raw.trim();
+          if (t) {
+            typeStats[t] = (typeStats[t] || 0) + 1;
+          }
+        });
+      }
+    });
+
+    // Data quality: percent of records with a valid 'Number of Birds' value
+    const validBirdCountRecords = safeFilteredData.filter(obs => {
+      let count = obs["Number of Birds"];
+      if (typeof count === 'string') count = count.trim();
+      const parsed = parseInt(count, 10);
+      return !isNaN(parsed) && isFinite(parsed) && parsed > 0 && parsed < 1000;
+    });
+    const dataQualityPercent = safeFilteredData.length > 0 ? Math.round((validBirdCountRecords.length / safeFilteredData.length) * 100) : 0;
+
+    // Location coverage stats
+    const avgObservationsPerLocation = uniqueLocations > 0 ? (filteredData.length / uniqueLocations).toFixed(1) : 0;
+
+    // For Most Active Location: count unique survey days for that location
+    let mostActiveLocationDays = 0;
+    let avgBirdsSeenPerDay = 0;
+    if (mostActiveLocation.location) {
+      // Map of date -> total birds (all activities) on that date at this location
+      const birdsByDay = {};
+      filteredData.forEach(item => {
+        if (item.Location === mostActiveLocation.location && item.Date) {
+          let count = item["Number of Birds"];
+          if (typeof count === 'string') count = count.trim();
+          const parsed = parseInt(count, 10);
+          if (!isNaN(parsed) && isFinite(parsed) && parsed > 0 && parsed < 1000) {
+            if (!birdsByDay[item.Date]) birdsByDay[item.Date] = 0;
+            birdsByDay[item.Date] += parsed;
+          }
+        }
+      });
+      const dailySums = Object.values(birdsByDay);
+      mostActiveLocationDays = Object.keys(birdsByDay).length;
+      avgBirdsSeenPerDay = dailySums.length > 0 ? (dailySums.reduce((a, b) => a + b, 0) / dailySums.length).toFixed(1) : 0;
+    }
 
     return (
       <div className="overview-tab">
@@ -273,7 +396,7 @@ class OverviewTab extends Component {
                 <div className="stat-value">{uniqueLocations}</div>
                 {!expandedCards.locations && (
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.5rem 0 0 0' }}>
-                    {successfulLocations} with detections • {validCoordinates.length} with GPS
+                    {successfulLocations} with detections
                   </p>
                 )}
                 {expandedCards.locations && (
@@ -283,21 +406,85 @@ class OverviewTab extends Component {
                       <span className="breakdown-item seen">
                         Successful: {successfulLocations} locations
                       </span>
-                      <span className="breakdown-item not-found">
-                        No Detection: {uniqueLocations - successfulLocations} locations
-                      </span>
-                      <span className="breakdown-item heard">
-                        Valid GPS: {validCoordinates.length} records
-                      </span>
                     </div>
                     {mostActiveLocation.location && (
                       <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(0,0,0,0.02)', borderRadius: '8px' }}>
                         <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>Most Active Location</h4>
-                        <p style={{ margin: '0.25rem 0', fontSize: '0.8rem', fontWeight: 'bold' }}>{mostActiveLocation.location}</p>
-                        <p style={{ margin: '0.25rem 0', fontSize: '0.8rem' }}>
-                          {mostActiveLocation.stats.total} observations
-                          ({mostActiveLocation.stats.seen} seen, {mostActiveLocation.stats.heard} heard)
-                        </p>
+                        <p style={{ margin: '0.25rem 0', fontSize: '0.95rem', fontWeight: 'bold' }}>{mostActiveLocation.location}</p>
+                        <ul style={{ margin: 0, padding: '0 0 0 1.2em', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                          <li><strong>Unique survey days:</strong> {mostActiveLocationDays}</li>
+                          <li><strong>Total observations (records):</strong> {mostActiveLocation.stats.total}</li>
+                          <li><strong>Total birds counted:</strong> {
+                            (() => {
+                              let sum = 0;
+                              filteredData.forEach(item => {
+                                if (item.Location === mostActiveLocation.location) {
+                                  let count = item["Number of Birds"];
+                                  if (typeof count === 'string') count = count.trim();
+                                  const parsed = parseInt(count, 10);
+                                  if (!isNaN(parsed) && isFinite(parsed) && parsed > 0 && parsed < 1000) {
+                                    sum += parsed;
+                                  }
+                                }
+                              });
+                              return sum;
+                            })()
+                          }</li>
+                          <li><strong>Average birds per day:</strong> {avgBirdsSeenPerDay}</li>
+                        </ul>
+                        <div style={{ marginTop: '0.7rem', fontSize: '0.8rem', color: 'var(--text-primary)' }}>
+                          <strong>Birds by activity:</strong>
+                          <ul style={{ margin: 0, padding: '0 0 0 1.2em' }}>
+                            <li>Seen: {
+                              (() => {
+                                let sum = 0;
+                                filteredData.forEach(item => {
+                                  if (item.Location === mostActiveLocation.location && item["Seen/Heard"] === "Seen") {
+                                    let count = item["Number of Birds"];
+                                    if (typeof count === 'string') count = count.trim();
+                                    const parsed = parseInt(count, 10);
+                                    if (!isNaN(parsed) && isFinite(parsed) && parsed > 0 && parsed < 1000) {
+                                      sum += parsed;
+                                    }
+                                  }
+                                });
+                                return sum;
+                              })()
+                            }</li>
+                            <li>Heard: {
+                              (() => {
+                                let sum = 0;
+                                filteredData.forEach(item => {
+                                  if (item.Location === mostActiveLocation.location && item["Seen/Heard"] === "Heard") {
+                                    let count = item["Number of Birds"];
+                                    if (typeof count === 'string') count = count.trim();
+                                    const parsed = parseInt(count, 10);
+                                    if (!isNaN(parsed) && isFinite(parsed) && parsed > 0 && parsed < 1000) {
+                                      sum += parsed;
+                                    }
+                                  }
+                                });
+                                return sum;
+                              })()
+                            }</li>
+                            <li>Not found: {
+                              (() => {
+                                let sum = 0;
+                                filteredData.forEach(item => {
+                                  if (item.Location === mostActiveLocation.location && item["Seen/Heard"] === "Not found") {
+                                    let count = item["Number of Birds"];
+                                    if (typeof count === 'string') count = count.trim();
+                                    const parsed = parseInt(count, 10);
+                                    if (!isNaN(parsed) && isFinite(parsed) && parsed > 0 && parsed < 1000) {
+                                      sum += parsed;
+                                    }
+                                  }
+                                });
+                                return sum;
+                              })()
+                            }</li>
+                          </ul>
+                        </div>
                       </div>
                     )}
                   </>
@@ -313,37 +500,49 @@ class OverviewTab extends Component {
                   className={`stat-card compact ${expandedCards.quality ? 'expanded' : ''}`} 
                   onClick={() => this.toggleCardExpanded('quality')} 
                   style={{ cursor: 'pointer' }}
-    >
+                >
                   <div className="stat-content">
                     <div className="stat-header">
                       <h3>Data Quality</h3>
+                      <button
+                        className="toggle-percent-btn"
+                        style={{ marginLeft: 8, fontSize: '0.8rem', padding: '2px 8px', borderRadius: 4, border: '1px solid #ccc', background: '#f7f7f7', cursor: 'pointer' }}
+                        onClick={e => { e.stopPropagation(); this.toggleDataQualityPercent(); }}
+                      >
+                        {showDataQualityPercent ? 'Show Number' : 'Show %'}
+                      </button>
                     </div>
                     <div className="stat-value">
-                      {Math.round(((getValidCoordinates(filteredData).length) / filteredData.length) * 100)}%
+                      {showDataQualityPercent
+                        ? `${dataQualityPercent}%`
+                        : `${validBirdCountRecords.length}`}
                     </div>
                     {!expandedCards.quality && (
                       <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.5rem 0 0 0' }}>
-                        Records with valid GPS coordinates
+                        Records with valid bird count {showDataQualityPercent ? `(${dataQualityPercent}%)` : `(${validBirdCountRecords.length})`}
                       </p>
                     )}
                     {expandedCards.quality && (
                       <>
-                        <p>Records with valid coordinates</p>
+                        <p>Records with valid bird count</p>
                         <div className="stat-breakdown">
                           <span className="breakdown-item seen">
-                            Valid GPS: {getValidCoordinates(filteredData).length}
+                            Valid bird count: {showDataQualityPercent ? `${dataQualityPercent}%` : validBirdCountRecords.length}
                           </span>
                           <span className="breakdown-item not-found">
-                            Missing GPS: {filteredData.length - getValidCoordinates(filteredData).length}
+                            Invalid bird count: {showDataQualityPercent ? `${safeFilteredData.length > 0 ? 100 - dataQualityPercent : 0}%` : safeFilteredData.length - validBirdCountRecords.length}
                           </span>
                         </div>
                         <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(0,0,0,0.02)', borderRadius: '8px' }}>
                           <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>Data Completeness</h4>
                           <p style={{ margin: '0.25rem 0', fontSize: '0.8rem' }}>
-                            <strong>GPS Coverage:</strong> {Math.round(((getValidCoordinates(filteredData).length) / filteredData.length) * 100)}%
+                            <strong>Valid Bird Count:</strong> {showDataQualityPercent ? `${dataQualityPercent}%` : validBirdCountRecords.length}
                           </p>
                           <p style={{ margin: '0.25rem 0', fontSize: '0.8rem' }}>
-                            <strong>Total Records:</strong> {filteredData.length}
+                            <strong>Invalid Bird Count:</strong> {showDataQualityPercent ? `${safeFilteredData.length > 0 ? 100 - dataQualityPercent : 0}%` : safeFilteredData.length - validBirdCountRecords.length}
+                          </p>
+                          <p style={{ margin: '0.25rem 0', fontSize: '0.8rem' }}>
+                            <strong>Total Records:</strong> {safeFilteredData.length}
                           </p>
                         </div>
                       </>
@@ -351,7 +550,7 @@ class OverviewTab extends Component {
                   </div>
                 </div>
 
-                {/* Activity Distribution Card */}
+                {/* Activity Distribution Card with tabs for Behavior and Type */}
                 <div 
                   className={`stat-card compact ${expandedCards.activities ? 'expanded' : ''}`} 
                   onClick={() => this.toggleCardExpanded('activities')} 
@@ -361,32 +560,85 @@ class OverviewTab extends Component {
                     <div className="stat-header">
                       <h3>Activity Types</h3>
                     </div>
-                    <div className="stat-value">{getUniqueActivity(filteredData).length}</div>
+                    {/* Tab state */}
+                    <div style={{ display: 'flex', gap: '1rem', margin: '0.5rem 0' }}>
+                      <button
+                        className={`activity-tab-btn${this.state.activityTab === 'behavior' ? ' active' : ''}`}
+                        style={{ padding: '0.3rem 1rem', border: 'none', background: this.state.activityTab === 'behavior' ? '#e0e0e0' : '#f7f7f7', borderRadius: 4, cursor: 'pointer', fontWeight: this.state.activityTab === 'behavior' ? 'bold' : 'normal' }}
+                        onClick={e => { e.stopPropagation(); this.setState({ activityTab: 'behavior' }); }}
+                      >Behavior</button>
+                      <button
+                        className={`activity-tab-btn${this.state.activityTab === 'type' ? ' active' : ''}`}
+                        style={{ padding: '0.3rem 1rem', border: 'none', background: this.state.activityTab === 'type' ? '#e0e0e0' : '#f7f7f7', borderRadius: 4, cursor: 'pointer', fontWeight: this.state.activityTab === 'type' ? 'bold' : 'normal' }}
+                        onClick={e => { e.stopPropagation(); this.setState({ activityTab: 'type' }); }}
+                      >Type</button>
+                    </div>
+                    <div className="stat-value">
+                      {this.state.activityTab === 'behavior'
+                        ? Object.values(behaviorStats).reduce((a, b) => a + b, 0)
+                        : Object.keys(behaviorStats).length}
+                    </div>
                     {!expandedCards.activities && (
                       <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.5rem 0 0 0' }}>
-                        Different behaviors recorded
+                        {this.state.activityTab === 'behavior' ? 'Different behaviors recorded' : 'Different types recorded'}
                       </p>
                     )}
                     {expandedCards.activities && (
                       <>
-                        <p>Different behaviors recorded</p>
+                        <p>{this.state.activityTab === 'behavior' ? 'Different behaviors recorded' : 'Different types recorded'}</p>
                         <div className="stat-breakdown">
-                          {topActivities.slice(0, 3).map(([activity, count], index) => {
-                            const colorClasses = ['primary', 'secondary', 'tertiary'];
-                            return (
-                              <span key={index} className={`breakdown-item ${colorClasses[index] || 'primary'}`}>
-                                {activity}: {count} observations
-                              </span>
-                            );
-                          })}
+                          {this.state.activityTab === 'behavior'
+                            ? (() => {
+                                const colorClasses = ['primary', 'secondary', 'tertiary', 'info', 'warning', 'danger', 'success', 'neutral'];
+                                const entries = Object.entries(behaviorStats);
+                                if (entries.length === 0) {
+                                  return <span className="breakdown-item neutral">No behaviors recorded</span>;
+                                }
+                                return entries.map(([label, count], index) => {
+                                  const colorClass = colorClasses[index % colorClasses.length];
+                                  return (
+                                    <span key={index} className={`breakdown-item ${colorClass}`}>
+                                      {label}: {count} observations
+                                    </span>
+                                  );
+                                });
+                              })()
+                            : (() => {
+                                // Filter out empty string keys and normalize display
+                                const entries = Object.entries(behaviorStats).filter(([label]) => label.trim() !== '');
+                                const colorClasses = ['primary', 'secondary', 'tertiary', 'info', 'warning', 'danger', 'success', 'neutral'];
+                                if (entries.length === 0) {
+                                  return <span className="breakdown-item neutral">No types recorded</span>;
+                                }
+                                return entries.map(([label], index) => {
+                                  const colorClass = colorClasses[index % colorClasses.length];
+                                  return (
+                                    <span key={index} className={`breakdown-item ${colorClass}`}>
+                                      {label.trim()}
+                                    </span>
+                                  );
+                                });
+                              })()}
                         </div>
                         <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(0,0,0,0.02)', borderRadius: '8px' }}>
                           <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>Activity Breakdown</h4>
-                          {topActivities.map(([activity, count], index) => (
-                            <p key={index} style={{ margin: '0.25rem 0', fontSize: '0.8rem' }}>
-                              <strong>{activity}:</strong> {count} ({Math.round((count / filteredData.length) * 100)}%)
-                            </p>
-                          ))}
+                          {this.state.activityTab === 'behavior'
+                            ? (() => {
+                                const totalBehaviors = Object.values(behaviorStats).reduce((a, b) => a + b, 0);
+                                return Object.entries(behaviorStats).map(([label, count], index) => (
+                                  <p key={index} style={{ margin: '0.25rem 0', fontSize: '0.8rem' }}>
+                                    <strong>{label}:</strong> {count} ({totalBehaviors > 0 ? Math.round((count / totalBehaviors) * 100) : 0}%)
+                                  </p>
+                                ));
+                              })()
+                            : (() => {
+                                const totalBehaviors = Object.values(behaviorStats).reduce((a, b) => a + b, 0);
+                                return Object.entries(behaviorStats).map(([label, count], index) => (
+                                  <p key={index} style={{ margin: '0.25rem 0', fontSize: '0.8rem' }}>
+                                    <strong>{index+1}:{label}</strong>
+                                  </p>
+                                ));
+                              })()}
                         </div>
                       </>
                     )}
@@ -421,9 +673,6 @@ class OverviewTab extends Component {
                           </span>
                           <span className="breakdown-item heard">
                             Audio only: {Math.round(((filteredData.filter(item => item["Seen/Heard"] === "Heard").length) / filteredData.length) * 100)}%
-                          </span>
-                          <span className="breakdown-item not-found">
-                            No detection: {Math.round(((filteredData.filter(item => item["Seen/Heard"] === "Not found").length) / filteredData.length) * 100)}%
                           </span>
                         </div>
                         <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(0,0,0,0.02)', borderRadius: '8px' }}>
@@ -501,7 +750,7 @@ class OverviewTab extends Component {
                 >
                   <div className="stat-content">
                     <div className="stat-header">
-                      <h3>Time Analysis</h3>
+                      <h3>Date Analysis</h3>
                     </div>
                     <div className="stat-value">{uniqueDates}</div>
                     {!expandedCards.timeAnalysis && (
@@ -533,7 +782,7 @@ class OverviewTab extends Component {
                               const maxDate = Object.entries(dateCounts).reduce((max, [date, count]) => 
                                 count > (max[1] || 0) ? [date, count] : max, ['', 0]
                               );
-                              return maxDate[0] ? `${maxDate[0]} (${maxDate[1]} observations)` : 'N/A';
+                              return maxDate[0] ? `${formatDateToDDMMYYYY(new Date(maxDate[0]))} (${maxDate[1]} observations)` : 'N/A';
                             })()}
                           </p>
                         </div>

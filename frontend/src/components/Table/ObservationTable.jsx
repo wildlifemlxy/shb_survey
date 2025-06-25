@@ -26,10 +26,100 @@ class ObservationTable extends Component {
 
   convertExcelTime(serial) {
     if (!serial) return '';
+    // If already a string in HH:mm, just return
+    if (typeof serial === 'string' && serial.match(/^\d{2}:\d{2}$/)) return serial;
+    // If already a string in HH:mm:ss, trim to HH:mm
+    if (typeof serial === 'string' && serial.match(/^\d{2}:\d{2}:\d{2}$/)) return serial.slice(0,5);
+    // If already a string in H:mm or H:mm:ss, pad hour
+    if (typeof serial === 'string' && serial.match(/^\d{1}:\d{2}/)) {
+      const parts = serial.split(':');
+      return `${parts[0].padStart(2, '0')}:${parts[1]}`;
+    }
+    // Handle 12-hour AM/PM format (e.g., 7:12:00 AM, 12:05 PM, 1:05 AM)
+    if (typeof serial === 'string' && /\b(AM|PM)\b/i.test(serial)) {
+      // Remove seconds if present
+      let timeString = serial.trim();
+      let ampmMatch = timeString.match(/(AM|PM)/i);
+      let ampm = ampmMatch ? ampmMatch[0].toUpperCase() : '';
+      timeString = timeString.replace(/(AM|PM)/i, '').trim();
+      let [hour, minute] = timeString.split(':');
+      hour = parseInt(hour, 10);
+      minute = parseInt(minute, 10);
+      if (ampm === 'PM' && hour !== 12) hour += 12;
+      if (ampm === 'AM' && hour === 12) hour = 0;
+      return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+    }
+    // Excel serial time
     const totalSeconds = Math.round(86400 * serial);
     const hours = Math.floor(totalSeconds / 3600) % 24;
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  }
+
+  formatDate(dateString) {
+    // Always output as dd/mm/yyyy, padding day and month to two digits
+    if (!dateString) return '';
+    let d, m, y;
+    // Handle formats like 20-Jun-25 or 05-Feb-2024
+    const monthMap = {
+      Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6,
+      Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12
+    };
+    const monthNameRegex = /^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})$/;
+    const match = dateString.match(monthNameRegex);
+    if (match) {
+      d = parseInt(match[1], 10);
+      m = monthMap[match[2].charAt(0).toUpperCase() + match[2].slice(1,3).toLowerCase()];
+      let yy = parseInt(match[3], 10);
+      y = match[3].length === 2 ? (yy < 50 ? 2000 + yy : 1900 + yy) : yy;
+    } else if (dateString instanceof Date && !isNaN(dateString)) {
+      d = dateString.getDate();
+      m = dateString.getMonth() + 1;
+      y = dateString.getFullYear();
+    } else if (dateString.includes('/')) {
+      // Accepts dd/mm/yyyy, d/m/yyyy, mm/dd/yyyy, m/d/yyyy, dd/mm/yy, d/m/yy
+      const parts = dateString.split('/');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          y = parseInt(parts[0], 10);
+          m = parseInt(parts[1], 10);
+          d = parseInt(parts[2], 10);
+        } else if (parts[2].length === 4) {
+          d = parseInt(parts[0], 10);
+          m = parseInt(parts[1], 10);
+          y = parseInt(parts[2], 10);
+        } else if (parts[2].length === 2) {
+          // dd/mm/yy or d/m/yy
+          d = parseInt(parts[0], 10);
+          m = parseInt(parts[1], 10);
+          let yy = parseInt(parts[2], 10);
+          y = yy < 50 ? 2000 + yy : 1900 + yy;
+        }
+      }
+    } else if (dateString.includes('-')) {
+      // Accepts yyyy-mm-dd, y-m-d, dd-mm-yyyy, d-m-y, dd-mm-yy, d-m-yy
+      const parts = dateString.split('-');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          y = parseInt(parts[0], 10);
+          m = parseInt(parts[1], 10);
+          d = parseInt(parts[2], 10);
+        } else if (parts[2].length === 4) {
+          d = parseInt(parts[0], 10);
+          m = parseInt(parts[1], 10);
+          y = parseInt(parts[2], 10);
+        } else if (parts[2].length === 2) {
+          d = parseInt(parts[0], 10);
+          m = parseInt(parts[1], 10);
+          let yy = parseInt(parts[2], 10);
+          y = yy < 50 ? 2000 + yy : 1900 + yy;
+        }
+      }
+    } else {
+      return dateString;
+    }
+    if (!d || !m || !y) return dateString;
+    return `${d.toString().padStart(2, '0')}/${m.toString().padStart(2, '0')}/${y}`;
   }
 
   transformData(data) {
@@ -517,8 +607,8 @@ class ObservationTable extends Component {
         headerName: "Location",
         field: "Location",
         cellRenderer: (params) =>
-          `${params.value} (${params.data.Lat}, ${params.data.Long})`,
-        width: 600
+          `${params.value}`,
+        width: 300
       },
       { headerName: "Number of Bird(s)", field: "Number of Birds" },
       {
@@ -531,7 +621,7 @@ class ObservationTable extends Component {
         field: "Height of bird/m",
         cellRenderer: (params) => `${params.value}m`,
       },
-      { headerName: "Date", field: "Date" },
+      { headerName: "Date", field: "Date", cellRenderer: (params) => this.formatDate(params.value) },
       {
         headerName: "Time",
         field: "Time",
@@ -540,7 +630,7 @@ class ObservationTable extends Component {
       {
         headerName: "Activity",
         field: "Activity (foraging, preening, calling, perching, others)",
-        width: 900
+        width: 300
       },
       {
         headerName: "Seen/Heard",
@@ -551,124 +641,52 @@ class ObservationTable extends Component {
 
     return (
       <>
-        <div className="mobile-observation-cards hide-desktop">
-          <div className="filters" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1rem' }}>
-            {/* Added search input */}
-            <input
-              type="text"
-              placeholder="Search by observer, bird ID, or location..."
-              value={searchQuery}
-              onChange={this.handleSearchChange}
-              style={{
-                padding: '0.5rem',
-                fontSize: '1rem',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                width: '100%'
-              }}
-            />
-            
-            <div style={{ display: 'flex', gap: '1rem', width: "100%", flexWrap: 'wrap' }}>  
-            <select
-              value={selectedSeenHeard}
-              onChange={this.handleSeenHeardChange}
-              style={{
-                padding: '0.5rem',
-                fontSize: '1rem',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                flex: 1,
-                backgroundColor: 'white'
-              }}
-            >
-              <option value="">All Status</option>
-              {seenHeards.map((seenHeard, index) => (
-                <option key={index} value={seenHeard}>{seenHeard}</option>
-              ))}
-            </select>
+        <div className="ag-theme-alpine" style={{ height: '50vh', width: '100%' }}>
+          <AgGridReact
+            columnDefs={columns}
+            rowData={transformedData}
+            domLayout="normal"
+            pagination={true}
+            defaultColDef={{
+              sortable: true,
+              resizable: true,
+            }}
+            paginationPageSize={transformedData.length}
+            getRowStyle={params => {
+              let backgroundColor = '#f9f9f9';  // Default light gray
 
-            </div>
-            
-            {/* New sorting controls */}
-            <div style={{ display: 'flex', gap: '1rem', width: "100%", flexWrap: 'wrap', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                <label style={{ marginRight: '0.5rem', fontSize: '1rem' }}>Sort by:</label>
-                <select 
-                  value={sortField} 
-                  onChange={this.handleSortChange} 
-                  style={{
-                    padding: '0.5rem',
-                    fontSize: '1rem',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    flex: 1
-                  }}
-                >
-                  <option value="Date">Date</option>
-                  <option value="Seen/Heard">Seen/Heard</option>
-                  <option value="Activity">Activity</option>
-                  <option value="Time">Time</option>
-                  <option value="Location">Location</option>
-                </select>
-              </div>
-              
-              <button 
-                onClick={this.cycleSortDirection}
-                style={{
-                  padding: '0.5rem 1rem',
-                  fontSize: '1rem',
-                  borderRadius: '4px',
-                  background: getSortButtonColor(),
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 'auto',
-                  transition: 'background-color 0.3s',
-                }}
-              >
-                {getSortDirectionText()}
-              </button>
-            </div>
-          </div>
+              // Adjust row background based on "Seen/Heard"
+              switch (params.data["Seen/Heard"]) {
+                case "Seen":
+                  backgroundColor = '#A8E6CF';  // Soft pastel green
+                  break;
+                case "Heard":
+                  backgroundColor = '#D1C4E9';  // Soft pastel purple
+                  break;
+                case "Not found":
+                  backgroundColor = '#FFCDD2';  // Soft pastel red
+                  break;
+              }
 
-          {this.renderMobileCards()}
-          {this.renderPagination()}
+              return { backgroundColor };  // Apply background color to the row
+            }}
+          />
         </div>
-
-        {window.innerWidth >= 1024 && (
-          <div className="ag-theme-alpine" style={{ height: '50vh', width: '100%' }}>
-            <AgGridReact
-              columnDefs={columns}
-              rowData={transformedData}
-              domLayout="normal"
-              pagination={true}
-              defaultColDef={{
-                sortable: true,
-                resizable: true,
-              }}
-              paginationPageSize={transformedData.length}
-              getRowStyle={params => {
-                let backgroundColor = '#f9f9f9';  // Default light gray
-
-                // Adjust row background based on "Seen/Heard"
-                switch (params.data["Seen/Heard"]) {
-                  case "Seen":
-                    backgroundColor = '#A8E6CF';  // Soft pastel green
-                    break;
-                  case "Heard":
-                    backgroundColor = '#D1C4E9';  // Soft pastel purple
-                    break;
-                  case "Not found":
-                    backgroundColor = '#FFCDD2';  // Soft pastel red
-                    break;
-                }
-
-                return { backgroundColor };  // Apply background color to the row
-              }}
-            />
+        {/* Legend below the table */}
+        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', marginTop: '1rem', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ display: 'inline-block', width: 18, height: 18, background: '#A8E6CF', borderRadius: 3, border: '1px solid #ccc' }}></span>
+            <span>Seen</span>
           </div>
-        )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ display: 'inline-block', width: 18, height: 18, background: '#D1C4E9', borderRadius: 3, border: '1px solid #ccc' }}></span>
+            <span>Heard</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ display: 'inline-block', width: 18, height: 18, background: '#FFCDD2', borderRadius: 3, border: '1px solid #ccc' }}></span>
+            <span>Not found</span>
+          </div>
+        </div>
       </>
     );
   }

@@ -197,7 +197,7 @@ export const chartConfigs = {
   chartTypeC: (component, props = {}) => createChartSection({
     id: 'chart-type-c',
     title: '🗺️ Chart Type C',
-    description: 'Additional data visualization',
+    description: 'Additional alization',
     component,
     size: 'half',
     props

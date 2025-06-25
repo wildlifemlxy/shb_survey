@@ -119,6 +119,17 @@ export const countByMonthYear = (data) => {
     } else if (typeof observation.Date === 'string' && observation.Date.includes('/')) {
       const [day, month, year] = observation.Date.split('/');
       date = new Date(`${year}-${month}-${day}`);
+    } else if (typeof observation.Date === 'string' && observation.Date.match(/\d{1,2}-[A-Za-z]{3}-\d{2,4}/)) {
+      // Handle 'DD-MMM-YY' or 'DD-MMM-YYYY' format
+      const [day, mon, year] = observation.Date.split('-');
+      // Convert 2-digit year to 20xx (assume 2000+)
+      let fullYear = year.length === 2 ? '20' + year : year;
+      // Parse month string to month number
+      const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const monthIdx = monthNames.findIndex(m => m.toLowerCase() === mon.toLowerCase());
+      if (monthIdx !== -1) {
+        date = new Date(parseInt(fullYear), monthIdx, parseInt(day));
+      }
     }
 
     // Process only valid dates

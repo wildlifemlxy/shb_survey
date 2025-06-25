@@ -4,7 +4,7 @@
 export { default as HabitatChart } from './HabitatChart.jsx';
 export { default as DateLineChart } from './DateLineChart.jsx';
 export { default as LocationStats } from './LocationStats.jsx';
-export { default as BirdPercentageChart } from './TreeChart/BirdPercentageChart.jsx';
+export { default as PercentageHeightChart } from './TreeChart/PercentageHeightChart.jsx';
 
 // You can also create a default export for the main chart component
 export { default } from './HabitatChart.jsx';

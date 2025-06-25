@@ -1,0 +1,81 @@
+.observation-report-card {
+  background: #fff;
+  border-radius: 1.5rem;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+  padding: 2rem 2.5rem;
+  margin-bottom: 2rem;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 1.5rem;
+}
+
+.report-header h2 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.report-date {
+  font-size: 1rem;
+  color: #64748b;
+}
+
+.summary-statistics-grid {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 120px;
+}
+
+.stat-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.stat-label {
+  font-size: 1rem;
+  color: #64748b;
+}
+
+.stat.total .stat-value { color: #6366f1; }
+.stat.seen .stat-value { color: #22c55e; }
+.stat.heard .stat-value { color: #a78bfa; }
+.stat.notfound .stat-value { color: #ef4444; }
+
+.breakdown-table-container {
+  margin-top: 1.5rem;
+}
+
+.breakdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+}
+
+.breakdown-table th, .breakdown-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.breakdown-table th {
+  background: #f3f4f6;
+  font-weight: 600;
+  color: #334155;
+}

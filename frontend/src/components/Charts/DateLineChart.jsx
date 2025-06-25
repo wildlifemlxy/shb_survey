@@ -3,15 +3,7 @@ import chroma from 'chroma-js';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { countByMonthYear } from '../../utils/dataProcessing';
 import * as tf from '@tensorflow/tfjs';
-import '../../css/components/Charts/DateLineChart.css';
-import { 
-  processTimeSeriesData, 
-  generateMLInsights, 
-  generateSimpleForecast, 
-  generatePredictions, 
-  detectAnomalies, 
-  calculateMovingAverage 
-} from '../../utils/dateLineChartUtils';
+import '../../css/components/Charts/DateLineChart.css'
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
@@ -176,7 +168,8 @@ class DateLineChart extends Component {
   runPopulationAnalysis = async (dateData) => {
     // Prepare time series data for TensorFlow
     const timeSeriesData = dateData.map((entry, index) => ({
-      x: index,  // Use index as time step
+      x: index  // Use index as time step
+      ,
       y: entry.Total  // Total observations as target value
     }));
     
@@ -757,9 +750,9 @@ class DateLineChart extends Component {
         
         {/* Monthly Breakdown */}
         <h5 className="monthly-breakdown-title">Monthly Breakdown</h5>
-        <div className="monthly-table-container">
+        <div className="monthly-table-container" style={{overflowX: 'auto', maxHeight: '320px'}}>
           <table className="monthly-table">
-            <thead>
+            <thead style={{position: 'sticky', top: 0, zIndex: 2, background: '#e0e7ff'}}>
               <tr className="monthly-table-header">
                 <th className="left">Month</th>
                 <th className="right">Total</th>
@@ -820,7 +813,24 @@ class DateLineChart extends Component {
       }
     }
 
-    
+    // Prepare monthly summary data for the report
+    const monthlyRaw = countByMonthYear(data);
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const monthlyData = monthlyRaw.map(row => ({
+      month: monthNames[parseInt(row.monthYear.split('-')[0], 10) - 1] + ' ' + row.monthYear.split('-')[1],
+      total: row.Total,
+      seen: row.Seen,
+      heard: row.Heard,
+      notFound: row.NotFound
+    }));
+    const total = monthlyRaw.reduce((sum, r) => sum + r.Total, 0);
+    const seen = monthlyRaw.reduce((sum, r) => sum + r.Seen, 0);
+    const heard = monthlyRaw.reduce((sum, r) => sum + r.Heard, 0);
+    const notFound = monthlyRaw.reduce((sum, r) => sum + r.NotFound, 0);
+    const seenPercent = total ? Math.round((seen / total) * 100) : 0;
+    const heardPercent = total ? Math.round((heard / total) * 100) : 0;
+    const notFoundPercent = total ? Math.round((notFound / total) * 100) : 0;
+    const reportDate = new Date().toLocaleDateString();
 
     return (
       <div className="date-line-chart">

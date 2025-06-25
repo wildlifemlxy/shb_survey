@@ -172,7 +172,7 @@ export const chartConfigs = {
   chartTypeA: (component, props = {}) => createChartSection({
     id: 'chart-type-a',
     title: '📈 Chart Type A',
-    description: 'Standard data visualization',
+    description: 'Standard alization',
     component,
     size: 'full',
     props

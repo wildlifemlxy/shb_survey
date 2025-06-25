@@ -1,7 +1,7 @@
 import React, { Component, createRef } from 'react';
 import '../../../css/components/Charts/D3TreeHeightChart.css';
 import TreeHeightChart from './TreeHeightChart';
-import BirdPercentageChart from './BirdPercentageChart';
+import PercentageHeightChart from './PercentageHeightChart';
 
 class HabitatChart extends Component {
   constructor(props) {
@@ -26,7 +26,7 @@ class HabitatChart extends Component {
         {viewMode === 'normal' ? (
           <TreeHeightChart data={this.props.data} />
         ) : (
-          <BirdPercentageChart data={this.props.data} />
+          <PercentageHeightChart data={this.props.data} />
         )}
       </div>
     );

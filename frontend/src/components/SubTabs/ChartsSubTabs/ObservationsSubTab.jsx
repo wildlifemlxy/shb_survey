@@ -6,6 +6,7 @@ import '../../../css/components/SubTabs/ObservationsSubTab.css';
 class ObservationsSubTab extends Component {
   render() {
     const { data } = this.props;
+    console.log('ObservationsSubTab data:', data);
 
     return (
       <section

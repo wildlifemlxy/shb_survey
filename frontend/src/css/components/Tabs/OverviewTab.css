@@ -358,6 +358,12 @@
   border-left: 3px solid #ea580c;
 }
 
+.breakdown-item.danger {
+  background: rgba(255, 127, 80, 0.1); /* coral with 10% opacity */
+  color: #FF7F50; /* coral text color */
+  border-left: 3px solid #FF7F50; /* coral border */
+}
+
 /* Additional color classes for different contexts */
 .breakdown-item.primary {
   background: rgba(139, 69, 19, 0.1);
@@ -384,9 +390,15 @@
 }
 
 .breakdown-item.success {
-  background: rgba(34, 197, 94, 0.1);
-  color: var(--primary-green);
-  border-left: 3px solid var(--primary-green);
+  background: rgba(34, 197, 94, 0.15);
+  color: #15803d;
+  border-left: 3px solid #15803d;
+}
+
+.breakdown-item.neutral {
+  background: rgba(120, 120, 120, 0.12);
+  color: #444;
+  border-left: 3px solid #888;
 }
 
 /* Animation */

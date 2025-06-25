@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faHome } from '@fortawesome/free-solid-svg-icons';
+import { faEye, faChartBar, faMapMarkedAlt, faTable } from '@fortawesome/free-solid-svg-icons';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -27,12 +28,11 @@ class DashboardContainer extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      data: props.data,
-      filteredData: props.data,
+      filteredData: [],
       filterLocation: '',
       filterActivity: '',
       searchQuery: '',
-      activeTab: 'overview', // Main tabs: overview, charts, map, data
+      activeTab: 'overview',
       locations: [],
       activities: [],
       validCoordinates: [],
@@ -45,42 +45,31 @@ class DashboardContainer extends Component {
   }
 
   componentDidMount() {
-    const uniqueLocations = getUniqueLocations(this.props.data);
-    const uniqueActivities = getUniqueActivity(this.props.data);
-    const validCoordinates = getValidCoordinates(this.props.data);
-    
-    // Add "All" options as first items in arrays
-    const locationsWithAll = ["All Locations", ...uniqueLocations];
-    const activitiesWithAll = ["All Activities", ...uniqueActivities];
-    
-    this.setState({
-      locations: locationsWithAll,
-      activities: activitiesWithAll,
-      validCoordinates: validCoordinates,
-    });
+    this.updateDataFromProps();
   }
 
   componentDidUpdate(prevProps) {
-    if (prevProps.data !== this.props.data) {
-      const uniqueLocations = getUniqueLocations(this.props.data);
-      const uniqueActivities = getUniqueActivity(this.props.data);
-      const validCoordinates = getValidCoordinates(this.props.data);
-      
-      // Add "All" options as first items in arrays
-      const locationsWithAll = ["All Locations", ...uniqueLocations];
-      const activitiesWithAll = ["All Activities", ...uniqueActivities];
-      
-      this.setState({
-        data: this.props.data,
-        filteredData: this.props.data,
-        locations: locationsWithAll,
-        activities: activitiesWithAll,
-        validCoordinates: validCoordinates,
-      }, () => {
-        this.applyFilters();
-      });
+    if (prevProps.shbData !== this.props.shbData) {
+      this.updateDataFromProps();
     }
   }
+
+  updateDataFromProps = () => {
+    const { shbData } = this.props;
+    const uniqueLocations = getUniqueLocations(shbData);
+    const uniqueActivities = getUniqueActivity(shbData);
+    const validCoordinates = getValidCoordinates(shbData);
+
+    const locationsWithAll = ["All Locations", ...uniqueLocations];
+    const activitiesWithAll = ["All Activities", ...uniqueActivities];
+
+    this.setState({
+      filteredData: shbData,
+      locations: locationsWithAll,
+      activities: activitiesWithAll,
+      validCoordinates: validCoordinates,
+    }, this.applyFilters);
+  };
 
   // Filter methods
   handleFilterChange = (filters) => {
@@ -96,14 +85,14 @@ class DashboardContainer extends Component {
   };
 
   applyFilters = () => {
-    const { data } = this.state;
+    const { shbData } = this.props;
     const filters = {
       filterLocation: this.state.filterLocation,
       filterActivity: this.state.filterActivity,
       searchQuery: this.state.searchQuery
     };
     
-    let filtered = filterData(data, filters);
+    let filtered = filterData(shbData, filters);
     
     // Apply additional search filtering if search query exists
     if (this.state.searchQuery && this.state.searchQuery.trim()) {
@@ -224,7 +213,6 @@ class DashboardContainer extends Component {
       isDownloading
     } = this.state;
 
-    // Standardize coordinates for consistent mapping
     const standardizedFilteredData = standardizeCoordinates(filteredData);
     const standardizedValidCoordinates = getValidCoordinates(standardizedFilteredData);
 
@@ -251,11 +239,11 @@ class DashboardContainer extends Component {
 
         {/* Filters Section */}
         <FilterSection
-          locations={this.state.locations}
-          activities={this.state.activities}
-          initialLocation={this.state.filterLocation}
-          initialActivity={this.state.filterActivity}
-          data={this.state.data}
+          locations={locations}
+          activities={activities}
+          initialLocation={filterLocation}
+          initialActivity={filterActivity}
+          data={filteredData}
           onFilterChange={this.handleFilterChange}
           onSearchChange={this.handleSearchChange}
         />
@@ -267,37 +255,29 @@ class DashboardContainer extends Component {
               className={`tab-button ${activeTab === 'overview' ? 'active' : ''}`}
               onClick={() => this.setActiveTab('overview')}
             >
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M13,3V9H21V3M13,21H21V11H13M3,21H11V15H3M3,13H11V3H3V13Z" />
-              </svg>
-              Overview
+              <FontAwesomeIcon icon={faEye} />
+              <span style={{ marginLeft: 8 }}>Overview</span>
             </button>
             <button 
               className={`tab-button ${activeTab === 'charts' ? 'active' : ''}`}
               onClick={() => this.setActiveTab('charts')}
             >
-              <svg viewBox="0 24 24 24" fill="currentColor">
-                <path d="M16,6L18.29,8.29L13.41,13.17L9.41,9.17L2,16.59L3.41,18L9.41,12L13.41,16L19.71,9.71L22,12V6H16Z"/>
-              </svg>
-              Data Visualizations
+              <FontAwesomeIcon icon={faChartBar} />
+              <span style={{ marginLeft: 8 }}>Data Visualizations</span>
             </button>
             <button 
               className={`tab-button ${activeTab === 'map' ? 'active' : ''}`}
               onClick={() => this.setActiveTab('map')}
             >
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M15,19L9,16.89V5L15,7.11M20.5,3C20.44,3 20.39,3 20.34,3L15,5.1L9,3L3.36,4.9C3.15,4.97 3,5.15 3,5.38V20.5A0.5,0.5 0 0,0 3.5,21C3.55,21 3.61,21 3.66,21L9,18.9L15,21L20.64,19.1C20.85,19 21,18.85 21,18.62V3.5A0.5,0.5 0 0,0 20.5,3Z" />
-              </svg>
-              Map View
+              <FontAwesomeIcon icon={faMapMarkedAlt} />
+              <span style={{ marginLeft: 8 }}>Map View</span>
             </button>
             <button 
               className={`tab-button ${activeTab === 'data' ? 'active' : ''}`}
               onClick={() => this.setActiveTab('data')}
             >
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-              </svg>
-              Data Table
+              <FontAwesomeIcon icon={faTable} />
+              <span style={{ marginLeft: 8 }}>Data Table</span>
             </button>
           </div>
         </section>
