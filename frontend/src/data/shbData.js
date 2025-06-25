@@ -1,9 +1,14 @@
 import axios from 'axios';
 
+const BASE_URL =
+  window.location.hostname === 'localhost'
+    ? 'http://localhost:3001/'
+    : 'https://shb-backend.azurewebsites.net/';
+
 // Fetch survey data and return the result (no setState)
 export async function fetchSurveyData() {
   try {
-    const response = await axios.post('http://localhost:3001/surveys', {purpose: "retrieve"});
+    const response = await axios.post(`${BASE_URL}/surveys`, { purpose: 'retrieve' });
     if (response.data.result.success) {
       return response.data.result.surveys;
     } else {
