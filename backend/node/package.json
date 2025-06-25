@@ -4,12 +4,8 @@
   "description": "Backend for WWF Survey Telegram Bot",
   "main": "app.js",
   "scripts": {
-    "start": "npx pm2 start ./bin/www --no-daemon",
-    "dev": "npx pm2 start ./bin/www --name dev-app --watch",
-    "stop": "npx pm2 stop all",
-    "list": "npx pm2 list",
-    "logs": "npx pm2 logs",
-    "restart": "npx pm2 restart all",
+    "start": "node ./bin/www",
+    "dev": "nodemon ./bin/www",
     "start-simple": "node ./bin/www"
   },
   "dependencies": {
@@ -25,7 +21,6 @@
     "morgan": "^1.10.0",
     "node-cron": "^3.0.3",
     "path": "^0.12.7",
-    "pm2": "^6.0.8",
     "pug": "^3.0.3",
     "xlsx": "^0.18.5"
   },
