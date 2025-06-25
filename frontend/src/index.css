@@ -58,12 +58,47 @@ button {
   cursor: pointer;
   transition: border-color 0.25s;
 }
+
 button:hover {
   border-color: #646cff;
 }
+
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
+  border: none !important;
+}
+
+/* Remove focus/active border from leaflet markers and clusters */
+.leaflet-marker-icon:focus,
+.leaflet-marker-icon:active,
+.leaflet-marker-icon:focus-visible,
+.leaflet-marker-icon:focus-within,
+.leaflet-marker-icon:hover {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.marker-cluster:focus,
+.marker-cluster:active,
+.marker-cluster:focus-visible,
+.marker-cluster:focus-within,
+.marker-cluster:hover {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.leaflet-control-attribution.leaflet-control
+{
+  display: none !important;
+}
+
+.marker-cluster span {
+  color: #fff !important;
+  font-weight: bold !important;
+  text-shadow: 0 1px 2px #000, 0 0 4px #000;
 }
 
 @media (prefers-color-scheme: light) {

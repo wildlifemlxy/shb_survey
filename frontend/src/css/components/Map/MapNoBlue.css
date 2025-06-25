@@ -1,0 +1,18 @@
+/* Remove blue outline/focus for leaflet markers and clusters */
+.leaflet-marker-icon:focus,
+.leaflet-marker-icon:active,
+.leaflet-marker-icon:focus-visible,
+.marker-cluster:focus,
+.marker-cluster:active,
+.marker-cluster:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove blue highlight for polygons/polylines if any */
+.leaflet-interactive:focus,
+.leaflet-interactive:active,
+.leaflet-interactive:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}

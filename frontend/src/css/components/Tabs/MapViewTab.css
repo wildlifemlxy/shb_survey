@@ -22,8 +22,6 @@
 }
 
 .map-header {
-  background: linear-gradient(135deg, #22c55e, #16a34a);
-  color: white;
   padding: 1.5rem 2rem;
   display: flex;
   justify-content: space-between;

@@ -1,14 +1,20 @@
 import React, { Component } from 'react';
-import { MapContainer, TileLayer, ZoomControl } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
+import ObservationMarker from './components/Map/ObservationMarker';
+import { MapContainer, TileLayer, ZoomControl, Popup, useMapEvent } from 'react-leaflet';
+import ObservationPopup from './ObservationPopup';
 
-// Fix default marker icons for Leaflet
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-});
+// Functional component to listen for zoom events
+function MapZoomListener({ onZoomLevelChange }) {
+  useMapEvent('zoomend', (e) => {
+    const map = e.target;
+    const newZoom = map.getZoom();
+    console.log('Zoom level changed:', newZoom);
+    if (onZoomLevelChange) {
+      onZoomLevelChange(newZoom);
+    }
+  });
+  return null;
+}
 
 class Map extends Component {
   constructor(props) {
@@ -16,43 +22,61 @@ class Map extends Component {
     this.mapRef = React.createRef();
     this.state = {
       mapStyle: 'hybrid',
-      currentZoom: 13,
-      useHybridMode: true,
-      mapError: false,
-      showIndividualMarkers: false, // Only show after heatmap click
+      minZoom: 11,
+      selectedObs: null, // Add selected observation for map-level popup
     };
   }
 
-  componentDidMount() {
-    // Force map to resize properly after mounting
-    setTimeout(() => {
-      const mapInstance = this.state.useHybridMode ? window.hybridMap : window.map;
-      if (mapInstance && mapInstance.invalidateSize) {
-        mapInstance.invalidateSize();
-      }
-    }, 100);
-  }
+  // Placeholder for map type change, if implemented in the future
+  handleMapTypeChange = (newType) => {
+    this.setState({ mapStyle: newType });
+    if (this.props.onMapTypeChange) {
+      this.props.onMapTypeChange(newType);
+    }
+  };
+
+  handleMarkerClick = (obs) => {
+    this.setState({ selectedObs: obs });
+  };
+
+  handlePopupClose = () => {
+    this.setState({ selectedObs: null });
+  };
 
   render() {
-    const { height = '100%' } = this.props;
-    const { mapStyle, currentZoom, useHybridMode, mapError, showIndividualMarkers } = this.state;
-    
-    // Only show map
+    const { height = '100%', data, zoom } = this.props;
+    const { minZoom, selectedObs } = this.state;
+
     return (
       <div style={{ height, width: '100%', position: 'relative' }}>
         <MapContainer
-          center={[1.3521, 103.8198]}
-          zoom={13}
-          minZoom={11}
-          maxBounds={[[1.15, 103.5], [1.50, 104.1]]}
+          center={[1.352083, 103.819836]}
+          zoom={zoom}
+          minZoom={minZoom}
+          maxZoom={18}
+          maxBounds={[[1.1304753, 103.6920359], [1.5504753, 104.0120359]]}
           style={{ height: '100%', width: '100%' }}
           zoomControl={false}
+          doubleClickZoom={false}
         >
+          <MapZoomListener onZoomLevelChange={this.props.onZoomLevelChange} />
           <TileLayer
             url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-            attribution="&copy; Google Maps Hybrid"
           />
-          <ZoomControl position="bottomright" />
+          <ObservationMarker
+            data={data}
+            onMarkerClick={this.handleMarkerClick}
+          />
+          {selectedObs && (
+            <Popup
+              position={[selectedObs.Lat, selectedObs.Long]}
+              onClose={this.handlePopupClose}
+              className="observation-popup"
+            >
+              <ObservationPopup obs={selectedObs} />
+            </Popup>
+          )}
+          <ZoomControl position="topright" />
         </MapContainer>
       </div>
     );

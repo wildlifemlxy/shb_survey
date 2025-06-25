@@ -369,10 +369,10 @@ class ObservationTable extends Component {
           cardBackgroundColor = '#A8E6CF';  // Soft pastel green
           break;
         case "Heard":
-          cardBackgroundColor = '#D1C4E9';  // Soft pastel purple
+          cardBackgroundColor = '#FFE0B2';  // Soft pastel orange
           break;
         case "Not found":
-          cardBackgroundColor = '#FFCDD2';  // Soft pastel red
+          cardBackgroundColor = '#E0E0E0';  // Soft pastel grey
           break;
       }
 
@@ -661,10 +661,10 @@ class ObservationTable extends Component {
                   backgroundColor = '#A8E6CF';  // Soft pastel green
                   break;
                 case "Heard":
-                  backgroundColor = '#D1C4E9';  // Soft pastel purple
+                  backgroundColor = '#FFE0B2';  // Soft pastel orange
                   break;
                 case "Not found":
-                  backgroundColor = '#FFCDD2';  // Soft pastel red
+                  backgroundColor = '#E0E0E0';  // Soft pastel grey
                   break;
               }
 
@@ -679,11 +679,11 @@ class ObservationTable extends Component {
             <span>Seen</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ display: 'inline-block', width: 18, height: 18, background: '#D1C4E9', borderRadius: 3, border: '1px solid #ccc' }}></span>
+            <span style={{ display: 'inline-block', width: 18, height: 18, background: '#FFE0B2', borderRadius: 3, border: '1px solid #ccc' }}></span>
             <span>Heard</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ display: 'inline-block', width: 18, height: 18, background: '#FFCDD2', borderRadius: 3, border: '1px solid #ccc' }}></span>
+            <span style={{ display: 'inline-block', width: 18, height: 18, background: '#E0E0E0', borderRadius: 3, border: '1px solid #ccc' }}></span>
             <span>Not found</span>
           </div>
         </div>

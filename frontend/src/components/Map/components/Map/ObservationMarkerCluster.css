@@ -1,0 +1,88 @@
+.leaflet-marker-icon,
+.leaflet-marker-icon:focus,
+.leaflet-marker-icon:active,
+.leaflet-marker-icon:hover,
+.leaflet-marker-icon:focus-visible,
+.leaflet-marker-icon.leaflet-interactive,
+.leaflet-marker-icon.leaflet-interactive:focus,
+.leaflet-marker-icon.leaflet-interactive:active,
+.leaflet-marker-icon.leaflet-interactive:hover,
+.leaflet-marker-icon.leaflet-interactive:focus-visible {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove all custom styles for marker clusters, including those with numbers */
+
+/* Hide all hover/focus/active effects for marker clusters */
+.leaflet-marker-icon.marker-cluster,
+.leaflet-marker-icon.marker-cluster:focus,
+.leaflet-marker-icon.marker-cluster:active,
+.leaflet-marker-icon.marker-cluster:hover,
+.leaflet-marker-icon.marker-cluster:focus-visible,
+.marker-cluster div,
+.marker-cluster div:focus,
+.marker-cluster div:active,
+.marker-cluster div:hover,
+.marker-cluster div:focus-visible {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+  color: transparent !important;
+}
+
+/* Prevent pointer events on cluster icons and their children */
+.leaflet-marker-icon.marker-cluster,
+.marker-cluster div {
+  pointer-events: none !important;
+}
+
+.custom-cluster-icon {
+  border: none !important;
+  border-radius: 50% !important;
+  width: 30px !important;
+  height: 30px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px 0 rgba(0,0,0,0.10), 0 1.5px 6px 0 rgba(0,0,0,0.10) !important;
+  background: transparent !important;
+  filter: blur(0.5px) brightness(1.08) saturate(1.2);
+  transition: opacity 0.2s;
+}
+
+.custom-cluster-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #222;
+  font-weight: bold;
+  font-size: 16px;
+  filter: none;
+  opacity: 1;
+  background: none;
+}
+
+.cluster-range-1 {
+  background: linear-gradient(135deg, #fbc2eb 0%, #fed6e3 100%) !important;
+}
+.cluster-range-2 {
+  background: linear-gradient(135deg, #a8edea 0%, #a6c1ee 100%) !important;
+}
+.cluster-range-3 {
+  background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%) !important;
+}
+.cluster-range-4 {
+  background: linear-gradient(135deg, #ff512f 0%, #dd2476 100%) !important;
+}
+
+.disable-pointer-events,
+.disable-pointer-events * {
+  pointer-events: none !important;
+}
