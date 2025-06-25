@@ -2,8 +2,8 @@ import axios from 'axios';
 
 const BASE_URL =
   window.location.hostname === 'localhost'
-    ? 'http://localhost:3001/'
-    : 'https://shb-backend.azurewebsites.net/';
+    ? 'http://localhost:3001'
+    : 'https://shb-backend.azurewebsites.net';
 
 // Fetch survey data and return the result (no setState)
 export async function fetchSurveyData() {
