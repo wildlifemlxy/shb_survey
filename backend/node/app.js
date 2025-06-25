@@ -21,7 +21,7 @@ app.set('view engine', 'pug'); // You can change to 'ejs' or others if needed
 
 app.use(logger('dev'));
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://ashy-glacier-0df38a400.6.azurestaticapps.net'],
+  origin: ['http://localhost:3000', 'https://gentle-dune-0405ec500.1.azurestaticapps.net'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'], // Add any other methods you want to support
   allowedHeaders: ['Content-Type', 'Authorization', 'Content-Disposition'], 
   exposedHeaders: ['Content-Disposition'], // Add this line to expose the header
