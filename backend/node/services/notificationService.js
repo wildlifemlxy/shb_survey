@@ -29,7 +29,7 @@ async function sendOneSignalNotification({ title, message }) {
       ttl: 259200  // 72 days in seconds
     };
     
-    if (testDevices.length > 0 && testDevices[0] !== 'be9615de-c4d7-42e6-950e-8aa7b4a790cf') {
+    if (testDevices.length > 0) {
       data.include_player_ids = testDevices;
     } else {
       data.included_segments = ["Active Users", "Engaged Users", "All"];
