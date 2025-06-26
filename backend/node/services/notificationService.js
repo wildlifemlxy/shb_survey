@@ -4,10 +4,10 @@ const axios = require('axios');
 //0fb681c3-9fae-4229-b291-678c70049a02
 //os_v2_app_b63idq47vzbctmurm6ghabe2aia7hart4zcevafhvdae5xrg5d4sju7jeizbtfc53hin6md7z6fqofve7wolpjzzoxq2emw62cwvd4q
 const ONESIGNAL_APP_ID = '0fb681c3-9fae-4229-b291-678c70049a02';
-const ONESIGNAL_API_KEY = 'Basic os_v2_app_b63idq47vzbctmurm6ghabe2aia7hart4zcevafhvdae5xrg5d4sju7jeizbtfc53hin6md7z6fqofve7wolpjzzoxq2emw62cwvd4q';
+const ONESIGNAL_API_KEY = 'Basic os_v2_app_b63idq47vzbctmurm6ghabe2aia7hart4zcevafhvdae5xrg5d4sju7jeizbtfc53hin6md7z6fqofve7wolpjzzoxq2emw62cwvd4q';// Replace with your actual REST API Key (no Basic or os_v2_app_ prefix)
 
 /**
- * Send a OneSignal push notification to all users except those on the form page.
+ * Send a OneSignal push notification to a specific device (for testing) or all users.
  * The notification URL is always set to the Azure SWA URL.
  */
 async function sendOneSignalNotification({ title, message }) {
@@ -17,8 +17,7 @@ async function sendOneSignalNotification({ title, message }) {
 
     console.log("Sending OneSignal notification with:", { title, message, url });
 
-    // During development, you can add specific test device IDs here
-    const testDevices = []; // Add your test device IDs here if needed
+    // Add your Player ID here to force notification to your devicexwww
 
     const data = {
       app_id: ONESIGNAL_APP_ID,
@@ -28,14 +27,8 @@ async function sendOneSignalNotification({ title, message }) {
       priority: 10,
       ttl: 259200  // 72 days in seconds
     };
-
-    // If test devices are provided, target them specifically
-    if (testDevices.length > 0) {
-      data.include_player_ids = testDevices;
-    } else {
-      // Send to all users - no filters for now
-      data.included_segments = ["Active Users", "Engaged Users", "All"];
-    }
+    
+    data.included_segments = ["Active Users", "Engaged Users", "All"];
 
     console.log("OneSignal request payload:", JSON.stringify(data));
 
