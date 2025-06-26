@@ -29,11 +29,8 @@ async function sendOneSignalNotification({ title, message }) {
       ttl: 259200  // 72 days in seconds
     };
     
-    if (testDevices.length > 0) {
-      data.include_player_ids = testDevices;
-    } else {
-      data.included_segments = ["Active Users", "Engaged Users", "All"];
-    }
+
+    data.included_segments = ["Active Users", "Engaged Users", "All"];
 
     console.log("OneSignal request payload:", JSON.stringify(data));
 
