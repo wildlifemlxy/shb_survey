@@ -1,6 +1,13 @@
 var express = require('express');
 var router = express.Router();
 var SurveyController = require('../Controller/Survey/surveyController'); 
+const { sendOneSignalNotification } = require('../services/notificationService');
+
+// Get current date and time in dd/mm/yyyy and 24-hour format
+const now = new Date();
+const pad = n => n.toString().padStart(2, '0');
+const dateStr = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
 router.post('/', async function(req, res, next) 
 {
@@ -29,7 +36,12 @@ router.post('/', async function(req, res, next)
                     const result = await controller.insertSurvey(survey);
                     results.push(result);
                 }
-                console.log('Surveys inserted successfully:', results);
+                 await sendOneSignalNotification({
+                    title: 'New Survey Update',
+                    message: `New survey has been updated in the database on ${dateStr} at ${timeStr}`,
+                    web_url: "https://gentle-dune-0405ec500.1.azurestaticapps.net/"
+                });
+                console.log('New survey notification sent successfully');
                 if (io) {
                     io.emit('survey-updated', {
                         message: 'Survey updated successfully',
@@ -40,7 +52,15 @@ router.post('/', async function(req, res, next)
                 // Single object fallback
                 const result = await controller.insertSurvey(req.body.data);
                 console.log('Survey inserted successfully:', result);
-                 if (io) {
+                
+
+                await sendOneSignalNotification({
+                    title: 'New Survey Update',
+                    message: `New survey has been updated in the database on ${dateStr} at ${timeStr}`,
+                    web_url: "https://gentle-dune-0405ec500.1.azurestaticapps.net/"
+                });
+                console.log('New survey notification sent successfully');
+                if (io) {
                     io.emit('survey-updated', {
                         message: 'Survey updated successfully',
                     });

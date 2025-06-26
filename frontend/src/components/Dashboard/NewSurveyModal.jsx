@@ -281,6 +281,7 @@ class NewSurveyModal extends Component {
       console.log('Insert result:', result);
       if (result.success) {
         console.log('Survey inserted successfully:', result.message);
+        this.handleCancel();
         // Optionally reset form or close modal here
       } else {
         console.error('Insert failed:', result.message);

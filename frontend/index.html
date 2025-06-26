@@ -12,5 +12,52 @@
   <body>
     <div id="root" style="width: 100%;"></div>
     <script type="module" src="/src/main.jsx"></script>
+
+    <!-- OneSignal SDK -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(async function(OneSignal) {
+        try {
+          await OneSignal.init({
+            appId: "0fb681c3-9fae-4229-b291-678c70049a02",
+            allowLocalhostAsSecureOrigin: true,
+            notifyButton: {
+              enable: true,
+            },
+            promptOptions: {
+              slidedown: {
+                prompts: [
+                  { type: "push", autoPrompt: true }
+                ]
+              }
+            }
+          });
+          console.log("OneSignal initialized successfully");
+
+          // Force the prompt if not already subscribed
+          const permission = await OneSignal.Notification.permission;
+          if (permission !== "granted") {
+            await OneSignal.User.PushSubscription.optIn();
+          }
+        } catch (error) {
+          console.error("OneSignal init error:", error);
+        }
+        
+        // Set tag for current path for notification filtering
+        const currentPath = window.location.pathname;
+        console.log('Setting OneSignal path tag:', currentPath);
+        await OneSignal.User.addTag('current_path', currentPath);
+        
+        // Track path changes
+        const originalPushState = history.pushState;
+        history.pushState = function() {
+          originalPushState.apply(this, arguments);
+          const newPath = window.location.pathname;
+          console.log('Path changed, updating OneSignal tag:', newPath);
+          OneSignal.User.addTag('current_path', newPath);
+        };
+      });
+    </script>
   </body>
 </html>
