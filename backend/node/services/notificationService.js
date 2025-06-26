@@ -17,7 +17,8 @@ async function sendOneSignalNotification({ title, message }) {
 
     console.log("Sending OneSignal notification with:", { title, message, url });
 
-    // Add your Player ID here to force notification to your devicexwww
+    // Add your Player ID here to force notification to your device
+    const testDevices = ['be9615de-c4d7-42e6-950e-8aa7b4a790cf']; // Replace with your actual Player ID from OneSignal dashboard
 
     const data = {
       app_id: ONESIGNAL_APP_ID,
@@ -28,7 +29,11 @@ async function sendOneSignalNotification({ title, message }) {
       ttl: 259200  // 72 days in seconds
     };
     
-    data.included_segments = ["Active Users", "Engaged Users", "All"];
+    if (testDevices.length > 0 && testDevices[0] !== 'be9615de-c4d7-42e6-950e-8aa7b4a790cf') {
+      data.include_player_ids = testDevices;
+    } else {
+      data.included_segments = ["Active Users", "Engaged Users", "All"];
+    }
 
     console.log("OneSignal request payload:", JSON.stringify(data));
 
