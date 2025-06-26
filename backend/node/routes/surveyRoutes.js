@@ -3,11 +3,11 @@ var router = express.Router();
 var SurveyController = require('../Controller/Survey/surveyController'); 
 const { sendOneSignalNotification } = require('../services/notificationService');
 
-// Get current date and time in dd/mm/yyyy and 24-hour format
+// Get current date and time in dd/mm/yyyy and 24-hour format (Singapore time)
 const now = new Date();
-const pad = n => n.toString().padStart(2, '0');
-const dateStr = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
-const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+const sgOptions = { timeZone: 'Asia/Singapore', hour12: false };
+const [dateStr, timeStrFull] = now.toLocaleString('en-GB', sgOptions).split(',').map(s => s.trim());
+const timeStr = timeStrFull.slice(0,5); // HH:mm only
 
 router.post('/', async function(req, res, next) 
 {
