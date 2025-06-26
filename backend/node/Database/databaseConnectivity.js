@@ -30,6 +30,12 @@ class DatabaseConnectivity {
     return await collection.find({}).toArray();
   }
 
+  async insertDocument(databaseName, collectionName, document) {
+    const db = this.client.db(databaseName);
+    const collection = db.collection(collectionName);
+    return await collection.insertOne(document);
+  }
+
   async close() {
     if (this.connected) {
       await this.client.close();

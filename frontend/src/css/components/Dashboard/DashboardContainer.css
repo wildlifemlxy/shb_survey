@@ -846,3 +846,12 @@
 .dashboard-container * {
   box-sizing: border-box;
 }
+
+/* Force solid white background, full opacity, and dark text for export */
+.dashboard-export-solid-bg, .dashboard-export-solid-bg * {
+  background: #fff !important;
+  opacity: 1 !important;
+  color: #222 !important;
+  box-shadow: none !important;
+  filter: none !important;
+}

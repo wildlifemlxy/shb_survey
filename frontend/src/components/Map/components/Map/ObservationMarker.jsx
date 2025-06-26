@@ -39,15 +39,17 @@ class ObservationMarker extends Component {
 
 
     const data = this.props.data || [];
-    const validMarkers = data.filter(
-      obs =>
-        obs &&
-        typeof obs.Lat === 'number' &&
-        typeof obs.Long === 'number' &&
-        !isNaN(obs.Lat) &&
-        !isNaN(obs.Long)
-    );
-
+    // Convert Lat/Long to numbers and filter out invalid ones
+    const validMarkers = data
+      .map(obs => {
+        if (!obs) return null;
+        const lat = Number(obs.Lat);
+        const lng = Number(obs.Long);
+        if (isNaN(lat) || isNaN(lng)) return null;
+        return { ...obs, Lat: lat, Long: lng };
+      })
+      .filter(obs => obs && !isNaN(obs.Lat) && !isNaN(obs.Long));
+    console.log('Valid Markers data:', validMarkers);
     if (validMarkers.length === 0) {
       return null;
     }

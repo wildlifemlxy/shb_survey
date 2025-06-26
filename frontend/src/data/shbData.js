@@ -19,3 +19,21 @@ export async function fetchSurveyData() {
     return [];
   }
 }
+
+// Insert new survey data
+export async function insertSurveyData(surveyData) {
+  try {
+    const response = await axios.post(`${BASE_URL}/surveys`, {
+      purpose: 'insert',
+      data: surveyData
+    });
+    if (response.data.result.success) {
+      return { success: true, message: response.data.result.message };
+    } else {
+      return { success: false, message: response.data.result.message || 'Insert failed' };
+    }
+  } catch (error) {
+    console.error('Error inserting shbData to MongoDB:', error);
+    return { success: false, message: error.message };
+  }
+}

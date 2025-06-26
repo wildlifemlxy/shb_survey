@@ -1,0 +1,448 @@
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 20px;
+  padding: 48px 40px 32px 40px;
+  min-width: 420px;
+  max-width: 90vw !important; /* Increased from 600px to 60vw */
+  width: 90vw !important;      /* Increased from 100% to 60vw */
+  box-shadow: 0 12px 48px rgba(0,0,0,0.22);
+  animation: modalFadeIn 0.25s;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  width: 100%;
+}
+.modal-content h3 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
+  color: #1a237e;
+  text-align: center;
+  width: 100%;
+  margin-top: 100px;
+}
+
+.modal-content fieldset {
+  border: none;
+  padding: 0;
+  margin: 0 0 18px 0;
+}
+
+.modal-content legend {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #3949ab;
+  margin-bottom: 16px;
+}
+
+.modal-content label {
+  font-size: 1.08rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+/* --- INPUT FIELDS: border-bottom only, modern focus --- */
+.modal-content input[type="text"],
+.modal-form-fields input[type="text"],
+.modal-form-fields input[type="number"],
+.modal-form-fields input[type="date"],
+.modal-form-fields td input[type="text"] {
+  width: 100%;
+  padding: 10px 6px 8px 6px;
+  border: none;
+  border-bottom: 2px solid #c5cae9;
+  border-radius: 0;
+  background: transparent;
+  font-size: 1.08rem;
+  margin-top: 4px;
+  margin-bottom: 0;
+  box-shadow: none;
+  color: #222;
+  text-align: center;
+  transition: border-color 0.2s, background 0.15s;
+}
+
+.modal-content input[type="text"]:focus,
+.modal-form-fields input[type="text"]:focus,
+.modal-form-fields input[type="number"]:focus,
+.modal-form-fields input[type="date"]:focus,
+.modal-form-fields td input[type="text"]:focus {
+  border-bottom: 2.5px solid #3949ab;
+  outline: none;
+  background: #e3e7fd22;
+  color: #3949ab;
+}
+
+/* Remove all other borders from table cells and inputs */
+.modal-form-fields table,
+.modal-form-fields thead th,
+.modal-form-fields tbody td {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove scrollbars and force table to fit container */
+.modal-form-fields table {
+  width: 1000px; /* Fixed width to enable horizontal scroll if needed */
+  min-width: 1200px;
+  max-width: none;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(60, 80, 180, 0.07);
+  overflow-x: auto;
+  display: block;
+  max-height: 600px; /* Match the scroll container */
+  margin-top: 8px;
+}
+
+.modal-form-fields .observation-table-scroll {
+  overflow-x: auto;
+  overflow-y: auto;
+  width: 90%; /* Increased from 80% to 90% */
+  max-width: 90%;
+  min-width: 400px;
+  max-height: 600px; /* Increased from 340px to 600px for a longer table */
+  margin-left: 0;
+  margin-right: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: #bfc6e0 #f7f8fa;
+}
+
+.modal-form-fields .observation-table-scroll::-webkit-scrollbar {
+  height: 5px !important;
+  width: 5px !important;
+}
+.modal-form-fields .observation-table-scroll::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+}
+
+/* Table header and row styles remain modern and neat */
+.modal-form-fields thead th {
+  background: #e3e7fd;
+  color: #3949ab;
+  font-weight: 600;
+  font-size: 1.18rem;
+  border-bottom: 1.5px solid #d1d6ee;
+  z-index: 2;
+  text-align: center;
+}
+
+.modal-form-fields tbody td {
+  padding: 8px 10px; /* Smaller body cell height */
+  background: #f7f8fa;
+  font-size: 1.05rem;
+  border-bottom: 2px solid #c5cae9;
+  text-align: center;
+}
+
+.modal-form-fields tr:last-child td {
+  border-bottom: none;
+}
+
+.modal-form-fields tbody tr:nth-child(even) td {
+  background: #f0f2fa;
+}
+
+.modal-form-fields tbody tr:nth-child(odd) td {
+  background: #f7f8fa;
+}
+
+/* Remove min-width from table for responsiveness */
+.modal-form-fields table {
+  min-width: 0 !important;
+}
+
+/* Ensure all modal form fields are visually consistent */
+.modal-form-fields label {
+  display: block;
+  color: #222;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+/* Remove any extra border-radius or box-shadow from inputs */
+.modal-content input[type="text"],
+.modal-form-fields input[type="text"],
+.modal-form-fields td input[type="text"] {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.modal-content .modal-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 28px;
+}
+
+.modal-content button {
+  padding: 12px 32px;
+  border-radius: 8px;
+  border: none;
+  font-size: 1.08rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+
+.modal-content button[type="button"] {
+  background: #e3e7fd;
+  color: #3949ab;
+}
+
+.modal-content button[type="button"]:hover {
+  background: #c5cae9;
+}
+
+.modal-content button[type="submit"] {
+  background: #3949ab;
+  color: #fff;
+}
+
+.modal-content button[type="submit"]:hover {
+  background: #1a237e;
+}
+
+/* Navigation arrows inside modal */
+.modal-nav-arrow {
+  background: #e3e7fd;
+  color: #3949ab;
+  border: none;
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 12px;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+.modal-nav-arrow:hover {
+  background: #c5cae9;
+}
+
+/* Overlapping navigation arrows */
+.modal-form-flex {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+  position: relative;
+}
+
+.modal-form-fields {
+  flex: 1 1 0%;
+  min-width: 0;
+  padding-left: 85px;
+  padding-right: 85px;
+  width: 100%;
+}
+
+.modal-nav-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  margin: 0;
+  /* Remove flex-shrink/min-width for overlap */
+}
+.modal-nav-arrow.left {
+  left: -30px;
+}
+.modal-nav-arrow.right {
+  right: -30px;
+}
+
+/* Responsive: ensure modal fits all screens */
+@media (max-width: 700px) {
+  .modal-content {
+    min-width: 0;
+    max-width: 98vw;
+    width: 98vw;
+    padding: 18px 2vw 16px 2vw;
+  }
+  .modal-nav-arrow {
+    width: 38px;
+    height: 38px;
+    font-size: 1.2rem;
+  }
+  .modal-nav-arrow.left {
+    left: 6px;
+  }
+  .modal-nav-arrow.right {
+    right: 6px;
+  }
+  .modal-form-fields {
+    padding-left: 44px;
+    padding-right: 44px;
+  }
+}
+
+@media (max-width: 500px) {
+  .modal-nav-arrow {
+    width: 30px;
+    height: 30px;
+    font-size: 1rem;
+  }
+  .modal-form-fields {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+}
+
+/* Ensure all children fit and never overflow */
+.modal-content *, .modal-content *:before, .modal-content *:after {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+/* Consistent modal form styling for all fields and tables */
+.modal-form-fields label {
+  display: block;
+  color: #222;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.modal-form-fields input[type="text"],
+.modal-form-fields input[type="number"],
+.modal-form-fields input[type="date"] {
+  width: 100%;
+  padding: 10px 6px 8px 6px;
+  border: none;
+  border-bottom: 2px solid #c5cae9;
+  border-radius: 0;
+  background: transparent;
+  font-size: 1.08rem;
+  margin-top: 4px;
+  margin-bottom: 0;
+  box-shadow: none;
+  color: #222;
+  text-align: center;
+  transition: border-color 0.2s, background 0.15s;
+}
+
+.modal-form-fields input:focus {
+  border-bottom: 2.5px solid #3949ab;
+  outline: none;
+  background: #e3e7fd22;
+  color: #3949ab;
+}
+
+.modal-form-fields button[type="button"] {
+  background: #e3e7fd;
+  color: #3949ab;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-weight: 500;
+  font-size: 0.98rem;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: background 0.18s, color 0.18s;
+}
+
+.modal-form-fields button[type="button"]:hover {
+  background: #3949ab;
+  color: #fff;
+}
+
+/* --- SECTION 1 (Observer Info) FIELDS: improved textbox border and placeholder style --- */
+.form-group input.form-control::placeholder {
+  color: #b0b4c3;
+  opacity: 1;
+  font-size: 1.08rem;
+  font-style: italic;
+}
+
+.form-group input.form-control {
+  border: 2px solid #c5cae9;
+  background: #fff;
+  color: #222;
+  padding: 14px 18px;
+  border-radius: 8px;
+  font-size: 1.12rem;
+  margin-top: 4px;
+  box-shadow: none;
+  text-align: left;
+  transition: border 0.2s, box-shadow 0.2s;
+}
+
+.form-group input.form-control:focus {
+  border: 2px solid #3949ab;
+  outline: none;
+  background: #f8fafc;
+  box-shadow: 0 0 0 2px #e3e7fd;
+}
+
+.observer-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.add-btn, .remove-btn {
+  background: #e3e7fd;
+  color: #3949ab;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-weight: 500;
+  font-size: 0.98rem;
+  cursor: pointer;
+  margin-top: 0;
+  transition: background 0.18s, color 0.18s;
+}
+.add-btn:hover, .remove-btn:hover {
+  background: #3949ab;
+  color: #fff;
+}
+
+.error-message {
+  color: #d32f2f;
+  font-size: 0.97em;
+  margin-top: 4px;
+  margin-bottom: 0;
+  font-weight: 500;
+  background: #fff6f6;
+  border-left: 3px solid #d32f2f;
+  padding: 4px 10px 4px 12px;
+  border-radius: 0 6px 6px 0;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
