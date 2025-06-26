@@ -282,8 +282,8 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
       scrollY: -window.scrollY,
       windowWidth: dashboardElement.scrollWidth,
       imageSmoothingEnabled: useImageSmoothing,
-      imageSmoothingQuality: useImageSmoothing ? 'high' : 'low',
-      backgroundColor: '#fff'
+      imageSmoothingQuality: useImageSmoothing ? 'high' : 'low'
+      // backgroundColor removed to allow CSS gradient
     });
     const imgData = canvas.toDataURL('image/png');
     const imgWidth = canvas.width;
