@@ -1,0 +1,19 @@
+.settings-header {
+  width: 100%;
+  background: linear-gradient(90deg, #818cf8 0%, #f472b6 100%);
+  padding: 32px 0 24px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0 0 18px 18px;
+  box-shadow: 0 2px 12px 0 rgba(129,140,248,0.08);
+}
+
+.settings-title {
+  color: #fff;
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}

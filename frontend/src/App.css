@@ -6,8 +6,11 @@
   --primary-green: #22C55E;
   --primary-green-dark: #16A34A;
   --primary-green-light: #86EFAC;
-  --accent-blue: #0EA5E9;
-  --accent-blue-dark: #0284C7;
+  --primary-blue: #0EA5E9;
+  --primary-blue-dark: #0284C7;
+  --primary-brown: #A0522D;
+  --primary-brown-dark: #7B3F00;
+  --primary-brown-light: #D2B48C;
   
   /* Neutral Colors */
   --text-primary: #0F172A;
@@ -21,6 +24,7 @@
   
   /* Conservation Theme Colors */
   --forest-green: #15803D;
+  --forest-green-dark: #0B3D1A;
   --earth-brown: #A3A3A3;
   --sky-blue: #3B82F6;
   --sunset-orange: #F59E0B;
@@ -237,32 +241,21 @@ p {
   box-shadow: var(--shadow-sm);
 }
 
-.btn-primary:hover {
-  background: linear-gradient(135deg, var(--primary-green-dark), var(--forest-green));
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
+.btn-accent {
+  background: linear-gradient(135deg, var(--forest-green), var(--forest-green-dark));
+  color: white;
 }
 
+
 .btn-secondary {
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-medium);
+  background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-dark));
+  color: white;
 }
 
 .btn-secondary:hover {
   background: var(--bg-secondary);
   border-color: var(--primary-green);
   color: var(--primary-green);
-}
-
-.btn-accent {
-  background: linear-gradient(135deg, var(--accent-blue), var(--accent-blue-dark));
-  color: white;
-}
-
-.btn-accent:hover {
-  background: linear-gradient(135deg, var(--accent-blue-dark), #0369A1);
-  transform: translateY(-1px);
 }
 
 /* Form Elements */

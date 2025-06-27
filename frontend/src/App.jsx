@@ -8,9 +8,12 @@ import { initializeTheme } from './utils/themeUtils';
 import DetailedAnalysisPopup from './components/DetailedAnalysisPopup';
 import ThemeToggle from './components/ThemeToggle';
 import NewSurveyModal from './components/Dashboard/NewSurveyModal';
+import Settings from './components/Settings/Settings';
 import { io } from 'socket.io-client';
 
 import { fetchSurveyData } from './data/shbData';
+import { fetchEventsData } from './data/surveyData';
+import { fetchBotData } from './data/botData';
 
 const API_BASE_URL =
   window.location.hostname === 'localhost'
@@ -19,14 +22,16 @@ const API_BASE_URL =
 
 // Dynamically import the components
 const Dashboard = lazy(() => import('./components/Dashboard'));
-const TelegramMessaging = lazy(() => import('./components/WWFSurveyBot'));
 const Home = lazy(() => import('./components/Home'));
+const SurveyEvents = lazy(() => import('./components/Events/SurveyEvents'));
 
 class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
       shbData: [], // Start with empty data
+      eventData: [],
+      botData: [],
       isLoading: true,
       showDetailedAnalysis: false,
       detailedAnalysisData: null,
@@ -48,7 +53,11 @@ class App extends Component {
     initializeTheme();
     const data = await fetchSurveyData();
     console.log('Fetched SHB Data:', data);
-    this.setState({ shbData: data, isLoading: false });
+    const data1 = await fetchEventsData();
+    console.log('Fetched Survey Data:', data1);
+    const data2 = await fetchBotData();
+    console.log(' ', data2);
+    this.setState({ shbData: data, eventData: data1, botData: data2, isLoading: false });
   }
 
   handleAddSurvey = (newSurvey) => {
@@ -76,7 +85,7 @@ class App extends Component {
   };
 
   render() {
-    const { shbData, isLoading, showDetailedAnalysis, detailedAnalysisData, showNewSurveyModal } = this.state;
+    const { shbData, isLoading, showDetailedAnalysis, detailedAnalysisData, showNewSurveyModal, eventData, botData} = this.state;
     return (
       <>
         <div className="App">
@@ -95,7 +104,8 @@ class App extends Component {
                     onCloseNewSurveyModal={this.handleCloseNewSurveyModal}
                   />
                 } />
-                {/*<Route path="/automated" element={<TelegramMessaging />} />*/}
+              <Route path="/surveyEvents" element={<SurveyEvents eventData={eventData} isLoading={isLoading} />} />
+              <Route path="/settings" element={<Settings botData={botData} isLoading={isLoading} />} />
               </Routes>
             </Suspense>
           </Router>

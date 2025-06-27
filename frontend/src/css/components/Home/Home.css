@@ -54,7 +54,7 @@
 .hero-title {
   font-size: clamp(2.5rem, 5vw, 4rem);
   font-weight: 800;
-  background: linear-gradient(135deg, var(--primary-green), var(--forest-green), var(--accent-blue));
+  background: linear-gradient(135deg, var(--primary-green), var(--forest-green), var(--primary-blue));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -265,6 +265,8 @@
   overflow: hidden;
   box-shadow: var(--shadow-xl);
 }
+
+
 
 .info-image img {
   width: 100%;

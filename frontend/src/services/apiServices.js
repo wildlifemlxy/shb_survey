@@ -106,6 +106,21 @@ const apiService = {
       throw error;
     }
   },
+
+  // Event related endpoints
+  updateEventParticipants: async (eventId, participants) => {
+    try {
+      const { data } = await api.post('/events', {
+        purpose: 'updateParticipants',
+        eventId,
+        participants,
+      });
+      return data;
+    } catch (error) {
+      console.error('Error updating event participants:', error);
+      throw error;
+    }
+  },
 };
 
 export default apiService;

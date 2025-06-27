@@ -8,6 +8,8 @@ var cors = require("cors");
 var app = express(); // Initialize the Express app
 
 var surveyRoutes = require('./routes/surveyRoutes'); // Import MongoDB survey routes
+var eventsRoutes = require('./routes/eventsRoutes'); // Import MongoDB events routes
+var telegramRoutes = require('./routes/telegramRoutes'); // Import MongoDB events routes
 
 app.use(cors()); // Enable CORS
 app.use(logger('dev')); // HTTP request logger
@@ -33,6 +35,8 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/surveys', surveyRoutes); // Register MongoDB survey routes under /api
+app.use('/events', eventsRoutes); // Register MongoDB survey routes under /api
+app.use('/telegram', telegramRoutes); // Register MongoDB survey routes under /api
 
 // Increase payload limits for Azure App Service
 app.use(express.json({ 

@@ -36,6 +36,22 @@ class DatabaseConnectivity {
     return await collection.insertOne(document);
   }
 
+  async insertDocuments(databaseName, collectionName, documents) {
+    const db = this.client.db(databaseName);
+    const collection = db.collection(collectionName);
+    return await collection.insertMany(documents);
+  }
+
+  async updateDocument(databaseName, collectionName, filter, update) {
+    const db = this.client.db(databaseName);
+    const collection = db.collection(collectionName);
+    // Convert string _id to ObjectId if present
+    if (filter._id && typeof filter._id === 'string') {
+      filter._id = new ObjectId(filter._id);
+    }
+    return await collection.updateOne(filter, update);
+  }
+
   async close() {
     if (this.connected) {
       await this.client.close();
