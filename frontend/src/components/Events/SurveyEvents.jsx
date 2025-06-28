@@ -22,14 +22,7 @@ const TABS = [
     icon: faHistory,
     component: PastEvents,
     extraProps: {},
-  },
-  {
-    key: 'Telegram',
-    label: 'Telegram',
-    icon: faTelegramPlane,
-    component: Telegram,
-    extraProps: {},
-  },
+  }
 ];
 
 class SurveyEvents extends Component {
@@ -53,7 +46,6 @@ class SurveyEvents extends Component {
     // Filter events for each tab using Type field
     const eventsByStatus = {
       Upcoming: events.filter(event => event.Type === 'Upcoming'),
-      Telegram: events.filter(event => event.Type === 'Upcoming' || event.Type === 'Past'),
       Past: events.filter(event => event.Type === 'Past'),
     };
 

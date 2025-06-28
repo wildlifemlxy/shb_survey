@@ -33,6 +33,7 @@ router.post('/', async function(req, res, next) {
         try {
             const telegramRes = await axios.get(`https://api.telegram.org/bot${token}/getMe`);
             const telegramData = telegramRes.data;
+            console.log('Telegram getMe response:', telegramData);s
             if (!telegramData.ok) {
                 return res.status(400).json({ error: 'Invalid Telegram bot token.' });
             }
@@ -82,6 +83,21 @@ router.post('/', async function(req, res, next) {
             return res.status(200).json({ groups });
         } catch (err) {
             return res.status(500).json({ error: err.message || 'Failed to retrieve group info.' });
+        }
+    }
+    if (purpose === 'getChatHistory') {
+        const { token, chatId } = req.body;
+        try {
+            const telegramController = new TelegramController();
+            const result = await telegramController.getChatHistory(token, chatId);
+            console.log('Chat history result:', result); // Log the result for debugging
+            if (result.success) {
+                return res.status(200).json({ data: result.data, success: true });
+            } else {
+                return res.status(500).json({ error: result.error || 'Failed to retrieve chat history.' });
+            }
+        } catch (err) {
+            return res.status(500).json({ error: err.message || 'Failed to retrieve chat history.' });
         }
     }
     return res.status(400).json({ error: 'Invalid purpose.' });

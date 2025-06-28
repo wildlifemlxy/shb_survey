@@ -242,9 +242,9 @@ class AddEventModal extends Component {
             />
             {/* Show table if user has interacted or if there are any event rows */}
             {(this.state.hasInteracted || this.state.events.length > 0) && (
-              <div style={{ overflowX: 'auto', marginTop: 18 }}>
+              <div style={{ overflowX: 'auto', marginTop: 18, maxHeight: 320, position: 'relative' }}>
                 <table className="themed-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 15 }}>
-                  <thead>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 2, background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
                     <tr className="themed-table-header">
                       <th className="themed-table-th">Type</th>
                       <th className="themed-table-th">Organizer</th>
@@ -254,7 +254,7 @@ class AddEventModal extends Component {
                       <th className="themed-table-th">Action</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody style={{ overflowY: 'auto' }}>
                     {this.state.events.length === 0 && !this.state.numEvents ? (
                       <tr><td colSpan={6} className="themed-table-empty">No events to add.</td></tr>
                     ) : (

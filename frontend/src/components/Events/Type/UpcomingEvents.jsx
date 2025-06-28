@@ -179,9 +179,11 @@ class UpcomingEvents extends Component {
   render() {
     const { events, highlightFirstGreen } = this.props;
     const { expanded, editing, localParticipants } = this.state;
-    if (!events.length) return <div className="no-events">No upcoming events.</div>;
     const grouped = groupByOrganizer(events);
-    const organizerTypes = Object.keys(grouped);
+    // Always show both sections, even if empty
+    if (!grouped["WWF-led"]) grouped["WWF-led"] = [];
+    if (!grouped["Volunteer-led"]) grouped["Volunteer-led"] = [];
+    const organizerTypes = ["WWF-led", "Volunteer-led"];
     return (
       <div className="upcoming-organizer-sections" style={{ position: 'relative' }}>
         <button
@@ -198,40 +200,44 @@ class UpcomingEvents extends Component {
           Add New Event(s)
         </button>
         {this.state.showAddEventModal && (
-            <AddEventModal
-              onClose={() => this.setState({ showAddEventModal: false })}
-              onSave={this.handleAfterSave}
-            />
-          )}
-        {organizerTypes.map((orgType, colIdx) => (
-          <div className="organizer-section" key={orgType}>
-            <div className={`organizer-section-title ${orgType === 'WWF-led' ? 'wwf' : orgType === 'Volunteer-led' ? 'volunteer' : 'other'}`}>{orgType}</div>
-            <div className="upcoming-events-grid" style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-              gap: 32,
-              background: 'none',
-              padding: 0
-            }}>
-              {grouped[orgType].map((event, idx) => {
-                const participants = localParticipants[event._id] || event.Participants;
-                return (
-                  <UpcomingEventCard
-                    key={event._id}
-                    event={{ ...event, Participants: participants }}
-                    expanded={expanded[event._id]}
-                    editing={editing[event._id]}
-                    newParticipants={this.state.newParticipants[event._id] || []}
-                    onToggle={this.handleToggle}
-                    onAddRow={() => this.handleAddRow(event._id)}
-                    onUpdate={this.handleUpdate}
-                    updated={this.state.updated[event._id]}
-                  />
-                );
-              })}
+          <AddEventModal
+            onClose={() => this.setState({ showAddEventModal: false })}
+            onSave={this.handleAfterSave}
+          />
+        )}
+        {events.length === 0 ? (
+          <div className="no-events">No upcoming events.</div>
+        ) : (
+          organizerTypes.map((orgType, colIdx) => (
+            <div className="organizer-section" key={orgType}>
+              <div className={`organizer-section-title ${orgType === 'WWF-led' ? 'wwf' : orgType === 'Volunteer-led' ? 'volunteer' : 'other'}`}>{orgType}</div>
+              <div className="upcoming-events-grid" style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                gap: 32,
+                background: 'none',
+                padding: 0
+              }}>
+                {grouped[orgType].map((event, idx) => {
+                  const participants = localParticipants[event._id] || event.Participants;
+                  return (
+                    <UpcomingEventCard
+                      key={event._id}
+                      event={{ ...event, Participants: participants }}
+                      expanded={expanded[event._id]}
+                      editing={editing[event._id]}
+                      newParticipants={this.state.newParticipants[event._id] || []}
+                      onToggle={this.handleToggle}
+                      onAddRow={() => this.handleAddRow(event._id)}
+                      onUpdate={this.handleUpdate}
+                      updated={this.state.updated[event._id]}
+                    />
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     );
   }

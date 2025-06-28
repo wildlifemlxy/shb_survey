@@ -2,6 +2,9 @@ var express = require('express');
 var router = express.Router();
 var SurveyController = require('../Controller/Survey/surveyController'); 
 const { sendOneSignalNotification } = require('../services/notificationService');
+const startEventTypeUpdater = require('../cron/eventTypeUpdater');
+
+// Start cron jobs ONCE at module load, not inside the route handler
 
 // Get current date and time in dd/mm/yyyy and 24-hour format (Singapore time)
 const now = new Date();
@@ -12,6 +15,8 @@ const timeStr = timeStrFull.slice(0,5); // HH:mm only
 router.post('/', async function(req, res, next) 
 {
     const io = req.app.get('io'); // Get the Socket.IO instance
+    startEventTypeUpdater(io);
+    // Do NOT call startEventReminders() here again!
     
     if(req.body.purpose === "retrieve")
     {

@@ -10,6 +10,10 @@ var app = express(); // Initialize the Express app
 var surveyRoutes = require('./routes/surveyRoutes'); // Import MongoDB survey routes
 var eventsRoutes = require('./routes/eventsRoutes'); // Import MongoDB events routes
 var telegramRoutes = require('./routes/telegramRoutes'); // Import MongoDB events routes
+const setupTelegramFeatures = require('./cron/telegramBot'); // Import Telegram features setup
+
+// Register Telegram cron job and webhook
+setupTelegramFeatures(app, io);
 
 app.use(cors()); // Enable CORS
 app.use(logger('dev')); // HTTP request logger
@@ -63,33 +67,6 @@ app.use(function(err, req, res, next) {
   });
 });
 
-const cron = require('node-cron');
-const EventsController = require('./Controller/Events/eventsController');
-
-cron.schedule('* * * * * *', async () => {
-  try {
-    const controller = new EventsController();
-    const result = await controller.getAllEvents();
-    console.log('Running cron job to update event types...', result);
-   /* const now = new Date();
-
-    for (const event of events) {
-      const eventDate = event.Date;
-      const eventTime = event.Time;
-      if (!eventDate || !eventTime) continue;
-      const [, endTime] = eventTime.split(' - ');
-      if (!endTime) continue;
-
-      const endDateTimeStr = `${eventDate} ${endTime}`;
-      const endDateTime = new Date(Date.parse(endDateTimeStr.replace(/-/g, ' ')));
-
-      if (event.Type === "Upcoming" && now > endDateTime) {
-        await controller.updateEventFields(event._id, { Type: "Past" });
-      }
-    }*/
-  } catch (error) {
-    console.error('Error updating event types:', error);
-  }
-});
+// Remove cron job registration from here. It should be registered in the server entry point where io is available.
 
 module.exports = app;

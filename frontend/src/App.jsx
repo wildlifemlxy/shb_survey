@@ -32,6 +32,7 @@ class App extends Component {
       shbData: [], // Start with empty data
       eventData: [],
       botData: [],
+      chatData: [],
       isLoading: true,
       showDetailedAnalysis: false,
       detailedAnalysisData: null,
@@ -56,7 +57,8 @@ class App extends Component {
     const data1 = await fetchEventsData();
     console.log('Fetched Survey Data:', data1);
     const data2 = await fetchBotData();
-    console.log(' ', data2);
+    console.log('Fetched Bot Data:', data2);
+
     this.setState({ shbData: data, eventData: data1, botData: data2, isLoading: false });
   }
 

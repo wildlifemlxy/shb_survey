@@ -105,6 +105,51 @@ class EventsController {
         await db.close();
       }
     }
+
+  // Save the Telegram messageId and chatId for an event
+  async saveTelegramMessageId(eventId, chatId, messageId) {
+    const db = new DatabaseConnectivity();
+    try {
+      await db.initialize();
+      const databaseName = "Straw-Headed-Bulbul";
+      const collectionName = "Survey Events";
+      // Store as an array of objects to support multiple chats per event
+      const update = {
+        $addToSet: {
+          TelegramMessages: { chatId, messageId }
+        }
+      };
+      const filter = { _id: eventId };
+      await db.updateDocument(databaseName, collectionName, filter, update);
+      return { success: true, message: 'Telegram messageId saved.' };
+    } catch (err) {
+      console.error('Error saving Telegram messageId:', err);
+      return { success: false, message: 'Error saving Telegram messageId', error: err.message };
+    } finally {
+      await db.close();
+    }
+  }
+
+  // Retrieve the Telegram messageId for an event and chat
+  async getTelegramMessageId(eventId, chatId) {
+    const db = new DatabaseConnectivity();
+    try {
+      await db.initialize();
+      const databaseName = "Straw-Headed-Bulbul";
+      const collectionName = "Survey Events";
+      const event = await db.getDocument(databaseName, collectionName, { _id: eventId });
+      if (event && Array.isArray(event.TelegramMessages)) {
+        const found = event.TelegramMessages.find(m => m.chatId === chatId);
+        return found ? found.messageId : null;
+      }
+      return null;
+    } catch (err) {
+      console.error('Error retrieving Telegram messageId:', err);
+      return null;
+    } finally {
+      await db.close();
+    }
+  }
 }
 
 module.exports = EventsController;

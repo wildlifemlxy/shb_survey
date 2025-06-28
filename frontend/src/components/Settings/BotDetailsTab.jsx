@@ -13,7 +13,10 @@ class BotDetailsTab extends React.Component {
     shownBot: '',
     groupData: null,
     groupLoading: false,
-    groupError: null
+    groupError: null,
+    chatHistory: null,
+    chatHistoryLoading: false,
+    chatHistoryError: null
   };
 
   handleSelect = async (e) => {
@@ -38,10 +41,25 @@ class BotDetailsTab extends React.Component {
     }
   };
 
+  // Fetch chat history for a bot and group
+  fetchChatHistory = async (token, chatId) => {
+    this.setState({ chatHistoryLoading: true, chatHistory: null, chatHistoryError: null });
+    try {
+      const res = await axios.post(`${BASE_URL}/telegram`, {
+        purpose: 'getChatHistory',
+        token,
+        chatId
+      });
+      this.setState({ chatHistory: res.data.data, chatHistoryLoading: false });
+    } catch (err) {
+      this.setState({ chatHistoryError: err.message || 'Failed to fetch chat history.', chatHistoryLoading: false });
+    }
+  };
+
   render() {
     const bots = this.props.botData || [];
     const loading = this.props.isLoading;
-    const { selectedBot, groupData, groupLoading, groupError, shownBot} = this.state;
+    const { selectedBot, groupData, groupLoading, groupError, shownBot, chatHistory, chatHistoryLoading, chatHistoryError } = this.state;
     return (
       <>
         {loading && <p>Loading bots...</p>}
@@ -50,7 +68,7 @@ class BotDetailsTab extends React.Component {
           <div style={{ margin: '16px 0', position: 'relative', padding: '24px'}}>
             {/* Clear Button at top right */}
             <button
-              onClick={() => this.setState({ selectedBot: '', shownBot: '', groupData: null, groupError: null })}
+              onClick={() => this.setState({ selectedBot: '', shownBot: '', groupData: null, groupError: null, chatHistory: null, chatHistoryError: null })}
               style={{
                 position: 'absolute',
                 top: 16,
@@ -115,6 +133,18 @@ class BotDetailsTab extends React.Component {
                 groupLoading={groupLoading}
                 groupError={groupError}
                 onClearData={() => this.setState({ groupData: null, groupError: null })}
+                chatHistory={chatHistory}
+                chatHistoryLoading={chatHistoryLoading}
+                chatHistoryError={chatHistoryError}
+                botToken={(() => {
+                  const bot = bots.find(bot => bot.name === shownBot);
+                  return bot ? bot.token : '';
+                })()}
+                botId={(() => {
+                  const bot = bots.find(bot => bot.name === shownBot);
+                  return bot ? bot._id : '';
+                })()}
+                // Optionally, pass selectedChatId if you track it in state
               />
             )}
           </div>
