@@ -90,6 +90,10 @@ const io = new Server(server, {
 });
 app.set('io', io); // Make io available in routes
 
+// Register Telegram cron job and webhook with io
+const setupTelegramFeatures = require('../cron/telegramBot');
+setupTelegramFeatures(app, io);
+
 // Start the cron job with the real io instance
 const startEventTypeUpdater = require('../cron/eventTypeUpdater');
 startEventTypeUpdater(io);

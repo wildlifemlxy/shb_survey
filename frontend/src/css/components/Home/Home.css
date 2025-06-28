@@ -79,7 +79,6 @@
   flex-wrap: wrap;
   margin-bottom: 4rem;
 }
-
 /* Features Section */
 .features-section {
   padding: 6rem 2rem;
@@ -206,6 +205,47 @@
   background: linear-gradient(135deg, var(--primary-green-dark), var(--forest-green));
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
+}
+
+/* Modern Buttons */
+.btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  padding: 0.75rem 1.5rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  border-radius: var(--radius-md) !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: all var(--transition-fast) !important;
+  text-decoration: none !important;
+  font-family: inherit !important;
+  white-space: nowrap !important;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary-green), var(--primary-green-dark))!important;
+  color: white !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.btn-accent {
+  background: linear-gradient(135deg, var(--forest-green), var(--forest-green-dark))!important;
+  color: white !important;
+}
+
+
+.btn-secondary {
+  background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-dark)) !important;
+  color: white !important;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-secondary) !important;
+  border-color: var(--primary-green) !important;
+  color: var(--primary-green) !important;
 }
 
 .info-container {

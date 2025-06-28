@@ -10,10 +10,6 @@ var app = express(); // Initialize the Express app
 var surveyRoutes = require('./routes/surveyRoutes'); // Import MongoDB survey routes
 var eventsRoutes = require('./routes/eventsRoutes'); // Import MongoDB events routes
 var telegramRoutes = require('./routes/telegramRoutes'); // Import MongoDB events routes
-const setupTelegramFeatures = require('./cron/telegramBot'); // Import Telegram features setup
-
-// Register Telegram cron job and webhook
-setupTelegramFeatures(app, io);
 
 app.use(cors()); // Enable CORS
 app.use(logger('dev')); // HTTP request logger
