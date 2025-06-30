@@ -85,18 +85,24 @@ const io = new Server(server, {
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Content-Disposition'],
-    credentials: true
+    credentials: true 
   }
 });
 app.set('io', io); // Make io available in routes
 
-// Register Telegram cron job and webhook with io
-const setupTelegramFeatures = require('../cron/telegramBot');
-setupTelegramFeatures(app, io);
-
-// Start the cron job with the real io instance
-const startEventTypeUpdater = require('../cron/eventTypeUpdater');
-startEventTypeUpdater(io);
+// Register Telegram cron job and webhook with io & Start the event type updater concurrently
+(async () => {
+  await Promise.all([
+    (async () => {
+      const setupTelegramFeatures = require('../cron/telegramBot');
+      await setupTelegramFeatures(app, io);
+    })(),
+    (async () => {
+      const startEventTypeUpdater = require('../cron/eventTypeUpdater');
+      await startEventTypeUpdater(io);
+    })()
+  ]);
+})();
 
 io.on('connection', (socket) => {
   console.log('client connected:', socket.id);

@@ -415,6 +415,49 @@
   line-height: 1.4;
 }
 
+/* DateTime Theme Utility */
+.theme-datetime {
+  display: block;
+  font-weight: 500;
+  font-size: 1.08rem;
+  color: var(--primary-green-dark, #15803d);
+  background: rgba(34,197,94,0.08);
+  border-radius: 8px;
+  padding: 4px 16px;
+  margin: 8px auto 12px auto;
+  width: fit-content;
+  letter-spacing: 0.01em;
+  box-shadow: 0 2px 8px 0 rgba(34,197,94,0.04);
+}
+
+@media (max-width: 600px) {
+  .theme-datetime {
+    font-size: 0.98rem;
+    padding: 3px 10px;
+  }
+}
+
+/* DateTime Theme Utility */
+.home-datetime {
+  display: inline-block;
+  font-weight: 500;
+  font-size: 1.08rem;
+  color: var(--primary-green-dark, #15803d);
+  background: none;
+  border-radius: 8px;
+  width: auto;
+  letter-spacing: 0.01em;
+  box-shadow: none;
+}
+
+@media (max-width: 600px) {
+  .home-datetime {
+    font-size: 0.98rem;
+    padding: 3px 10px;
+    margin-left: 0.5rem;
+  }
+}
+
 /* Animations */
 @keyframes fadeInUp {
   from {

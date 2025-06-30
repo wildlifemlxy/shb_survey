@@ -30,7 +30,30 @@ class SurveyEvents extends Component {
     super(props);
     this.state = {
       activeTab: 'Upcoming',
+      currentDateTime: this.getFormattedDateTime()
     };
+    this.timer = null;
+  }
+
+  getFormattedDateTime = () => {
+    const now = new Date();
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const day = days[now.getDay()];
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const time = now.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    return `${day}, ${dd}/${mm}/${yyyy} ${time}`;
+  }
+
+  componentDidMount() {
+    this.timer = setInterval(() => {
+      this.setState({ currentDateTime: this.getFormattedDateTime() });
+    }, 1000);
+  }
+
+  componentWillUnmount() {
+    if (this.timer) clearInterval(this.timer);
   }
 
   setActiveTab = (tab) => {
@@ -63,6 +86,9 @@ class SurveyEvents extends Component {
           <div className="header-content">
             <div className="header-title">
               <h1>Survey Walk Management</h1>
+              <div className="survey-datetime" style={{ fontStyle: 'italic !important' }}>
+                {this.state.currentDateTime}
+              </div>
               <p>Organize and track all survey walk events</p>
             </div>
             <div className="header-actions">

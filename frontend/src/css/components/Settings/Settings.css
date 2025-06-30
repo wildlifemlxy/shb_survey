@@ -167,3 +167,26 @@
 .dashboard-content {
   padding-bottom: 120px; /* Extra space for mobile navigation */
 }
+
+/* DateTime Theme Utility */
+
+/* DateTime Theme Utility */
+.settings-datetime {
+  display: inline-block;
+  font-weight: 400;
+  font-size: 0.98rem;
+  color: #6B7280; /* Muted gray for subtlety */
+  background: none;
+  border-radius: 8px;
+  width: auto;
+  letter-spacing: 0.01em;
+  box-shadow: none;
+  font-style: italic;
+}
+
+@media (max-width: 600px) {
+  .settings-datetime {
+    font-size: 0.98rem;
+    padding: 3px 10px;
+  }
+}

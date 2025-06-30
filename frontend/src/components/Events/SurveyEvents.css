@@ -162,3 +162,48 @@
 .dashboard-content {
   padding-bottom: 120px; /* Extra space for mobile navigation */
 }
+
+/* DateTime Theme Utility */
+.theme-datetime {
+  display: block;
+  font-weight: 500;
+  font-size: 1.08rem;
+  color: var(--primary-green-dark, #15803d);
+  background: none;
+  border-radius: 8px;
+  padding: 4px 16px;
+  margin: 8px auto 12px auto;
+  width: fit-content;
+  letter-spacing: 0.01em;
+  box-shadow: none;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .theme-datetime {
+    font-size: 0.98rem;
+    padding: 3px 10px;
+  }
+}
+
+
+/* DateTime Theme Utility */
+.survey-datetime {
+  display: inline-block;
+  font-weight: 400;
+  font-size: 0.98rem;
+  color: #6B7280; /* Muted gray for subtlety */
+  background: none;
+  border-radius: 8px;
+  width: auto;
+  letter-spacing: 0.01em;
+  box-shadow: none;
+  font-style: italic;
+}
+
+@media (max-width: 600px) {
+  .survey-datetime {
+    font-size: 0.98rem;
+    padding: 3px 10px;
+  }
+}

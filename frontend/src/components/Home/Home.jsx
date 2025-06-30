@@ -14,13 +14,35 @@ class Home extends React.Component {
         uniqueLocations: '',
         totalVolunteers: '',
         yearsActive: ''
-      }
+      },
+      currentDateTime: this.getFormattedDateTime()
     };
+    this.timer = null;
+  }
+
+  getFormattedDateTime = () => {
+    const now = new Date();
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const day = days[now.getDay()];
+    // Format: dd/mm/yyyy
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    // 24-hour format
+    const time = now.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    return `${day}, ${dd}/${mm}/${yyyy} ${time}`;
   }
 
   componentDidMount = async () => {
     console.log("Props in Home component:", this.props);
     this.loadStatistics();
+    this.timer = setInterval(() => {
+      this.setState({ currentDateTime: this.getFormattedDateTime() });
+    }, 1000);
+  }
+
+  componentWillUnmount() {
+    if (this.timer) clearInterval(this.timer);
   }
 
   componentDidUpdate(prevProps) {
@@ -104,7 +126,7 @@ class Home extends React.Component {
   };
 
   render() {
-    const { statistics } = this.state;
+    const { statistics, currentDateTime } = this.state;
     return (
       <div className="home-container">
         {/* Hero Section */}
@@ -120,7 +142,10 @@ class Home extends React.Component {
             <h1 className="hero-title">
               WWF Straw-headed Bulbul Survey Platform
             </h1>
-            <p className="hero-subtitle">
+            <div className="hero-datetime theme-datetime">
+              {currentDateTime}
+            </div>
+           <p className="hero-subtitle">
               Empowering conservation through advanced data visualization and automated survey management. 
               Join us in protecting the critically endangered Straw-headed Bulbul and preserving Singapore's biodiversity.
             </p>

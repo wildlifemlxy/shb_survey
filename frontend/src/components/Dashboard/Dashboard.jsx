@@ -43,12 +43,32 @@ class DashboardContainer extends Component {
       fileName: '',
       orientation: 'landscape',
       isDownloading: false,
-      filteredData: props.shbData || []
+      filteredData: props.shbData || [],
+      currentDateTime: this.getFormattedDateTime(),
     };
+    this.timer = null;
+  }
+
+  getFormattedDateTime = () => {
+    const now = new Date();
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const day = days[now.getDay()];
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const time = now.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    return `${day}, ${dd}/${mm}/${yyyy} ${time}`;
   }
 
   componentDidMount() {
     this.updateDataFromProps();
+    this.timer = setInterval(() => {
+      this.setState({ currentDateTime: this.getFormattedDateTime() });
+    }, 1000);
+  }
+
+  componentWillUnmount() {
+    if (this.timer) clearInterval(this.timer);
   }
 
   componentDidUpdate(prevProps) {
@@ -348,7 +368,10 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
         <header className="dashboard-header">
           <div className="header-content">
             <div className="header-title">
-              <h3>Straw-headed Bulbul Survey Dashboard</h3>
+              <h1>Straw-headed Bulbul Survey Dashboard</h1>
+              <div className="dashboard-datetime">
+                {this.state.currentDateTime}
+              </div>
               <p>Comprehensive Bird Observation Analytics</p>
             </div>
             <div className="header-actions">

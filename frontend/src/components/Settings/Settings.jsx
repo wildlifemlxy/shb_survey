@@ -27,9 +27,35 @@ const TABS = [
 ];
 
 class Settings extends Component {
-  state = {
-    activeTab: TABS[0].key
-  };
+  constructor(props) {
+    super(props);
+    this.state = {
+      activeTab: TABS[0].key,
+      currentDateTime: this.getFormattedDateTime()
+    };
+    this.timer = null;
+  }
+
+  getFormattedDateTime = () => {
+    const now = new Date();
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const day = days[now.getDay()];
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const time = now.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    return `${day}, ${dd}/${mm}/${yyyy} ${time}`;
+  }
+
+  componentDidMount() {
+    this.timer = setInterval(() => {
+      this.setState({ currentDateTime: this.getFormattedDateTime() });
+    }, 1000);
+  }
+
+  componentWillUnmount() {
+    if (this.timer) clearInterval(this.timer);
+  }
 
   setActiveTab = (key) => {
     this.setState({ activeTab: key });
@@ -47,6 +73,9 @@ class Settings extends Component {
           <div className="header-content">
             <div className="header-title">
               <h1>Settings</h1>
+              <div className="settings-datetime">
+                {this.state.currentDateTime}
+              </div>
               <p>Manage your survey platform preferences and integrations for Telegram bots</p>
             </div>
             <div className="header-actions">
