@@ -3,7 +3,9 @@ const { MongoClient, ObjectId } = require('mongodb');
 class DatabaseConnectivity {
   constructor() {
     this.uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/?retryWrites=true&w=majority&appName=StrawHeadedBulbul';
-    this.client = new MongoClient(this.uri, { tlsAllowInvalidCertificates: false });
+    this.client = new MongoClient(this.uri, { tlsAllowInvalidCertificates: false,
+       serverSelectionTimeoutMS: 60000 // 60 seconds
+    });
     this.connected = false;
   }
 
