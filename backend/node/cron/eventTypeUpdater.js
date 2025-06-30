@@ -2,6 +2,13 @@ const schedule = require('node-schedule');
 const EventsController = require('../Controller/Events/eventsController');
 const parseCustomDate = require('./parseCustomDate');
 
+// Helper to parse time string as UTC (GMT+0)
+function parseTimeToUTC(dateObj, timeStr) {
+  // timeStr: 'HH:mm' or 'HH:mm:ss'
+  const [h, m, s] = timeStr.split(':').map(Number);
+  return new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), h, m, s || 0));
+}
+
 // Export a function that takes io
 function startEventTypeUpdater(io) {
   schedule.scheduleJob('* * * * *', async () => {
@@ -10,7 +17,15 @@ function startEventTypeUpdater(io) {
       const controller = new EventsController();
       const result = await controller.getAllEvents();
       const events = result.events;
-      const now = new Date();
+      const now = new Date(); // This is in local time, convert to UTC for comparison
+      const nowUTC = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        now.getUTCHours(),
+        now.getUTCMinutes(),
+        now.getUTCSeconds()
+      ));
 
       for (const event of events) {
         const eventDate = event.Date;
@@ -21,9 +36,9 @@ function startEventTypeUpdater(io) {
 
         const dateObj = parseCustomDate(eventDate);
         if (!dateObj) continue;
-        const startDateTime = new Date(`${dateObj.toDateString()} ${startTime}`);
+        const startDateTimeUTC = parseTimeToUTC(dateObj, startTime);
 
-        if (now > startDateTime) {
+        if (nowUTC > startDateTimeUTC) {
           if (event.Type === "Upcoming") {
             await controller.updateEventFields(event._id, { Type: "Past" });
             if (io) {
