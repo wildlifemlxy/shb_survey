@@ -26,7 +26,6 @@ function startEventTypeUpdater(io) {
       const controller = new EventsController();
       const result = await controller.getAllEvents();
       const events = result.events;
-      console.log(`Found ${events.length} events to check.`, events);
       const nowUTC = new Date(); // This is in UTC by default
 
       for (const event of events) {
@@ -39,6 +38,8 @@ function startEventTypeUpdater(io) {
         const dateObj = parseCustomDate(eventDate);
         if (!dateObj) continue;
         const startDateTimeUTC = sgTimeToUTC(dateObj, startTime);
+
+        console.log(`Checking event ${even}: startDateTimeUTC=${startDateTimeUTC.toISOString()}, nowUTC=${nowUTC.toISOString()}`);
 
         if (nowUTC > startDateTimeUTC) {
           if (event.Type === "Upcoming") {
