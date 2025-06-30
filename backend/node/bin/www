@@ -90,13 +90,13 @@ const io = new Server(server, {
 });
 app.set('io', io); // Make io available in routes
 
-// Register Telegram cron job and webhook with io & Start the event type updater concurrently, but ensure both run even if one fails
+// Register Telegram scheduler/webhook and event type updater concurrently, both robust to errors
 (async () => {
   const results = await Promise.allSettled([
     (async () => {
       try {
         const setupTelegramFeatures = require('../cron/telegramBot');
-        await setupTelegramFeatures(app, io);
+        setupTelegramFeatures(app, io); // node-schedule is non-blocking, no await needed
       } catch (err) {
         console.error('Error in telegramBot:', err);
       }
@@ -104,7 +104,7 @@ app.set('io', io); // Make io available in routes
     (async () => {
       try {
         const startEventTypeUpdater = require('../cron/eventTypeUpdater');
-        await startEventTypeUpdater(io);
+        startEventTypeUpdater(io); // node-schedule is non-blocking, no await needed
       } catch (err) {
         console.error('Error in eventTypeUpdater:', err);
       }

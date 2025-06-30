@@ -1,14 +1,14 @@
 const axios = require('axios');
-const cron = require('node-cron');
+const schedule = require('node-schedule');
 const EventsController = require('../Controller/Events/eventsController');
 const parseCustomDate = require('./parseCustomDate');
 const TelegramController = require('../Controller/Telegram/telegramController');
 
 function setupTelegramFeatures(app, io) {
-  // --- Event Reminders Cron Job ---
-  cron.schedule('0 10 * * *', async () => {
+  // --- Event Reminders Scheduler (10:00 AM every day) ---
+  schedule.scheduleJob('0 10 * * *', async () => {
     try {
-      console.log('Running event reminders cron job at 10:00 AM');
+      console.log('Running event reminders scheduler at 10:00 AM');
       const controller = new EventsController();
       const result = await controller.getAllEvents();
       const events = result.events;

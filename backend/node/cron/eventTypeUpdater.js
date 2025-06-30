@@ -1,16 +1,15 @@
-const cron = require('node-cron');
+const schedule = require('node-schedule');
 const EventsController = require('../Controller/Events/eventsController');
 const parseCustomDate = require('./parseCustomDate');
 
 // Export a function that takes io
 function startEventTypeUpdater(io) {
-  cron.schedule('* * * * *', async () => {
+  schedule.scheduleJob('* * * * *', async () => {
     try {
-      console.log('Running event type updater cron job...');
+      console.log('Running event type updater scheduler...');
       const controller = new EventsController();
       const result = await controller.getAllEvents();
       const events = result.events;
-      //console.log('Retrieved events:', events);
       const now = new Date();
 
       for (const event of events) {
