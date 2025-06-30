@@ -90,18 +90,32 @@ const io = new Server(server, {
 });
 app.set('io', io); // Make io available in routes
 
-// Register Telegram cron job and webhook with io & Start the event type updater concurrently
+// Register Telegram cron job and webhook with io & Start the event type updater concurrently, but ensure both run even if one fails
 (async () => {
-  await Promise.all([
+  const results = await Promise.allSettled([
     (async () => {
-      const setupTelegramFeatures = require('../cron/telegramBot');
-      await setupTelegramFeatures(app, io);
+      try {
+        const setupTelegramFeatures = require('../cron/telegramBot');
+        await setupTelegramFeatures(app, io);
+      } catch (err) {
+        console.error('Error in telegramBot:', err);
+      }
     })(),
     (async () => {
-      const startEventTypeUpdater = require('../cron/eventTypeUpdater');
-      await startEventTypeUpdater(io);
+      try {
+        const startEventTypeUpdater = require('../cron/eventTypeUpdater');
+        await startEventTypeUpdater(io);
+      } catch (err) {
+        console.error('Error in eventTypeUpdater:', err);
+      }
     })()
   ]);
+  // Optionally, log results for debugging
+  results.forEach((result, idx) => {
+    if (result.status === 'rejected') {
+      console.error(`Task ${idx} failed:`, result.reason);
+    }
+  });
 })();
 
 io.on('connection', (socket) => {
