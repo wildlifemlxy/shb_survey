@@ -91,33 +91,19 @@ const io = new Server(server, {
 app.set('io', io); // Make io available in routes
 
 // Register Telegram scheduler/webhook and event type updater concurrently, both robust to errors
-(async () => {
-  const results = await Promise.allSettled([
-    (async () => {
-      try {
-        const setupTelegramFeatures = require('../cron/telegramBot');
-        setupTelegramFeatures(app, io); // node-schedule is non-blocking, no await needed
-      } catch (err) {
-        console.error('Error in telegramBot:', err);
-      }
-    })(),
-    (async () => {
-      try {
-        const startEventTypeUpdater = require('../cron/eventTypeUpdater');
-        startEventTypeUpdater(io); // node-schedule is non-blocking, no await needed
-      } catch (err) {
-        console.error('Error in eventTypeUpdater:', err);
-      }
-    })()
-  ]);
-  // Optionally, log results for debugging
-  results.forEach((result, idx) => {
-    console.log(`Task ${idx} completed with status:`, result.status);
-    if (result.status === 'rejected') {
-      console.error(`Task ${idx} failed:`, result.reason);
-    }
-  });
-})();
+try {
+  const setupTelegramFeatures = require('../cron/telegramBot');
+  setupTelegramFeatures(app, io); // node-schedule is non-blocking, no await needed
+} catch (err) {
+  console.error('Error in telegramBot:', err);
+}
+
+try {
+  const startEventTypeUpdater = require('../cron/eventTypeUpdater');
+  startEventTypeUpdater(io); // node-schedule is non-blocking, no await needed
+} catch (err) {
+  console.error('Error in eventTypeUpdater:', err);
+}
 
 io.on('connection', (socket) => {
   console.log('client connected:', socket.id);
