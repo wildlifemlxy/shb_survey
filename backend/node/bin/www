@@ -112,6 +112,7 @@ app.set('io', io); // Make io available in routes
   ]);
   // Optionally, log results for debugging
   results.forEach((result, idx) => {
+    console.log(`Task ${idx} completed with status:`, result.status);
     if (result.status === 'rejected') {
       console.error(`Task ${idx} failed:`, result.reason);
     }
