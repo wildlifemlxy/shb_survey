@@ -6,6 +6,7 @@ const parseCustomDate = require('./parseCustomDate');
 function startEventTypeUpdater(io) {
   cron.schedule('* * * * *', async () => {
     try {
+      console.log('Running event type updater cron job...');
       const controller = new EventsController();
       const result = await controller.getAllEvents();
       const events = result.events;
