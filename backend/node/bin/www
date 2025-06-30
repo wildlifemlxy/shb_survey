@@ -95,14 +95,14 @@ try {
   const setupTelegramFeatures = require('../cron/telegramBot');
   setupTelegramFeatures(app, io); // node-schedule is non-blocking, no await needed
 } catch (err) {
-  console.error('Error in telegramBot:', err);
+  console.error('Error in telegramBot:', err && (err.stack || err));
 }
 
 try {
   const startEventTypeUpdater = require('../cron/eventTypeUpdater');
   startEventTypeUpdater(io); // node-schedule is non-blocking, no await needed
 } catch (err) {
-  console.error('Error in eventTypeUpdater:', err);
+  console.error('Error in eventTypeUpdater:', err && (err.stack || err));
 }
 
 io.on('connection', (socket) => {

@@ -1,12 +1,21 @@
 const schedule = require('node-schedule');
 const EventsController = require('../Controller/Events/eventsController');
 const parseCustomDate = require('./parseCustomDate');
+const e = require('express');
 
-// Helper to parse time string as UTC (GMT+0)
-function parseTimeToUTC(dateObj, timeStr) {
+// Helper: Convert Singapore time (UTC+8) to GMT/UTC
+function sgTimeToUTC(dateObj, timeStr) {
   // timeStr: 'HH:mm' or 'HH:mm:ss'
   const [h, m, s] = timeStr.split(':').map(Number);
-  return new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), h, m, s || 0));
+  // Singapore is UTC+8, so subtract 8 hours to get UTC
+  return new Date(Date.UTC(
+    dateObj.getFullYear(),
+    dateObj.getMonth(),
+    dateObj.getDate(),
+    (h || 0) - 8, // convert to UTC
+    m || 0,
+    s || 0
+  ));
 }
 
 // Export a function that takes io
@@ -17,15 +26,8 @@ function startEventTypeUpdater(io) {
       const controller = new EventsController();
       const result = await controller.getAllEvents();
       const events = result.events;
-      const now = new Date(); // This is in local time, convert to UTC for comparison
-      const nowUTC = new Date(Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate(),
-        now.getUTCHours(),
-        now.getUTCMinutes(),
-        now.getUTCSeconds()
-      ));
+      console.log(`Found ${events.length} events to check.`, events);
+      const nowUTC = new Date(); // This is in UTC by default
 
       for (const event of events) {
         const eventDate = event.Date;
@@ -36,7 +38,7 @@ function startEventTypeUpdater(io) {
 
         const dateObj = parseCustomDate(eventDate);
         if (!dateObj) continue;
-        const startDateTimeUTC = parseTimeToUTC(dateObj, startTime);
+        const startDateTimeUTC = sgTimeToUTC(dateObj, startTime);
 
         if (nowUTC > startDateTimeUTC) {
           if (event.Type === "Upcoming") {
