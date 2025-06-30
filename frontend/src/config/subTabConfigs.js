@@ -18,14 +18,14 @@ export const subTabConfigs = {
     sections: [
       createChartSection({
         id: 'chart-section-1',
-        title: '📈 Observations Over Time (Monthly)',
+        title: 'Observations Over Time (Monthly)',
         description: 'Monthly trends and temporal patterns in observation data',
         component: DateLineChart,
         size: 'default'
       }),
       createChartSection({
         id: 'chart-section-2',
-        title: '🐦 Bird Distribution Analysis',
+        title: 'Bird Distribution Analysis',
         description: 'Straw-headed Bulbul distribution across Singapore',
         component: LocationStats,
         size: 'default'

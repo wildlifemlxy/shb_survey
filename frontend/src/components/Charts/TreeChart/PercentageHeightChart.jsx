@@ -716,18 +716,23 @@ class PercentageHeightChart extends Component {
                 maxWidth: 240,
               }}
             >
-              <div className="percentage-height-tooltip-title">
-                🐦 Tree {this.state.hoveredTree.displayIndex}
-              </div>
               <div className="percentage-height-tooltip-item">
-                <strong>Tree Height:</strong> 100%
+                <strong>Tree Height:</strong> {(() => {
+                  const treeHeightVal = this.state.hoveredTree["Height of tree/m"];
+                  if (typeof treeHeightVal === 'string' && treeHeightVal.trim().toLowerCase() === 'n/a') {
+                    return 'N/A';
+                  }
+                  return '100%';
+                })()}
               </div>
               <div className="percentage-height-tooltip-item">
                 <strong>Bird Height:</strong> {(() => {
-                  let birdHeightValue = 100;
                   const treeHeightVal = this.state.hoveredTree["Height of tree/m"];
                   const birdHeightVal = this.state.hoveredTree["Height of bird/m"];
-                  birdHeightValue = Math.round((birdHeightVal / treeHeightVal) * 100); // round to nearest integer
+                  if (typeof treeHeightVal === 'string' && treeHeightVal.trim().toLowerCase() === 'n/a') {
+                    return 'N/A';
+                  }
+                  let birdHeightValue = Math.round((birdHeightVal / treeHeightVal) * 100);
                   return `${birdHeightValue}%`;
                 })()}
               </div>

@@ -836,7 +836,7 @@ class DateLineChart extends Component {
       <div className="date-line-chart">
         <div className="chart-header">
           <div className="chart-controls">
-            <button
+           {/* <button
               className={`chart-button ${showMLPanel ? 'active' : 'primary'}`}
               onClick={() => this.setState(prevState => ({ 
                 showMLPanel: !prevState.showMLPanel,
@@ -846,7 +846,7 @@ class DateLineChart extends Component {
             >
               <span role="img" aria-label="AI">🧠</span>
               {showMLPanel ? 'Hide Insights' : 'AI Insights'}
-            </button>
+            </button>*/}
             <button
               className={`chart-button ${showReportPanel ? 'active' : 'primary'}`}
               onClick={() => this.setState(prevState => ({ 

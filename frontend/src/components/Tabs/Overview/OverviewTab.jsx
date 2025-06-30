@@ -645,7 +645,8 @@ class OverviewTab extends Component {
                   </div>
                 </div>
 
-                {/* Survey Efficiency Card */}
+                {/* Survey Efficiency Card - Hidden as requested */}
+                {/*
                 <div 
                   className={`stat-card compact ${expandedCards.efficiency ? 'expanded' : ''}`} 
                   onClick={() => this.toggleCardExpanded('efficiency')} 
@@ -691,8 +692,10 @@ class OverviewTab extends Component {
                     )}
                   </div>
                 </div>
+                */}
 
-                {/* Best Location Performance Card */}
+                {/* Best Location Performance Card - Hidden as requested */}
+                {/*
                 <div 
                   className={`stat-card compact ${expandedCards.performance ? 'expanded' : ''}`} 
                   onClick={() => this.toggleCardExpanded('performance')} 
@@ -741,6 +744,7 @@ class OverviewTab extends Component {
                     )}
                   </div>
                 </div>
+                */}
 
                 {/* Time Analysis Card */}
                 <div 

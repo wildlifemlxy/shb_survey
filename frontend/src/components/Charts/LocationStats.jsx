@@ -851,7 +851,7 @@ class LocationStats extends Component {
             >
               {showReportPanel ? 'Hide Report' : 'Generate Report'}
             </button>
-            <button
+            {/*<button
               onClick={() => {
                 const newShowInsights = !this.state.showInsightsPanel;
                 this.setState({ 
@@ -868,7 +868,7 @@ class LocationStats extends Component {
             >
               <span role="img" aria-label="AI">🧠</span>
               {showInsightsPanel ? 'Hide Insights' : 'AI Insights'}
-            </button>
+            </button>*/}
             <button
               onClick={this.toggleLegend}
               className={`chart-button ${showLegend ? 'active' : 'primary'}`}
