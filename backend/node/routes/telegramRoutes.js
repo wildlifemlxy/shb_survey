@@ -33,7 +33,7 @@ router.post('/', async function(req, res, next) {
         try {
             const telegramRes = await axios.get(`https://api.telegram.org/bot${token}/getMe`);
             const telegramData = telegramRes.data;
-            console.log('Telegram getMe response:', telegramData);s
+            console.log('Telegram getMe response:', telegramData);
             if (!telegramData.ok) {
                 return res.status(400).json({ error: 'Invalid Telegram bot token.' });
             }

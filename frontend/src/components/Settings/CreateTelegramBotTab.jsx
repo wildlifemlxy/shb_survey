@@ -32,6 +32,7 @@ class CreateTelegramBotTab extends React.Component {
         purpose: 'getBotInfo',
         token
       });
+      console.log('Telegram bot info:', result.data);
       if (result.data && result.data.ok) {
         let { username, first_name } = result.data.result;
         // Format username: replace _ with space and capitalize each word
