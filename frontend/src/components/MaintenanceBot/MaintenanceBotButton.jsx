@@ -5,6 +5,10 @@ import jsPDF from 'jspdf';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import './MaintenanceBotButton.css';
+import SystemHealthStatus from './SystemHealthStatus';
+import QuickActionsPanel from './QuickActionsPanel';
+import StatusMessages from './StatusMessages';
+import LastMaintenanceInfo from './LastMaintenanceInfo';
 
 const BASE_URL =
   window.location.hostname === 'localhost'
@@ -1762,8 +1766,6 @@ class MaintenanceBotButton extends Component {
   render() {
     const { isOpen, maintenanceStatus, lastMaintenance, activeTasks, systemHealth, showQuickActions, isHidden, showExportActions, exportStatus, currentPage, activeDashboardTab } = this.state;
     const statusColor = this.getStatusColor();
-    
-    // Determine export type for dashboard
     const exportType = currentPage === 'dashboard' && activeDashboardTab === 'dataTable' ? 'Excel' : 'PDF';
     const isDataTableTab = currentPage === 'dashboard' && activeDashboardTab === 'dataTable';
     const backupTooltip = currentPage !== 'dashboard' 
@@ -1771,15 +1773,10 @@ class MaintenanceBotButton extends Component {
       : !isDataTableTab 
         ? 'Export only available on Data Table tab - please switch to Data Table'
         : `Create backup (${exportType} export + backend backup)`;
-
-    // Hide maintenance bot when other popups are open
-    if (isHidden) {
-      return null;
-    }
-
+    if (isHidden) return null;
     return (
       <>
-        {/* Floating Button */}
+        {/* Floating Button with image icon */}
         <div className={`maintenance-bot-container ${isHidden ? 'hidden' : ''}`}>
           <button
             ref={(ref) => this.buttonRef = ref}
@@ -1788,7 +1785,7 @@ class MaintenanceBotButton extends Component {
             style={{
               position: 'fixed',
               bottom: 20,
-              right: 100, // Moved left to avoid export button overlap
+              right: 100,
               width: 60,
               height: 60,
               borderRadius: '50%',
@@ -1806,13 +1803,13 @@ class MaintenanceBotButton extends Component {
             }}
             title="Dashboard Tools & Settings"
           >
-            {maintenanceStatus === 'running' || exportStatus === 'exporting' ? (
-              <div className="spinner">📊</div>
-            ) : (
-              '📊'
-            )}
+            {/* Modern robot image icon */}
+            <img
+              src={'./robot.png'}
+              alt="Maintenance Bot"
+              style={{ width: 36, height: 36, objectFit: 'contain', display: 'block' }}
+            />
           </button>
-
           {/* Maintenance Panel */}
           {isOpen && (
             <div 
@@ -1821,7 +1818,7 @@ class MaintenanceBotButton extends Component {
               style={{
                 position: 'fixed',
                 bottom: 90,
-                right: 100, // Aligned with button position
+                right: 100,
                 width: 320,
                 background: 'white',
                 borderRadius: 12,
@@ -1839,8 +1836,9 @@ class MaintenanceBotButton extends Component {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
-                      📊 Dashboard Tools & Settings
+                    <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <img src={'./robot.png'} alt="Maintenance Bot" style={{ width: 24, height: 24, objectFit: 'contain', display: 'inline-block' }} />
+                      <span>Dashboard Tools & Settings</span>
                     </h3>
                     <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#6b7280' }}>
                       System settings, exports, and other tools
@@ -1857,223 +1855,34 @@ class MaintenanceBotButton extends Component {
                   />
                 </div>
               </div>
-
-              {/* System Status */}
               <div style={{ padding: 16 }}>
-                <div style={{ marginBottom: 16 }}>
-                  <h4 style={{ margin: '0 0 8px 0', fontSize: 14, fontWeight: 500 }}>
-                    System Health
-                  </h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, fontSize: 12 }}>
-                    <div style={{ textAlign: 'center', padding: 8, background: '#f3f4f6', borderRadius: 6 }}>
-                      <div style={{ color:  "#000000"}}>📊 Database</div>
-                      <div style={{ color: systemHealth.database === 'Healthy' ? '#10b981' : '#ef4444', fontWeight: 800 }}>
-                        {systemHealth.database}
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'center', padding: 8, background: '#f3f4f6', borderRadius: 6 }}>
-                      <div style={{ color:  "#000000"}}>💾 Storage</div>
-                      <div style={{ color: systemHealth.storage === 'Healthy' ? '#10b981' : '#ef4444', fontWeight: 800 }}>
-                        {systemHealth.storage}
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'center', padding: 8, background: '#f3f4f6', borderRadius: 6 }}>
-                      <div style={{ color:  "#000000"}}>⚡ Speed</div>
-                      <div style={{ color: systemHealth.performance === 'Good' ? '#10b981' : '#f59e0b', fontWeight: 800 }}>
-                        {systemHealth.performance}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
+                {/* System Health */}
+                <SystemHealthStatus systemHealth={systemHealth} />
                 {/* Quick Actions */}
-                <div style={{ marginBottom: 16 }}>
-                  <button
-                    onClick={() => this.setState(prev => ({ showQuickActions: !prev.showQuickActions }))}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      background: '#f3f4f6',
-                      border: 'none',
-                      borderRadius: 6,
-                      cursor: 'pointer',
-                      fontSize: 14,
-                      fontWeight: 500,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      marginBottom: 8
-                    }}
-                  >
-                    <span>⚡ Quick Actions</span>
-                    <span>{showQuickActions ? '▼' : '▶'}</span>
-                  </button>
-                  {showQuickActions && (
-                    <div style={{ marginTop: 8 }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        gap: 8, 
-                        marginBottom: 8,
-                        flexDirection: 'row'
-                      }}>
-                        <button
-                          onClick={() => {
-                            console.log('Backup button clicked!');
-                            console.log('Current state before export:', {
-                              currentPage: this.state.currentPage,
-                              exportStatus: this.state.exportStatus,
-                              activeDashboardTab: this.state.activeDashboardTab
-                            });
-                            this.exportCurrentPage('backup');
-                          }}
-                          disabled={
-                            currentPage !== 'dashboard' ||
-                            !isDataTableTab ||
-                            exportStatus === 'exporting' ||
-                            activeDashboardTab === 'visualization' ||
-                            (currentPage === 'dashboard' && isDataTableTab && window.dataViewCurrentView === 'pivot')
-                          }
-                          style={{
-                            padding: '8px 16px',
-                            background: currentPage !== 'dashboard' || !isDataTableTab || exportStatus === 'exporting' || activeDashboardTab === 'visualization' || (currentPage === 'dashboard' && isDataTableTab && window.dataViewCurrentView === 'pivot') ? '#9ca3af' : '#10b981',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: 6,
-                            cursor: currentPage !== 'dashboard' || !isDataTableTab || exportStatus === 'exporting' || activeDashboardTab === 'visualization' || (currentPage === 'dashboard' && isDataTableTab && window.dataViewCurrentView === 'pivot') ? 'not-allowed' : 'pointer',
-                            fontSize: 11,
-                            fontWeight: 600,
-                            opacity: currentPage !== 'dashboard' || !isDataTableTab || exportStatus === 'exporting' || activeDashboardTab === 'visualization' || (currentPage === 'dashboard' && isDataTableTab && window.dataViewCurrentView === 'pivot') ? 0.6 : 1,
-                            minHeight: 32,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            textAlign: 'center',
-                            lineHeight: '1.2',
-                            transition: 'all 0.2s ease',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                            whiteSpace: 'nowrap',
-                            width: '33%'
-                          }}
-                          onMouseOver={e => {
-                            if (
-                              currentPage === 'dashboard' &&
-                              isDataTableTab &&
-                              exportStatus !== 'exporting' &&
-                              activeDashboardTab !== 'visualization' &&
-                              !(currentPage === 'dashboard' && isDataTableTab && window.dataViewCurrentView === 'pivot')
-                            ) {
-                              e.target.style.transform = 'translateY(-1px)';
-                              e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
-                            }
-                          }}
-                          onMouseOut={e => {
-                            e.target.style.transform = 'translateY(0px)';
-                            e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
-                          }}
-                          title={
-                            activeDashboardTab === 'visualization'
-                              ? 'Pivot table export is not supported at this time.'
-                              : (currentPage === 'dashboard' && isDataTableTab && window.dataViewCurrentView === 'pivot')
-                                ? 'Export is not supported for Pivot View.'
-                                : backupTooltip
-                          }
-                        >
-                          💾 Backup
-                        </button>
-                        
-                        <button
-                          onClick={() => {
-                            alert('Chatbot feature coming soon!');
-                            // You would typically launch the chatbot here
-                          }}
-                          style={{
-                            padding: '8px 16px',
-                            background: '#4f46e5',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: 6,
-                            cursor: 'pointer',
-                            fontSize: 11,
-                            fontWeight: 600,
-                            minHeight: 32,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            textAlign: 'center',
-                            lineHeight: '1.2',
-                            transition: 'all 0.2s ease',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                            whiteSpace: 'nowrap',
-                            width: '33%'
-                          }}
-                          onMouseOver={e => {
-                            e.target.style.background = '#4338ca';
-                            e.target.style.transform = 'translateY(-1px)';
-                            e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
-                          }}
-                          onMouseOut={e => {
-                            e.target.style.background = '#4f46e5';
-                            e.target.style.transform = 'translateY(0px)';
-                            e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
-                          }}
-                        >
-                          💬 Chatbot
-                        </button>
-                        
-                        {/* Empty space for layout balance */}
-                        <div style={{
-                          width: '33%',
-                          minHeight: 32
-                        }}></div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
+                <QuickActionsPanel
+                  showQuickActions={showQuickActions}
+                  onToggleQuickActions={() => this.setState(prev => ({ showQuickActions: !prev.showQuickActions }))}
+                  onBackup={() => this.exportCurrentPage('backup')}
+                  onChatbot={() => alert('Chatbot feature coming soon!')}
+                  backupDisabled={
+                    currentPage !== 'dashboard' ||
+                    !isDataTableTab ||
+                    exportStatus === 'exporting' ||
+                    activeDashboardTab === 'visualization' ||
+                    (currentPage === 'dashboard' && isDataTableTab && window.dataViewCurrentView === 'pivot')
+                  }
+                  backupTooltip={
+                    activeDashboardTab === 'visualization'
+                      ? 'Pivot table export is not supported at this time.'
+                      : (currentPage === 'dashboard' && isDataTableTab && window.dataViewCurrentView === 'pivot')
+                        ? 'Export is not supported for Pivot View.'
+                        : backupTooltip
+                  }
+                />
                 {/* Status Messages */}
-                {maintenanceStatus !== 'idle' && (
-                  <div style={{
-                    padding: 12,
-                    borderRadius: 6,
-                    background: maintenanceStatus === 'completed' ? '#dcfce7' : 
-                               maintenanceStatus === 'error' ? '#fef2f2' : '#fef3c7',
-                    color: maintenanceStatus === 'completed' ? '#166534' :
-                           maintenanceStatus === 'error' ? '#991b1b' : '#92400e',
-                    fontSize: 12,
-                    textAlign: 'center',
-                    marginBottom: 12
-                  }}>
-                    {maintenanceStatus === 'running' && '⚙️ Running maintenance task...'}
-                    {maintenanceStatus === 'completed' && '✅ Maintenance completed successfully!'}
-                    {maintenanceStatus === 'error' && '❌ Maintenance failed. Please try again.'}
-                  </div>
-                )}
-                
-                {exportStatus !== 'idle' && (
-                  <div style={{
-                    padding: 12,
-                    borderRadius: 6,
-                    background: exportStatus === 'completed' ? '#dcfce7' : 
-                               exportStatus === 'error' ? '#fef2f2' : '#fef3c7',
-                    color: exportStatus === 'completed' ? '#166534' :
-                           exportStatus === 'error' ? '#991b1b' : '#92400e',
-                    fontSize: 12,
-                    textAlign: 'center',
-                    marginBottom: 12
-                  }}>
-                    {exportStatus === 'exporting' && '💾 Creating backup...'}
-                    {exportStatus === 'completed' && '✅ Backup completed successfully!'}
-                    {exportStatus === 'error' && '❌ Backup failed. Please try again.'}
-                  </div>
-                )}
-
+                <StatusMessages maintenanceStatus={maintenanceStatus} exportStatus={exportStatus} />
                 {/* Last Maintenance */}
-                {lastMaintenance && (
-                  <div style={{ fontSize: 12, color: '#6b7280', textAlign: 'center' }}>
-                    Last maintenance: {new Date(lastMaintenance).toLocaleString()}
-                  </div>
-                )}
+                <LastMaintenanceInfo lastMaintenance={lastMaintenance} />
               </div>
             </div>
           )}
