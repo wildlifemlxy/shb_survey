@@ -25,7 +25,7 @@ class ObservationTable extends Component {
   }
 
   convertExcelTime(serial) {
-    if (!serial) return '';
+    if (!serial || serial === '' || isNaN(serial)) return '';
     // If already a string in HH:mm, just return
     if (typeof serial === 'string' && serial.match(/^\d{2}:\d{2}$/)) return serial;
     // If already a string in HH:mm:ss, trim to HH:mm
@@ -58,7 +58,7 @@ class ObservationTable extends Component {
 
   formatDate(dateString) {
     // Always output as dd/mm/yyyy, padding day and month to two digits
-    if (!dateString) return '';
+    if (!dateString || dateString === '') return '';
     let d, m, y;
     // Handle formats like 20-Jun-25 or 05-Feb-2024
     const monthMap = {
@@ -411,14 +411,14 @@ class ObservationTable extends Component {
 
           {isOpen && (
             <div className="card-body">
-              <p><strong>Observer:</strong> {obs['Observer name']}</p>
-              <p><strong>Bird ID:</strong> {obs['SHB individual ID']}</p>
-              <p><strong>Activity:</strong> {obs["Activity (foraging, preening, calling, perching, others)"]}</p>
-              <p><strong>Time:</strong> {this.convertExcelTime(obs.Time)}</p>
-              <p><strong>Height of Tree:</strong> {obs["Height of tree/m"]}m</p>
-              <p><strong>Height of Bird:</strong> {obs["Height of bird/m"]}m</p>
-              <p><strong>Number of Bird(s):</strong> {obs["Number of Birds"]}</p>
-              <p><strong>Seen/Heard:</strong> {obs["Seen/Heard"]}</p>
+              <p><strong>Observer:</strong> {obs['Observer name'] || ''}</p>
+              <p><strong>Bird ID:</strong> {obs['SHB individual ID'] || ''}</p>
+              <p><strong>Activity:</strong> {obs["Activity (foraging, preening, calling, perching, others)"] || ''}</p>
+              <p><strong>Time:</strong> {this.convertExcelTime(obs.Time) || ''}</p>
+              <p><strong>Height of Tree:</strong> {obs["Height of tree/m"] != null && !isNaN(obs["Height of tree/m"]) ? `${obs["Height of tree/m"]}m` : ''}</p>
+              <p><strong>Height of Bird:</strong> {obs["Height of bird/m"] != null && !isNaN(obs["Height of bird/m"]) ? `${obs["Height of bird/m"]}m` : ''}</p>
+              <p><strong>Number of Bird(s):</strong> {obs["Number of Birds"] != null ? obs["Number of Birds"] : ''}</p>
+              <p><strong>Seen/Heard:</strong> {obs["Seen/Heard"] || ''}</p>
             </div>
           )}
         </div>
@@ -602,39 +602,52 @@ class ObservationTable extends Component {
     const columns = [
       { headerName: "S/N", valueGetter: "node.rowIndex + 1", width: 70 },
       { headerName: "Observer", field: "Observer name", width: 300 },
-      { headerName: "Bird ID", field: "SHB individual ID", width: 100 },
+      { headerName: "Bird ID", field: "SHB individual ID", width: 200 },
       {
         headerName: "Location",
         field: "Location",
         cellRenderer: (params) =>
-          `${params.value}`,
+          params.value ? `${params.value}` : '',
         width: 300
       },
-      { headerName: "Number of Bird(s)", field: "Number of Birds" },
+      { 
+        headerName: "Number of Bird(s)", 
+        field: "Number of Birds",
+        cellRenderer: (params) => 
+          params.value != null && params.value !== '' ? params.value : ''
+      },
       {
         headerName: "Height of Tree",
         field: "Height of tree/m",
-        cellRenderer: (params) => `${params.value}m`,
+        cellRenderer: (params) => 
+          params.value != null && params.value !== '' && !isNaN(params.value) ? `${params.value}m` : '',
       },
       {
         headerName: "Height of Bird",
         field: "Height of bird/m",
-        cellRenderer: (params) => `${params.value}m`,
+        cellRenderer: (params) => 
+          params.value != null && params.value !== '' && !isNaN(params.value) ? `${params.value}m` : '',
       },
-      { headerName: "Date", field: "Date", cellRenderer: (params) => this.formatDate(params.value) },
+      { 
+        headerName: "Date", 
+        field: "Date", 
+        cellRenderer: (params) => params.value ? this.formatDate(params.value) : '' 
+      },
       {
         headerName: "Time",
         field: "Time",
-        cellRenderer: (params) => this.convertExcelTime(params.value),
+        cellRenderer: (params) => params.value != null && params.value !== '' ? this.convertExcelTime(params.value) : '',
       },
       {
         headerName: "Activity",
         field: "Activity (foraging, preening, calling, perching, others)",
+        cellRenderer: (params) => params.value || '',
         width: 300
       },
       {
         headerName: "Seen/Heard",
         field: "Seen/Heard",
+        cellRenderer: (params) => params.value || '',
         width: 300
       }
     ];

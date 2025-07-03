@@ -2,6 +2,7 @@
 .settings-container {
   min-height: 100vh;
   height: auto;
+  max-height: 100vh;
   width: 100%;
   background: linear-gradient(135deg, #F0FDF4 0%, #ECFDF5 50%, #F9FAFB 100%);
   position: relative;
@@ -9,6 +10,8 @@
   overflow-x: hidden;
   overflow-y: auto;
   scroll-behavior: smooth;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Header Styles */
@@ -165,7 +168,29 @@
 
 /* Add bottom padding to dashboard content on mobile to account for fixed navigation */
 .dashboard-content {
-  padding-bottom: 120px; /* Extra space for mobile navigation */
+  flex: 1;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem 2rem 80px 2rem;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+  height: auto;
+  max-height: calc(100vh - 220px);
+}
+
+@media (max-width: 768px) {
+  .dashboard-content {
+    padding: 1rem 1rem 100px 1rem;
+    max-height: calc(100vh - 200px);
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-content {
+    padding: 0.75rem 0.75rem 120px 0.75rem;
+    max-height: calc(100vh - 180px);
+  }
 }
 
 /* DateTime Theme Utility */

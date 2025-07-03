@@ -9,6 +9,7 @@ import DetailedAnalysisPopup from './components/DetailedAnalysisPopup';
 import ThemeToggle from './components/ThemeToggle';
 import NewSurveyModal from './components/Dashboard/NewSurveyModal';
 import Settings from './components/Settings/Settings';
+import MaintenanceBotButton from './components/MaintenanceBot/MaintenanceBotButton';
 import { io } from 'socket.io-client';
 
 import { fetchSurveyData } from './data/shbData';
@@ -119,6 +120,9 @@ class App extends Component {
           onClose={this.closeDetailedAnalysis}
           data={detailedAnalysisData}
         />
+        
+        {/* Maintenance Bot Button - Fixed bottom right on all pages, positioned to avoid overlap */}
+        <MaintenanceBotButton shbData={shbData} />
       </>
     );
   }

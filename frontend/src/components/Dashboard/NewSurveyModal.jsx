@@ -201,12 +201,18 @@ class NewSurveyModal extends Component {
       details[idx] = { ...details[idx], [field]: value };
     }
   
-    // --- Auto-generate SHB individual ID for each row (reset per row) ---
-    details = details.map((row, i) => {
+    // --- Auto-generate SHB individual ID sequentially across all rows ---
+    details = details.map((row, idx) => {
       const num = parseInt(row['Number of Birds'], 10);
       let shbId = '';
       if (num && num > 0) {
-        shbId = Array.from({ length: num }, (_, j) => `SHB${j + 1}`).join(', ');
+        let startNum = 1;
+        // Calculate the starting ID number based on birds in previous rows
+        for (let i = 0; i < idx; i++) {
+          const prevNum = parseInt(details[i]?.['Number of Birds'] || '', 10);
+          if (prevNum && prevNum > 0) startNum += prevNum;
+        }
+        shbId = Array.from({ length: num }, (_, i) => `SHB${startNum + i}`).join(', ');
       }
       return { ...row, 'SHB individual ID': shbId };
     });
@@ -253,7 +259,25 @@ class NewSurveyModal extends Component {
     const { newSurvey } = this.state;
     const isObservationArray = Array.isArray(newSurvey['Observation Details']);
     if (!isObservationArray) return '[]';
-    const summary = newSurvey['Observation Details'].map((obs, idx) => ({
+    
+    // Recalculate sequential Bird IDs before submission
+    const observationDetails = [...newSurvey['Observation Details']];
+    const detailsWithCalculatedIds = observationDetails.map((obs, idx) => {
+      const num = parseInt(obs['Number of Birds'], 10);
+      let shbId = '';
+      if (num && num > 0) {
+        let startNum = 1;
+        // Calculate the starting ID number based on birds in previous rows
+        for (let i = 0; i < idx; i++) {
+          const prevNum = parseInt(observationDetails[i]?.['Number of Birds'] || '', 10);
+          if (prevNum && prevNum > 0) startNum += prevNum;
+        }
+        shbId = Array.from({ length: num }, (_, i) => `SHB${startNum + i}`).join(', ');
+      }
+      return { ...obs, 'SHB individual ID': shbId };
+    });
+    
+    const summary = detailsWithCalculatedIds.map((obs, idx) => ({
       'Observer name': Array.isArray(newSurvey['Observer name'])
         ? newSurvey['Observer name'].join(', ')
         : (newSurvey['Observer name']),
@@ -353,18 +377,17 @@ class NewSurveyModal extends Component {
 
     return (
       <div style={{
-        position: 'absolute',
+        position: 'fixed',
         top: 0,
         left: 0,
         width: '100vw',
-        minHeight: '100vh',
+        height: '100vh',
         display: 'flex',
-        alignItems: 'flex-start',
+        alignItems: 'center', /* Changed from flex-start to center */
         justifyContent: 'center',
         zIndex: 2000,
-        background: 'transparent',
-        paddingTop: 40,
-        paddingBottom: 40
+        background: 'rgba(0,0,0,0.35)',
+        padding: 0
       }}>
         <div className="modal-content">
           {/* Header */}
@@ -373,7 +396,7 @@ class NewSurveyModal extends Component {
           </div>
 
           {/* Body */}
-          <div className="modal-body" style={{margin: '32px 0 0 0'}}>
+          <div className="modal-body" style={{margin: '32px 0 0 0', maxHeight: 'calc(80vh - 100px)', overflowY: 'auto'}}>
             {/* Section navigation and progress at the top of the body */}
             <div style={{ display: 'flex', justifyContent: 'center', gap: 8, margin: '0 0 18px 0' }}>
               {SECTIONS.map((s, idx) => (

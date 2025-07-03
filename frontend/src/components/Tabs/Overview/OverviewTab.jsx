@@ -270,7 +270,6 @@ class OverviewTab extends Component {
 
     return (
       <div className="overview-tab">
-        <section className="stats-section light-background">
           <div className="section-header">
             <h2>📊 Key Statistics Overview</h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0.5rem 0 0 0' }}>
@@ -797,7 +796,6 @@ class OverviewTab extends Component {
               </>
             )}
           </div>
-        </section>
       </div>
     );
   }

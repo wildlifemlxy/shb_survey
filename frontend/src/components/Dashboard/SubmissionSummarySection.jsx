@@ -31,10 +31,25 @@ class SubmissionSummarySection extends Component
                         fontSize: '1.01rem',
                     }}>
                         <div style={{ fontWeight: 500, color: '#3949ab', marginBottom: 8 }}>Observation Details</div>
-                        {newSurvey['Observation Details'].map((obs, idx) => (
+                        {newSurvey['Observation Details'].map((obs, idx) => {
+                            // Calculate sequential Bird IDs for display
+                            const num = parseInt(obs['Number of Birds'], 10);
+                            let birdId = obs['SHB individual ID'] || '-';
+                            
+                            // If the SHB ID is not already calculated correctly, calculate it here
+                            if (num && num > 0 && (!birdId || birdId === '-')) {
+                                let startNum = 1;
+                                for (let i = 0; i < idx; i++) {
+                                    const prevNum = parseInt(newSurvey['Observation Details'][i]?.['Number of Birds'] || '', 10);
+                                    if (prevNum && prevNum > 0) startNum += prevNum;
+                                }
+                                birdId = Array.from({ length: num }, (_, i) => `SHB${startNum + i}`).join(', ');
+                            }
+                            
+                            return (
                             <div key={idx} style={{ marginBottom: 12, paddingBottom: 10, borderBottom: idx !== newSurvey['Observation Details'].length - 1 ? '1px solid #e0e0e0' : 'none' }}>
                                 <div><strong>Observer name:</strong> {Array.isArray(newSurvey['Observer name']) ? newSurvey['Observer name'].join(', ') : (newSurvey['Observer name'] || '-')}</div>
-                                <div><strong>SHB individual ID:</strong> {obs['SHB individual ID'] || '-'}</div>
+                                <div><strong>SHB individual ID:</strong> {birdId}</div>
                                 <div><strong>Number of Birds:</strong> {obs['Number of Birds'] || '-'}</div>
                                 <div><strong>Location:</strong> {newSurvey['Location'] || '-'}</div>
                                 <div><strong>Height of bird/m:</strong> {obs['HeightOfBird'] || '-'}</div>
@@ -48,7 +63,7 @@ class SubmissionSummarySection extends Component
                                 <div><strong>Seen/Heard:</strong> {obs['SeenHeard'] || '-'}</div>
                                 <div><strong>Activity Details:</strong> {obs['ActivityDetails']}</div>
                             </div>
-                        ))}
+                        );})}
                     </div>
                 )}
             </div>

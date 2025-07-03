@@ -3,10 +3,7 @@ import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faHome } from '@fortawesome/free-solid-svg-icons';
 import { faEye, faChartBar, faMapMarkedAlt, faTable } from '@fortawesome/free-solid-svg-icons';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
-import ExcelJS from 'exceljs';
-import { saveAs } from 'file-saver';
+
 
 // Import tab components
 import OverviewTab from '../Tabs/Overview';
@@ -38,11 +35,6 @@ class DashboardContainer extends Component {
       locations: [],
       activities: [],
       validCoordinates: [],
-      showPopup: false,
-      showExportPopup: false,
-      fileName: '',
-      orientation: 'landscape',
-      isDownloading: false,
       filteredData: props.shbData || [],
       currentDateTime: this.getFormattedDateTime(),
     };
@@ -137,53 +129,11 @@ class DashboardContainer extends Component {
     handleTabChange(tab);
   };
 
-  // Export functionality
-  openExportPopup = () => {
-    const { activeTab } = this.state;
-    // If exporting Excel (data tab), export immediately with hardcoded file name
-    if (activeTab === 'data') {
-      // Immediately export Excel and skip popup for data tab
-      this.exportExcel();
-      return;
-    }
-    else {
-      // Immediately export PDF and skip popup for non-data tabs
-      this.exportPDF();
-      return;
-    }
-  };
 
-  exportPDF = () => {
-    // Use the visible tab's title for the PDF file name
-    let tabTitle = '';
-    switch (this.state.activeTab) {
-      case 'overview':
-        tabTitle = 'Key Statistics Overview';
-        break;
-      case 'charts':
-        tabTitle = 'Data Visualizations';
-        break;
-      case 'map':
-        tabTitle = 'Map View';
-        break;
-      case 'data':
-        tabTitle = 'Data Table';
-        break;
-      default:
-        tabTitle = 'Dashboard';
-    }
-    const now = new Date();
-    const pad = n => n.toString().padStart(2, '0');
-    const dateStr = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}`;
-    const timeStr = `${pad(now.getHours())} ${pad(now.getMinutes())} hrs`;
-    const pdfFileName = `${tabTitle} ${dateStr} ${timeStr}`;
-    // Remove blur by setting background and image smoothing options
-    this.exportChartsPDF(pdfFileName, this.state.orientation, 'a4', false);
-  };
 
-  closeExportPopup = () => {
-    this.setState({ showExportPopup: false });
-  };
+
+
+
 
   exportExcel = async () => {
     const { filteredData } = this.state;
@@ -456,22 +406,9 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
           )}
         </div>
 
-        {/* Export Button */}
-        {window.innerWidth >= 1024 && (
-          <button
-            onClick={this.openExportPopup}
-            className="export-button"
-          >
-            <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
-              <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-            </svg>
-            {activeTab === 'data' ? 'Export Excel' : 'Export PDF'}
-          </button>
-        )}
-
         {/* Loading Popup */}
         {showPopup && (
-          <div className="loading-overlay">
+          <div className="loading-overlay" style={{ zIndex: 1001 }}>
             <div className="loading-content">
               <h3>{isDownloading ? 'Generating PDF...' : 'Download Complete!'}</h3>
               {!isDownloading && (
@@ -491,7 +428,7 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
 
         {/* Export Popup Modal */}
         {showExportPopup && (
-          <div className="popup-content">
+          <div className="popup-content" style={{ zIndex: 1001 }}>
             <h2>Export Dashboard to PDF</h2>
             <div className="form-group">
               <label htmlFor="fileName">File Name</label>

@@ -30,8 +30,7 @@ class ChartsViewTab extends Component {
     const { subTabConfigs } = this.state;
 
     return (
-      <div className="charts-view-tab">
-        <section className="stats-section light-background">          
+      <div className="charts-view-tab">      
           <SubTabManager
             subTabConfigs={subTabConfigs}
             data={data}
@@ -42,7 +41,6 @@ class ChartsViewTab extends Component {
             contentClassName="charts-content"
             buttonClassName="subtab-button"
           />
-        </section>
       </div>
     );
   }

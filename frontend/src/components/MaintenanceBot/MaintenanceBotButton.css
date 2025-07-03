@@ -1,0 +1,89 @@
+.maintenance-bot-button {
+  transition: all 0.3s ease;
+}
+
+.maintenance-bot-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.2) !important;
+}
+
+.maintenance-bot-button.open {
+  transform: rotate(0deg);
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.maintenance-panel {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from { 
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to { 
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.maintenance-bot-container button:hover {
+  transition: all 0.2s ease;
+}
+
+.maintenance-bot-container button:active {
+  transform: scale(0.95);
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+  .maintenance-panel {
+    width: 280px !important;
+    right: 90px !important; /* Adjusted for no overlap */
+  }
+  
+  .maintenance-bot-button {
+    width: 50px !important;
+    height: 50px !important;
+    bottom: 15px !important;
+    right: 90px !important; /* Moved left to avoid export button */
+    font-size: 20px !important;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .maintenance-panel {
+    background: #1f2937 !important;
+    border-color: #374151 !important;
+    color: #f9fafb;
+  }
+  
+  .maintenance-panel > div:first-child {
+    background: #111827 !important;
+    border-bottom-color: #374151 !important;
+  }
+  
+  .maintenance-panel h3,
+  .maintenance-panel h4 {
+    color: #f9fafb !important;
+  }
+  
+  .maintenance-panel p {
+    color: #9ca3af !important;
+  }
+}
+
+
+
+
+
+

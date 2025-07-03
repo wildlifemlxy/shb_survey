@@ -3,6 +3,41 @@
   animation: fadeInUp 0.3s ease-out;
 }
 
+/* Section Header Styles */
+.data-view-tab .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+/* For horizontal layout (kept for reference) */
+.data-view-tab .section-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* New vertical layout */
+.data-view-tab .section-actions-column {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.data-view-tab .button-container {
+  margin-bottom: 8px;
+}
+
+/* View Toggle Container in Data View Tab */
+.data-view-tab .view-toggle-container {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0;
+  width: 100%;
+}
+
 /* Table Container Specific Styles */
 .data-view-tab .table-container {
   background: rgba(255, 255, 255, 0.95);

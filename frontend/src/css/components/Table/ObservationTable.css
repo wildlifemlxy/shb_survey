@@ -1,0 +1,127 @@
+/* Custom AG Grid styling to fix scrolling issues */
+.ag-theme-alpine {
+  --ag-row-height: 45px;
+  --ag-header-height: 48px;
+  --ag-border-color: #dde2eb;
+  --ag-header-background-color: #f5f7fa;
+  --ag-odd-row-background-color: #ffffff;
+  --ag-row-border-color: #eee;
+  height: 55vh !important;
+  max-height: 55vh !important;
+  overflow: hidden !important;
+  position: relative;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
+  contain: strict;
+  isolation: isolate;
+}
+
+/* Fix for the scroll always going back to top */
+.ag-root {
+  overflow: hidden !important;
+  height: 100% !important;
+}
+
+.ag-root-wrapper {
+  overflow: hidden !important;
+  position: relative;
+  height: 100% !important;
+  min-height: calc(100% - 10px) !important;
+}
+
+.ag-body-viewport {
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+  position: relative !important;
+  will-change: transform;
+  scroll-behavior: smooth;
+  height: auto !important;
+  overscroll-behavior: contain;
+  scroll-snap-type: y proximity;
+  touch-action: pan-y;
+}
+
+.ag-center-cols-clipper {
+  min-height: 100px;
+}
+
+/* Custom scrollbars */
+.ag-body-viewport::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.ag-body-viewport::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.ag-body-viewport::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 10px;
+}
+
+.ag-body-viewport::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Fix to prevent rows from disappearing when scrolling */
+.ag-body-horizontal-scroll {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+}
+
+/* Fix for Firefox scrolling issues */
+@supports (-moz-appearance:none) {
+  .ag-body-viewport {
+    will-change: transform;
+    scrollbar-width: thin;
+    scrollbar-color: #c1c1c1 #f1f1f1;
+  }
+}
+
+/* Make header sticky */
+.ag-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100 !important;
+}
+
+/* Ensure all cells are properly sized */
+.ag-cell {
+  display: flex !important;
+  align-items: center !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  line-height: 1.4 !important;
+}
+
+/* Prevent grid from jumping when scrolling */
+.ag-body-viewport.ag-layout-normal {
+  contain: content !important;
+  scroll-padding: 2px;
+}
+
+/* Ensure the row container has proper height */
+.ag-center-cols-viewport {
+  overscroll-behavior: contain;
+  overflow-x: hidden !important;
+}
+
+/* Ensure viewport properly handles wheel events */
+.ag-root-wrapper, .ag-body-viewport {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Ensure row heights are consistent */
+.ag-row {
+  contain: layout !important;
+}
+
+/* Improve performance */
+.ag-center-cols-container {
+  width: 100% !important;
+}
