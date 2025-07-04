@@ -13,6 +13,7 @@ const COLUMN_LABELS = {
 
 const REQUIRED_FIELDS = [
   'Number of Birds',
+  'SHB individual ID',
   'HeightOfTree',
   'HeightOfBird',
   'Lat',
@@ -46,9 +47,22 @@ class ObservationDetailsSection extends Component {
     }
     // Defensive: always use observationDetails for all row access
     return (
-      <div style={{ marginBottom: 18 }}>
-        <div className="observation-table-scroll" style={{ minWidth: 950, maxWidth: '100%', overflowX: 'auto' }}>
-          <table>
+      <div style={{ marginBottom: 18, maxWidth: 1200, margin: '0 auto 18px auto' }}>
+        <div className="observation-table-scroll" style={{ 
+          minWidth: '100%', 
+          maxWidth: '100%', 
+          overflowX: 'auto',
+          display: 'flex',
+          justifyContent: 'center',
+          paddingLeft: '20px',
+          paddingRight: '20px'
+        }}>
+          <table style={{
+            minWidth: 1160,
+            width: 'max-content',
+            marginLeft: 'auto',
+            marginRight: 'auto'
+          }}>
             <thead>
               <tr>
                 <th style={{ whiteSpace: 'nowrap' }}>Number of Birds</th>
@@ -66,12 +80,6 @@ class ObservationDetailsSection extends Component {
             </thead>
             <tbody>
               {observationDetails.map((row, idx) => {
-                let startNum = 1;
-                for (let i = 0; i < idx; i++) {
-                  const prevNum = parseInt(observationDetails[i]?.['Number of Birds'] || '', 10);
-                  if (prevNum && prevNum > 0) startNum += prevNum;
-                }
-                const num = parseInt(row['Number of Birds'], 10);
                 return (
                   <tr key={idx}>
                     <td>
@@ -84,6 +92,8 @@ class ObservationDetailsSection extends Component {
                           const val = e.target.value.replace(/[^\d]/g, '');
                           onObservationDetailChange(idx, 'Number of Birds', val);
                         }}
+                        placeholder="Enter number"
+                        title="Enter the number of birds - Bird ID will be auto-generated"
                         required
                       />
                     </td>
@@ -92,20 +102,21 @@ class ObservationDetailsSection extends Component {
                         className="table-input"
                         type="text"
                         style={{ width: '390px', overflowX: 'auto', whiteSpace: 'nowrap' }}
-                        value={(() => {
-                          // Always auto-generate SHB individual ID based on Number of Birds and row index
-                          const num = parseInt(row['Number of Birds'], 10);
-                          if (num && num > 0) {
-                            let startNum = 1;
-                            for (let i = 0; i < idx; i++) {
-                              const prevNum = parseInt(observationDetails[i]?.['Number of Birds'] || '', 10);
-                              if (prevNum && prevNum > 0) startNum += prevNum;
-                            }
-                            return Array.from({ length: num }, (_, i) => `SHB${startNum + i}`).join(', ');
+                        value={row['SHB individual ID'] || ''}
+                        onChange={e => {
+                          let value = e.target.value;
+                          
+                          // Auto-add "SHB" after each comma
+                          if (value.endsWith(',')) {
+                            value = value + ' SHB';
+                          } else if (value.endsWith(', ')) {
+                            value = value + 'SHB';
                           }
-                          return '';
-                        })()}
-                        disabled
+                          
+                          onObservationDetailChange(idx, 'SHB individual ID', value);
+                        }}
+                        placeholder="Enter Bird ID(s) - e.g., SHB1, SHB2, SHB3"
+                        title="Enter bird IDs separated by commas. SHB will be added automatically after commas. Number of Birds will be auto-calculated."
                       />
                     </td>
                     <td>
@@ -121,13 +132,57 @@ class ObservationDetailsSection extends Component {
                       <input className="table-input" type="text" style={{ width: '140px' }} value={row.Long || ''} onChange={e => onObservationDetailChange(idx, 'Long', e.target.value)} required />
                     </td>
                     <td>
-                      <input className="table-input" type="text" style={{ width: '180px' }} value={row.Time || ''} onChange={e => onObservationDetailChange(idx, 'Time', e.target.value)} required />
+                      <input 
+                        className="table-input" 
+                        type="time" 
+                        style={{ 
+                          width: '180px',
+                          colorScheme: 'light',
+                          position: 'relative'
+                        }} 
+                        value={row.Time || ''} 
+                        onChange={e => onObservationDetailChange(idx, 'Time', e.target.value)} 
+                        onFocus={(e) => {
+                          e.target.showPicker && e.target.showPicker();
+                        }}
+                        required 
+                      />
                     </td>
                     <td>
-                      <input className="table-input" type="text" style={{ width: '240px' }} value={row.Activity || ''} onChange={e => onObservationDetailChange(idx, 'Activity', e.target.value)} required />
+                      <input 
+                        className="table-input" 
+                        type="text" 
+                        style={{ width: '240px' }} 
+                        value={row.Activity || ''} 
+                        onChange={e => onObservationDetailChange(idx, 'Activity', e.target.value)} 
+                        list={`activityOptions-${idx}`}
+                        placeholder="Select or type"
+                        required 
+                      />
+                      <datalist id={`activityOptions-${idx}`}>
+                        <option value="Calling" />
+                        <option value="Feeding" />
+                        <option value="Perching" />
+                        <option value="Preening" />
+                        <option value="Others" />
+                      </datalist>
                     </td>
                     <td>
-                      <input className="table-input" type="text" style={{ width: '210px' }} value={row.SeenHeard || ''} onChange={e => onObservationDetailChange(idx, 'SeenHeard', e.target.value)} required />
+                      <input 
+                        className="table-input" 
+                        type="text" 
+                        style={{ width: '210px' }} 
+                        value={row.SeenHeard || ''} 
+                        onChange={e => onObservationDetailChange(idx, 'SeenHeard', e.target.value)} 
+                        list={`seenHeardOptions-${idx}`}
+                        placeholder="Select or type"
+                        required 
+                      />
+                      <datalist id={`seenHeardOptions-${idx}`}>
+                        <option value="Seen" />
+                        <option value="Heard" />
+                        <option value="Not Found" />
+                      </datalist>
                     </td>
                     <td>
                       <input className="table-input" type="text" style={{ width: '390px' }} value={row.ActivityDetails || ''} onChange={e => onObservationDetailChange(idx, 'ActivityDetails', e.target.value)} />
@@ -215,6 +270,9 @@ class ObservationDetailsSection extends Component {
               padding: '16px 18px',
               color: '#b71c1c',
               fontSize: '1rem',
+              maxWidth: 1160,
+              marginLeft: 'auto',
+              marginRight: 'auto'
             }}>
               <div style={{fontWeight: 600, marginBottom: 8, color: '#b71c1c', letterSpacing: 0.2}}>Please fix the following errors:</div>
               {Object.entries(fieldErrors).map(([rowIdx, rowErrs]) => {
@@ -262,6 +320,21 @@ class ObservationDetailsSection extends Component {
             </div>
           )}
         </div>
+        {/* Error messages outside the scroll container */}
+        <style jsx>{`
+          input[type="time"]::-webkit-calendar-picker-indicator {
+            opacity: 0;
+            position: absolute;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+          }
+          input[type="time"]::-webkit-inner-spin-button,
+          input[type="time"]::-webkit-clear-button {
+            display: none;
+          }
+        `}</style>
       </div>
     );
   }

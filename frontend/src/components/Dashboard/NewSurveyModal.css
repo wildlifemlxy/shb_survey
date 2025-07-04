@@ -71,6 +71,7 @@
 .modal-form-fields input[type="text"],
 .modal-form-fields input[type="number"],
 .modal-form-fields input[type="date"],
+.modal-form-fields input[type="time"],
 .modal-form-fields td input[type="text"] {
   width: 100%;
   padding: 10px 6px 8px 6px;
@@ -91,6 +92,7 @@
 .modal-form-fields input[type="text"]:focus,
 .modal-form-fields input[type="number"]:focus,
 .modal-form-fields input[type="date"]:focus,
+.modal-form-fields input[type="time"]:focus,
 .modal-form-fields td input[type="text"]:focus {
   border-bottom: 2.5px solid #3949ab;
   outline: none;
