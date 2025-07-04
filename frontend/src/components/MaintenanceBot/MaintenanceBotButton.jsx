@@ -1861,6 +1861,7 @@ class MaintenanceBotButton extends Component {
                 {/* Quick Actions */}
                 <QuickActionsPanel
                   showQuickActions={showQuickActions}
+                  currentUser={this.props.currentUser}
                   onToggleQuickActions={() => this.setState(prev => ({ showQuickActions: !prev.showQuickActions }))}
                   onBackup={() => this.exportCurrentPage('backup')}
                   onChatbot={() => alert('Chatbot feature coming soon!')}

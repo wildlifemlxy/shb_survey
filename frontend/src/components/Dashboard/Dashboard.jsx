@@ -329,7 +329,6 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
                 <FontAwesomeIcon icon={faHome} />
                 <span>Home</span>
               </Link>
-
             </div>
           </div>
         </header>

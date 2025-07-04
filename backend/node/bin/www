@@ -106,16 +106,16 @@ try {
 }
 
 io.on('connection', (socket) => {
-  console.log('client connected:', socket.id);
+  //console.log('client connected:', socket.id);
 
   socket.on('message', (data) => {
-    console.log('Received from client:', data);
+    //console.log('Received from client:', data);
     // Echo back or broadcast
     socket.emit('message', 'Hello from Node.js backend!');
   });
 
   socket.on('disconnect', () => {
-    console.log('client disconnected:', socket.id);
+    //console.log('client disconnected:', socket.id);
   });
 });
 

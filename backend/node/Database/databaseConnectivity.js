@@ -54,6 +54,24 @@ class DatabaseConnectivity {
     return await collection.updateOne(filter, update);
   }
 
+  async getDocument(databaseName, collectionName, email, password) {
+    try {
+      console.log("Retrieving document with email:", email, "and password:", password, "from collection:", collectionName);
+      const db = this.client.db(databaseName);
+      const collection = db.collection(collectionName);
+      
+      // Create query object with email and password
+      const query = { email, password };
+      
+      const document = await collection.findOne(query);
+      console.log("Retrieved document:", document);
+      return document;
+    } catch (error) {
+      console.error("Error retrieving document:", error);
+      throw error;
+    }
+  }
+
   async close() {
     if (this.connected) {
       await this.client.close();

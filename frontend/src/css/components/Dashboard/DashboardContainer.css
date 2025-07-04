@@ -760,6 +760,15 @@
   background: var(--gray-300);
 }
 
+.btn-logout {
+  background: #FF0000; /* bright red */
+  color: #FFFFFF !important;
+}
+
+.btn-logout:hover {
+  background: #CC0000; /* darker red on hover */
+}
+
 /* DateTime Theme Utility */
 .dashboard-datetime {
   display: inline-block;

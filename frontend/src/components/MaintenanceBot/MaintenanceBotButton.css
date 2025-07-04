@@ -58,32 +58,3 @@
     font-size: 20px !important;
   }
 }
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .maintenance-panel {
-    background: #1f2937 !important;
-    border-color: #374151 !important;
-    color: #f9fafb;
-  }
-  
-  .maintenance-panel > div:first-child {
-    background: #111827 !important;
-    border-bottom-color: #374151 !important;
-  }
-  
-  .maintenance-panel h3,
-  .maintenance-panel h4 {
-    color: #f9fafb !important;
-  }
-  
-  .maintenance-panel p {
-    color: #9ca3af !important;
-  }
-}
-
-
-
-
-
-

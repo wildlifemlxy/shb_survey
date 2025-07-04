@@ -39,7 +39,7 @@ function startEventTypeUpdater(io) {
         if (!dateObj) continue;
         const startDateTimeUTC = sgTimeToUTC(dateObj, startTime);
 
-        console.log(`Checking event ${event}: startDateTimeUTC=${startDateTimeUTC.toISOString()}, nowUTC=${nowUTC.toISOString()}`);
+        //console.log(`Checking event ${event}: startDateTimeUTC=${startDateTimeUTC.toISOString()}, nowUTC=${nowUTC.toISOString()}`);
 
         if (nowUTC > startDateTimeUTC) {
           if (event.Type === "Upcoming") {
