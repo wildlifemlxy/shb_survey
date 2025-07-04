@@ -123,12 +123,14 @@ class ObservationTable extends Component {
   }
 
   transformData(data) {
-    return data.map((item) => {
+    return data.map((item, index) => {
       const newItem = { ...item };
       if (newItem["SHB individual ID (e.g. SHB1)"]) {
         newItem["SHB individual ID"] = newItem["SHB individual ID (e.g. SHB1)"];
         delete newItem["SHB individual ID (e.g. SHB1)"];
       }
+      // Add serial number as a field
+      newItem.serialNumber = index + 1;
       return newItem;
     });
   }
@@ -600,7 +602,13 @@ class ObservationTable extends Component {
     };
 
     const columns = [
-      { headerName: "S/N", valueGetter: "node.rowIndex + 1", width: 70 },
+      { 
+        headerName: "S/N", 
+        field: "serialNumber",
+        width: 70,
+        sortable: false,
+        suppressMenu: true,
+      },
       { headerName: "Observer", field: "Observer name", width: 300 },
       { headerName: "Bird ID", field: "SHB individual ID", width: 200 },
       {
@@ -665,6 +673,12 @@ class ObservationTable extends Component {
               resizable: true,
             }}
             paginationPageSize={transformedData.length}
+            suppressScrollOnNewData={true}
+            suppressMaintainUnsortedOrder={true}
+            suppressCellFocus={true}
+            suppressRowHoverHighlight={false}
+            maintainColumnOrder={true}
+            suppressAnimationFrame={true}
             getRowStyle={params => {
               let backgroundColor = '#f9f9f9';  // Default light gray
 

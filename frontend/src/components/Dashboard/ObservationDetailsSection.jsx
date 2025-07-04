@@ -47,7 +47,7 @@ class ObservationDetailsSection extends Component {
     }
     // Defensive: always use observationDetails for all row access
     return (
-      <div style={{ marginBottom: 18, maxWidth: 1200, margin: '0 auto 18px auto' }}>
+      <div style={{ marginBottom: 18, width: "1200px" }}>
         <div className="observation-table-scroll" style={{ 
           minWidth: '100%', 
           maxWidth: '100%', 
@@ -58,7 +58,7 @@ class ObservationDetailsSection extends Component {
           paddingRight: '20px'
         }}>
           <table style={{
-            minWidth: 1160,
+            minWidth: 1000,
             width: 'max-content',
             marginLeft: 'auto',
             marginRight: 'auto'
@@ -270,7 +270,7 @@ class ObservationDetailsSection extends Component {
               padding: '16px 18px',
               color: '#b71c1c',
               fontSize: '1rem',
-              maxWidth: 1160,
+              maxWidth: 1200,
               marginLeft: 'auto',
               marginRight: 'auto'
             }}>
