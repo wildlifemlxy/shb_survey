@@ -11,7 +11,8 @@ class LoginPopup extends Component {
       email: '',
       password: '',
       isLoading: false,
-      error: ''
+      error: '',
+      showPassword: false
     };
   }
 
@@ -28,7 +29,8 @@ class LoginPopup extends Component {
     this.setState({
       email: '',
       password: '',
-      error: ''
+      error: '',
+      showPassword: false
     });
   };
 
@@ -48,8 +50,7 @@ class LoginPopup extends Component {
       console.log('Login result:', result);
        if (result.success) 
       {
-        this.clearForm();
-        this.props.onClose();
+        // Don't clear form or close popup on successful login
         // Store user data in localStorage
         //localStorage.setItem('user', JSON.stringify(result.data));
         //localStorage.setItem('isAuthenticated', 'true');
@@ -70,11 +71,9 @@ class LoginPopup extends Component {
     }
   };
 
-  handleOverlayClick = (e) => {
-    if (e.target === e.currentTarget) {
-      this.clearForm();
-      this.props.onClose();
-    }
+  handleCloseButton = () => {
+    this.clearForm();
+    this.props.onClose();
   };
 
   render() {
@@ -84,9 +83,9 @@ class LoginPopup extends Component {
     if (!isOpen) return null;
 
     return (
-      <div className="login-popup-overlay" onClick={this.handleOverlayClick}>
+      <div className="login-popup-overlay">
         <div className="login-card">
-          <button className="login-close-button" onClick={this.props.onClose}>
+          <button className="login-close-button" onClick={this.handleCloseButton}>
             x
           </button>
           
