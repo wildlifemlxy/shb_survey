@@ -14,16 +14,60 @@
   display: flex;
   flex-direction: column;
   min-height: 270px;
+  max-height: 320px;
   max-width: 340px;
   margin: 0 auto;
   transition: box-shadow 0.2s;
+  overflow: hidden;
 }
 .upcoming-event-card.expanded {
-  min-height: 400px;
-  max-width: 400px;
+  min-height: 320px;
+  max-height: 400px;
+  max-width: 340px;
 }
 .upcoming-event-card:hover {
   box-shadow: 0 6px 24px rgba(0,0,0,0.13);
+}
+
+/* Card editing mode styles */
+.upcoming-event-card.editing-mode {
+  min-height: 320px !important;
+  max-height: 400px !important;
+  max-width: 340px !important;
+  overflow: hidden !important;
+}
+
+.upcoming-event-card.editing-mode .upcoming-event-edit-form {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.upcoming-event-card.editing-mode .form-row {
+  margin-bottom: 8px;
+}
+
+/* Ensure proper input field isolation */
+.upcoming-event-edit-form .form-row {
+  position: relative;
+  z-index: 1;
+}
+
+.upcoming-event-edit-form .themed-input {
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.upcoming-event-edit-form .themed-input-date {
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.upcoming-event-edit-form .themed-input-time {
+  position: relative;
+  z-index: 5;
+  pointer-events: auto;
 }
 
 .upcoming-event-title {
@@ -378,3 +422,68 @@
   font-style: italic;
 }
 
+.themed-input-date{
+    width: 140px !important;
+    max-width: 140px !important;
+    padding: 8px 4px 6px 4px !important;
+    border: none !important;
+    border-bottom: 2px solid #c5cae9 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    font-size: 0.95rem !important;
+    margin-top: 4px !important;
+    margin-bottom: 0 !important;
+    box-shadow: none !important;
+    color: #222 !important;
+    text-align: center !important;
+    transition: border-color 0.2s, background 0.15s !important;
+}
+
+/* Hide the calendar/clock icon in WebKit browsers */
+.themed-input-date::-webkit-calendar-picker-indicator {
+  opacity: 0 !important;
+  position: absolute !important;
+  right: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  cursor: pointer !important;
+}
+
+.themed-input-time {
+    width: 75px !important;
+    max-width: 75px !important;
+    padding: 8px 4px 6px 4px !important;
+    border: none !important;
+    border-bottom: 2px solid #c5cae9 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    font-size: 0.95rem !important;
+    margin-top: 4px !important;
+    margin-bottom: 0 !important;
+    box-shadow: none !important;
+    color: #222 !important;
+    text-align: center !important;
+    transition: border-color 0.2s, background 0.15s !important;
+}
+
+/* Hide the calendar/clock icon in WebKit browsers */
+.themed-input-date::-webkit-calendar-picker-indicator {
+  opacity: 0 !important;
+  position: absolute !important;
+  right: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  cursor: pointer !important;
+  z-index: 10 !important;
+}
+
+/* Hide the calendar/clock icon in WebKit browsers */
+.themed-input-time::-webkit-calendar-picker-indicator {
+  opacity: 0 !important;
+  position: absolute !important;
+  right: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  cursor: pointer !important;
+  z-index: 5 !important;
+}

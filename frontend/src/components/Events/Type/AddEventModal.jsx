@@ -2,8 +2,8 @@ import React, { Component } from 'react';
 import './UpcomingEvents.css';
 import axios from 'axios';
 
-const DEFAULT_TIME_START = '07:30:00 AM';
-const DEFAULT_TIME_END = '09:30:00 AM';
+const DEFAULT_TIME_START = '07:30';
+const DEFAULT_TIME_END = '09:30';
 const DEFAULT_TYPE = 'Upcoming';
 const ORGANIZER_OPTIONS = [
   'WWF-led',
@@ -18,10 +18,16 @@ const BASE_URL =
 class AddEventModal extends Component {
   constructor(props) {
     super(props);
+    
+    // Check if user is WWF-Volunteer
+    const userData = JSON.parse(localStorage.getItem('user'));
+    const isWWFVolunteer = userData.role === 'WWF-Volunteer';
+    
     this.state = {
       numEvents: '',
       events: [],
-      hasInteracted: false // Track if user has interacted with the textbox
+      hasInteracted: false, // Track if user has interacted with the textbox
+      isWWFVolunteer
     };
   }
 
@@ -37,7 +43,7 @@ class AddEventModal extends Component {
           ...events,
           ...Array.from({ length: num - events.length }, () => ({
             Type: DEFAULT_TYPE,
-            Organizer: '',
+            Organizer: this.state.isWWFVolunteer ? 'Volunteer-led' : '',
             Location: '',
             Date: '',
             TimeStart: DEFAULT_TIME_START,
@@ -151,7 +157,7 @@ class AddEventModal extends Component {
         ...prevState.events,
         {
           Type: '',
-          Organizer: '',
+          Organizer: this.state.isWWFVolunteer ? 'Volunteer-led' : '',
           Location: '',
           Date: '',
           TimeStart: DEFAULT_TIME_START,
@@ -173,6 +179,45 @@ class AddEventModal extends Component {
         events
       };
     });
+  };
+
+  // Helper method to format date for the date input (YYYY-MM-DD)
+  formatDateForInput = (dateStr) => {
+    if (!dateStr) return '';
+    
+    // If it's already in YYYY-MM-DD format, return as is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return dateStr;
+    }
+    
+    // Handle DD/MM/YYYY format
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
+      const [day, month, year] = dateStr.split('/');
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    
+    // Handle other formats if needed
+    return '';
+  };
+
+  // Helper method to format date for display (DD/MM/YYYY)
+  formatDateForDisplay = (dateStr) => {
+    if (!dateStr) return '';
+    
+    // If it's in YYYY-MM-DD format, convert to DD/MM/YYYY
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [year, month, day] = dateStr.split('-');
+      return `${parseInt(day)}/${parseInt(month)}/${year}`;
+    }
+    
+    return dateStr;
+  };
+
+  // Handle date change from date picker
+  handleDateChange = (idx, value) => {
+    // Convert YYYY-MM-DD to DD/MM/YYYY for storage
+    const displayDate = this.formatDateForDisplay(value);
+    this.handleEventFieldChange(idx, 'Date', displayDate);
   };
 
   render() {
@@ -274,16 +319,20 @@ class AddEventModal extends Component {
                               type="text"
                               className="themed-input"
                               style={{ width: '100%' }}
-                              list={`organizer-options-${idx}`}
+                              list={this.state.isWWFVolunteer ? undefined : `organizer-options-${idx}`}
                               value={ev.Organizer}
                               onChange={e => this.handleEventFieldChange(idx, 'Organizer', e.target.value)}
                               placeholder="Select Organizer"
+                              readOnly={this.state.isWWFVolunteer}
+                              disabled={this.state.isWWFVolunteer}
                             />
-                            <datalist id={`organizer-options-${idx}`}>
-                              {ORGANIZER_OPTIONS.map(opt => (
-                                <option key={opt} value={opt} />
-                              ))}
-                            </datalist>
+                            {!this.state.isWWFVolunteer && (
+                              <datalist id={`organizer-options-${idx}`}>
+                                {ORGANIZER_OPTIONS.map(opt => (
+                                  <option key={opt} value={opt} />
+                                ))}
+                              </datalist>
+                            )}
                           </td>
                           <td className="themed-table-td">
                             <input
@@ -295,34 +344,45 @@ class AddEventModal extends Component {
                               placeholder="e.g. TBC"
                             />
                           </td>
-                          <td className="themed-table-td">
+                          <td className="themed-table-td" style={{ position: 'relative', zIndex: 1 }}>
                             <input
-                              type="text"
-                              className="themed-input"
-                              style={{ width: '100%' }}
-                              value={ev.Date}
-                              onChange={e => this.handleEventFieldChange(idx, 'Date', e.target.value)}
-                              placeholder="Date Format DD-Mmm-YY"
+                              type="date"
+                              className="themed-input-date"
+                              style={{ width: '100%', position: 'relative', zIndex: 2 }}
+                              value={this.formatDateForInput(ev.Date)}
+                              onChange={e => this.handleDateChange(idx, e.target.value)}
+                              onClick={e => e.stopPropagation()}
+                              onFocus={e => e.stopPropagation()}
+                              placeholder="DD/MM/YYYY"
+                              key={`date-${idx}`}
                             />
                           </td>
-                          <td className="themed-table-td" style={{ minWidth: 210, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <input
-                              type="text"
-                              className="themed-input"
-                              style={{ width: 120 }}
-                              value={ev.TimeStart}
-                              onChange={e => this.handleEventFieldChange(idx, 'TimeStart', e.target.value)}
-                              placeholder="Start"
-                            />
-                            <span style={{ fontWeight: 600, margin: '0 4px' }}>-</span>
-                            <input
-                              type="text"
-                              className="themed-input"
-                              style={{ width: 120 }}
-                              value={ev.TimeEnd}
-                              onChange={e => this.handleEventFieldChange(idx, 'TimeEnd', e.target.value)}
-                              placeholder="End"
-                            />
+                          <td className="themed-table-td" style={{ minWidth: 210, position: 'relative', zIndex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, position: 'relative', zIndex: 2 }}>
+                              <input
+                                type="time"
+                                className="themed-input-time"
+                                key={`time-start-${idx}`}
+                                value={ev.TimeStart}
+                                onChange={e => this.handleEventFieldChange(idx, 'TimeStart', e.target.value)}
+                                onClick={e => e.stopPropagation()}
+                                onFocus={e => e.stopPropagation()}
+                                placeholder="Start"
+                                style={{ position: 'relative', zIndex: 3 }}
+                              />
+                              <span style={{ fontWeight: 600, margin: '0 4px' }}>-</span>
+                              <input
+                                type="time"
+                                className="themed-input-time"
+                                key={`time-end-${idx}`}
+                                value={ev.TimeEnd}
+                                onChange={e => this.handleEventFieldChange(idx, 'TimeEnd', e.target.value)}
+                                onClick={e => e.stopPropagation()}
+                                onFocus={e => e.stopPropagation()}
+                                placeholder="End"
+                                style={{ position: 'relative', zIndex: 3 }}
+                              />
+                            </div>
                           </td>
                           <td className="themed-table-td" style={{ minWidth: 90, textAlign: 'center' }}>
                             <button

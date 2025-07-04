@@ -163,8 +163,30 @@ class UpcomingEvents extends Component {
           }
         }
       }
+      if (action === 'delete') {
+        console.log('Deleting event:', eventId);
+        // Confirm deletion with user
+
+          const result = await axios.post(`${BASE_URL}/events`, {
+            purpose: 'deleteEvent',
+            eventId: eventId
+          });
+          if (result.data.success) {
+            console.log('Event deleted successfully');
+            // Refresh events list
+            if (this.props.onRefreshEvents) {
+              this.props.onRefreshEvents();
+            }
+            return;
+          } else {
+            console.error('Failed to delete event:', result.data.message);
+          }
+      }
     } catch (error) {
-      console.error('Failed to update participants:', error);
+      console.error('Failed to update/delete event:', error);
+      if (action === 'delete') {
+        alert('Failed to delete event. Please try again.');
+      }
     }
   }
 

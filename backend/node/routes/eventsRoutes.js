@@ -71,6 +71,24 @@ router.post('/', async function(req, res, next)
             return res.status(500).json({ error: 'Failed to add events.' });
         }
     }
+    else if(req.body.purpose === "deleteEvent") {
+        try {
+            const { eventId } = req.body;
+            console.log('Deleting event:', eventId);
+            var controller = new EventsController();
+            var result = await controller.deleteEvent(eventId);
+            if (io) {
+                io.emit('survey-updated', {
+                    message: 'Event deleted successfully',
+                    deletedEventId: eventId
+                });
+            }
+            return res.json({ success: true, message: 'Event deleted successfully', deletedEventId: eventId });
+        } catch (error) {
+            console.error('Error deleting event:', error);
+            return res.status(500).json({ error: 'Failed to delete event.' });
+        }
+    }
     else if(req.body.purpose === "get247LiveUpdates") {
         try {
             var controller = new EventsController();

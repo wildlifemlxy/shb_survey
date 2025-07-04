@@ -55,8 +55,9 @@ class QuickActionsPanel extends Component {
       backupTooltip,
       currentUser
     } = this.props;
-    
-    const { isWwfVolunteer } = this.state;
+    console.log('Rendering QuickActionsPanel with props:', currentUser.role);
+    // Add this debug log to see exact role values
+    console.log('Current user role type and value:', typeof currentUser.role, JSON.stringify(currentUser.role));
     return (
       <div style={{ marginBottom: 16 }}>
         <button
@@ -141,7 +142,7 @@ class QuickActionsPanel extends Component {
                   transition: 'all 0.2s ease',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                   whiteSpace: 'nowrap',
-                  width: isWwfVolunteer ? '50%' : '33%'
+                  width: '33%'
                 }}
                 title="Chatbot feature coming soon!"
               >
@@ -150,7 +151,7 @@ class QuickActionsPanel extends Component {
                   Chatbot
                 </span>
               </button>
-              <div style={{ width: isWwfVolunteer ? '50%' : '33%', minHeight: 32 }}></div>
+              <div style={{ width: '33%', minHeight: 32 }}></div>
             </div>
           </div>
         )}

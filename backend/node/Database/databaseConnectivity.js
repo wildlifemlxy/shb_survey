@@ -54,6 +54,16 @@ class DatabaseConnectivity {
     return await collection.updateOne(filter, update);
   }
 
+  async deleteDocument(databaseName, collectionName, filter) {
+    const db = this.client.db(databaseName);
+    const collection = db.collection(collectionName);
+    // Convert string _id to ObjectId if present
+    if (filter._id && typeof filter._id === 'string') {
+      filter._id = new ObjectId(filter._id);
+    }
+    return await collection.deleteOne(filter);
+  }
+
   async getDocument(databaseName, collectionName, email, password) {
     try {
       console.log("Retrieving document with email:", email, "and password:", password, "from collection:", collectionName);

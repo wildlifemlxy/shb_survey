@@ -46,17 +46,16 @@ class LoginPopup extends Component {
       
       const result = await fetchLoginData(email, password);
       console.log('Login result:', result);
-      
-      if (result.success) 
+       if (result.success) 
       {
         this.clearForm();
         this.props.onClose();
-        // Call onLogin instead of onLoginSuccess to match the prop passed from LoginContainer
-        localStorage.setItem('user', JSON.stringify(result.data));
-        localStorage.setItem('isAuthenticated', 'true');
-        this.props.onLoginSuccess();
-
-      } else {
+        // Store user data in localStorage
+        //localStorage.setItem('user', JSON.stringify(result.data));
+        //localStorage.setItem('isAuthenticated', 'true');
+        // Pass the user data to the success callback
+        this.props.onLoginSuccess(result.data);
+      }else {
         this.setState({ 
           error: result?.message || 'Invalid email or password. Please try again.' 
         });

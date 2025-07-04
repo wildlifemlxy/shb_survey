@@ -165,29 +165,22 @@ class Home extends React.Component {
     }));
   };
 
-  handleLoginSuccess = () => {
-    // Store authentication status and user details in localStorage
-    localStorage.setItem('isAuthenticated', 'true');
+  onLoginSuccess = (userData) => {
+    console.log('Login success called with userData:', userData);
     
-    // Properly retrieve and parse user data
-    try {
-      const userDataString = localStorage.getItem('user');
-      console.log('User data string from localStorage:', userDataString);
-      const userData = userDataString ? JSON.parse(userDataString) : null;
-      console.log('Login successful in Home component, user details:', userData);
-      
-      this.setState({
-        isAuthenticated: true,
-        isLoginPopupOpen: false,
-        currentUser: userData
-      });
-    } catch (error) {
-      console.error('Error parsing user data from localStorage:', error);
-      this.setState({
-        isAuthenticated: true,
-        isLoginPopupOpen: false
-      });
+    // Store authentication status and user data in localStorage
+    localStorage.setItem('isAuthenticated', 'true');
+    if (userData) {
+      localStorage.setItem('user', JSON.stringify(userData));
     }
+
+    this.props.onLoginSuccess(userData);
+    
+    // Update component state
+    this.setState({
+      isAuthenticated: true,
+      isLoginPopupOpen: false
+    });
   };
 
   render() {
@@ -287,10 +280,17 @@ class Home extends React.Component {
                   onClick={(e) => {
                     // Prevent default navigation behavior
                     e.preventDefault();
-                    // Clear authentication data from localStorage
-                    localStorage.clear();
+                    // Clear only authentication-related data from localStorage
+                    localStorage.removeItem('isAuthenticated');
+                    localStorage.removeItem('user');
+                    localStorage.removeItem('userRole');
                     // Update the component state
-                    this.setState({ isAuthenticated: false });
+                    this.setState({ 
+                      isAuthenticated: false,
+                      currentUser: null 
+                    });
+                    // Force a page reload to ensure clean state
+                    window.location.reload();
                   }}
                   style={{
                     display: 'flex',
@@ -515,7 +515,7 @@ class Home extends React.Component {
         <LoginPopup 
           isOpen={isLoginPopupOpen} 
           onClose={this.toggleLoginPopup} 
-          onLoginSuccess={this.handleLoginSuccess} 
+          onLoginSuccess={this.onLoginSuccess} 
         />
       </div>
     );

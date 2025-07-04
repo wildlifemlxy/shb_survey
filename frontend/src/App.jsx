@@ -100,7 +100,7 @@ class App extends Component {
     return isAuthenticated;
   };
 
-  handleLoginSuccess = (userData) => {
+  onLoginSuccess = (userData) => {
     console.log('Login successful in App component, userData:', userData);
     // Update local state
     this.setState({ isAuthenticated: true, currentUser: userData });
@@ -181,14 +181,14 @@ class App extends Component {
                   element={
                     isAuthenticated ? 
                     <Navigate to="/dashboard" replace /> : 
-                    <Login onLoginSuccess={this.handleLoginSuccess} />
+                    <Login onLoginSuccess={this.onLoginSuccess} />
                   } 
                 />
                 
                 {/* Public Route - Home page accessible without login */}
                 <Route 
                   path="/" 
-                  element={<Home shbData={shbData} isLoading={isLoading} />} 
+                  element={<Home shbData={shbData} isLoading={isLoading} onLoginSuccess={this.onLoginSuccess} />} 
                 />
                 
                 {/* Protected Routes */}
@@ -226,9 +226,7 @@ class App extends Component {
             </Suspense>
           </Router>
         </div>
-      
-        {/* Only render modals and maintenance bot if authenticated - accessible to all account roles */}
-        {isAuthenticated && (
+        {currentUser && (
           <>
             {/* Render modal only once, outside router, using correct state reference */}
             <NewSurveyModal show={showNewSurveyModal} onClose={this.handleCloseNewSurveyModal} onSubmit={this.handleAddSurvey} />
@@ -239,6 +237,7 @@ class App extends Component {
             />
             
             {/* Maintenance Bot Button - Fixed bottom right on all pages, positioned to avoid overlap */}
+            {console.log('Rendering MaintenanceBotButton with currentUser:', currentUser)}
             <MaintenanceBotButton 
               shbData={shbData} 
               currentUser={currentUser} 

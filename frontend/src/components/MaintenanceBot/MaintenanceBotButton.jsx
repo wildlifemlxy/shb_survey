@@ -1539,7 +1539,7 @@ class MaintenanceBotButton extends Component {
     if (systemHealth.performance === 'slow') {
       return '#f59e0b'; // yellow
     }
-    return '#10b981'; // green
+    return '#ffffff'; // green
   };
 
   // Force refresh tab detection (useful for ensuring UI updates)
