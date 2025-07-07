@@ -12,8 +12,8 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Functional component to listen for zoom events
-function MapZoomListener({ onZoomLevelChange }) {
+// Functional component to listen for zoom events and map clicks
+function MapZoomListener({ onZoomLevelChange, onMapClick, closeObservationPopup }) {
   useMapEvent('zoomend', (e) => {
     const map = e.target;
     const newZoom = map.getZoom();
@@ -21,7 +21,32 @@ function MapZoomListener({ onZoomLevelChange }) {
     if (onZoomLevelChange) {
       onZoomLevelChange(newZoom);
     }
+    // Close popup when zoom changes
+    if (closeObservationPopup) {
+      closeObservationPopup();
+    }
   });
+
+  useMapEvent('zoomstart', (e) => {
+    // Close popup when zoom starts for immediate feedback
+    if (closeObservationPopup) {
+      closeObservationPopup();
+    }
+  });
+
+  useMapEvent('dragstart', (e) => {
+    // Close popup when user starts dragging the map
+    if (closeObservationPopup) {
+      closeObservationPopup();
+    }
+  });
+
+  useMapEvent('click', (e) => {
+    if (onMapClick) {
+      onMapClick(e);
+    }
+  });
+  
   return null;
 }
 
@@ -100,7 +125,11 @@ class Map extends Component {
             this.mapRef.current = map;
           }}
         >
-          <MapZoomListener onZoomLevelChange={this.props.onZoomLevelChange} />
+          <MapZoomListener 
+            onZoomLevelChange={this.props.onZoomLevelChange} 
+            onMapClick={this.props.closeObservationPopup}
+            closeObservationPopup={this.props.closeObservationPopup}
+          />
           <TileLayer
             url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
             attribution="&copy; Google"
@@ -109,6 +138,7 @@ class Map extends Component {
             <ObservationMarker
               key={`markers-${dataHash}`}
               data={data}
+              onMarkerClick={this.props.openObservationPopup}
             />
           )}
           <ZoomControl position="topright" />

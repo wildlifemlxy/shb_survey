@@ -1,9 +1,8 @@
 import React, { Component } from 'react';
 import MarkerClusterGroup from 'react-leaflet-markercluster';
-import { Marker, Popup } from 'react-leaflet';
+import { Marker } from 'react-leaflet';
 import L from 'leaflet';
 import './ObservationMarkerCluster.css';
-import ObservationPopup from '../../ObservationPopup';
 
 // Custom iconCreateFunction for gradient backgrounds by cluster size
 const iconCreateFunction = (cluster) => {
@@ -26,6 +25,27 @@ const iconCreateFunction = (cluster) => {
 };
 
 class ObservationMarkerCluster extends Component {
+  handleMarkerClick = (marker) => (e) => {
+    const { onMarkerClick } = this.props;
+    if (onMarkerClick) {
+      // Get the pixel position of the marker for popup positioning
+      const map = e.target._map;
+      const point = map.latLngToContainerPoint(e.latlng);
+      
+      // Get the map container's offset relative to the viewport
+      const mapContainer = map.getContainer();
+      const mapRect = mapContainer.getBoundingClientRect();
+      
+      const position = {
+        x: mapRect.left + point.x,
+        y: mapRect.top + point.y
+      };
+      
+      console.log('Cluster marker clicked - position:', position, 'point:', point, 'mapRect:', mapRect);
+      onMarkerClick(marker, position);
+    }
+  };
+
   render() {
     const { markers, seenIcon, heardIcon, notFoundIcon } = this.props;
     return (
@@ -52,11 +72,10 @@ class ObservationMarkerCluster extends Component {
               key={markerKey}
               position={[obs.Lat, obs.Long]}
               icon={selectedIcon}
-            >
-              <Popup className="observation-popup">
-                <ObservationPopup obs={obs} />
-              </Popup>
-            </Marker>
+              eventHandlers={{
+                click: this.handleMarkerClick(obs)
+              }}
+            />
           );
         })}
       </MarkerClusterGroup>

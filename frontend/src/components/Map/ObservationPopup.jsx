@@ -1,26 +1,61 @@
-import React, { Component } from 'react';
+import React, { useEffect } from 'react';
+import './ObservationPopup.css';
 
-const popupStyle = {
-  minWidth: 220,
-  background: '#fff',
-  borderRadius: 8,
-  boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
-  padding: 16,
-  fontFamily: 'inherit',
-  lineHeight: 1.5,
-};
-const labelStyle = {
-  fontWeight: 600,
-  color: '#2c3e50',
-  marginRight: 4,
-};
-const valueStyle = {
-  color: '#222',
-};
+const ObservationPopup = ({ position, data, onClose }) => {
+  if (!position || !data) return null;
 
-class ObservationPopup extends Component {
+  // Close popup when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Don't close if clicking on the popup itself
+      if (event.target.closest('.observation-popup')) {
+        return;
+      }
+      // Don't close if clicking on a marker (let marker handle toggle)
+      if (event.target.closest('.leaflet-marker-icon')) {
+        return;
+      }
+      // Close popup for any other click
+      onClose();
+    };
+
+    // Add escape key to close
+    const handleEscapeKey = (event) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    // Add wheel/scroll event to close popup
+    const handleScroll = (event) => {
+      // Only close if not scrolling inside the popup
+      if (!event.target.closest('.observation-popup')) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscapeKey);
+    document.addEventListener('wheel', handleScroll, { passive: true });
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscapeKey);
+      document.removeEventListener('wheel', handleScroll);
+    };
+  }, [onClose]);
+
+  const handleClose = (e) => {
+    e.stopPropagation();
+    onClose();
+  };
+
+  const handleContentClick = (e) => {
+    e.stopPropagation();
+  };
+
   // Helper function to format time in 24-hour format (hh:mm)
-  formatTime = (time) => {
+  const formatTime = (time) => {
     if (!time) return time;
     
     // Handle Excel time decimal (fraction of a day)
@@ -57,7 +92,7 @@ class ObservationPopup extends Component {
   };
 
   // Helper function to format date
-  formatDate = (date) => {
+  const formatDate = (date) => {
     if (!date) return date;
     if (typeof date === 'number') {
       // Convert Excel date serial to readable date in dd/mm/yyyy format
@@ -81,46 +116,95 @@ class ObservationPopup extends Component {
     return date;
   };
 
-  render() {
-    const { obs } = this.props;
-    console.log('ObservationPopup rendering with data:', obs);
-    
-    if (!obs) {
-      return <div style={popupStyle}>No data available</div>;
-    }
-    
-    return (
-      <div style={popupStyle} className="observation-popup">
-        <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8, color: '#1a237e' }}>
-          {obs.Location || 'Unknown Location'}
-        </div>
-        {obs.Date && (
-          <div><span style={labelStyle}>Date:</span> <span style={valueStyle}>{this.formatDate(obs.Date)}</span></div>
-        )}
-        {obs.Time && (
-          <div><span style={labelStyle}>Time:</span> <span style={valueStyle}>{this.formatTime(obs.Time)}</span></div>
-        )}
-        {obs["Number of Birds"] && (
-          <div><span style={labelStyle}>Number of birds:</span> <span style={valueStyle}>{obs["Number of Birds"]}</span></div>
-        )}
-        {obs["Seen/Heard"] && (
-          <div><span style={labelStyle}>Seen/Heard:</span> <span style={valueStyle}>{obs["Seen/Heard"]}</span></div>
-        )}
-        {obs["Height of bird/m"] && (
-          <div><span style={labelStyle}>Bird Height:</span> <span style={valueStyle}>{obs["Height of bird/m"]}m</span></div>
-        )}
-        {obs["Height of tree/m"] && (
-          <div><span style={labelStyle}>Tree Height:</span> <span style={valueStyle}>{obs["Height of tree/m"]}m</span></div>
-        )}
-        {obs["Activity (foraging, preening, calling, perching, others)"] && (
-          <div><span style={labelStyle}>Activity:</span> <span style={valueStyle}>{obs["Activity (foraging, preening, calling, perching, others)"]}</span></div>
-        )}
-        {obs["Observer name"] && (
-          <div><span style={labelStyle}>Observer:</span> <span style={valueStyle}>{obs["Observer name"]}</span></div>
-        )}
-      </div>
-    );
+  // Calculate popup position based on marker position
+  const popupStyle = {
+    left: position.x + 35, // Position to the right of the marker with 35px gap
+    top: position.y, // Use marker's y position
+    transform: 'translateY(-50%)', // Center vertically relative to marker
+  };
+
+  // Auto-switch to left side if near right edge
+  if (position.x > window.innerWidth - 350) {
+    popupStyle.left = position.x - 35;
+    popupStyle.transform = 'translate(-100%, -50%)';
   }
-}
+
+  // Ensure popup stays within viewport bounds
+  if (popupStyle.left < 0) {
+    popupStyle.left = 10;
+    popupStyle.transform = 'translateY(-50%)';
+  }
+  
+  if (popupStyle.top < 0) {
+    popupStyle.top = 10;
+  }
+  
+  if (popupStyle.top > window.innerHeight - 150) {
+    popupStyle.top = window.innerHeight - 160;
+  }
+
+  // Temporary debug positioning - show popup in center if position is invalid
+  if (position.x === 0 && position.y === 0) {
+    popupStyle.left = '50%';
+    popupStyle.top = '50%';
+    popupStyle.transform = 'translate(-50%, -50%)';
+  }
+
+  console.log('Popup position:', position, 'Popup style:', popupStyle);
+
+  return (
+    <div 
+      className="observation-popup"
+      style={popupStyle}
+      onClick={handleContentClick}
+    >
+      <div className="observation-popup-header">
+        <strong>{data.Location || 'Unknown Location'}</strong>
+        <button 
+          onClick={handleClose}
+          style={{
+            float: 'right',
+            background: 'none',
+            border: 'none',
+            fontSize: '14px',
+            cursor: 'pointer',
+            padding: '0 2px',
+            color: '#666',
+            lineHeight: 1,
+            marginTop: '-2px'
+          }}
+          title="Close popup"
+        >
+          ×
+        </button>
+      </div>
+      
+      {data.Date && (
+        <div><strong>Date:</strong> {formatDate(data.Date)}</div>
+      )}
+      {data.Time && (
+        <div><strong>Time:</strong> {formatTime(data.Time)}</div>
+      )}
+      {data["Number of Birds"] && (
+        <div><strong>Number of birds:</strong> {data["Number of Birds"]}</div>
+      )}
+      {data["Seen/Heard"] && (
+        <div><strong>Seen/Heard:</strong> {data["Seen/Heard"]}</div>
+      )}
+      {data["Height of bird/m"] && (
+        <div><strong>Bird Height:</strong> {data["Height of bird/m"]}m</div>
+      )}
+      {data["Height of tree/m"] && (
+        <div><strong>Tree Height:</strong> {data["Height of tree/m"]}m</div>
+      )}
+      {data["Activity (foraging, preening, calling, perching, others)"] && (
+        <div><strong>Activity:</strong> {data["Activity (foraging, preening, calling, perching, others)"]}</div>
+      )}
+      {data["Observer name"] && (
+        <div><strong>Observer:</strong> {data["Observer name"]}</div>
+      )}
+    </div>
+  );
+};
 
 export default ObservationPopup;

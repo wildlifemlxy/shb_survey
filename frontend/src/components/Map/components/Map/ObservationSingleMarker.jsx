@@ -1,9 +1,27 @@
 import React, { Component } from 'react';
-import { Marker, Popup } from 'react-leaflet';
-import ObservationPopup from '../../ObservationPopup';
+import { Marker } from 'react-leaflet';
 
 class ObservationSingleMarker extends Component {
-  // Example: Add a method to handle marker click (optional)
+  handleMarkerClick = (e) => {
+    const { marker, onMarkerClick } = this.props;
+    if (onMarkerClick) {
+      // Get the pixel position of the marker for popup positioning
+      const map = e.target._map;
+      const point = map.latLngToContainerPoint(e.latlng);
+      
+      // Get the map container's offset relative to the viewport
+      const mapContainer = map.getContainer();
+      const mapRect = mapContainer.getBoundingClientRect();
+      
+      const position = {
+        x: mapRect.left + point.x,
+        y: mapRect.top + point.y
+      };
+      
+      console.log('Marker clicked - position:', position, 'point:', point, 'mapRect:', mapRect);
+      onMarkerClick(marker, position);
+    }
+  };
 
   render() {
     const { marker, seenIcon, heardIcon, notFoundIcon } = this.props;
@@ -29,11 +47,10 @@ class ObservationSingleMarker extends Component {
         key={markerKey}
         position={[marker.Lat, marker.Long]}
         icon={selectedIcon}
-      >
-        <Popup className="observation-popup">
-          <ObservationPopup obs={marker} />
-        </Popup>
-      </Marker>
+        eventHandlers={{
+          click: this.handleMarkerClick
+        }}
+      />
     );
   }
 }

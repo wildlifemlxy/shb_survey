@@ -394,6 +394,8 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
           {activeTab === 'map' && (
             <MapViewTab 
               data={standardizedValidCoordinates}
+              openObservationPopup={this.props.openObservationPopup}
+              closeObservationPopup={this.props.closeObservationPopup}
             />
           )}
           

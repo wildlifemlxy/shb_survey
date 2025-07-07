@@ -98,6 +98,8 @@ class MapViewTab extends Component {
               onMapTypeChange={this.handleMapTypeChange}
               onZoomLevelChange={this.handleZoomLevelChange}
               zoom={zoomLevel}
+              openObservationPopup={this.props.openObservationPopup}
+              closeObservationPopup={this.props.closeObservationPopup}
             />
           </div>
         </div>

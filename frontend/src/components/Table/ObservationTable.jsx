@@ -280,6 +280,30 @@ class ObservationTable extends Component {
     }, this.updateFilteredData);
   }
 
+  // Method to handle row deletion using _id
+  handleDeleteRow = async (rowData) => {
+    const recordId = rowData._id || rowData._rowId;
+    try {
+      // Use setTimeout to avoid React lifecycle warning
+      console.log('Deleting row with ID:', recordId);
+      
+      // If you have a callback to delete by ID, call it here
+      if (this.props.onDataDelete) {
+        await this.props.onDataDelete(recordId);
+      } else if (this.props.onDataUpdate) {
+        // Fallback: filter out the row from current data
+        const transformedData = this.getStableTransformedData();
+        console.log('Transformed data before deletion:', transformedData);
+        const updatedData = transformedData.filter(row => 
+          (row._id || row._rowId) !== recordId
+        );
+        this.props.onDataUpdate(updatedData);
+      }
+    } catch (error) {
+      console.error('Error deleting row:', error);
+    }
+  };
+
   // Central method to update filtered data
   updateFilteredData = () => {
     const { searchQuery, selectedLocation, selectedSeenHeard, sortField, sortDirection, originalOrder } = this.state;
@@ -330,6 +354,17 @@ class ObservationTable extends Component {
     // Create a unique ID based on combination of fields
     return `${item['Observer name']}-${item['SHB individual ID']}-${item['Date']}-${item['Time']}`;
   }
+
+  // Get stable transformed data with proper IDs
+  getStableTransformedData = () => {
+    const transformedData = this.transformData(this.props.data);
+    // Ensure each row has a stable ID for ag-Grid tracking
+    return transformedData.map((row, index) => ({
+      ...row,
+      _rowId: row._id || row.id || `row-${index}`, // Use _id from MongoDB if available
+      _originalIndex: index // Keep track of original index
+    }));
+  };
 
   sortData(data, field, direction) {
     // If direction is 'default', return data as is
@@ -387,7 +422,6 @@ class ObservationTable extends Component {
         return direction === 'asc' ? comparison : -comparison;
       }
     });
-  
     return sortedData;
   }  
 
@@ -658,28 +692,12 @@ class ObservationTable extends Component {
     const { data } = this.props;
     const { searchQuery, selectedSeenHeard, filteredData, sortField, sortDirection } = this.state;
     const seenHeards = getUniqueSeenHeards(data);
-    const transformedData = this.transformData(data);
+    const transformedData = this.getStableTransformedData();
 
-    // Get sort mode display text
-    const getSortDirectionText = () => {
-      switch(sortDirection) {
-        case 'asc': return '↑ Ascending';
-        case 'desc': return '↓ Descending';
-        default: return '↕ Default';
-      }
-    };
-
-    // Get sort mode button color (even darker shades)
-    const getSortButtonColor = () => {
-      switch (sortDirection) {
-        case 'asc':
-          return '#1f5c3b'; // Darker green
-        case 'desc':
-          return '#4b2c47'; // Darker purple
-        default:
-          return '#2f2f2f'; // Darker gray
-      }
-    };
+    // Check if user is not WWF-Volunteer to enable editing
+    const userRole = localStorage.getItem('userRole'); // Assuming user role is stored in localStorage
+    const isEditable = userRole !== 'WWF-Volunteer' && userRole !== null;
+    console.log('User role:', userRole, 'Editable:', isEditable);
 
     const columns = [
       { 
@@ -687,13 +705,19 @@ class ObservationTable extends Component {
         field: "serialNumber",
         width: 70,
         sortable: false,
-        suppressMenu: true,
+        editable: false, // Serial number should never be editable
       },
-      { headerName: "Observer", field: "Observer name", width: 300 },
+      { 
+        headerName: "Observer", 
+        field: "Observer name", 
+        width: 300,
+        editable: isEditable
+      },
       { 
         headerName: "Bird ID", 
         field: "SHB individual ID", 
         width: 200,
+        editable: isEditable,
         cellRenderer: (params) => {
           if (!params.value || params.value === '') return '';
           // Format bird IDs to ensure they follow SHBx format
@@ -705,30 +729,38 @@ class ObservationTable extends Component {
         field: "Location",
         cellRenderer: (params) =>
           params.value ? `${params.value}` : '',
-        width: 300
+        width: 300,
+        editable: isEditable
       },
       { 
         headerName: "Number of Bird(s)", 
         field: "Number of Birds",
         cellRenderer: (params) => 
-          params.value != null && params.value !== '' ? params.value : ''
+          params.value != null && params.value !== '' ? params.value : '',
+        editable: isEditable,
+        cellEditor: 'agNumberCellEditor'
       },
       {
         headerName: "Height of Tree",
         field: "Height of tree/m",
         cellRenderer: (params) => 
           params.value != null && params.value !== '' && !isNaN(params.value) ? `${params.value}m` : '',
+        editable: isEditable,
+        cellEditor: 'agNumberCellEditor'
       },
       {
         headerName: "Height of Bird",
         field: "Height of bird/m",
         cellRenderer: (params) => 
           params.value != null && params.value !== '' && !isNaN(params.value) ? `${params.value}m` : '',
+        editable: isEditable,
+        cellEditor: 'agNumberCellEditor'
       },
       { 
         headerName: "Date", 
         field: "Date", 
-        cellRenderer: (params) => params.value ? this.formatDate(params.value) : '' 
+        cellRenderer: (params) => params.value ? this.formatDate(params.value) : '',
+        editable: isEditable
       },
       {
         headerName: "Time",
@@ -740,20 +772,61 @@ class ObservationTable extends Component {
           console.log('Formatted time:', formattedTime);
           return formattedTime;
         },
-        width: 100
+        width: 100,
+        editable: isEditable
       },
       {
         headerName: "Activity",
         field: "Activity (foraging, preening, calling, perching, others)",
         cellRenderer: (params) => params.value || '',
-        width: 300
+        width: 300,
+        editable: isEditable
       },
       {
         headerName: "Seen/Heard",
         field: "Seen/Heard",
         cellRenderer: (params) => params.value || '',
-        width: 300
-      }
+        width: 300,
+        editable: isEditable,
+        cellEditor: 'agSelectCellEditor',
+        cellEditorParams: {
+          values: ['Seen', 'Heard', 'Not found']
+        }
+      },
+      // Add delete button column as the LAST column for non-WWF-Volunteer users
+      ...(isEditable ? [{
+        headerName: "Actions",
+        field: "actions",
+        width: 100,
+        sortable: false,
+        suppressMenu: true,
+        editable: false, // Actions column should never be editable
+        pinned: 'right',
+        cellRenderer: (params) => {
+          return (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.handleDeleteRow(params.data);
+              }}
+              style={{
+                backgroundColor: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '4px 8px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                marginTop: '2px'
+              }}
+              title="Delete this row"
+            >
+              Delete
+            </button>
+          );
+        }
+      }] : [])
     ];
 
     return (
@@ -771,10 +844,34 @@ class ObservationTable extends Component {
             paginationPageSize={transformedData.length}
             suppressScrollOnNewData={true}
             suppressMaintainUnsortedOrder={true}
-            suppressCellFocus={true}
+            suppressCellFocus={!isEditable} // Allow cell focus if editable
             suppressRowHoverHighlight={false}
             maintainColumnOrder={true}
             suppressAnimationFrame={true}
+            singleClickEdit={isEditable}
+            stopEditingWhenCellsLoseFocus={true}
+            getRowId={(params) => params.data._id || params.data._rowId || params.node.rowIndex}
+            onCellValueChanged={(event) => {
+              // Handle cell value changes when editing
+              const recordId = event.data._id || event.data._rowId;
+              console.log('Cell value changed:', {
+                recordId: recordId,
+                field: event.colDef.field,
+                oldValue: event.oldValue,
+                newValue: event.newValue,
+                rowIndex: event.node.rowIndex
+              });
+              
+              // Update the data in the parent component if callback exists
+              if (this.props.onDataUpdate) {
+                // Send the updated row data with its ID for backend update
+                const updatedRowData = { 
+                  ...event.data,
+                  [event.colDef.field]: event.newValue 
+                };
+                this.props.onDataUpdate(updatedRowData, recordId);
+              }
+            }}
             getRowStyle={params => {
               let backgroundColor = '#f9f9f9';  // Default light gray
 

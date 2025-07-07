@@ -23,7 +23,7 @@ router.post('/', async function(req, res, next)
         try {
             var controller = new SurveyController();
             var result = await controller.getAllSurveys();
-            console.log('Surveys retrieved successfully:', result);
+            //console.log('Surveys retrieved successfully:', result);
             return res.json({"result": result}); 
             
         } catch (error) {
@@ -77,6 +77,74 @@ router.post('/', async function(req, res, next)
             return res.status(500).json({ error: 'Failed to insert survey(s).' });
         }
     } 
+    else if(req.body.purpose === "update")
+    {
+        console.log('Update request for survey:', req.body);
+        try {
+            var controller = new SurveyController();
+            
+            const { recordId, updatedRowData } = req.body;
+            
+            // Call the update method in the controller
+            var result = await controller.updateSurvey(recordId, updatedRowData);
+
+            console.log('Survey updated successfully:', result);
+            
+            // Emit socket event for real-time updates
+            if (io) {
+                io.emit('survey-updated', {
+                    message: 'Survey record updated successfully',
+                });
+            }
+            
+            return res.json({
+                    success: true,
+                    message: "Survey updated successfully"
+            }); 
+            
+        } catch (error) {
+            console.error('Error updating survey:', error);
+            return res.status(500).json({ 
+                error: 'Failed to update survey.',
+                details: error.message 
+            });
+        }
+    }
+    else if(req.body.purpose === "delete")
+    {
+        console.log('Delete request for survey:', req.body);
+        try {
+            var controller = new SurveyController();
+            
+            const { recordId } = req.body;
+            
+            // Call the delete method in the controller
+            var result = await controller.deleteSurvey(recordId);
+
+            console.log('Survey deleted successfully:', result);
+            
+            // Emit socket event for real-time updates
+            if (io) {
+                io.emit('survey-updated', {
+                    message: 'Survey record deleted successfully',
+                    recordId: recordId
+                });
+            }
+            
+            return res.json({
+                    success: true,
+                    message: "Survey deleted successfully",
+                    recordId: recordId
+            }); 
+            
+        } catch (error) {
+            console.error('Error deleting survey:', error);
+            return res.status(500).json({ 
+                error: 'Failed to delete survey.',
+                details: error.message 
+            });
+        }
+    }
     else {
         return res.status(400).json({ error: 'Invalid purpose.' });
     }

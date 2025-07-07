@@ -13,6 +13,7 @@ import MaintenanceBotButton from './components/MaintenanceBot/MaintenanceBotButt
 import Login from './components/Auth/Login';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import NotFound from './components/NotFound/NotFound';
+import ObservationPopup from './components/Map/ObservationPopup';
 import { io } from 'socket.io-client';
 import { AuthProvider } from './components/Auth/AuthContext.jsx';
 
@@ -43,7 +44,11 @@ class App extends Component {
       detailedAnalysisData: null,
       showNewSurveyModal: false,
       isAuthenticated: false,
-      socket: null
+      socket: null,
+      showObservationPopup: false,
+      observationPopupData: null,
+      observationPopupPosition: { x: 0, y: 0 },
+      currentOpenMarkerId: null
     };
   }
 
@@ -55,7 +60,25 @@ class App extends Component {
       this.loadData();
       console.log("Socket event received", data);
     });
+
+    // Add resize event listener to close popup on window resize
+    window.addEventListener('resize', this.handleWindowResize);
   }
+
+  componentWillUnmount() {
+    if (this.socket) {
+      this.socket.disconnect();
+    }
+    // Remove resize event listener
+    window.removeEventListener('resize', this.handleWindowResize);
+  }
+
+  handleWindowResize = () => {
+    // Close popup when window is resized
+    if (this.state.showObservationPopup) {
+      this.closeObservationPopup();
+    }
+  };
 
   checkAuthenticationStatus = () => {
     // First check isAuthenticated flag
@@ -165,8 +188,40 @@ class App extends Component {
     this.setState({ showDetailedAnalysis: false, detailedAnalysisData: null });
   };
 
+  // Observation Popup handlers
+  openObservationPopup = (observationData, position = { x: 0, y: 0 }) => {
+    console.log('Opening observation popup with data:', observationData, 'position:', position);
+    
+    // Generate a unique ID for the marker
+    const markerId = observationData._id || 
+                    observationData.id || 
+                    `${observationData.Location}-${observationData.Lat}-${observationData.Long}`;
+    
+    // Toggle functionality: if same marker is clicked, close the popup
+    if (this.state.showObservationPopup && this.state.currentOpenMarkerId === markerId) {
+      this.closeObservationPopup();
+      return;
+    }
+    
+    this.setState({
+      showObservationPopup: true, 
+      observationPopupData: observationData,
+      observationPopupPosition: position,
+      currentOpenMarkerId: markerId
+    });
+  };
+
+  closeObservationPopup = () => {
+    this.setState({ 
+      showObservationPopup: false, 
+      observationPopupData: null,
+      observationPopupPosition: { x: 0, y: 0 },
+      currentOpenMarkerId: null
+    });
+  };
+
   render() {
-    const { shbData, isLoading, showDetailedAnalysis, detailedAnalysisData, showNewSurveyModal, eventData, botData, isAuthenticated, currentUser} = this.state;
+    const { shbData, isLoading, showDetailedAnalysis, detailedAnalysisData, showNewSurveyModal, eventData, botData, isAuthenticated, currentUser, showObservationPopup, observationPopupData, observationPopupPosition } = this.state;
     
     return (
       <AuthProvider>
@@ -188,7 +243,15 @@ class App extends Component {
                 {/* Public Route - Home page accessible without login */}
                 <Route 
                   path="/" 
-                  element={<Home shbData={shbData} isLoading={isLoading} onLoginSuccess={this.onLoginSuccess} />} 
+                  element={
+                    <Home 
+                      shbData={shbData} 
+                      isLoading={isLoading} 
+                      onLoginSuccess={this.onLoginSuccess}
+                      openObservationPopup={this.openObservationPopup}
+                      closeObservationPopup={this.closeObservationPopup}
+                    />
+                  } 
                 />
                 
                 {/* Protected Routes */}
@@ -203,6 +266,8 @@ class App extends Component {
                         onAddSurvey={this.handleAddSurvey}
                         onOpenNewSurveyModal={this.handleOpenNewSurveyModal}
                         onCloseNewSurveyModal={this.handleCloseNewSurveyModal}
+                        openObservationPopup={this.openObservationPopup}
+                        closeObservationPopup={this.closeObservationPopup}
                       />
                     } 
                   />
@@ -243,6 +308,15 @@ class App extends Component {
               currentUser={currentUser} 
             />
           </>
+        )}
+        
+        {/* Global Observation Popup - Available throughout the app */}
+        {showObservationPopup && observationPopupData && (
+          <ObservationPopup 
+            position={observationPopupPosition}
+            data={observationPopupData}
+            onClose={this.closeObservationPopup}
+          />
         )}
       </AuthProvider>
     );
