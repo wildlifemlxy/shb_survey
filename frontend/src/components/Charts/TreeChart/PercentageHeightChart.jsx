@@ -151,108 +151,40 @@ class PercentageHeightChart extends Component {
       }
       return branches;
     };
-    // Understory, Canopy, Emergent logic as in TreeHeightChart
-    // Use a fixed branch thickness for all trees
+    // Universal tree design with consistent minimum sizes for crown and branches
+    // All trees will have the same minimum crown and branch visibility regardless of height
     const fixedBranchThickness = 3.5;
+    const minTrunkWidth = 4;  // Minimum trunk width for visibility
+    const minCrownRadius = treeWidth * 0.4; // Minimum crown radius for visibility
+    const minBranchLength = 15; // Minimum branch length for visibility
     
-    // Handle very small trees (less than 1m) - render as small understory trees
-    if (height >= 0.1 && height < 1) {
-      const trunkWidth = random(2, 4, 1);
-      const trunkHeight = treeHeight * random(0.5, 0.6, 2); // Reduced trunk proportion to make more room for crown
-      const crownHeight = treeHeight - trunkHeight;
-      const crownRadius = treeWidth * random(0.5, 0.7, 3); // Increased crown size
+    // Universal tree rendering - all trees get the same crown and branch treatment
+    // Only the overall tree height scales, but crown/branch sizes remain consistent
+    const universalTrunkWidth = Math.max(minTrunkWidth, random(4, 8, 1));
+    const universalTrunkHeight = Math.max(treeHeight * 0.4, treeHeight * random(0.5, 0.6, 2));
+    const universalCrownHeight = treeHeight - universalTrunkHeight;
+    const universalCrownRadius = Math.max(minCrownRadius, treeWidth * random(0.5, 0.7, 3));
+    
+    // Render tree with universal sizing (all trees get same treatment)
+    if (height >= 0.1) { // All trees use the same rendering logic
       const logoSize = 50;
-      const birdY = -trunkHeight + (trunkHeight * (1 - birdHeightValue / 100)) - (logoSize / 2);
+      const birdY = -universalTrunkHeight + (universalTrunkHeight * (1 - birdHeightValue / 100)) - (logoSize / 2);
       return (
         <g>
+          {/* Universal trunk - same proportions for all trees */}
           <rect
-            x={centerX - trunkWidth / 2}
-            y={-trunkHeight}
-            width={trunkWidth}
-            height={trunkHeight}
-            fill="url(#understoryTrunkGradient)"
-            stroke="#5D4037"
-            strokeWidth={1}
-            opacity={0.98}
-          />
-          {createBarkTexture(centerX, -trunkHeight, trunkWidth, trunkHeight, treeId + 1)}
-          {/* Small root system */}
-          {[0, 1].map(rootIndex => {
-            const rootAngle = (rootIndex * 180) + random(-30, 30, rootIndex + 50);
-            const rootLength = random(4, 8, rootIndex + 60);
-            const rootEndX = centerX + Math.cos(rootAngle * Math.PI / 180) * rootLength;
-            return (
-              <path
-                key={`root-${rootIndex}`}
-                d={`M ${centerX} ${baseY} Q ${centerX + Math.cos(rootAngle * Math.PI / 180) * rootLength * 0.5} ${-1} ${rootEndX} ${baseY + 1}`}
-                stroke="#5D4037"
-                strokeWidth={random(0.5, 1, rootIndex + 70)}
-                fill="none"
-                opacity={0.6}
-              />
-            );
-          })}
-          {/* Visible branches for small trees */}
-          {[0, 1, 2].map(i => {
-            const branchHeight = -trunkHeight * random(0.7, 0.9, i + 100);
-            const branchAngle = (i * 120) + random(-40, 40, i + 110);
-            const branchLength = random(10, 18, i + 120);
-            const branchEndX = centerX + Math.cos(branchAngle * Math.PI / 180) * branchLength;
-            const branchEndY = branchHeight - Math.abs(Math.sin(branchAngle * Math.PI / 180)) * branchLength * 0.3;
-            return (
-              <g key={i}>
-                {createBranch(centerX, branchHeight, branchEndX, branchEndY, fixedBranchThickness * 0.8, 2, i + 500, i)}
-              </g>
-            );
-          })}
-          {/* Prominent crown clusters for small trees */}
-          {[0, 1, 2, 3].map(layer => {
-            const layerY = -trunkHeight + (layer * -crownHeight / 4);
-            const layerRadius = crownRadius * (1.0 - layer * 0.1);
-            const numClusters = Math.max(2, Math.floor((3 + layer) * 0.5)); // More clusters
-            return (
-              <g key={layer}>
-                {Array.from({length: numClusters}, (_, i) => {
-                  const angle = (i * 2 * Math.PI) / numClusters + random(-0.3, 0.3, layer + i);
-                  const distance = random(layerRadius * 0.5, layerRadius * 1.0, layer + i + 10);
-                  const clusterX = centerX + Math.cos(angle) * distance;
-                  const clusterY = layerY + Math.sin(angle) * distance * 0.4;
-                  const clusterSize = random(16, 25, layer + i + 20); // Increased size
-                  return (
-                    <g key={i}>
-                      <path d={`M ${clusterX - clusterSize * 0.8} ${clusterY} Q ${clusterX - clusterSize * 0.3} ${clusterY - clusterSize * 1.0} ${clusterX + clusterSize * 0.2} ${clusterY - clusterSize * 0.7} Q ${clusterX + clusterSize * 0.8} ${clusterY - clusterSize * 0.4} ${clusterX + clusterSize * 0.5} ${clusterY + clusterSize * 0.3} Q ${clusterX} ${clusterY + clusterSize * 0.4} ${clusterX - clusterSize * 0.4} ${clusterY + clusterSize * 0.1} Z`} fill={`hsl(${random(90, 130, layer + i + 30)}, ${random(60, 80, layer + i + 40)}%, ${random(25, 35, layer + i + 50)}%)`} opacity={random(0.8, 0.95, layer + i + 60)} filter="url(#shadowBlur)" />
-                      <ellipse cx={clusterX + random(-8, 8, layer + i + 70)} cy={clusterY + random(-6, 6, layer + i + 80)} rx={random(6, 12, layer + i + 90)} ry={random(5, 10, layer + i + 100)} fill={`hsl(${random(85, 125, layer + i + 110)}, ${random(55, 75, layer + i + 120)}%, ${random(20, 30, layer + i + 130)}%)`} opacity={random(0.7, 0.9, layer + i + 140)} />
-                      {createFoliageCluster(clusterX, clusterY, clusterSize * 0.8, layer * 100 + i, random(100, 130, layer + i + 150))}
-                    </g>
-                  );
-                })}
-              </g>
-            );
-          })}
-        </g>
-      );
-    } else if (height >= 1 && height <= 15) {
-      const trunkWidth = random(4, 8, 1);
-      const trunkHeight = treeHeight * random(0.6, 0.7, 2);
-      const crownHeight = treeHeight - trunkHeight;
-      // Make crown more prominent
-      const crownRadius = treeWidth * random(0.55, 0.75, 3); // was 0.35-0.55
-      const logoSize = 60;
-      const birdY = -trunkHeight + (trunkHeight * (1 - birdHeightValue / 100)) - (logoSize / 2);
-      return (
-        <g>
-          <rect
-            x={centerX - trunkWidth / 2}
-            y={-trunkHeight}
-            width={trunkWidth}
-            height={trunkHeight}
+            x={centerX - universalTrunkWidth / 2}
+            y={-universalTrunkHeight}
+            width={universalTrunkWidth}
+            height={universalTrunkHeight}
             fill="url(#understoryTrunkGradient)"
             stroke="#5D4037"
             strokeWidth={1.2}
             opacity={0.98}
           />
-          {createBarkTexture(centerX, -trunkHeight, trunkWidth, trunkHeight, treeId + 1)}
-          <ellipse cx={centerX} cy={-2} rx={trunkWidth * 0.9} ry={5} fill="#654321" opacity={0.7} />
+          {createBarkTexture(centerX, -universalTrunkHeight, universalTrunkWidth, universalTrunkHeight, treeId + 1)}
+          
+          {/* Universal root system - same for all trees */}
           {[0, 1, 2].map(rootIndex => {
             const rootAngle = (rootIndex * 120) + random(-30, 30, rootIndex + 50);
             const rootLength = random(8, 15, rootIndex + 60);
@@ -268,10 +200,12 @@ class PercentageHeightChart extends Component {
               />
             );
           })}
-          {[0, 1, 2, 3].map(i => {
-            const branchHeight = -trunkHeight * random(0.7, 0.95, i + 100);
-            const branchAngle = (i * 90) + random(-45, 45, i + 110);
-            const branchLength = random(15, 35, i + 120);
+          
+          {/* Universal branches - same minimum size for all trees */}
+          {[0, 1, 2, 3, 4].map(i => {
+            const branchHeight = -universalTrunkHeight * random(0.6, 0.9, i + 100);
+            const branchAngle = (i * 72) + random(-30, 30, i + 110); // 5 branches evenly spaced
+            const branchLength = Math.max(minBranchLength, random(15, 35, i + 120));
             const branchEndX = centerX + Math.cos(branchAngle * Math.PI / 180) * branchLength;
             const branchEndY = branchHeight - Math.abs(Math.sin(branchAngle * Math.PI / 180)) * branchLength * 0.4;
             return (
@@ -280,172 +214,38 @@ class PercentageHeightChart extends Component {
               </g>
             );
           })}
-          {/* More, larger, denser crown clusters */}
+          
+          {/* Universal crown clusters - same prominent size for all trees */}
           {[0, 1, 2, 3, 4].map(layer => {
-            const layerY = -trunkHeight + (layer * -crownHeight / 5);
-            const layerRadius = crownRadius * (1.0 - layer * 0.12);
-            // Ensure at least 2 clusters for a crown shape
-            const numClusters = Math.max(2, Math.floor((3 + layer) * 0.3));
+            const layerY = -universalTrunkHeight + (layer * -universalCrownHeight / 5);
+            const layerRadius = universalCrownRadius * (1.0 - layer * 0.1);
+            const numClusters = Math.max(3, Math.floor((4 + layer) * 0.5)); // Ensure at least 3 clusters
             return (
               <g key={layer}>
                 {Array.from({length: numClusters}, (_, i) => {
                   const angle = (i * 2 * Math.PI) / numClusters + random(-0.3, 0.3, layer + i);
-                  const distance = random(layerRadius * 0.5, layerRadius * 1.0, layer + i + 10);
+                  const distance = random(layerRadius * 0.6, layerRadius * 1.0, layer + i + 10);
                   const clusterX = centerX + Math.cos(angle) * distance;
-                  const clusterY = layerY + Math.sin(angle) * distance * 0.5;
-                  const clusterSize = random(22, 38, layer + i + 20); // was 12-25
+                  const clusterY = layerY + Math.sin(angle) * distance * 0.4;
+                  const clusterSize = Math.max(20, random(25, 40, layer + i + 20)); // Ensure minimum crown cluster size
                   return (
                     <g key={i}>
-                      <path d={`M ${clusterX - clusterSize * 0.8} ${clusterY} Q ${clusterX - clusterSize * 0.3} ${clusterY - clusterSize * 1.1} ${clusterX + clusterSize * 0.1} ${clusterY - clusterSize * 0.8} Q ${clusterX + clusterSize * 0.8} ${clusterY - clusterSize * 0.5} ${clusterX + clusterSize * 0.6} ${clusterY + clusterSize * 0.4} Q ${clusterX} ${clusterY + clusterSize * 0.5} ${clusterX - clusterSize * 0.5} ${clusterY + clusterSize * 0.2} Z`} fill={`hsl(${random(100, 140, layer + i + 30)}, ${random(65, 85, layer + i + 40)}%, ${random(25, 35, layer + i + 50)}%)`} opacity={random(0.8, 0.95, layer + i + 60)} filter="url(#shadowBlur)" />
-                      <ellipse cx={clusterX + random(-12, 12, layer + i + 70)} cy={clusterY + random(-10, 10, layer + i + 80)} rx={random(10, 18, layer + i + 90)} ry={random(8, 16, layer + i + 100)} fill={`hsl(${random(95, 125, layer + i + 110)}, ${random(60, 80, layer + i + 120)}%, ${random(20, 30, layer + i + 130)}%)`} opacity={random(0.7, 0.9, layer + i + 140)} />
-                      {Array.from({length: random(4, 8, layer + i + 200)}, (_, mossIndex) => {
+                      <path d={`M ${clusterX - clusterSize * 0.8} ${clusterY} Q ${clusterX - clusterSize * 0.3} ${clusterY - clusterSize * 1.0} ${clusterX + clusterSize * 0.2} ${clusterY - clusterSize * 0.7} Q ${clusterX + clusterSize * 0.8} ${clusterY - clusterSize * 0.4} ${clusterX + clusterSize * 0.5} ${clusterY + clusterSize * 0.3} Q ${clusterX} ${clusterY + clusterSize * 0.4} ${clusterX - clusterSize * 0.4} ${clusterY + clusterSize * 0.1} Z`} fill={`hsl(${random(90, 140, layer + i + 30)}, ${random(60, 80, layer + i + 40)}%, ${random(25, 35, layer + i + 50)}%)`} opacity={random(0.8, 0.95, layer + i + 60)} filter="url(#shadowBlur)" />
+                      <ellipse cx={clusterX + random(-10, 10, layer + i + 70)} cy={clusterY + random(-8, 8, layer + i + 80)} rx={random(8, 15, layer + i + 90)} ry={random(6, 12, layer + i + 100)} fill={`hsl(${random(85, 125, layer + i + 110)}, ${random(55, 75, layer + i + 120)}%, ${random(20, 30, layer + i + 130)}%)`} opacity={random(0.7, 0.9, layer + i + 140)} />
+                      {Array.from({length: random(5, 10, layer + i + 200)}, (_, mossIndex) => {
                         const mossX = clusterX + random(-clusterSize * 0.4, clusterSize * 0.4, mossIndex + layer + i + 300);
                         const mossY = clusterY + random(-clusterSize * 0.3, clusterSize * 0.3, mossIndex + layer + i + 400);
                         return (
                           <circle key={`moss-${layer}-${i}-${mossIndex}`} cx={mossX} cy={mossY} r={random(2, 5, mossIndex + layer + i + 500)} fill={`hsl(${random(80, 120, mossIndex + layer + i + 600)}, ${random(70, 90, mossIndex + layer + i + 700)}%, ${random(15, 25, mossIndex + layer + i + 800)}%)`} opacity={random(0.6, 0.9, mossIndex + layer + i + 900)} />
                         );
                       })}
-                      {createFoliageCluster(clusterX, clusterY, clusterSize * 0.8, layer * 100 + i, random(110, 140, layer + i + 150))}
+                      {createFoliageCluster(clusterX, clusterY, clusterSize * 0.8, layer * 100 + i, random(100, 130, layer + i + 150))}
                     </g>
                   );
                 })}
               </g>
             );
           })}
-          {/* Bird logo removed from inside tree SVG */}
-        </g>
-      );
-    } else if (height >= 16 && height <= 40) {
-      const trunkWidth = random(8, 15, 1);
-      const trunkHeight = treeHeight * random(0.5, 0.6, 2);
-      const crownHeight = treeHeight - trunkHeight;
-      // Make crown more prominent
-      const crownWidth = treeWidth * random(0.85, 1.1, 3); // was 0.6-0.8
-      const logoSize = 56;
-      const birdY = -trunkHeight + (trunkHeight * (1 - birdHeightValue / 100)) - (logoSize / 2);
-      return (
-        <g>
-          <rect
-            x={centerX - trunkWidth / 2}
-            y={-trunkHeight}
-            width={trunkWidth}
-            height={trunkHeight}
-            fill="url(#trunkGradient)"
-            stroke="#5D4037"
-            strokeWidth={1.4}
-            opacity={0.98}
-          />
-          {createBarkTexture(centerX, -trunkHeight, trunkWidth, trunkHeight, treeId + 10)}
-          {[0, 1, 2, 3].map(i => {
-            const angle = (i * Math.PI) / 2;
-            const buttressLength = random(12, 20, i + 100);
-            const buttressX = centerX + Math.cos(angle) * buttressLength;
-            return (
-              <path key={i} d={`M ${centerX} ${baseY} Q ${buttressX * 0.7} ${-5} ${buttressX} ${baseY}`} stroke="#654321" strokeWidth={random(3, 6, i + 110)} fill="none" opacity={0.6} />
-            );
-          })}
-          {[0, 1, 2, 3, 4, 5].map(i => {
-            const branchHeight = -trunkHeight * random(0.6, 0.95, i + 200);
-            const branchAngle = (i * 60) + random(-30, 30, i + 210);
-            const branchLength = random(30, 60, i + 220);
-            const branchEndX = centerX + Math.cos(branchAngle * Math.PI / 180) * branchLength;
-            const branchEndY = branchHeight - Math.abs(Math.sin(branchAngle * Math.PI / 180)) * branchLength * 0.5;
-            return (
-              <g key={i}>{createBranch(centerX, branchHeight, branchEndX, branchEndY, fixedBranchThickness, 3, i + 1000, i)}</g>
-            );
-          })}
-          {/* More, larger, denser crown layers */}
-          {[0, 1, 2, 3, 4].map(layer => {
-            const layerY = -trunkHeight + (layer * -crownHeight / 5);
-            const layerRadius = crownWidth * (0.95 - layer * 0.09);
-            // Ensure at least 6 segments for a rounded crown shape
-            const numSegments = Math.max(6, Math.floor(8 * 0.3));
-            return (
-              <g key={layer}>
-                <path d={Array.from({length: numSegments}, (_, i) => {
-                  const angle = (i * 2 * Math.PI) / numSegments;
-                  const radius = layerRadius * random(0.8, 1.2, layer + i + 300);
-                  const x = centerX + Math.cos(angle) * radius;
-                  const y = layerY + Math.sin(angle) * radius * 0.7;
-                  return i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
-                }).join(' ') + ' Z'} fill={`hsl(${random(110, 140, layer + 400)}, ${random(65, 80, layer + 410)}%, ${random(20, 30, layer + 420)}%)`} opacity={random(0.8, 0.95, layer + 430)} filter="url(#shadowBlur)" />
-                {Array.from({length: Math.max(2, Math.floor(random(2, 4, layer + 500) * 0.3))}, (_, vineIndex) => { // at least 2 vines
-                  const vineX = centerX + random(-layerRadius * 0.8, layerRadius * 0.8, vineIndex + layer + 600);
-                  const vineLength = random(30, 70, vineIndex + layer + 700);
-                  return (
-                    <g key={`vine-${layer}-${vineIndex}`}>
-                      <path d={`M ${vineX} ${layerY} Q ${vineX + random(-8, 8, vineIndex + layer + 800)} ${layerY + vineLength * 0.5} ${vineX + random(-5, 5, vineIndex + layer + 900)} ${layerY + vineLength}`} stroke={`hsl(${random(90, 130, vineIndex + layer + 1000)}, ${random(50, 70, vineIndex + layer + 1100)}%, ${random(15, 25, vineIndex + layer + 1200)}%)`} strokeWidth={random(1.5, 3.5, vineIndex + layer + 1300)} fill="none" opacity={random(0.7, 0.9, vineIndex + layer + 1400)} />
-                      {Array.from({length: Math.floor(vineLength / 8)}, (_, leafIndex) => (
-                        <ellipse key={`vine-leaf-${layer}-${vineIndex}-${leafIndex}`} cx={vineX + random(-3, 3, leafIndex + vineIndex + layer + 1500)} cy={layerY + (leafIndex * vineLength / Math.floor(vineLength / 8))} rx={random(3, 6, leafIndex + vineIndex + layer + 1600)} ry={random(2, 4, leafIndex + vineIndex + layer + 1700)} fill={`hsl(${random(100, 140, leafIndex + vineIndex + layer + 1800)}, ${random(60, 80, leafIndex + vineIndex + layer + 1900)}%, ${random(20, 30, leafIndex + vineIndex + layer + 2000)}%)`} opacity={random(0.7, 0.9, leafIndex + vineIndex + layer + 2100)} />
-                      ))}
-                    </g>
-                  );
-                })}
-                {createFoliageCluster(centerX, layerY, layerRadius * 1.1, layer * 1000, random(115, 140, layer + 440))}
-              </g>
-            );
-          })}
-          {/* Bird logo removed from inside tree SVG */}
-        </g>
-      );
-    } else if (height >= 41 && height <= 65) {
-      const trunkWidth = random(12, 25, 1);
-      const trunkHeight = treeHeight * random(0.6, 0.7, 2);
-      const crownHeight = treeHeight - trunkHeight;
-      // Make crown more prominent
-      const crownWidth = treeWidth * random(0.7, 0.95, 3); // was 0.4-0.6
-      const logoSize = 64;
-      const birdY = -trunkHeight + (trunkHeight * (1 - birdHeightValue / 100)) - (logoSize / 2);
-      return (
-        <g>
-          <rect
-            x={centerX - trunkWidth / 2}
-            y={-trunkHeight}
-            width={trunkWidth}
-            height={trunkHeight}
-            fill="url(#emergentTrunkGradient)"
-            stroke="#5D4037"
-            strokeWidth={1.6}
-            opacity={0.98}
-          />
-          {createBarkTexture(centerX, -trunkHeight, trunkWidth, trunkHeight, treeId + 20)}
-          {[0, 1, 2, 3, 4, 5].map(i => {
-            const angle = (i * 60) + random(-15, 15, i + 500);
-            const rootLength = random(25, 40, i + 510);
-            const rootEndX = centerX + Math.cos(angle * Math.PI / 180) * rootLength;
-            const rootWidth = random(6, 12, i + 520);
-            return (
-              <g key={i}>
-                <path d={`M ${centerX} ${baseY} L ${centerX + Math.cos(angle * Math.PI / 180) * rootLength * 0.3} ${-rootWidth} Q ${rootEndX * 0.8} ${-rootWidth * 0.5} ${rootEndX} ${baseY} L ${centerX} ${baseY} Z`} fill="#654321" opacity={0.8} />
-                <path d={`M ${centerX} ${baseY} Q ${rootEndX * 0.6} ${-rootWidth * 0.3} ${rootEndX} ${baseY}`} stroke="#5D4037" strokeWidth={2} fill="none" opacity={0.6} />
-              </g>
-            );
-          })}
-          {[0, 1, 2, 3, 4, 5, 6, 7].map(i => {
-            const branchHeight = -trunkHeight * random(0.4, 0.9, i + 600);
-            const branchAngle = (i * 45) + random(-20, 20, i + 610);
-            const branchLength = random(40, 80, i + 620);
-            const branchEndX = centerX + Math.cos(branchAngle * Math.PI / 180) * branchLength;
-            const branchEndY = branchHeight - Math.abs(Math.sin(branchAngle * Math.PI / 180)) * branchLength * 0.3;
-            return (
-              <g key={i}>{createBranch(centerX, branchHeight, branchEndX, branchEndY, fixedBranchThickness, 4, i + 2000, i)}</g>
-            );
-          })}
-          {/* More, larger, denser crown clusters */}
-          {[0, 1, 2, 3, 4, 5].map(i => {
-            const clusterAngle = random(0, 360, i + 700);
-            const clusterDistance = random(crownWidth * 0.5, crownWidth * 1.1, i + 710);
-            const clusterX = centerX + Math.cos(clusterAngle * Math.PI / 180) * clusterDistance;
-            const clusterY = -trunkHeight + (i * -crownHeight / 6);
-            const clusterSize = random(32, 60, i + 730); // was 20-40
-            return (
-              <g key={i}>
-                <path d={`M ${clusterX - clusterSize * 0.9} ${clusterY} Q ${clusterX - clusterSize * 0.4} ${clusterY - clusterSize * 1.2} ${clusterX + clusterSize * 0.2} ${clusterY - clusterSize * 0.9} Q ${clusterX + clusterSize * 0.9} ${clusterY - clusterSize * 0.5} ${clusterX + clusterSize * 0.7} ${clusterY + clusterSize * 0.3} Q ${clusterX} ${clusterY + clusterSize * 0.7} ${clusterX - clusterSize * 0.6} ${clusterY + clusterSize * 0.2} Z`} fill={`hsl(${random(120, 150, i + 740)}, ${random(55, 75, i + 750)}%, ${random(20, 30, i + 760)}%)`} opacity={random(0.8, 0.95, i + 770)} />
-                {createFoliageCluster(clusterX, clusterY, clusterSize * 0.9, i * 2000, random(120, 150, i + 780))}
-              </g>
-            );
-          })}
-          {/* Bird logo removed from inside tree SVG */}
         </g>
       );
     }
@@ -545,7 +345,7 @@ class PercentageHeightChart extends Component {
       const yBase = 500;
       const yAxisLabelGap = 32;
       const plotTopY = 30 + yAxisLabelGap;
-      const birdYPercent = (birdHeightVal / treeHeightVal) * 100;
+      const birdYPercent = Math.min(100, (birdHeightVal / treeHeightVal) * 100); // Cap at 100%
       const birdY = yBase - (birdYPercent / 100) * (yBase - plotTopY);
       let logoSize = 60;
       return (
@@ -741,14 +541,17 @@ class PercentageHeightChart extends Component {
                 </g>
                 {/* Tree rendering using TreeHeightChart design */}
                 {data.map((tree, i) => {
-                  if (tree["Height of tree/m"] === undefined && tree["Height of bird/m"] === undefined) return null;
-                  const height = tree["Height of tree/m"];
+                  if (tree.height === undefined && tree["Height of bird/m"] === undefined) return null;
+                  const height = tree.height; // Use the processed height value that supports both decimals and whole numbers
                   const birdHeightVal = tree["Height of bird/m"];
                   let birdHeightValue = 100;
                   if (height && birdHeightVal) {
-                    birdHeightValue = (birdHeightVal / height) * 100;
+                    birdHeightValue = Math.min(100, (birdHeightVal / height) * 100); // Cap at 100% if bird is higher than tree
                   }
                   const axisHeight = 460;
+                  // All trees display at 100% height - no scaling based on actual height
+                  const scaledTreeHeight = axisHeight; // Every tree gets full height
+                  
                   const treeX = treeXPositions[i];
                   const treeBaseGap = 0;
                   const groundLevel = yBase - treeBaseGap;
@@ -768,7 +571,7 @@ class PercentageHeightChart extends Component {
                         tabIndex={0}
                       >
                         {birdMarker}
-                        {this.generateSVGTree(height, treeWidth, axisHeight, i + 1, birdHeightValue)}
+                        {this.generateSVGTree(height, treeWidth, scaledTreeHeight, i + 1, birdHeightValue)}
                       </g>
                     </g>
                   );
@@ -805,7 +608,7 @@ class PercentageHeightChart extends Component {
                   if (typeof treeHeightVal === 'string' && treeHeightVal.trim().toLowerCase() === 'n/a') {
                     return 'N/A';
                   }
-                  let birdHeightValue = (birdHeightVal / treeHeightVal) * 100;
+                  let birdHeightValue = Math.min(100, (birdHeightVal / treeHeightVal) * 100); // Cap at 100%
                   return birdHeightValue % 1 === 0 ? `${birdHeightValue}%` : `${birdHeightValue.toFixed(2)}%`;
                 })()}
               </div>
