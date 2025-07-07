@@ -5,12 +5,29 @@ class ObservationSingleMarker extends Component {
   // Example: Add a method to handle marker click (optional)
 
   render() {
-    const { marker, seenIcon, heardIcon } = this.props;
+    const { marker, seenIcon, heardIcon, notFoundIcon } = this.props;
+    
+    // Create stable key using multiple fallbacks to prevent re-rendering
+    const markerKey = marker._id || 
+                     marker.id || 
+                     `${marker.Location}-${marker.Lat}-${marker.Long}` ||
+                     `${marker.Lat}-${marker.Long}-${marker["Seen/Heard"]}`;
+    
+    // Normalize the seen/heard value for consistent icon selection
+    const seenHeardValue = (marker["Seen/Heard"] || '').toLowerCase().trim();
+    
+    let selectedIcon = seenIcon; // Default to seen icon
+    if (seenHeardValue === 'heard') {
+      selectedIcon = heardIcon;
+    } else if (seenHeardValue === 'not found') {
+      selectedIcon = notFoundIcon;
+    }
+    
     return (
       <Marker
-        key={marker._id || `${marker.Lat},${marker.Long}`}
+        key={markerKey}
         position={[marker.Lat, marker.Long]}
-        icon={marker["Seen/Heard"] === "Seen" ? seenIcon : heardIcon}
+        icon={selectedIcon}
         eventHandlers={{ click: () => {
           if (this.props.onMarkerClick) {
             this.props.onMarkerClick(marker);

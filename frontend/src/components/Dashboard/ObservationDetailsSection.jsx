@@ -14,8 +14,6 @@ const COLUMN_LABELS = {
 const REQUIRED_FIELDS = [
   'Number of Birds',
   'SHB individual ID',
-  'HeightOfTree',
-  'HeightOfBird',
   'Lat',
   'Long',
   'Time',
@@ -120,10 +118,10 @@ class ObservationDetailsSection extends Component {
                       />
                     </td>
                     <td>
-                      <input className="table-input" type="text" style={{ width: '210px' }} value={row.HeightOfTree || ''} onChange={e => onObservationDetailChange(idx, 'HeightOfTree', e.target.value)} required />
+                      <input className="table-input" type="text" style={{ width: '210px' }} value={row.HeightOfTree || ''} onChange={e => onObservationDetailChange(idx, 'HeightOfTree', e.target.value)} />
                     </td>
                     <td>
-                      <input className="table-input" type="text" style={{ width: '210px' }} value={row.HeightOfBird || ''} onChange={e => onObservationDetailChange(idx, 'HeightOfBird', e.target.value)} required />
+                      <input className="table-input" type="text" style={{ width: '210px' }} value={row.HeightOfBird || ''} onChange={e => onObservationDetailChange(idx, 'HeightOfBird', e.target.value)} />
                     </td>
                     <td>
                       <input className="table-input" type="text" style={{ width: '140px' }} value={row.Lat || ''} onChange={e => onObservationDetailChange(idx, 'Lat', e.target.value)} required />

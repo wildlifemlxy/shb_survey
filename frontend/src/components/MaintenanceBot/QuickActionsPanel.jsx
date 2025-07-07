@@ -123,7 +123,12 @@ class QuickActionsPanel extends Component {
                 </button>
               )}
               <button
-                onClick={onChatbot}
+                onClick={() => {
+                  // Call parent's chat toggle function
+                  if (onChatbot && typeof onChatbot === 'function') {
+                    onChatbot();
+                  }
+                }}
                 style={{
                   padding: '8px 16px',
                   background: '#4f46e5',
@@ -144,7 +149,7 @@ class QuickActionsPanel extends Component {
                   whiteSpace: 'nowrap',
                   width: '33%'
                 }}
-                title="Chatbot feature coming soon!"
+                title="Click to chat with the SHB Survey Assistant!"
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>

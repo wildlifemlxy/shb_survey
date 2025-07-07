@@ -27,21 +27,39 @@ const iconCreateFunction = (cluster) => {
 
 class ObservationMarkerCluster extends Component {
   render() {
-    const { markers, seenIcon, heardIcon, onMarkerClick, selectedObs } = this.props;
+    const { markers, seenIcon, heardIcon, notFoundIcon, onMarkerClick, selectedObs } = this.props;
     return (
       <MarkerClusterGroup iconCreateFunction={iconCreateFunction}>
-        {markers.map((obs, idx) => (
-          <Marker
-            key={idx}
-            position={[obs.Lat, obs.Long]}
-            icon={obs["Seen/Heard"] === 'Heard' ? heardIcon : seenIcon}
-            eventHandlers={{
-              click: () => {
-                if (onMarkerClick) onMarkerClick(obs);
-              }
-            }}
-          />
-        ))}
+        {markers.map((obs, idx) => {
+          // Normalize the seen/heard value for consistent icon selection
+          const seenHeardValue = (obs["Seen/Heard"] || '').toLowerCase().trim();
+          
+          let selectedIcon = seenIcon; // Default to seen icon
+          if (seenHeardValue === 'heard') {
+            selectedIcon = heardIcon;
+          } else if (seenHeardValue === 'not found') {
+            selectedIcon = notFoundIcon;
+          }
+          
+          // Create stable key using multiple fallbacks
+          const markerKey = obs._id || 
+                           obs.id || 
+                           `${obs.Location}-${obs.Lat}-${obs.Long}` ||
+                           `marker-${idx}-${obs.Lat}-${obs.Long}`;
+          
+          return (
+            <Marker
+              key={markerKey}
+              position={[obs.Lat, obs.Long]}
+              icon={selectedIcon}
+              eventHandlers={{
+                click: () => {
+                  if (onMarkerClick) onMarkerClick(obs);
+                }
+              }}
+            />
+          );
+        })}
         {/* Render popup for selected marker */}
         {selectedObs && (
           <Popup

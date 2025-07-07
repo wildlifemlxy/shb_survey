@@ -24,11 +24,27 @@ class MapViewTab extends Component {
     const { data } = this.props;
     const { mapType, zoomLevel } = this.state;
 
-    // Compute stats
+    // Compute stats - normalize the seen/heard values for consistent counting
     const total = Array.isArray(data) ? data.length : 0;
-    const seen = Array.isArray(data) ? data.filter(obs => (obs["Seen/Heard"] || '').toLowerCase() === 'seen').length : 0;
-    const heard = Array.isArray(data) ? data.filter(obs => (obs["Seen/Heard"] || '').toLowerCase() === 'heard').length : 0;
-    const notFound = Array.isArray(data) ? data.filter(obs => (obs["Seen/Heard"] || '').toLowerCase() === 'not found').length : 0;
+    const seen = Array.isArray(data) ? data.filter(obs => {
+      const value = (obs["Seen/Heard"] || '').toLowerCase().trim();
+      return value === 'seen';
+    }).length : 0;
+    const heard = Array.isArray(data) ? data.filter(obs => {
+      const value = (obs["Seen/Heard"] || '').toLowerCase().trim();
+      return value === 'heard';
+    }).length : 0;
+    const notFound = Array.isArray(data) ? data.filter(obs => {
+      const value = (obs["Seen/Heard"] || '').toLowerCase().trim();
+      return value === 'not found';
+    }).length : 0;
+    
+    // Debug logging to track legend counts
+    console.log('MapViewTab Legend Counts:', { total, seen, heard, notFound });
+    if (data && data.length > 0) {
+      const sampleValues = data.slice(0, 5).map(obs => obs["Seen/Heard"]);
+      console.log('Sample Seen/Heard values:', sampleValues);
+    }
     const seenPct = total > 0 ? ((seen / total) * 100).toFixed(1) : '0.0';
     const heardPct = total > 0 ? ((heard / total) * 100).toFixed(1) : '0.0';
     const notFoundPct = total > 0 ? ((notFound / total) * 100).toFixed(1) : '0.0';

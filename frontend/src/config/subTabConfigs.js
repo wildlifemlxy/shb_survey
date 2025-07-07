@@ -25,7 +25,7 @@ export const subTabConfigs = {
       }),
       createChartSection({
         id: 'chart-section-2',
-        title: 'Bird Distribution Analysis',
+        title: 'Observation Distribution',
         description: 'Straw-headed Bulbul distribution across Singapore',
         component: LocationStats,
         size: 'default'

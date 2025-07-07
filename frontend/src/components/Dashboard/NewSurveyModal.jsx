@@ -87,8 +87,6 @@ class NewSurveyModal extends Component {
     const requiredFields = [
       'Number of Birds',
       'SHB individual ID',
-      'HeightOfTree',
-      'HeightOfBird',
       'Lat',
       'Long',
       'Time',

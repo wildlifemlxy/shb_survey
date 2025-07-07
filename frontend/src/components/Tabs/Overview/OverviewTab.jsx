@@ -360,7 +360,7 @@ class OverviewTab extends Component {
                         Seen: {totalSeenBirds} ({totalBirds > 0 ? Math.round((totalSeenBirds / totalBirds) * 100) : 0}%)
                       </span>
                       <span className="breakdown-item heard">
-                        Heard: {totalHeardBirds} ({totalBirds > 0 ? Math.round((totalHeardBirds / totalBirds) * 100) : 0}%)
+                        Heard Only: {totalHeardBirds} ({totalBirds > 0 ? Math.round((totalHeardBirds / totalBirds) * 100) : 0}%)
                       </span>
                       {totalNotFoundBirds > 0 && (
                         <span className="breakdown-item not-found">
@@ -374,7 +374,7 @@ class OverviewTab extends Component {
                         <strong>Visual Detection Rate:</strong> {totalBirds > 0 ? Math.round((totalSeenBirds / totalBirds) * 100) : 0}%
                       </p>
                       <p style={{ margin: '0.25rem 0', fontSize: '0.8rem' }}>
-                        <strong>Audio Detection Rate:</strong> {totalBirds > 0 ? Math.round((totalHeardBirds / totalBirds) * 100) : 0}%
+                        <strong>Audio-Only Detection Rate:</strong> {totalBirds > 0 ? Math.round((totalHeardBirds / totalBirds) * 100) : 0}%
                       </p>
                     </div>
                   </>

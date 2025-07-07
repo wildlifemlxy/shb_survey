@@ -117,7 +117,6 @@ class SubmissionSummarySection extends Component
                                 <div><strong>SHB individual ID:</strong> {birdId}</div>
                                 <div><strong>Number of Birds:</strong> {obs['Number of Birds'] || '-'}</div>
                                 <div><strong>Location:</strong> {newSurvey['Location'] || '-'}</div>
-                                <div><strong>Height of bird/m:</strong> {obs['HeightOfBird'] || '-'}</div>
                                 <div><strong>Lat:</strong> {obs['Lat'] || '-'}</div>
                                 <div><strong>Long:</strong> {obs['Long'] || '-'}</div>
                                 <div><strong>Date:</strong> {this.formatDate(newSurvey['Date']) || '-'}</div>
