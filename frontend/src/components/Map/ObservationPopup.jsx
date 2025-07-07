@@ -33,6 +33,9 @@ class ObservationPopup extends Component {
         {obs["Number of Birds"] && (
           <div><span style={labelStyle}>Number of birds:</span> <span style={valueStyle}>{obs["Number of Birds"]}</span></div>
         )}
+        {obs["Seen/Heard"] && (
+          <div><span style={labelStyle}>Seen/Heard:</span> <span style={valueStyle}>{obs["Seen/Heard"]}</span></div>
+        )}
         {obs["Activity (foraging, preening, calling, perching, others)"] && (
           <div><span style={labelStyle}>Activity:</span> <span style={valueStyle}>{obs["Activity (foraging, preening, calling, perching, others)"]}</span></div>
         )}
