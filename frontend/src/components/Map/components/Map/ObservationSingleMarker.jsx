@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import { Marker, Popup } from 'react-leaflet';
+import ObservationPopup from '../../ObservationPopup';
 
 class ObservationSingleMarker extends Component {
   // Example: Add a method to handle marker click (optional)
@@ -28,12 +29,10 @@ class ObservationSingleMarker extends Component {
         key={markerKey}
         position={[marker.Lat, marker.Long]}
         icon={selectedIcon}
-        eventHandlers={{ click: () => {
-          if (this.props.onMarkerClick) {
-            this.props.onMarkerClick(marker);
-          }
-        } }}
       >
+        <Popup className="observation-popup">
+          <ObservationPopup obs={marker} />
+        </Popup>
       </Marker>
     );
   }

@@ -55,7 +55,7 @@ class ObservationMarker extends Component {
     };
   }
 
-  // Prevent unnecessary re-renders that cause blinking
+  // Prevent unnecessary re-renders that cause blinking - optimized version
   shouldComponentUpdate(nextProps) {
     // Only update if data actually changed (deep comparison of relevant fields)
     if (!this.props.data && !nextProps.data) return false;
@@ -71,7 +71,11 @@ class ObservationMarker extends Component {
       obs ? `${obs.Lat},${obs.Long},${obs["Seen/Heard"]},${obs._id || obs.Location}` : 'null'
     ).join('|');
     
-    return currentHash !== nextHash;
+    const shouldUpdate = currentHash !== nextHash;
+    if (shouldUpdate) {
+      console.log('ObservationMarker: Data changed, allowing re-render');
+    }
+    return shouldUpdate;
   }
 
   render() {
@@ -106,7 +110,7 @@ class ObservationMarker extends Component {
             seenIcon={seenIcon}
             heardIcon={heardIcon}
             notFoundIcon={notFoundIcon}
-            onMarkerClick={this.props.onMarkerClick}
+            onMarkerClick={this.props.onMarkerClick} // Pass click handler if needed
           />
         ) : (
           <ObservationMarkerCluster
@@ -114,7 +118,7 @@ class ObservationMarker extends Component {
             seenIcon={seenIcon}
             heardIcon={heardIcon}
             notFoundIcon={notFoundIcon}
-            onMarkerClick={this.props.onMarkerClick}
+            onMarkerClick={this.props.onMarkerClick} // Pass click handler if needed
           />
         )}
       </div>

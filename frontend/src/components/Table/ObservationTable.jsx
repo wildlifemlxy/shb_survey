@@ -24,36 +24,116 @@ class ObservationTable extends Component {
     };
   }
 
+  // Format bird ID to ensure consistent SHBx format
+  formatBirdId(birdId) {
+    if (!birdId || birdId === '') return '';
+    
+    // Handle multiple bird IDs separated by commas or spaces
+    const ids = birdId.split(/[,\s]+/).filter(id => id.trim() !== '');
+    
+    const formattedIds = ids.map(id => {
+      // Remove extra spaces and normalize
+      id = id.trim();
+      
+      // If it already starts with SHB, ensure proper format
+      if (id.toLowerCase().startsWith('shb')) {
+        // Extract the number part
+        const numberMatch = id.match(/\d+/);
+        if (numberMatch) {
+          return `SHB${numberMatch[0]}`;
+        }
+        return id; // Return as is if no number found
+      }
+      
+      // If it's just a number, add SHB prefix
+      if (/^\d+$/.test(id)) {
+        return `SHB${id}`;
+      }
+      
+      // Return as is for other formats
+      return id;
+    });
+    
+    return formattedIds.join(', ');
+  }
+
   convertExcelTime(serial) {
-    if (!serial || serial === '' || isNaN(serial)) return '';
-    // If already a string in HH:mm, just return
-    if (typeof serial === 'string' && serial.match(/^\d{2}:\d{2}$/)) return serial;
-    // If already a string in HH:mm:ss, trim to HH:mm
-    if (typeof serial === 'string' && serial.match(/^\d{2}:\d{2}:\d{2}$/)) return serial.slice(0,5);
-    // If already a string in H:mm or H:mm:ss, pad hour
-    if (typeof serial === 'string' && serial.match(/^\d{1}:\d{2}/)) {
-      const parts = serial.split(':');
-      return `${parts[0].padStart(2, '0')}:${parts[1]}`;
+    // Handle null, undefined, or empty string cases
+    if (serial == null || serial === '') return '';
+    
+    console.log('convertExcelTime input:', serial, 'type:', typeof serial);
+    
+    // If already a string in HH:mm format (24-hour), just return
+    if (typeof serial === 'string' && serial.match(/^\d{2}:\d{2}$/)) {
+      console.log('Already in HH:mm format:', serial);
+      return serial;
     }
+    
+    // If already a string in H:mm format (24-hour), pad hour and return
+    if (typeof serial === 'string' && serial.match(/^\d{1}:\d{2}$/)) {
+      const parts = serial.split(':');
+      const formatted = `${parts[0].padStart(2, '0')}:${parts[1]}`;
+      console.log('Padded H:mm to HH:mm:', formatted);
+      return formatted;
+    }
+    
+    // If already a string in HH:mm:ss format, trim to HH:mm
+    if (typeof serial === 'string' && serial.match(/^\d{2}:\d{2}:\d{2}$/)) {
+      const formatted = serial.slice(0, 5);
+      console.log('Trimmed HH:mm:ss to HH:mm:', formatted);
+      return formatted;
+    }
+    
+    // If already a string in H:mm:ss format, pad hour and trim
+    if (typeof serial === 'string' && serial.match(/^\d{1}:\d{2}:\d{2}$/)) {
+      const parts = serial.split(':');
+      const formatted = `${parts[0].padStart(2, '0')}:${parts[1]}`;
+      console.log('Padded and trimmed H:mm:ss to HH:mm:', formatted);
+      return formatted;
+    }
+    
     // Handle 12-hour AM/PM format (e.g., 7:12:00 AM, 12:05 PM, 1:05 AM)
     if (typeof serial === 'string' && /\b(AM|PM)\b/i.test(serial)) {
-      // Remove seconds if present
+      console.log('Processing AM/PM format:', serial);
+      // Remove seconds if present and extract AM/PM
       let timeString = serial.trim();
       let ampmMatch = timeString.match(/(AM|PM)/i);
       let ampm = ampmMatch ? ampmMatch[0].toUpperCase() : '';
       timeString = timeString.replace(/(AM|PM)/i, '').trim();
+      
+      // Remove seconds if present (e.g., "8:19:00" -> "8:19")
+      if (timeString.includes(':')) {
+        const timeParts = timeString.split(':');
+        timeString = `${timeParts[0]}:${timeParts[1]}`;
+      }
+      
       let [hour, minute] = timeString.split(':');
       hour = parseInt(hour, 10);
-      minute = parseInt(minute, 10);
+      minute = parseInt(minute, 10) || 0;
+      
+      // Convert to 24-hour format
       if (ampm === 'PM' && hour !== 12) hour += 12;
       if (ampm === 'AM' && hour === 12) hour = 0;
-      return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+      
+      const formatted = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+      console.log('Converted AM/PM to 24-hour:', formatted);
+      return formatted;
     }
-    // Excel serial time
-    const totalSeconds = Math.round(86400 * serial);
-    const hours = Math.floor(totalSeconds / 3600) % 24;
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    
+    // Handle Excel serial time (decimal fraction of a day)
+    if (typeof serial === 'number') {
+      console.log('Processing Excel serial time:', serial);
+      const totalSeconds = Math.round(86400 * serial);
+      const hours = Math.floor(totalSeconds / 3600) % 24;
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const formatted = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      console.log('Converted Excel serial to HH:mm:', formatted);
+      return formatted;
+    }
+    
+    // If nothing matches, return the original value
+    console.log('No conversion applied, returning original:', serial);
+    return serial;
   }
 
   formatDate(dateString) {
@@ -414,7 +494,7 @@ class ObservationTable extends Component {
           {isOpen && (
             <div className="card-body">
               <p><strong>Observer:</strong> {obs['Observer name'] || ''}</p>
-              <p><strong>Bird ID:</strong> {obs['SHB individual ID'] || ''}</p>
+              <p><strong>Bird ID:</strong> {this.formatBirdId(obs['SHB individual ID']) || ''}</p>
               <p><strong>Activity:</strong> {obs["Activity (foraging, preening, calling, perching, others)"] || ''}</p>
               <p><strong>Time:</strong> {this.convertExcelTime(obs.Time) || ''}</p>
               <p><strong>Height of Tree:</strong> {obs["Height of tree/m"] != null && !isNaN(obs["Height of tree/m"]) ? `${obs["Height of tree/m"]}m` : ''}</p>
@@ -610,7 +690,16 @@ class ObservationTable extends Component {
         suppressMenu: true,
       },
       { headerName: "Observer", field: "Observer name", width: 300 },
-      { headerName: "Bird ID", field: "SHB individual ID", width: 200 },
+      { 
+        headerName: "Bird ID", 
+        field: "SHB individual ID", 
+        width: 200,
+        cellRenderer: (params) => {
+          if (!params.value || params.value === '') return '';
+          // Format bird IDs to ensure they follow SHBx format
+          return this.formatBirdId(params.value);
+        }
+      },
       {
         headerName: "Location",
         field: "Location",
@@ -644,7 +733,14 @@ class ObservationTable extends Component {
       {
         headerName: "Time",
         field: "Time",
-        cellRenderer: (params) => params.value != null && params.value !== '' ? this.convertExcelTime(params.value) : '',
+        cellRenderer: (params) => {
+          if (params.value == null || params.value === '') return '';
+          console.log('Time value:', params.value, 'Type:', typeof params.value);
+          const formattedTime = this.convertExcelTime(params.value);
+          console.log('Formatted time:', formattedTime);
+          return formattedTime;
+        },
+        width: 100
       },
       {
         headerName: "Activity",

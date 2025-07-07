@@ -686,9 +686,6 @@ class D3TreeHeightChart extends Component {
             <!-- Primary Metrics -->
             <div class="tree-tooltip-section">
               <div class="tree-tooltip-row">
-                <span>🌴 Tree Height:</span> <span class="tree-height-value">${treeHeight.toFixed(1)}m (${heightCategory})</span>
-              </div>
-              <div class="tree-tooltip-row">
                 <span>🐦 Bird Height:</span> <span class="bird-height-value">${birdHeight.toFixed(1)}m</span>
               </div>
               <div class="tree-tooltip-row">

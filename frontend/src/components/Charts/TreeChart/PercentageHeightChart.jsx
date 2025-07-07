@@ -154,7 +154,84 @@ class PercentageHeightChart extends Component {
     // Understory, Canopy, Emergent logic as in TreeHeightChart
     // Use a fixed branch thickness for all trees
     const fixedBranchThickness = 3.5;
-    if (height >= 1 && height <= 15) {
+    
+    // Handle very small trees (less than 1m) - render as small understory trees
+    if (height >= 0.1 && height < 1) {
+      const trunkWidth = random(2, 4, 1);
+      const trunkHeight = treeHeight * random(0.5, 0.6, 2); // Reduced trunk proportion to make more room for crown
+      const crownHeight = treeHeight - trunkHeight;
+      const crownRadius = treeWidth * random(0.5, 0.7, 3); // Increased crown size
+      const logoSize = 50;
+      const birdY = -trunkHeight + (trunkHeight * (1 - birdHeightValue / 100)) - (logoSize / 2);
+      return (
+        <g>
+          <rect
+            x={centerX - trunkWidth / 2}
+            y={-trunkHeight}
+            width={trunkWidth}
+            height={trunkHeight}
+            fill="url(#understoryTrunkGradient)"
+            stroke="#5D4037"
+            strokeWidth={1}
+            opacity={0.98}
+          />
+          {createBarkTexture(centerX, -trunkHeight, trunkWidth, trunkHeight, treeId + 1)}
+          {/* Small root system */}
+          {[0, 1].map(rootIndex => {
+            const rootAngle = (rootIndex * 180) + random(-30, 30, rootIndex + 50);
+            const rootLength = random(4, 8, rootIndex + 60);
+            const rootEndX = centerX + Math.cos(rootAngle * Math.PI / 180) * rootLength;
+            return (
+              <path
+                key={`root-${rootIndex}`}
+                d={`M ${centerX} ${baseY} Q ${centerX + Math.cos(rootAngle * Math.PI / 180) * rootLength * 0.5} ${-1} ${rootEndX} ${baseY + 1}`}
+                stroke="#5D4037"
+                strokeWidth={random(0.5, 1, rootIndex + 70)}
+                fill="none"
+                opacity={0.6}
+              />
+            );
+          })}
+          {/* Visible branches for small trees */}
+          {[0, 1, 2].map(i => {
+            const branchHeight = -trunkHeight * random(0.7, 0.9, i + 100);
+            const branchAngle = (i * 120) + random(-40, 40, i + 110);
+            const branchLength = random(10, 18, i + 120);
+            const branchEndX = centerX + Math.cos(branchAngle * Math.PI / 180) * branchLength;
+            const branchEndY = branchHeight - Math.abs(Math.sin(branchAngle * Math.PI / 180)) * branchLength * 0.3;
+            return (
+              <g key={i}>
+                {createBranch(centerX, branchHeight, branchEndX, branchEndY, fixedBranchThickness * 0.8, 2, i + 500, i)}
+              </g>
+            );
+          })}
+          {/* Prominent crown clusters for small trees */}
+          {[0, 1, 2, 3].map(layer => {
+            const layerY = -trunkHeight + (layer * -crownHeight / 4);
+            const layerRadius = crownRadius * (1.0 - layer * 0.1);
+            const numClusters = Math.max(2, Math.floor((3 + layer) * 0.5)); // More clusters
+            return (
+              <g key={layer}>
+                {Array.from({length: numClusters}, (_, i) => {
+                  const angle = (i * 2 * Math.PI) / numClusters + random(-0.3, 0.3, layer + i);
+                  const distance = random(layerRadius * 0.5, layerRadius * 1.0, layer + i + 10);
+                  const clusterX = centerX + Math.cos(angle) * distance;
+                  const clusterY = layerY + Math.sin(angle) * distance * 0.4;
+                  const clusterSize = random(16, 25, layer + i + 20); // Increased size
+                  return (
+                    <g key={i}>
+                      <path d={`M ${clusterX - clusterSize * 0.8} ${clusterY} Q ${clusterX - clusterSize * 0.3} ${clusterY - clusterSize * 1.0} ${clusterX + clusterSize * 0.2} ${clusterY - clusterSize * 0.7} Q ${clusterX + clusterSize * 0.8} ${clusterY - clusterSize * 0.4} ${clusterX + clusterSize * 0.5} ${clusterY + clusterSize * 0.3} Q ${clusterX} ${clusterY + clusterSize * 0.4} ${clusterX - clusterSize * 0.4} ${clusterY + clusterSize * 0.1} Z`} fill={`hsl(${random(90, 130, layer + i + 30)}, ${random(60, 80, layer + i + 40)}%, ${random(25, 35, layer + i + 50)}%)`} opacity={random(0.8, 0.95, layer + i + 60)} filter="url(#shadowBlur)" />
+                      <ellipse cx={clusterX + random(-8, 8, layer + i + 70)} cy={clusterY + random(-6, 6, layer + i + 80)} rx={random(6, 12, layer + i + 90)} ry={random(5, 10, layer + i + 100)} fill={`hsl(${random(85, 125, layer + i + 110)}, ${random(55, 75, layer + i + 120)}%, ${random(20, 30, layer + i + 130)}%)`} opacity={random(0.7, 0.9, layer + i + 140)} />
+                      {createFoliageCluster(clusterX, clusterY, clusterSize * 0.8, layer * 100 + i, random(100, 130, layer + i + 150))}
+                    </g>
+                  );
+                })}
+              </g>
+            );
+          })}
+        </g>
+      );
+    } else if (height >= 1 && height <= 15) {
       const trunkWidth = random(4, 8, 1);
       const trunkHeight = treeHeight * random(0.6, 0.7, 2);
       const crownHeight = treeHeight - trunkHeight;
@@ -377,19 +454,21 @@ class PercentageHeightChart extends Component {
   // --- End tree design ---
 
   // Utility: check if a value is a valid positive number (not N/A, not empty, not negative, not NaN)
+  // Handles both integer and decimal values, including very small trees (0.1m and above)
   isValidHeight = value => {
     if (typeof value === 'string' && value.trim().toLowerCase() === 'n/a') return false;
     const num = parseFloat(value);
-    return !isNaN(num) && isFinite(num) && num > 0;
+    return !isNaN(num) && isFinite(num) && num >= 0.1; // Changed from > 0 to >= 0.1 to allow small trees
   };
 
   render() {
     const rawData = this.props.data && this.props.data.length > 0 ? this.props.data : [];
-    // Only trees with valid heights (exclude N/A, invalid, or non-positive)
+    // Process trees with valid heights (both decimal and whole numbers)
     const validTreesData = [];
     rawData.forEach((tree, originalIndex) => {
       const heightRaw = tree["Height of tree/m"] ?? tree.height ?? 0;
       if (this.isValidHeight(heightRaw)) {
+        // parseFloat handles both decimal (15.75) and whole number (20) values
         const numHeight = parseFloat(heightRaw);
         validTreesData.push({
           ...tree,
@@ -662,7 +741,7 @@ class PercentageHeightChart extends Component {
                 </g>
                 {/* Tree rendering using TreeHeightChart design */}
                 {data.map((tree, i) => {
-                  if (!validTreeForBird(tree)) return null;
+                  if (tree["Height of tree/m"] === undefined && tree["Height of bird/m"] === undefined) return null;
                   const height = tree["Height of tree/m"];
                   const birdHeightVal = tree["Height of bird/m"];
                   let birdHeightValue = 100;
@@ -717,13 +796,7 @@ class PercentageHeightChart extends Component {
               }}
             >
               <div className="percentage-height-tooltip-item">
-                <strong>Tree Height:</strong> {(() => {
-                  const treeHeightVal = this.state.hoveredTree["Height of tree/m"];
-                  if (typeof treeHeightVal === 'string' && treeHeightVal.trim().toLowerCase() === 'n/a') {
-                    return 'N/A';
-                  }
-                  return '100%';
-                })()}
+                <strong style={{ fontSize: '16px' }}>Tree {this.state.hoveredTree.displayIndex ?? this.state.hoveredTree.originalIndex + 1}</strong>
               </div>
               <div className="percentage-height-tooltip-item">
                 <strong>Bird Height:</strong> {(() => {
@@ -732,8 +805,8 @@ class PercentageHeightChart extends Component {
                   if (typeof treeHeightVal === 'string' && treeHeightVal.trim().toLowerCase() === 'n/a') {
                     return 'N/A';
                   }
-                  let birdHeightValue = Math.round((birdHeightVal / treeHeightVal) * 100);
-                  return `${birdHeightValue}%`;
+                  let birdHeightValue = (birdHeightVal / treeHeightVal) * 100;
+                  return birdHeightValue % 1 === 0 ? `${birdHeightValue}%` : `${birdHeightValue.toFixed(2)}%`;
                 })()}
               </div>
               <div className="percentage-height-tooltip-item">

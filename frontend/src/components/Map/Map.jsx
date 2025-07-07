@@ -1,7 +1,6 @@
 import React, { Component } from 'react';
 import ObservationMarker from './components/Map/ObservationMarker';
-import { MapContainer, TileLayer, ZoomControl, Popup, useMapEvent } from 'react-leaflet';
-import ObservationPopup from './ObservationPopup';
+import { MapContainer, TileLayer, ZoomControl, useMapEvent } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
 // Fix for default markers issue in React Leaflet
@@ -33,7 +32,6 @@ class Map extends Component {
     this.state = {
       mapStyle: 'hybrid',
       minZoom: 11,
-      selectedObs: null, // Add selected observation for map-level popup
     };
     // Create a stable key that doesn't change unnecessarily
     this.lastDataHash = null;
@@ -47,6 +45,24 @@ class Map extends Component {
     ).join('|');
   };
 
+  // Prevent unnecessary re-renders that could cause popup blinking
+  shouldComponentUpdate(nextProps, nextState) {
+    // Check if zoom changed
+    if (this.props.zoom !== nextProps.zoom) return true;
+    
+    // Check if data changed using our hash function
+    const currentDataHash = this.generateDataHash(this.props.data);
+    const nextDataHash = this.generateDataHash(nextProps.data);
+    if (currentDataHash !== nextDataHash) return true;
+    
+    // Check if state changed
+    if (this.state.mapStyle !== nextState.mapStyle || 
+        this.state.minZoom !== nextState.minZoom) return true;
+    
+    // No significant changes, prevent re-render
+    return false;
+  }
+
   // Placeholder for map type change, if implemented in the future
   handleMapTypeChange = (newType) => {
     this.setState({ mapStyle: newType });
@@ -55,17 +71,9 @@ class Map extends Component {
     }
   };
 
-  handleMarkerClick = (obs) => {
-    this.setState({ selectedObs: obs });
-  };
-
-  handlePopupClose = () => {
-    this.setState({ selectedObs: null });
-  };
-
   render() {
     const { height = '100%', data, zoom = 13 } = this.props;
-    const { minZoom, selectedObs } = this.state;
+    const { minZoom } = this.state;
 
     console.log('Map render - data:', data);
     console.log('Map render - zoom:', zoom);
@@ -101,17 +109,7 @@ class Map extends Component {
             <ObservationMarker
               key={`markers-${dataHash}`}
               data={data}
-              onMarkerClick={this.handleMarkerClick}
             />
-          )}
-          {selectedObs && (
-            <Popup
-              position={[selectedObs.Lat, selectedObs.Long]}
-              onClose={this.handlePopupClose}
-              className="observation-popup"
-            >
-              <ObservationPopup obs={selectedObs} />
-            </Popup>
           )}
           <ZoomControl position="topright" />
         </MapContainer>

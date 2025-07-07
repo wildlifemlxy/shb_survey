@@ -27,7 +27,7 @@ const iconCreateFunction = (cluster) => {
 
 class ObservationMarkerCluster extends Component {
   render() {
-    const { markers, seenIcon, heardIcon, notFoundIcon, onMarkerClick, selectedObs } = this.props;
+    const { markers, seenIcon, heardIcon, notFoundIcon } = this.props;
     return (
       <MarkerClusterGroup iconCreateFunction={iconCreateFunction}>
         {markers.map((obs, idx) => {
@@ -52,24 +52,13 @@ class ObservationMarkerCluster extends Component {
               key={markerKey}
               position={[obs.Lat, obs.Long]}
               icon={selectedIcon}
-              eventHandlers={{
-                click: () => {
-                  if (onMarkerClick) onMarkerClick(obs);
-                }
-              }}
-            />
+            >
+              <Popup className="observation-popup">
+                <ObservationPopup obs={obs} />
+              </Popup>
+            </Marker>
           );
         })}
-        {/* Render popup for selected marker */}
-        {selectedObs && (
-          <Popup
-            position={[selectedObs.Lat, selectedObs.Long]}
-            onClose={() => onMarkerClick(null)}
-            className="observation-popup"
-          >
-            <ObservationPopup obs={selectedObs} />
-          </Popup>
-        )}
       </MarkerClusterGroup>
     );
   }
