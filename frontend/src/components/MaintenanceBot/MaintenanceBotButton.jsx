@@ -9,6 +9,7 @@ import SystemHealthStatus from './SystemHealthStatus';
 import QuickActionsPanel from './QuickActionsPanel';
 import StatusMessages from './StatusMessages';
 import LastMaintenanceInfo from './LastMaintenanceInfo';
+import SHBSurveyAssistant from './SHBSurveyAssistant';
 
 const BASE_URL =
   window.location.hostname === 'localhost'
@@ -39,8 +40,7 @@ class MaintenanceBotButton extends Component {
       showChat: false,
       messages: [
         { id: 1, text: "🤖 Hello! I'm the SHB Survey Assistant. How can I help you today?", sender: 'bot', timestamp: new Date() }
-      ],
-      inputMessage: ''
+      ]
     };
   }
 
@@ -1777,55 +1777,35 @@ class MaintenanceBotButton extends Component {
     }));
   }
 
-  handleSendMessage = () => {
-    const { inputMessage, messages } = this.state;
-    if (!inputMessage.trim()) return;
-
+  handleSendMessage = (message) => {
+    const { messages } = this.state;
     const newUserMessage = {
-      id: messages.length + 1,
-      text: inputMessage,
+      id: Date.now(),
+      text: message,
       sender: 'user',
       timestamp: new Date()
     };
 
-    // Bot responses based on keywords
-    let botResponse = "I understand you're asking about that. Let me help you with more specific information about the SHB Survey system.";
-    
-    if (inputMessage.toLowerCase().includes('data') || inputMessage.toLowerCase().includes('analysis')) {
-      botResponse = "📊 For data analysis, you can use the Charts section to view trends, or check the Reports tab for detailed analytics.";
-    } else if (inputMessage.toLowerCase().includes('map')) {
-      botResponse = "🗺️ The Map section shows geographical survey data. You can filter by location, date, or survey type.";
-    } else if (inputMessage.toLowerCase().includes('help')) {
-      botResponse = "❓ I can help with: Survey data analysis, Map navigation, Report generation, Data filtering, and Chart interpretation. What specifically would you like to know?";
-    } else if (inputMessage.toLowerCase().includes('survey')) {
-      botResponse = "📝 Survey data can be viewed in the main dashboard. Use filters to narrow down by date range, location, or participant type.";
-    }
+    this.setState({
+      messages: [...messages, newUserMessage]
+    });
+  }
 
+  handleBotResponse = (response) => {
     const newBotMessage = {
-      id: messages.length + 2,
-      text: botResponse,
+      id: Date.now() + 1,
+      text: response,
       sender: 'bot',
       timestamp: new Date()
     };
 
-    this.setState({
-      messages: [...messages, newUserMessage, newBotMessage],
-      inputMessage: ''
-    });
-  }
-
-  handleInputChange = (e) => {
-    this.setState({ inputMessage: e.target.value });
-  }
-
-  handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      this.handleSendMessage();
-    }
+    this.setState(prevState => ({
+      messages: [...prevState.messages, newBotMessage]
+    }));
   }
 
   render() {
-    const { isOpen, maintenanceStatus, lastMaintenance, activeTasks, systemHealth, showQuickActions, isHidden, showExportActions, exportStatus, currentPage, activeDashboardTab, showChat, messages, inputMessage } = this.state;
+    const { isOpen, maintenanceStatus, lastMaintenance, activeTasks, systemHealth, showQuickActions, isHidden, showExportActions, exportStatus, currentPage, activeDashboardTab, showChat, messages } = this.state;
     const statusColor = this.getStatusColor();
     const exportType = currentPage === 'dashboard' && activeDashboardTab === 'dataTable' ? 'Excel' : 'PDF';
     const isDataTableTab = currentPage === 'dashboard' && activeDashboardTab === 'dataTable';
@@ -1837,6 +1817,16 @@ class MaintenanceBotButton extends Component {
     if (isHidden) return null;
     return (
       <>
+        {/* SHB Survey Assistant Chat Component */}
+        <SHBSurveyAssistant 
+          showChat={showChat}
+          onChatToggle={this.handleChatToggle}
+          messages={messages}
+          onSendMessage={this.handleSendMessage}
+          onBotResponse={this.handleBotResponse}
+          currentPage={currentPage}
+        />
+
         {/* Floating Button with image icon */}
         <div className={`maintenance-bot-container ${isHidden ? 'hidden' : ''}`}>
           <button
@@ -1939,6 +1929,7 @@ class MaintenanceBotButton extends Component {
                       : (currentPage === 'dashboard' && isDataTableTab && window.dataViewCurrentView === 'pivot')
                         ? 'Export is not supported for Pivot View.'
                         : backupTooltip
+                 
                   }
                 />
                 {/* Status Messages */}
@@ -1949,121 +1940,6 @@ class MaintenanceBotButton extends Component {
             </div>
           )}
         </div>
-        
-        {/* Chat Interface - Separate from Dashboard Tools & Settings */}
-        {this.state.showChat && (
-          <div style={{
-            position: 'fixed',
-            top: '20px',
-            right: '20px',
-            width: '350px',
-            height: '500px',
-            backgroundColor: 'white',
-            border: '1px solid #e5e7eb',
-            borderRadius: '12px',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-            zIndex: 1000,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden'
-          }}>
-            {/* Chat Header */}
-            <div style={{
-              padding: '16px',
-              backgroundColor: '#4f46e5',
-              color: 'white',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>SHB Survey Assistant</h3>
-                <p style={{ margin: 0, fontSize: '12px', opacity: 0.8 }}>Online now</p>
-              </div>
-              <button
-                onClick={this.handleChatToggle}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontSize: '18px',
-                  padding: '4px'
-                }}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Chat Messages */}
-            <div style={{
-              flex: 1,
-              padding: '16px',
-              overflowY: 'auto',
-              backgroundColor: '#f9fafb'
-            }}>
-              {this.state.messages.map((message) => (
-                <div key={message.id} style={{
-                  marginBottom: '12px',
-                  display: 'flex',
-                  justifyContent: message.sender === 'user' ? 'flex-end' : 'flex-start'
-                }}>
-                  <div style={{
-                    maxWidth: '80%',
-                    padding: '8px 12px',
-                    borderRadius: '18px',
-                    backgroundColor: message.sender === 'user' ? '#4f46e5' : '#e5e7eb',
-                    color: message.sender === 'user' ? 'white' : '#374151',
-                    fontSize: '14px',
-                    lineHeight: '1.4'
-                  }}>
-                    {message.text}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Chat Input */}
-            <div style={{
-              padding: '16px',
-              borderTop: '1px solid #e5e7eb',
-              backgroundColor: 'white'
-            }}>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input
-                  type="text"
-                  value={this.state.inputMessage}
-                  onChange={this.handleInputChange}
-                  onKeyPress={this.handleKeyPress}
-                  placeholder="Type your message..."
-                  style={{
-                    flex: 1,
-                    padding: '8px 12px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '20px',
-                    fontSize: '14px',
-                    outline: 'none'
-                  }}
-                />
-                <button
-                  onClick={this.handleSendMessage}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#4f46e5',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '20px',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: 500
-                  }}
-                >
-                  Send
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </>
     );
   }
