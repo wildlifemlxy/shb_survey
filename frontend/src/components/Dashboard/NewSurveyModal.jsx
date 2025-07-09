@@ -586,6 +586,49 @@ class NewSurveyModal extends Component {
                     <SubmissionSummarySection newSurvey={newSurvey} />
                   )}
                 </fieldset>
+
+                {/* Error Messages Display for first 2 sections */}
+                {(currentSection === 0 || currentSection === 1) && Object.keys(errorMessages).length > 0 && (
+                    <div className="modal-error-container">
+                    <h4 className="modal-error-title">
+                      Please fix the following errors:
+                    </h4>
+                    <div className="modal-error-list">
+                      {currentSection === 0 && (
+                        // Observer section errors
+                        Object.entries(errorMessages).map(([field, message]) => (
+                          <div key={field} className="modal-error-item">
+                            <span className="modal-error-bullet">•</span>
+                            <div>
+                              <strong>{field}:</strong> {message}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                      {currentSection === 1 && (
+                        // Observation section errors
+                        Object.entries(errorMessages).map(([rowIdx, rowErrors]) => (
+                          <div key={rowIdx} className="modal-error-item">
+                            <span className="modal-error-bullet">•</span>
+                            <div>
+                              <div style={{ fontWeight: 'bold', marginBottom: '4px', color: '#dc3545' }}>
+                                Observation {parseInt(rowIdx) + 1}:
+                              </div>
+                              {Object.entries(rowErrors).map(([field, message]) => (
+                                <div key={field} style={{ 
+                                  marginLeft: '16px',
+                                  marginBottom: '2px'
+                                }}>
+                                  {message}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
               </form>
             </div>
           </div>
@@ -606,7 +649,7 @@ class NewSurveyModal extends Component {
                 <div></div>
               )}
 
-              {!isLast && (
+              {!isLast ? (
                 <button
                   type="button"
                   onClick={this.handleNext}
@@ -614,24 +657,17 @@ class NewSurveyModal extends Component {
                 >
                   Next →
                 </button>
+              ) : (
+                <div></div>
               )}
             </div>
             
             {/* Action buttons */}
-            {section.key === 'height' ? (
-              <div className="modal-actions">
-                <button type="button" onClick={this.handleCancel}>Cancel</button>
+            <div className="modal-actions">
+              {isLast && (
                 <button type="submit" onClick={this.handleSubmit}>Submit</button>
-              </div>
-            ) : section.key === 'observation' ? (
-              <div className="modal-actions">
-                <button type="button" onClick={this.handleCancel}>Cancel</button>
-              </div>
-            ) : (
-              <div className="modal-actions" style={{ justifyContent: 'flex-end' }}>
-                <button type="button" onClick={this.handleCancel}>Cancel</button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>

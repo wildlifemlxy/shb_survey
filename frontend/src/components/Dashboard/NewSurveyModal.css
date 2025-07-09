@@ -19,177 +19,54 @@
   width: 100%;
   box-shadow: 0 4px 20px rgba(0,0,0,0.15);
   animation: modalFadeIn 0.2s;
-  overflow: auto; /* Changed from 'hidden' to 'auto' to allow scrolling */
-  max-height: 95vh;
-  min-height: 80vh;
+  max-height: 90vh;
+  min-height: 60vh;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   position: relative;
-  padding: 20px; /* Added padding for better spacing */
-  overflow: visible;
   z-index: 1000;
+  overflow: hidden;
 }
 
-/* Header: Fixed height, contains title, navigation, progress */
+/* Header: Fixed at top */
 .modal-header {
   padding: 20px 24px;
   border-bottom: 1px solid #e9ecef;
   background: #f8f9fa;
   flex-shrink: 0;
+  order: 1;
+  z-index: 10;
 }
 
-/* Body: Flexible height, contains two sub-sections */
+/* Body: Flexible middle section */
 .modal-body {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  overflow-x: visible; /* Allow horizontal overflow for dropdowns */
+  padding: 16px 24px;
   display: flex;
   flex-direction: column;
-  background-color: #f9f9f9; /* Light background */
+  background-color: #f9f9f9;
   border-radius: 6px;
-  min-height: 400px; /* Ensure enough vertical space */
-  overflow: visible;
   position: relative;
+  order: 2;
+  z-index: 5;
+  max-height: calc(90vh - 160px); /* Account for header and footer space */
+  min-height: 200px;
 }
 
-/* Sub-section 1: Navigation controls and progress bar */
-.modal-body-controls {
-  flex-shrink: 0;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e9ecef;
-  margin-bottom: 16px;
-}
-
-/* Sub-section 2: Form content */
-.modal-body-form {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 450px;
-  padding: 8px 0;
-  overflow: visible;
-  position: relative;
-}
-
-.modal-body-form fieldset {
-  border: 2px solid #e9ecef;
-  border-radius: 8px;
-  padding: 30px;
-  margin: 0 0 20px 0;
-  background: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  min-height: 300px; /* Ensure enough space for form content */
-  overflow: visible;
-  position: relative;
-}
-
-/* Form group styling */
-.form-group {
-  margin-bottom: 20px;
-  position: relative;
-}
-
-.form-group label {
-  display: block;
-  font-weight: 500;
-  margin-bottom: 6px;
-  font-size: 0.95rem;
-  color: #333;
-}
-
-.form-control {
-  display: block;
-  width: 100%;
-  padding: 10px 12px;
-  font-size: 1rem;
-  line-height: 1.5;
-  color: #495057;
-  background-color: #fff;
-  background-clip: padding-box;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-}
-
-.form-control:focus {
-  color: #495057;
-  background-color: #fff;
-  border-color: #80bdff;
-  outline: 0;
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-}
-
-.error-message {
-  color: #dc3545;
-  font-size: 0.85rem;
-  margin-top: 5px;
-}
-
-/* Navigation buttons */
-.modal-nav-arrow {
-  padding: 10px 15px;
-  background: #007bff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.2s;
-}
-
-.modal-nav-arrow:hover {
-  background: #0069d9;
-}
-
-/* Cancel and submit buttons */
-.modal-actions {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 20px;
-}
-
-.modal-actions button {
-  padding: 10px 20px;
-  border-radius: 4px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.modal-actions button[type="button"] {
-  background: #f8f9fa;
-  border: 1px solid #ced4da;
-  color: #495057;
-}
-
-.modal-actions button[type="button"]:hover {
-  background: #e2e6ea;
-}
-
-.modal-actions button[type="submit"] {
-  background: #28a745;
-  border: none;
-  color: white;
-}
-
-.modal-actions button[type="submit"]:hover {
-  background: #218838;
-}
-
-.modal-body-form legend {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #007bff;
-  padding: 0 12px;
-  background: #fff;
-}
-
-/* Footer: Fixed height, contains navigation and actions */
+/* Footer: Fixed at bottom */
 .modal-footer {
-  padding: 16px 24px;
+  padding: 6px 24px;
   border-top: 1px solid #e9ecef;
   background: #f8f9fa;
   flex-shrink: 0;
+  order: 3;
+  z-index: 10;
+  margin-top: auto;
+  height: auto;
+  min-height: 40px;
 }
 
 @keyframes modalFadeIn {
@@ -468,9 +345,32 @@ input[type="date"]::-webkit-clear-button {
 
 .modal-content .modal-actions {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
+  align-items: center;
   gap: 12px;
-  margin-top: 20px;
+  margin-top: 4px;
+  padding: 4px 0;
+  min-height: 32px;
+}
+
+.modal-actions button {
+  padding: 14px 32px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1.1rem;
+  transition: all 0.2s;
+  min-width: 120px;
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+}
+
+.modal-actions button:hover {
+  background: #0069d9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
 }
 
 /* Navigation arrows positioned normally */
@@ -484,6 +384,13 @@ input[type="date"]::-webkit-clear-button {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  min-width: 80px;
+  text-align: center;
+}
+
+.modal-nav-arrow:hover {
+  background: #e9ecef;
+  border-color: #999;
 }
 
 .modal-nav-arrow:hover {
@@ -495,6 +402,8 @@ input[type="date"]::-webkit-clear-button {
 .modal-form-fields {
   width: 100%;
   padding: 0;
+  position: relative;
+  z-index: 1000;
 }
 
 /* Progress bar styling */
@@ -620,6 +529,51 @@ input[type="date"]::-webkit-clear-button {
   content: "•";
   margin-right: 6px;
   font-weight: bold;
+}
+
+/* Error messages styling */
+.modal-error-container {
+  margin: 20px 0;
+  padding: 16px;
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  border-left: 4px solid #e17055;
+  flex-shrink: 0; /* Prevent shrinking */
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
+.modal-error-title {
+  margin: 0 0 12px 0;
+  color: #856404;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.modal-error-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modal-error-item {
+  padding: 8px 12px;
+  background-color: #fff;
+  border: 1px solid #fdd;
+  border-radius: 4px;
+  color: #721c24;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.4;
+}
+
+.modal-error-bullet {
+  color: #dc3545;
+  font-weight: bold;
+  flex-shrink: 0;
 }
 
 /* Observation Details Table Container */
@@ -1227,24 +1181,7 @@ input[list]::-webkit-list-button {
   margin-top: 5px;
 }
 
-/* Positioning for custom location input and datalist dropdown with enhanced overlapping */
-. {
-  position: relative;
-  width: 100%;
-  z-index: 1;
-}
-
-.location-input {
-  width: 100%;
-  padding-right: 25px; /* Make room for the dropdown indicator */
-  position: relative;
-  z-index: 1;
-}
-
-.location-input:focus {
-  z-index: 999999; /* Ensure dropdown appears above all other elements */
-}
-
+/* Custom select dropdown indicator (for other dropdowns, not location) */
 .custom-select-dropdown-indicator {
   position: absolute;
   right: 8px;
@@ -1297,23 +1234,6 @@ input[placeholder="Enter your custom location"] {
 }
 
 /* Additional rules for proper dropdown overlapping and form layout */
-
-/* Ensure modal content doesn't clip dropdowns */
-.modal-content {
-  overflow: visible;
-  position: relative;
-  z-index: 1000;
-}
-
-.modal-body {
-  overflow: visible;
-  position: relative;
-}
-
-.modal-body-form {
-  overflow: visible;
-  position: relative;
-}
 
 /* Prevent form fieldsets from clipping dropdowns */
 .modal-body-form fieldset {
@@ -1374,4 +1294,25 @@ input[type="date"]:focus {
 .observation-form-field select:focus,
 .observation-form-field textarea:focus {
   z-index: 999999;
+}
+
+/* Modal body sections */
+.modal-body-controls {
+  flex-shrink: 0; /* Don't shrink navigation controls */
+  margin-bottom: 16px;
+}
+
+.modal-body-form {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: visible; /* Allow horizontal overflow for dropdowns */
+  min-height: 0; /* Allow flex item to shrink below content size */
+  position: relative; /* Establish stacking context */
+  z-index: 1; /* Lower than location dropdown */
+}
+
+.modal-body-form form {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
 }

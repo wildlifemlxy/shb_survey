@@ -9,6 +9,7 @@ class ObserverInfoSection extends Component {
     this.state = {
       isOthersSelected: false,
       showLocationDropdown: false,
+      showAllLocationOptions: false, // Flag to show all options when clicking
       locationPlaceholder: "Enter a location",
       parksList: [
         "Bidadari Park",
@@ -80,6 +81,12 @@ class ObserverInfoSection extends Component {
 
   // Simple location change handler that just passes the change to parent
   handleLocationChange = (e) => {
+    // Show dropdown when user types and enable filtering
+    this.setState({ 
+      showLocationDropdown: true,
+      showAllLocationOptions: false // Enable filtering when typing
+    });
+    
     if (this.props.onInputChange) {
       this.props.onInputChange(e);
     }
@@ -88,14 +95,15 @@ class ObserverInfoSection extends Component {
   // Toggle location dropdown visibility
   toggleLocationDropdown = () => {
     this.setState(prevState => ({
-      showLocationDropdown: !prevState.showLocationDropdown
+      showLocationDropdown: !prevState.showLocationDropdown,
+      showAllLocationOptions: true // Show all options when clicking
     }));
   }
 
   // Handle location selection from dropdown
   handleLocationSelect = (location) => {
     // Update placeholder if Others is selected and set appropriate value
-    const newPlaceholder = location === "Others" ? "Others" : "";
+    const newPlaceholder = location === "Others" ? "Others" : "Enter a location";
     
     // Create a synthetic event to pass to the parent's change handler
     const syntheticEvent = {
@@ -124,6 +132,49 @@ class ObserverInfoSection extends Component {
     }
   }
 
+  // Filter parks list based on input value
+  getFilteredParksList = () => {
+    const { newSurvey } = this.props;
+    const inputValue = (newSurvey['Location'] || '').toLowerCase().trim();
+    
+    // If showAllLocationOptions is true (clicked), show all options regardless of input
+    if (this.state.showAllLocationOptions) {
+      return this.state.parksList;
+    }
+    
+    if (!inputValue) {
+      return this.state.parksList; // Show all options if input is empty
+    }
+    
+    const filtered = this.state.parksList.filter(park => 
+      park.toLowerCase().includes(inputValue)
+    );
+    
+    // If no matches found, return all parks instead of empty array
+    return filtered.length > 0 ? filtered : this.state.parksList;
+  }
+
+  // Highlight matching text in park names
+  highlightMatch = (parkName) => {
+    const { newSurvey } = this.props;
+    const inputValue = (newSurvey['Location'] || '').trim();
+    
+    // Don't highlight if we're showing all options (clicked mode)
+    if (!inputValue || this.state.showAllLocationOptions) {
+      return parkName;
+    }
+    
+    const regex = new RegExp(`(${inputValue})`, 'gi');
+    const parts = parkName.split(regex);
+    
+    return parts.map((part, index) => {
+      if (part.toLowerCase() === inputValue.toLowerCase()) {
+        return <span key={index} className="location-highlight">{part}</span>;
+      }
+      return part;
+    });
+  }
+
   // Helper to render a field label with an asterisk for required fields
   renderTitleWithAsterisk = (title) => {
     return (
@@ -135,7 +186,8 @@ class ObserverInfoSection extends Component {
 
   render() {
     const { newSurvey, onInputChange, showError, isSubmitAttempted } = this.props;
-    const { isOthersSelected, parksList, showLocationDropdown, locationPlaceholder } = this.state;
+    const { isOthersSelected, showLocationDropdown, locationPlaceholder } = this.state;
+    const filteredParksList = this.getFilteredParksList();
     
     return (
       <div className="observer-info-section">
@@ -182,27 +234,31 @@ class ObserverInfoSection extends Component {
         {/* Location with custom dropdown */}
         <div className="form-group">
           <label htmlFor="location-input">Location</label>
-          <div className="location-field-container" ref={this.setLocationDropdownRef}>
+          <div className={`location-field-container ${showLocationDropdown ? 'dropdown-open' : ''}`} ref={this.setLocationDropdownRef}>
             <input
               id="location-input"
               type="text"
               name="Location"
               value={newSurvey['Location'] || ''}
               onChange={this.handleLocationChange}
-              onFocus={this.toggleLocationDropdown}
+              onClick={this.toggleLocationDropdown}
+              onFocus={() => this.setState({ 
+                showLocationDropdown: true, 
+                showAllLocationOptions: true 
+              })}
               className={`form-control ${this.props.fieldErrors && this.props.fieldErrors['Location'] ? 'input-error' : ''}`}
               placeholder={locationPlaceholder}
               autoComplete="off"
             />
             {showLocationDropdown && (
               <div className="location-dropdown">
-                {parksList.map((park, index) => (
+                {filteredParksList.map((park, index) => (
                   <div 
                     key={index} 
                     className="location-option"
                     onClick={() => this.handleLocationSelect(park)}
                   >
-                    {park}
+                    {this.highlightMatch(park)}
                   </div>
                 ))}
               </div>

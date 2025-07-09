@@ -1,5 +1,7 @@
 import React, { Component } from 'react';
 import './ObservationDetailsSection.css';
+import '../../css/components/Location/Location.css'; // Import the new CSS file for location styling
+import '../../css/components/Form/FormControls.css'; // Import common form controls CSS
 
 const COLUMN_LABELS = {
   'Number of Birds': 'Number of Birds',
@@ -34,6 +36,8 @@ class ObservationDetailsSection extends Component {
       showTimeDropdown: false,
       selectedHour: "",
       selectedMinute: "",
+      showAllActivityOptions: false, // Flag to show all options when clicking
+      showAllSeenHeardOptions: false, // Flag to show all options when clicking
       activityOptions: ["Calling", "Feeding", "Perching", "Preening"],
       seenHeardOptions: ["Seen", "Heard", "Not Found"],
       hourOptions: Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')),
@@ -125,7 +129,7 @@ class ObservationDetailsSection extends Component {
   };
 
   handleTimeFieldFocus = (e) => {
-    // Toggle time dropdown instead of showing native time picker
+    // Show custom dropdown for time selection
     this.toggleTimeDropdown();
   };
 
@@ -182,11 +186,21 @@ class ObservationDetailsSection extends Component {
 
   handleActivityChange = (e) => {
     const value = e.target.value;
+    // Show dropdown when user types and enable filtering
+    this.setState({ 
+      showActivityDropdown: true,
+      showAllActivityOptions: false // Enable filtering when typing
+    });
     this.handleFieldChange('Activity', value);
   };
 
   handleSeenHeardChange = (e) => {
     const value = e.target.value;
+    // Show dropdown when user types and enable filtering
+    this.setState({ 
+      showSeenHeardDropdown: true,
+      showAllSeenHeardOptions: false // Enable filtering when typing
+    });
     this.handleFieldChange('SeenHeard', value);
   };
 
@@ -195,7 +209,8 @@ class ObservationDetailsSection extends Component {
     this.setState(prevState => ({
       showActivityDropdown: !prevState.showActivityDropdown,
       showSeenHeardDropdown: false, // Close other dropdowns
-      showTimeDropdown: false
+      showTimeDropdown: false,
+      showAllActivityOptions: true // Show all options when clicking
     }));
   }
 
@@ -204,7 +219,8 @@ class ObservationDetailsSection extends Component {
     this.setState(prevState => ({
       showSeenHeardDropdown: !prevState.showSeenHeardDropdown,
       showActivityDropdown: false, // Close other dropdowns
-      showTimeDropdown: false
+      showTimeDropdown: false,
+      showAllSeenHeardOptions: true // Show all options when clicking
     }));
   }
 
@@ -249,6 +265,92 @@ class ObservationDetailsSection extends Component {
     if (this.timeDropdownRef && !this.timeDropdownRef.contains(e.target)) {
       this.setState({ showTimeDropdown: false });
     }
+  }
+
+  // Filter activity options based on input value
+  getFilteredActivityOptions = () => {
+    const currentObservation = this.getCurrentObservation();
+    const inputValue = (currentObservation.Activity || '').toLowerCase().trim();
+    
+    // If showAllActivityOptions is true (clicked), show all options regardless of input
+    if (this.state.showAllActivityOptions) {
+      return this.state.activityOptions;
+    }
+    
+    if (!inputValue) {
+      return this.state.activityOptions; // Show all options if input is empty
+    }
+    
+    const filtered = this.state.activityOptions.filter(activity => 
+      activity.toLowerCase().includes(inputValue)
+    );
+    
+    // If no matches found, return all options instead of empty array
+    return filtered.length > 0 ? filtered : this.state.activityOptions;
+  }
+
+  // Filter seen/heard options based on input value
+  getFilteredSeenHeardOptions = () => {
+    const currentObservation = this.getCurrentObservation();
+    const inputValue = (currentObservation.SeenHeard || '').toLowerCase().trim();
+    
+    // If showAllSeenHeardOptions is true (clicked), show all options regardless of input
+    if (this.state.showAllSeenHeardOptions) {
+      return this.state.seenHeardOptions;
+    }
+    
+    if (!inputValue) {
+      return this.state.seenHeardOptions; // Show all options if input is empty
+    }
+    
+    const filtered = this.state.seenHeardOptions.filter(option => 
+      option.toLowerCase().includes(inputValue)
+    );
+    
+    // If no matches found, return all options instead of empty array
+    return filtered.length > 0 ? filtered : this.state.seenHeardOptions;
+  }
+
+  // Highlight matching text in activity names
+  highlightActivityMatch = (activityName) => {
+    const currentObservation = this.getCurrentObservation();
+    const inputValue = (currentObservation.Activity || '').trim();
+    
+    // Don't highlight if we're showing all options (clicked mode)
+    if (!inputValue || this.state.showAllActivityOptions) {
+      return activityName;
+    }
+    
+    const regex = new RegExp(`(${inputValue})`, 'gi');
+    const parts = activityName.split(regex);
+    
+    return parts.map((part, index) => {
+      if (part.toLowerCase() === inputValue.toLowerCase()) {
+        return <span key={index} className="location-highlight">{part}</span>;
+      }
+      return part;
+    });
+  }
+
+  // Highlight matching text in seen/heard options
+  highlightSeenHeardMatch = (optionName) => {
+    const currentObservation = this.getCurrentObservation();
+    const inputValue = (currentObservation.SeenHeard || '').trim();
+    
+    // Don't highlight if we're showing all options (clicked mode)
+    if (!inputValue || this.state.showAllSeenHeardOptions) {
+      return optionName;
+    }
+    
+    const regex = new RegExp(`(${inputValue})`, 'gi');
+    const parts = optionName.split(regex);
+    
+    return parts.map((part, index) => {
+      if (part.toLowerCase() === inputValue.toLowerCase()) {
+        return <span key={index} className="location-highlight">{part}</span>;
+      }
+      return part;
+    });
   }
 
   getObservationDetails = () => {
@@ -352,6 +454,36 @@ class ObservationDetailsSection extends Component {
     document.removeEventListener('mousedown', this.handleClickOutside);
   }
 
+  componentDidUpdate(prevProps, prevState) {
+    // Scroll selected time values into view when dropdown opens
+    if (!prevState.showTimeDropdown && this.state.showTimeDropdown) {
+      this.scrollSelectedTimeIntoView();
+    }
+  }
+
+  scrollSelectedTimeIntoView = () => {
+    const currentObservation = this.getCurrentObservation();
+    const currentTime = currentObservation.Time || "";
+    
+    if (currentTime.includes(':')) {
+      const [hour, minute] = currentTime.split(':');
+      
+      // Scroll selected hour into view
+      setTimeout(() => {
+        const hourElement = this.timeDropdownRef?.querySelector(`[data-hour="${hour}"]`);
+        if (hourElement) {
+          hourElement.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+        
+        // Scroll selected minute into view
+        const minuteElement = this.timeDropdownRef?.querySelector(`[data-minute="${minute}"]`);
+        if (minuteElement) {
+          minuteElement.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      }, 50);
+    }
+  }
+
   handleNavigateToNextError = () => {
     const { fieldErrors = {} } = this.props;
     const { currentObservationIndex } = this.state;
@@ -391,8 +523,6 @@ class ObservationDetailsSection extends Component {
       showActivityDropdown, 
       showSeenHeardDropdown, 
       showTimeDropdown,
-      activityOptions, 
-      seenHeardOptions,
       hourOptions,
       minuteOptions
     } = this.state;
@@ -400,6 +530,10 @@ class ObservationDetailsSection extends Component {
     const observationDetails = this.getObservationDetails();
     const currentIndex = Math.min(currentObservationIndex, observationDetails.length - 1);
     const currentObservation = this.getCurrentObservation();
+    
+    // Get filtered options
+    const filteredActivityOptions = this.getFilteredActivityOptions();
+    const filteredSeenHeardOptions = this.getFilteredSeenHeardOptions();
     
     // Create an array of observation indices that have errors
     const observationsWithErrors = Object.keys(fieldErrors).map(idx => parseInt(idx, 10));
@@ -616,27 +750,42 @@ class ObservationDetailsSection extends Component {
                         value={currentObservation.Time || ''}
                         onChange={this.handleTimeChange}
                         onFocus={this.handleTimeFieldFocus}
+                        onClick={this.handleTimeFieldFocus}
                         placeholder="Select time (HH:MM)"
                         autoComplete="off"
+                        readOnly
                         required
+                        style={{ cursor: 'pointer' }}
                       />
                       {showTimeDropdown && (
-                        <div className="location-dropdown time-dropdown" style={{ display: 'flex', width: '100%' }}>
+                        <div className="location-dropdown time-dropdown" style={{ display: 'flex', width: '100%', zIndex: 999999 }}>
                           <div style={{ flex: 1, borderRight: '1px solid #ddd' }}>
                             <div style={{ padding: '8px 12px', fontWeight: 'bold', borderBottom: '1px solid #ddd', backgroundColor: '#f8f9fa' }}>
                               Hours
                             </div>
                             <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
-                              {hourOptions.map((hour, index) => (
-                                <div 
-                                  key={index} 
-                                  className="location-option"
-                                  onClick={() => this.handleHourSelect(hour)}
-                                  style={{ padding: '6px 12px' }}
-                                >
-                                  {hour}
-                                </div>
-                              ))}
+                              {hourOptions.map((hour, index) => {
+                                const currentObservation = this.getCurrentObservation();
+                                const currentTime = currentObservation.Time || "";
+                                const selectedHour = currentTime.includes(':') ? currentTime.split(':')[0] : "";
+                                const isSelected = hour === selectedHour;
+                                
+                                return (
+                                  <div 
+                                    key={index} 
+                                    className={`location-option ${isSelected ? 'highlighted' : ''}`}
+                                    onClick={() => this.handleHourSelect(hour)}
+                                    data-hour={hour}
+                                    style={{ 
+                                      padding: '6px 12px',
+                                      backgroundColor: isSelected ? '#007bff' : 'transparent',
+                                      color: isSelected ? 'white' : 'inherit'
+                                    }}
+                                  >
+                                    {hour}
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                           <div style={{ flex: 1 }}>
@@ -644,16 +793,28 @@ class ObservationDetailsSection extends Component {
                               Minutes
                             </div>
                             <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
-                              {minuteOptions.map((minute, index) => (
-                                <div 
-                                  key={index} 
-                                  className="location-option"
-                                  onClick={() => this.handleMinuteSelect(minute)}
-                                  style={{ padding: '6px 12px' }}
-                                >
-                                  {minute}
-                                </div>
-                              ))}
+                              {minuteOptions.map((minute, index) => {
+                                const currentObservation = this.getCurrentObservation();
+                                const currentTime = currentObservation.Time || "";
+                                const selectedMinute = currentTime.includes(':') ? currentTime.split(':')[1] : "";
+                                const isSelected = minute === selectedMinute;
+                                
+                                return (
+                                  <div 
+                                    key={index} 
+                                    className={`location-option ${isSelected ? 'highlighted' : ''}`}
+                                    onClick={() => this.handleMinuteSelect(minute)}
+                                    data-minute={minute}
+                                    style={{ 
+                                      padding: '6px 12px',
+                                      backgroundColor: isSelected ? '#007bff' : 'transparent',
+                                      color: isSelected ? 'white' : 'inherit'
+                                    }}
+                                  >
+                                    {minute}
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         </div>
@@ -671,20 +832,24 @@ class ObservationDetailsSection extends Component {
                         className={`observation-form-input ${this.getErrorClass('Activity')}`}
                         value={currentObservation.Activity || ''}
                         onChange={this.handleActivityChange}
-                        onFocus={this.toggleActivityDropdown}
+                        onClick={this.toggleActivityDropdown}
+                        onFocus={() => this.setState({ 
+                          showActivityDropdown: true, 
+                          showAllActivityOptions: true 
+                        })}
                         placeholder={activityPlaceholder}
                         autoComplete="off"
                         required
                       />
                       {showActivityDropdown && (
                         <div className="location-dropdown">
-                          {activityOptions.map((option, index) => (
+                          {filteredActivityOptions.map((option, index) => (
                             <div 
                               key={index} 
                               className="location-option"
                               onClick={() => this.handleActivitySelect(option)}
                             >
-                              {option}
+                              {this.highlightActivityMatch(option)}
                             </div>
                           ))}
                         </div>
@@ -698,27 +863,31 @@ class ObservationDetailsSection extends Component {
                     <label className={`observation-form-label ${this.getErrorClass('SeenHeard')}`} htmlFor={`seenHeard-${currentIndex}`}>
                       Seen/Heard*
                     </label>
-                    <div className="location-field-container" ref={this.setSeenHeardDropdownRef}>
+                    <div className="observation-dropdown-container" ref={this.setSeenHeardDropdownRef}>
                       <input
                         id={`seenHeard-${currentIndex}`}
                         type="text"
                         className={`observation-form-input ${this.getErrorClass('SeenHeard')}`}
                         value={currentObservation.SeenHeard || ''}
                         onChange={this.handleSeenHeardChange}
-                        onFocus={this.toggleSeenHeardDropdown}
+                        onClick={this.toggleSeenHeardDropdown}
+                        onFocus={() => this.setState({ 
+                          showSeenHeardDropdown: true, 
+                          showAllSeenHeardOptions: true 
+                        })}
                         placeholder={seenHeardPlaceholder}
                         autoComplete="off"
                         required
                       />
                       {showSeenHeardDropdown && (
-                        <div className="location-dropdown">
-                          {seenHeardOptions.map((option, index) => (
+                        <div className="observation-dropdown">
+                          {filteredSeenHeardOptions.map((option, index) => (
                             <div 
                               key={index} 
-                              className="location-option"
+                              className="observation-dropdown-option"
                               onClick={() => this.handleSeenHeardSelect(option)}
                             >
-                              {option}
+                              {this.highlightSeenHeardMatch(option)}
                             </div>
                           ))}
                         </div>

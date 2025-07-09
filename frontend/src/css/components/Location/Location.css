@@ -3,35 +3,117 @@
   position: relative;
 }
 
+/* Ensure parent form group allows dropdown to overflow */
+.form-group {
+  position: relative;
+  z-index: auto;
+  overflow: visible;
+}
+
+/* Specific styling for location form groups */
+.observer-info-section .form-group {
+  position: relative;
+  z-index: auto;
+  overflow: visible !important;
+}
+
 /* Location dropdown styling */
 .location-field-container {
   position: relative;
+  width: 90%;
+  z-index: 10;
+}
+
+/* Ensure location input doesn't inherit unwanted styles */
+.location-field-container input[type="text"] {
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #333;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.location-field-container input[type="text"]:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  z-index: 999999;
+  position: relative;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* When dropdown is open, modify input styling */
+.location-field-container.dropdown-open input[type="text"] {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: #007bff;
 }
 
 .location-dropdown {
   position: absolute;
-  top: 100%;
+  top: calc(100% - 2px); /* Slightly overlap the input border */
   left: 0;
+  right: 0;
   width: 100%;
   max-height: 200px;
   overflow-y: auto;
   background: white;
-  border: 1px solid #ccc;
+  border: 1px solid #007bff; /* Match focus color */
   border-top: none;
   border-radius: 0 0 4px 4px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-  margin-top: -1px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  z-index: 1000000;
+  margin-top: 0;
+  font-size: 14px;
+  /* Prevent any inheritance from date inputs */
+  font-family: inherit;
+  text-align: left;
+  /* Ensure it overlaps everything */
+  pointer-events: auto;
 }
 
 .location-option {
-  padding: 8px 12px;
+  padding: 10px 12px;
   cursor: pointer;
   transition: background 0.2s;
+  border-bottom: 1px solid #f0f0f0;
+  line-height: 1.2;
+  font-size: 14px;
+  color: #333;
+  /* Ensure text doesn't get styled like date placeholders */
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.location-option:last-child {
+  border-bottom: none;
 }
 
 .location-option:hover {
-  background: #f0f0f0;
+  background: #f8f9fa;
+  color: #007bff;
+}
+
+/* Highlight matching text in dropdown options */
+.location-highlight {
+  background-color: #fff3cd;
+  color: #856404;
+  font-weight: bold;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+/* Ensure location dropdown is not affected by date input styling */
+.location-dropdown .location-option:not([type]) {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Style for date/time inputs */
@@ -68,6 +150,41 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   left: 0;
   top: 0;
   cursor: pointer;
+}
+
+/* Specific styling for time dropdown overlapping */
+.time-dropdown {
+  z-index: 1000001 !important; /* Higher than location dropdown */
+  min-height: 200px;
+  max-height: 250px;
+}
+
+/* Ensure observation form fields allow dropdown overlapping */
+.observation-form-field {
+  position: relative;
+  z-index: auto;
+  overflow: visible !important;
+}
+
+.observation-form-row {
+  position: relative;
+  z-index: auto;
+  overflow: visible !important;
+}
+
+/* Specific time dropdown container styling */
+.observation-form-field .location-field-container {
+  position: relative;
+  z-index: 1000001 !important; /* Higher base z-index for observation fields */
+}
+
+.observation-form-field .location-field-container .location-dropdown {
+  z-index: 1000001 !important; /* Ensure it overlaps everything */
+}
+
+/* Special handling for time dropdown in observation forms */
+.observation-form-field .time-dropdown {
+  z-index: 1000005 !important; /* Highest priority for time dropdown */
 }
 
 /* Mobile optimizations */
