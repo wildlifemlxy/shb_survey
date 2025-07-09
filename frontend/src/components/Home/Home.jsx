@@ -346,6 +346,48 @@ class Home extends React.Component {
           </div>
         </section>
 
+        {/* Gallery Section - Show before features when not authenticated, after features when authenticated */}
+        {!isAuthenticated ? (
+          <section className="gallery-section" style={{
+            padding: '60px 0',
+            background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)'
+          }}>
+            <div className="gallery-container" style={{
+              maxWidth: '1200px',
+              margin: '0 auto',
+              padding: '0 2rem'
+            }}>
+              <div className="gallery-header" style={{
+                textAlign: 'center',
+                marginBottom: '40px'
+              }}>
+                <h2 style={{
+                  fontSize: '2.2rem',
+                  fontWeight: '700',
+                  color: '#0f172a',
+                  marginBottom: '12px'
+                }}>Gallery</h2>
+                <p style={{
+                  fontSize: '1.1rem',
+                  color: '#64748b',
+                  maxWidth: '800px',
+                  margin: '0 auto'
+                }}>Explore images and visualizations related to Straw-headed Bulbul conservation</p>
+              </div>
+              
+              <div className="gallery-content" style={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '300px'
+              }}>
+                {/* Gallery content will be added here */}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         {/* Features Section - Only show when authenticated */}
         {isAuthenticated && (
           <section className="features-section" style={{

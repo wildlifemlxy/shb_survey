@@ -9,7 +9,6 @@ class ObserverInfoSection extends Component {
     this.state = {
       isOthersSelected: false,
       showLocationDropdown: false,
-      locationPlaceholder: "Enter a location",
       parksList: [
         "Bidadari Park",
         "Bukit Timah Nature Park",
@@ -34,7 +33,7 @@ class ObserverInfoSection extends Component {
   // Set ref for dropdown container
   setLocationDropdownRef = (node) => {
     this.locationDropdownRef = node;
-  }
+  };
   
   // Helper method to get current user's name from localStorage
   getCurrentUserName = () => {
@@ -94,14 +93,11 @@ class ObserverInfoSection extends Component {
 
   // Handle location selection from dropdown
   handleLocationSelect = (location) => {
-    // Update placeholder if Others is selected and set appropriate value
-    const newPlaceholder = location === "Others" ? "Others" : "";
-    
     // Create a synthetic event to pass to the parent's change handler
     const syntheticEvent = {
       target: {
         name: 'Location',
-        value: location === "Others" ? "" : location
+        value: location
       }
     };
     
@@ -109,12 +105,8 @@ class ObserverInfoSection extends Component {
       this.props.onInputChange(syntheticEvent);
     }
     
-    // Update state with new placeholder and hide dropdown
-    this.setState({ 
-      showLocationDropdown: false,
-      locationPlaceholder: newPlaceholder,
-      isOthersSelected: location === "Others"
-    });
+    // Hide the dropdown after selection
+    this.setState({ showLocationDropdown: false });
   }
   
   // Handle clicks outside the dropdown
@@ -135,7 +127,7 @@ class ObserverInfoSection extends Component {
 
   render() {
     const { newSurvey, onInputChange, showError, isSubmitAttempted } = this.props;
-    const { isOthersSelected, parksList, showLocationDropdown, locationPlaceholder } = this.state;
+    const { isOthersSelected, parksList, showLocationDropdown } = this.state;
     
     return (
       <div className="observer-info-section">
@@ -191,7 +183,7 @@ class ObserverInfoSection extends Component {
               onChange={this.handleLocationChange}
               onFocus={this.toggleLocationDropdown}
               className={`form-control ${this.props.fieldErrors && this.props.fieldErrors['Location'] ? 'input-error' : ''}`}
-              placeholder={locationPlaceholder}
+              placeholder="Enter a location"
               autoComplete="off"
             />
             {showLocationDropdown && (

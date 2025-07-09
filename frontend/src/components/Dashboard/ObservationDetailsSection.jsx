@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import './ObservationDetailsSection.css';
 
 const COLUMN_LABELS = {
   'Number of Birds': 'Number of Birds',
