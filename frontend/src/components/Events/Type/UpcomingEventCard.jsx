@@ -1,7 +1,8 @@
 import React, { Component } from 'react';
 import './UpcomingEvents.css';
 import ParticipantList from './ParticipantList';
-import axios from 'axios';
+import '../../Dashboard/ObserverInfoSection.css'; // Import styles for location dropdown
+import '../../Dashboard/ObservationDetailsSection.css'; // Import styles for time dropdown
 
 const BASE_URL =
   window.location.hostname === 'localhost'
@@ -37,12 +38,38 @@ class UpcomingEventCard extends Component {
     this.state = {
       localEvent,
       editing: false,
-      user: JSON.parse(localStorage.getItem('user'))
+      user: JSON.parse(localStorage.getItem('user')),
+      // Dropdown states
+      showLocationDropdown: false,
+      showTimeDropdown: false,
+      locationPlaceholder: "Enter a location",
+      // Parks list for location dropdown
+      parksList: [
+        "Bidadari Park",
+        "Bukit Timah Nature Park",
+        "Bukit Batok Nature Park",
+        "Gillman Barracks",
+        "Hindhede Nature Park",
+        "Mandai Boardwalk",
+        "Pulau Ubin",
+        "Rifle Range Nature Park",
+        "Rail Corridor (Kranji)",
+        "Rail Corridor (Hillview)",
+        "Rail Corridor (Bukit Timah)",
+        "Singapore Botanic Gardens",
+        "Springleaf Nature Park",
+        "Sungei Buloh Wetland Reserve",
+        "Windsor Nature Park",
+        "Others"
+      ],
+      // Time options for dropdown
+      selectedHour: '',
+      selectedMinute: ''
     };
   }
 
   componentDidMount() 
-  {
+  {    
     if (window.socket) {
       this.socket = window.socket;
       this.socket.on('survey-updated', (data) => {
@@ -78,6 +105,122 @@ class UpcomingEventCard extends Component {
         }
       });
     }
+    
+    // Add event listener for clicks outside dropdowns
+    document.addEventListener('mousedown', this.handleClickOutside);
+  }
+
+  componentWillUnmount() {
+    // Remove event listener when component unmounts
+    document.removeEventListener('mousedown', this.handleClickOutside);
+  }
+
+  // Set refs for dropdown containers
+  setLocationDropdownRef = (node) => {
+    this.locationDropdownRef = node;
+  }
+
+  setTimeDropdownRef = (node) => {
+    this.timeDropdownRef = node;
+  }
+
+  // Handle clicks outside dropdowns
+  handleClickOutside = (e) => {
+    if (this.locationDropdownRef && !this.locationDropdownRef.contains(e.target)) {
+      this.setState({ showLocationDropdown: false });
+    }
+    if (this.timeDropdownRef && !this.timeDropdownRef.contains(e.target)) {
+      this.setState({ showTimeDropdown: false });
+    }
+  }
+
+  // Position dropdown relative to input
+  getDropdownPosition = (inputRef) => {
+    if (!inputRef) return { top: 0, left: 0, width: '160px' };
+    
+    const rect = inputRef.getBoundingClientRect();
+    return {
+      top: rect.bottom + window.scrollY + 4,
+      left: rect.left + window.scrollX,
+      width: rect.width + 'px'
+    };
+  }
+
+  // Toggle location dropdown
+  toggleLocationDropdown = () => {
+    this.setState(prevState => ({
+      showLocationDropdown: !prevState.showLocationDropdown,
+      showTimeDropdown: false
+    }));
+  }
+
+  // Toggle time dropdown
+  toggleTimeDropdown = () => {
+    this.setState(prevState => ({
+      showTimeDropdown: !prevState.showTimeDropdown,
+      showLocationDropdown: false
+    }));
+  }
+
+  // Handle location selection from dropdown
+  handleLocationSelect = (location) => {
+    const newPlaceholder = location === "Others" ? "Others" : "";
+    const value = location === "Others" ? "" : location;
+    
+    this.handleFieldChange('Location', value);
+    
+    this.setState({ 
+      showLocationDropdown: false,
+      locationPlaceholder: newPlaceholder
+    });
+  }
+
+  // Handle hour selection for time dropdown
+  handleHourSelect = (hour) => {
+    const currentTimeEnd = this.state.localEvent.TimeEnd || "";
+    const currentMinute = currentTimeEnd.includes(':') ? currentTimeEnd.split(':')[1] : "00";
+    const timeValue = `${hour}:${currentMinute}`;
+    
+    this.handleFieldChange('TimeStart', timeValue);
+    this.setState({ 
+      selectedHour: hour,
+      selectedMinute: currentMinute,
+      showTimeDropdown: false 
+    });
+  }
+
+  // Handle minute selection for time dropdown
+  handleMinuteSelect = (minute) => {
+    const currentTimeStart = this.state.localEvent.TimeStart || "";
+    const currentHour = currentTimeStart.includes(':') ? currentTimeStart.split(':')[0] : "00";
+    const timeValue = `${currentHour}:${minute}`;
+    
+    this.handleFieldChange('TimeStart', timeValue);
+    this.setState({ 
+      selectedMinute: minute,
+      selectedHour: currentHour,
+      showTimeDropdown: false 
+    });
+  }
+
+  // Handle end hour selection for time dropdown
+  handleEndHourSelect = (hour) => {
+    const currentTimeEnd = this.state.localEvent.TimeEnd || "";
+    const currentMinute = currentTimeEnd.includes(':') ? currentTimeEnd.split(':')[1] : "00";
+    const timeValue = `${hour}:${currentMinute}`;
+    
+    this.handleFieldChange('TimeEnd', timeValue);
+    this.setState({ showTimeDropdown: false });
+  }
+
+  // Handle end minute selection for time dropdown
+  handleEndMinuteSelect = (minute) => {
+    const currentTimeEnd = this.state.localEvent.TimeEnd || "";
+    const currentHour = currentTimeEnd.includes(':') ? currentTimeEnd.split(':')[0] : "00";
+    const timeValue = `${currentHour}:${minute}`;
+    
+    this.handleFieldChange('TimeEnd', timeValue);
+    this.setState({ showTimeDropdown: false });
   }
 
   componentDidUpdate(prevProps) {
@@ -246,65 +389,172 @@ class UpcomingEventCard extends Component {
           )}
         </div>
         {/* Body */}
-        <div style={{flex: 1, padding: '8px 16px 0 16px', overflowY: 'auto', maxHeight: editing ? '240px' : 'auto'}}>
+        <div style={{flex: 1, padding: '8px 16px 0 16px', overflowY: 'auto', maxHeight: editing ? '240px' : 'auto', position: 'relative', zIndex: 1}}>
           {editing ? (
-            <form className="upcoming-event-edit-form" autoComplete="off" style={{display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative', zIndex: 1}} onSubmit={e => { e.preventDefault(); onUpdate(event._id, 'save'); }}>
-              {/* All rows horizontal: label and textbox */}
-              <div className="form-row" style={{display: 'flex', alignItems: 'center', gap: 8, position: 'relative'}}>
+            <form className="upcoming-event-edit-form" autoComplete="off" style={{display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative', zIndex: 2}} onSubmit={e => { e.preventDefault(); onUpdate(event._id, 'save'); }}>
+              {/* Location with custom dropdown */}
+              <div className="form-row" style={{display: 'flex', alignItems: 'center', gap: 8, position: 'relative', zIndex: 3}}>
                 <label className="upcoming-event-label" htmlFor={`location-${event._id}`} style={{marginRight: 8, minWidth: '70px', fontSize: '0.9rem'}}>Location:</label>
-                <input
-                  id={`location-${event._id}`}
-                  className="themed-input"
-                  type="text"
-                  value={this.state.localEvent.Location || ''}
-                  onChange={e => this.handleFieldChange('Location', e.target.value)}
-                  onFocus={e => this.handleInputFocus('text', e)}
-                  style={{ border: 'none', borderBottom: '2px solid #4f46e5', borderRadius: 0, color: '#222', width: '160px', minWidth: '140px', fontWeight: 400, background: 'transparent', outline: 'none', padding: '4px 8px 4px 0', caretColor: '#4f46e5', position: 'relative', zIndex: 10 }}
-                  autoComplete="off"
-                  spellCheck={false}
-                />
+                <div className="location-field-container" ref={this.setLocationDropdownRef} style={{position: 'relative', width: '160px', zIndex: 1003}}>
+                  <input
+                    id={`location-${event._id}`}
+                    className="themed-input"
+                    type="text"
+                    value={this.state.localEvent.Location || ''}
+                    onChange={e => this.handleFieldChange('Location', e.target.value)}
+                    onFocus={this.toggleLocationDropdown}
+                    style={{ border: 'none', borderBottom: '2px solid #4f46e5', borderRadius: 0, color: '#222', width: '100%', minWidth: '140px', fontWeight: 400, background: 'transparent', outline: 'none', padding: '4px 8px 4px 0', caretColor: '#4f46e5', position: 'relative', zIndex: 1 }}
+                    placeholder={this.state.locationPlaceholder}
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  {this.state.showLocationDropdown && (
+                    <div className="location-dropdown" style={{
+                      position: 'fixed', 
+                      top: this.locationDropdownRef ? this.getDropdownPosition(this.locationDropdownRef.querySelector('input')).top : 'auto',
+                      left: this.locationDropdownRef ? this.getDropdownPosition(this.locationDropdownRef.querySelector('input')).left : 'auto',
+                      width: this.locationDropdownRef ? this.getDropdownPosition(this.locationDropdownRef.querySelector('input')).width : '160px',
+                      zIndex: 9999,
+                      background: 'white',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                      maxHeight: '200px',
+                      overflowY: 'auto'
+                    }}>
+                      {this.state.parksList.map((park, index) => (
+                        <div 
+                          key={index} 
+                          className="location-option"
+                          onClick={() => this.handleLocationSelect(park)}
+                          style={{
+                            padding: '8px 12px',
+                            cursor: 'pointer',
+                            borderBottom: index < this.state.parksList.length - 1 ? '1px solid #f0f0f0' : 'none'
+                          }}
+                          onMouseEnter={e => e.target.style.background = '#f5f5f5'}
+                          onMouseLeave={e => e.target.style.background = 'white'}
+                        >
+                          {park}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="form-row" style={{display: 'flex', alignItems: 'center', gap: 8, position: 'relative'}}>
+              
+              {/* Date with normal HTML5 date input */}
+              <div className="form-row" style={{display: 'flex', alignItems: 'center', gap: 8, position: 'relative', zIndex: 2}}>
                 <label className="upcoming-event-label" htmlFor={`date-${event._id}`} style={{marginRight: 8, minWidth: '70px', fontSize: '0.9rem'}}>Date:</label>
                 <input
                   id={`date-${event._id}`}
-                  className="themed-input-date"
+                  className="themed-input"
                   type="date"
                   value={this.formatDateForInput(this.state.localEvent.Date || '')}
                   onChange={e => this.handleFieldChange('Date', this.formatDateForDisplay(e.target.value))}
-                  onFocus={e => this.handleInputFocus('date', e)}
-                  style={{ width: '140px', minWidth: '130px', position: 'relative', zIndex: 10 }}
+                  style={{ border: 'none', borderBottom: '2px solid #4f46e5', borderRadius: 0, color: '#222', width: '140px', minWidth: '130px', fontWeight: 400, background: 'transparent', outline: 'none', padding: '4px 8px 4px 0', caretColor: '#4f46e5', position: 'relative', zIndex: 1 }}
                   autoComplete="off"
                   spellCheck={false}
                 />
               </div>
-              <div className="form-row" style={{display: 'flex', alignItems: 'center', gap: 8, position: 'relative'}}>
-                <label className="upcoming-event-label" htmlFor={`time-start-${event._id}`} style={{marginRight: 8, minWidth: '50px', fontSize: '0.9rem'}}>Time:</label>
-                <input
-                  id={`time-start-${event._id}`}
-                  className="themed-input-time"
-                  type="time"
-                  placeholder="Start"
-                  value={this.state.localEvent.TimeStart || ''}
-                  onChange={e => this.handleFieldChange('TimeStart', e.target.value)}
-                  onFocus={e => this.handleInputFocus('time', e)}
-                  style={{ width: '75px', minWidth: '75px', position: 'relative', zIndex: 5 }}
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-                <span style={{fontWeight: 600, margin: '0 4px', position: 'relative', zIndex: 1}}>-</span>
-                <input
-                  id={`time-end-${event._id}`}
-                  className="themed-input-time"
-                  type="time"
-                  placeholder="End"
-                  value={this.state.localEvent.TimeEnd || ''}
-                  onChange={e => this.handleFieldChange('TimeEnd', e.target.value)}
-                  onFocus={e => this.handleInputFocus('time', e)}
-                  style={{ width: '75px', minWidth: '75px', position: 'relative', zIndex: 5 }}
-                  autoComplete="off"
-                  spellCheck={false}
-                />
+              
+              {/* Time with custom dropdown */}
+              <div className="form-row" style={{display: 'flex', alignItems: 'center', gap: 8, position: 'relative', zIndex: 1}}>
+                <label className="upcoming-event-label" style={{marginRight: 8, minWidth: '50px', fontSize: '0.9rem'}}>Time:</label>
+                <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
+                  <div className="time-field-container" ref={this.setTimeDropdownRef} style={{position: 'relative', zIndex: 1001}}>
+                    <input
+                      className="themed-input"
+                      type="text"
+                      value={this.state.localEvent.TimeStart || ''}
+                      onChange={e => this.handleFieldChange('TimeStart', e.target.value)}
+                      onFocus={this.toggleTimeDropdown}
+                      style={{ border: 'none', borderBottom: '2px solid #4f46e5', borderRadius: 0, color: '#222', width: '75px', minWidth: '75px', fontWeight: 400, background: 'transparent', outline: 'none', padding: '4px 8px 4px 0', caretColor: '#4f46e5', position: 'relative', zIndex: 1 }}
+                      placeholder="Start"
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                    {this.state.showTimeDropdown && (
+                      <div style={{
+                        position: 'fixed',
+                        top: this.timeDropdownRef ? this.getDropdownPosition(this.timeDropdownRef.querySelector('input')).top : 'auto',
+                        left: this.timeDropdownRef ? this.getDropdownPosition(this.timeDropdownRef.querySelector('input')).left : 'auto',
+                        zIndex: 9997,
+                        background: 'white',
+                        border: '1px solid #ddd',
+                        borderRadius: '8px',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                        padding: '12px'
+                      }}>
+                        <div className="time-columns" style={{display: 'flex', gap: '12px'}}>
+                          <div className="time-column">
+                            <div className="time-column-header" style={{fontWeight: 'bold', textAlign: 'center', padding: '8px', borderBottom: '1px solid #eee', marginBottom: '8px'}}>Hour</div>
+                            <div className="time-options" style={{maxHeight: '200px', overflowY: 'auto'}}>
+                              {Array.from({length: 24}, (_, i) => {
+                                const hour = i.toString().padStart(2, '0');
+                                return (
+                                  <div 
+                                    key={hour} 
+                                    className="time-option"
+                                    onClick={() => this.handleHourSelect(hour)}
+                                    style={{
+                                      padding: '6px 12px',
+                                      cursor: 'pointer',
+                                      borderRadius: '4px',
+                                      margin: '2px 0',
+                                      textAlign: 'center'
+                                    }}
+                                    onMouseEnter={e => e.target.style.background = '#f5f5f5'}
+                                    onMouseLeave={e => e.target.style.background = 'transparent'}
+                                  >
+                                    {hour}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          <div className="time-column">
+                            <div className="time-column-header" style={{fontWeight: 'bold', textAlign: 'center', padding: '8px', borderBottom: '1px solid #eee', marginBottom: '8px'}}>Min</div>
+                            <div className="time-options" style={{maxHeight: '200px', overflowY: 'auto'}}>
+                              {Array.from({length: 60}, (_, i) => {
+                                const minute = i.toString().padStart(2, '0');
+                                return (
+                                  <div 
+                                    key={minute} 
+                                    className="time-option"
+                                    onClick={() => this.handleMinuteSelect(minute)}
+                                    style={{
+                                      padding: '6px 12px',
+                                      cursor: 'pointer',
+                                      borderRadius: '4px',
+                                      margin: '2px 0',
+                                      textAlign: 'center'
+                                    }}
+                                    onMouseEnter={e => e.target.style.background = '#f5f5f5'}
+                                    onMouseLeave={e => e.target.style.background = 'transparent'}
+                                  >
+                                    {minute}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <span style={{fontWeight: 600, margin: '0 4px', position: 'relative', zIndex: 1}}>-</span>
+                  <input
+                    className="themed-input"
+                    type="text"
+                    value={this.state.localEvent.TimeEnd || ''}
+                    onChange={e => this.handleFieldChange('TimeEnd', e.target.value)}
+                    style={{ border: 'none', borderBottom: '2px solid #4f46e5', borderRadius: 0, color: '#222', width: '75px', minWidth: '75px', fontWeight: 400, background: 'transparent', outline: 'none', padding: '4px 8px 4px 0', caretColor: '#4f46e5', position: 'relative', zIndex: 1 }}
+                    placeholder="End"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                </div>
               </div>
             </form>
           ) : (
@@ -313,7 +563,7 @@ class UpcomingEventCard extends Component {
               {/* Organizer removed from display mode */}
             </>
           )}
-          {(expanded) && (
+          {(expanded && !editing) && (
             <div className="upcoming-event-participants-list">
               <div className="participants-list-scroll">
                 <ParticipantList

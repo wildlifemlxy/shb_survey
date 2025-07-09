@@ -8,7 +8,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 4000;
+  z-index: 4000 !important;
 }
 
 .modal-content {
@@ -27,6 +27,8 @@
   flex-direction: column;
   position: relative;
   padding: 20px; /* Added padding for better spacing */
+  overflow: visible;
+  z-index: 1000;
 }
 
 /* Header: Fixed height, contains title, navigation, progress */
@@ -47,6 +49,8 @@
   background-color: #f9f9f9; /* Light background */
   border-radius: 6px;
   min-height: 400px; /* Ensure enough vertical space */
+  overflow: visible;
+  position: relative;
 }
 
 /* Sub-section 1: Navigation controls and progress bar */
@@ -63,6 +67,8 @@
   overflow-y: auto;
   min-height: 450px;
   padding: 8px 0;
+  overflow: visible;
+  position: relative;
 }
 
 .modal-body-form fieldset {
@@ -73,6 +79,8 @@
   background: #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   min-height: 300px; /* Ensure enough space for form content */
+  overflow: visible;
+  position: relative;
 }
 
 /* Form group styling */
@@ -992,30 +1000,68 @@ input[type="date"]::-webkit-clear-button {
 .observation-form-row {
   display: flex;
   gap: 20px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  align-items: flex-start;
 }
 .observation-form-field {
-  flex: 1 1 0;
+  flex: 1 1 calc(50% - 10px); /* Ensure exactly 50% width minus gap */
+  min-width: 0; /* Allow field to shrink */
+  position: relative; /* Enable z-index stacking for dropdowns */
 }
 .observation-form-field.full-width {
-  flex: 0 0 100%;
+  flex: 1 1 100%;
+  max-width: 100%;
 }
 
-/* Location combobox styling */
+/* Ensure form fields have proper stacking context for overlapping dropdowns */
+.observation-form-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: #495057;
+  font-size: 0.9rem;
+}
+
+.observation-form-field input,
+.observation-form-field select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background-color: #fff;
+  font-size: 0.9rem;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  position: relative;
+  z-index: 1;
+}
+
+.observation-form-field input:focus,
+.observation-form-field select:focus {
+  border-color: #80bdff;
+  outline: 0;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  z-index: 1000; /* Ensure focused fields are above others */
+}
+
+/* Location combobox styling with enhanced dropdown overlapping */
 .custom-combobox {
   position: relative;
   width: 100%;
+  z-index: 3;
 }
 
 .custom-combobox input {
   padding-right: 30px; /* Make room for the dropdown arrow */
   background-color: #fff;
   transition: border-color 0.2s, box-shadow 0.2s;
+  position: relative;
+  z-index: 3;
 }
 
 .custom-combobox input:focus {
   border-color: #80bdff;
   box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  z-index: 9999; /* High z-index for focused inputs to ensure dropdown overlaps */
 }
 
 .custom-combobox input.error-input {
@@ -1024,6 +1070,7 @@ input[type="date"]::-webkit-clear-button {
 
 .custom-combobox input.error-input:focus {
   box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+  z-index: 9999;
 }
 
 .combobox-arrow {
@@ -1035,13 +1082,14 @@ input[type="date"]::-webkit-clear-button {
   color: #666;
   font-size: 10px;
   transition: color 0.2s;
+  z-index: 2;
 }
 
 .custom-combobox:hover .combobox-arrow {
   color: #333;
 }
 
-/* Chrome and Edge-specific styling to fix datalist dropdown icon */
+/* Chrome and Edge-specific styling to fix datalist dropdown icon and positioning */
 input::-webkit-calendar-picker-indicator {
   opacity: 0;
   position: absolute;
@@ -1049,6 +1097,41 @@ input::-webkit-calendar-picker-indicator {
   width: 100%;
   height: 100%;
   cursor: pointer;
+  z-index: 999999; /* Extremely high z-index for datalist dropdown */
+}
+
+/* Enhanced datalist dropdown styling for better overlapping */
+input[list] {
+  position: relative;
+  z-index: 1;
+}
+
+input[list]:focus {
+  z-index: 999999; /* Ensure dropdown appears above all other elements */
+}
+
+/* Datalist options styling (browser-specific) */
+datalist {
+  position: absolute;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 999999; /* Ensure datalist appears above everything */
+}
+
+/* Webkit-specific datalist styling */
+input[list]::-webkit-list-button {
+  opacity: 0;
+}
+
+/* Firefox-specific datalist enhancement */
+@-moz-document url-prefix() {
+  input[list] {
+    background-image: none; /* Remove default arrow */
+  }
 }
 
 /* Firefox-specific styling */
@@ -1144,15 +1227,22 @@ input::-webkit-calendar-picker-indicator {
   margin-top: 5px;
 }
 
-/* Positioning for custom location input and datalist dropdown */
-.custom-select-wrapper {
+/* Positioning for custom location input and datalist dropdown with enhanced overlapping */
+. {
   position: relative;
   width: 100%;
+  z-index: 1;
 }
 
 .location-input {
   width: 100%;
   padding-right: 25px; /* Make room for the dropdown indicator */
+  position: relative;
+  z-index: 1;
+}
+
+.location-input:focus {
+  z-index: 999999; /* Ensure dropdown appears above all other elements */
 }
 
 .custom-select-dropdown-indicator {
@@ -1163,23 +1253,125 @@ input::-webkit-calendar-picker-indicator {
   pointer-events: none; /* Make sure clicks pass through to the input */
   color: #666;
   font-size: 10px;
+  z-index: 2;
 }
 
-/* Fix datalist dropdown positioning across browsers */
+/* Fix datalist dropdown positioning across browsers with maximum z-index */
 input[list]::-webkit-calendar-picker-indicator {
-  position: relative; /* This helps with positioning in webkit browsers */
-  z-index: 1;
+  position: absolute;
+  z-index: 999999; /* Maximum z-index for dropdown */
   opacity: 0; /* Hide the default indicator */
   width: 100%;
   height: 100%;
   left: 0;
   top: 0;
-  position: absolute;
   cursor: pointer;
+}
+
+/* Enhanced dropdown positioning for all form fields */
+.observation-form-field input[list],
+.observation-form-field select {
+  position: relative;
+}
+
+.observation-form-field input[list]:focus,
+.observation-form-field select:focus {
+  z-index: 999999; /* Ensure dropdowns always appear on top */
+  position: relative;
+}
+
+/* Ensure card overflow doesn't hide dropdowns */
+.observation-card {
+  overflow: visible; /* Allow dropdowns to extend outside card boundaries */
+}
+
+.observation-cards-container {
+  overflow-y: auto;
+  overflow-x: visible; /* Allow horizontal overflow for dropdowns */
 }
 
 /* Custom styling for Others placeholder */
 input[placeholder="Enter your custom location"] {
   font-style: italic;
   color: #666;
+}
+
+/* Additional rules for proper dropdown overlapping and form layout */
+
+/* Ensure modal content doesn't clip dropdowns */
+.modal-content {
+  overflow: visible;
+  position: relative;
+  z-index: 1000;
+}
+
+.modal-body {
+  overflow: visible;
+  position: relative;
+}
+
+.modal-body-form {
+  overflow: visible;
+  position: relative;
+}
+
+/* Prevent form fieldsets from clipping dropdowns */
+.modal-body-form fieldset {
+  overflow: visible;
+  position: relative;
+}
+
+/* Ensure consistent spacing for 2-field rows */
+.observation-form-row:last-child {
+  margin-bottom: 0;
+}
+
+/* Handle single field in a row (should take full width) */
+.observation-form-row .observation-form-field:only-child {
+  flex: 1 1 100%;
+  max-width: 100%;
+}
+
+/* Ensure dropdown lists have proper positioning context */
+select {
+  position: relative;
+  z-index: 1;
+}
+
+select:focus {
+  z-index: 999999;
+}
+
+/* Time input specific styling to ensure proper dropdown behavior */
+input[type="time"] {
+  position: relative;
+  z-index: 1;
+}
+
+input[type="time"]:focus {
+  z-index: 999999;
+}
+
+/* Date input specific styling */
+input[type="date"] {
+  position: relative;
+  z-index: 1;
+}
+
+input[type="date"]:focus {
+  z-index: 999999;
+}
+
+/* Ensure all form inputs have proper stacking context */
+.observation-form-field input,
+.observation-form-field select,
+.observation-form-field textarea {
+  position: relative;
+  z-index: 1;
+}
+
+.observation-form-field input:focus,
+.observation-form-field select:focus,
+.observation-form-field textarea:focus {
+  z-index: 999999;
 }
