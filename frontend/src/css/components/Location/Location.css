@@ -47,6 +47,45 @@ input[list]::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 
+/* Make datalist options show across the full width of the input */
+datalist {
+  width: 100%;
+  display: block; /* Ensure it takes full width */
+}
+
+option {
+  width: 100%; /* Ensure options take full width */
+  padding: 8px; /* Add padding for better visibility */
+}
+
+/* Style for time inputs to make the picker cover full width */
+input[type="time"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  left: 0;
+  top: 0;
+  cursor: pointer;
+}
+
+input[type="time"] {
+  position: relative;
+  width: 100%;
+  cursor: pointer;
+}
+
+/* Style for date inputs to make the picker cover full width */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  left: 0;
+  top: 0;
+  cursor: pointer;
+}
+
 /* Firefox - specific fixes */
 @-moz-document url-prefix() {
   .location-input {

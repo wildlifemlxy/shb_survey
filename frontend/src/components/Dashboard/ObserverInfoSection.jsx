@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import '../../css/components/Location/Location.css'; // Import the new CSS file for location styling
+import '../../css/components/Form/FormControls.css'; // Import common form controls CSS
 
 class ObserverInfoSection extends Component {
   constructor(props) {
