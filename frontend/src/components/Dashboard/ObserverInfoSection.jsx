@@ -1,6 +1,31 @@
 import React, { Component } from 'react';
+import '../../css/components/Location/Location.css'; // Import the new CSS file for location styling
 
 class ObserverInfoSection extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      isOthersSelected: false,
+      parksList: [
+        "Bidadari Park",
+        "Bukit Timah Nature Park",
+        "Bukit Batok Nature Park",
+        "Gillman Barracks",
+        "Hindhede Nature Park",
+        "Mandai Boardwalk",
+        "Pulau Ubin",
+        "Rifle Range Nature Park",
+        "Rail Corridor (Kranji)",
+        "Rail Corridor (Hillview)",
+        "Rail Corridor (Bukit Timah)",
+        "Singapore Botanic Gardens",
+        "Springleaf Nature Park",
+        "Sungei Buloh Wetland Reserve",
+        "Windsor Nature Park",
+        "Others"
+      ]
+    };
+  }
   
   // Helper method to get current user's name from localStorage
   getCurrentUserName = () => {
@@ -36,19 +61,77 @@ class ObserverInfoSection extends Component {
     }
   }
 
+  // Handle location change, including special case for "Others"
+  handleLocationChange = (e) => {
+    const value = e.target.value;
+    
+    // Check if "Others" is selected or entered
+    const isOthers = value === 'Others';
+    
+    // Update state to show the placeholder
+    if (isOthers !== this.state.isOthersSelected) {
+      this.setState({ isOthersSelected: isOthers });
+    }
+    
+    // If "Others" is selected, clear the value but keep "Others" as the placeholder
+    if (this.props.onInputChange) {
+      // Create a synthetic event object with target.name and target.value
+      const syntheticEvent = {
+        target: {
+          name: 'Location',
+          value: isOthers ? '' : value, // If "Others" is selected, set value to empty string
+          placeholder: isOthers ? 'Others' : 'Select or enter location'
+        }
+      };
+      this.props.onInputChange(syntheticEvent);
+    }
+  }
+
+  // Handle when location input is focused
+  handleLocationFocus = () => {
+    // If it's already Others, keep it that way
+    if (this.props.newSurvey && this.props.newSurvey.Location === 'Others') {
+      // Make sure isOthersSelected is true
+      if (!this.state.isOthersSelected) {
+        this.setState({ isOthersSelected: true });
+      }
+    }
+  }
+  
+  // Handle when location input loses focus
+  handleLocationBlur = () => {
+    // When "Others" is selected and user hasn't typed anything new
+    const location = (this.props.newSurvey && this.props.newSurvey.Location) || '';
+    if (location === 'Others' && this.state.isOthersSelected) {
+      // Keep "Others" visible but mark the field for custom input
+      this.setState({ isOthersSelected: true });
+    }
+  }
+
+  // Helper to render a field label with an asterisk for required fields
+  renderTitleWithAsterisk = (title) => {
+    return (
+      <div className="field-label">
+        {title} <span className="required-asterisk">*</span>
+      </div>
+    );
+  };
+
   render() {
-    const { newSurvey, onObserverNameChange, onAddObserverName, onRemoveObserverName, onInputChange, fieldErrors } = this.props;
+    const { newSurvey, onInputChange, showError, isSubmitAttempted } = this.props;
+    const { isOthersSelected, parksList } = this.state;
+    
     return (
       <div className="observer-info-section">
         {/* Observer name (multiple entry) */}
         <div className="form-group">
           <label>Observer name</label>
           {(newSurvey['Observer name'] || ['']).map((name, idx) => (
-            <div key={idx} className="observer-name-row" style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
+            <div key={idx} className="observer-name-row">
               <input
                 type="text"
                 value={name}
-                onChange={e => onObserverNameChange(idx, e.target.value)}
+                onChange={e => this.props.onObserverNameChange(idx, e.target.value)}
                 className="form-control"
                 placeholder={`Observer name${(newSurvey['Observer name'] || []).length > 1 ? ` #${idx + 1}` : ''}`}
                 style={{ flex: 1 }}
@@ -57,11 +140,8 @@ class ObserverInfoSection extends Component {
                 <button
                   type="button"
                   className="remove-btn observer-btn"
-                  onClick={() => onRemoveObserverName(idx)}
+                  onClick={() => this.props.onRemoveObserverName(idx)}
                   aria-label="Remove observer"
-                  style={{ minWidth: 32, minHeight: 32, fontSize: '1.2rem', marginLeft: 4, background: '#fff', color: '#d32f2f', border: '2px solid #d32f2f', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, boxShadow: '0 2px 8px #f8d7da33', transition: 'background 0.18s, color 0.18s, border 0.18s' }}
-                  onMouseOver={e => { e.currentTarget.style.background = '#ffeaea'; }}
-                  onMouseOut={e => { e.currentTarget.style.background = '#fff'; }}
                 >
                   -
                 </button>
@@ -72,87 +152,82 @@ class ObserverInfoSection extends Component {
                   className="add-btn observer-btn"
                   onClick={this.handleAddObserverName}
                   aria-label="Add observer"
-                  style={{ minWidth: 32, minHeight: 32, fontSize: '1.2rem', marginLeft: 4, background: '#fff', color: '#388e3c', border: '2px solid #388e3c', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, boxShadow: '0 2px 8px #e3fbe3', transition: 'background 0.18s, color 0.18s, border 0.18s' }}
-                  onMouseOver={e => { e.currentTarget.style.background = '#e3fbe3'; }}
-                  onMouseOut={e => { e.currentTarget.style.background = '#fff'; }}
                 >
                   +
                 </button>
               )}
             </div>
           ))}
-          {fieldErrors && fieldErrors['Observer name'] && (
-            <div className="error-message">{fieldErrors['Observer name']}</div>
+          {this.props.fieldErrors && this.props.fieldErrors['Observer name'] && (
+            <div className="error-message">{this.props.fieldErrors['Observer name']}</div>
           )}
         </div>
-        {/* Location */}
+        
+        {/* Location with datalist */}
         <div className="form-group">
-          <label>Location
+          <label htmlFor="location-input">Location</label>
+          <div className="custom-combobox">
             <input
+              id="location-input"
               type="text"
               name="Location"
               value={newSurvey['Location'] || ''}
-              onChange={onInputChange}
-              className="form-control"
-              placeholder="Enter location"
+              onChange={this.handleLocationChange}
+              onFocus={this.handleLocationFocus}
+              onBlur={this.handleLocationBlur}
+              className={`form-control ${this.props.fieldErrors && this.props.fieldErrors['Location'] ? 'input-error' : ''}`}
+              placeholder={isOthersSelected ? "Others" : "Select or type a location"}
+              list="parks-list"
+              autoComplete="off"
             />
-          </label>
-          {fieldErrors && fieldErrors['Location'] && (
-            <div className="error-message">{fieldErrors['Location']}</div>
+            <datalist id="parks-list">
+              {parksList.map((park, index) => (
+                <option key={index} value={park} />
+              ))}
+            </datalist>
+            <div className="combobox-arrow">▼</div>
+          </div>
+          {this.props.fieldErrors && this.props.fieldErrors['Location'] && (
+            <div className="error-message">{this.props.fieldErrors['Location']}</div>
           )}
         </div>
+        
         {/* Date */}
         <div className="form-group">
-          <label>Date
-            <input
-              type="date"
-              name="Date"
-              value={newSurvey['Date'] || ''}
-              onChange={onInputChange}
-              className="form-control"
-              placeholder="DD/MM/YYYY"
-              autoComplete="off"
-              style={{
-                colorScheme: 'light',
-                position: 'relative'
-              }}
-              onFocus={(e) => {
-                e.target.showPicker && e.target.showPicker();
-              }}
-            />
-          </label>
-          {fieldErrors && fieldErrors['Date'] && (
-            <div className="error-message">{fieldErrors['Date']}</div>
+          <label>Date</label>
+          <input
+            type="date"
+            name="Date"
+            value={newSurvey['Date'] || ''}
+            onChange={onInputChange}
+            className={`form-control ${this.props.fieldErrors && this.props.fieldErrors['Date'] ? 'input-error' : ''}`}
+            placeholder="DD/MM/YYYY"
+            autoComplete="off"
+            style={{
+              position: 'relative'
+            }}
+            onFocus={(e) => {
+              e.target.showPicker && e.target.showPicker();
+            }}
+          />
+          {this.props.fieldErrors && this.props.fieldErrors['Date'] && (
+            <div className="error-message">{this.props.fieldErrors['Date']}</div>
           )}
-          <style jsx>{`
-            input[type="date"]::-webkit-calendar-picker-indicator {
-              opacity: 0;
-              position: absolute;
-              right: 0;
-              width: 100%;
-              height: 100%;
-              cursor: pointer;
-            }
-            input[type="date"]::-webkit-inner-spin-button,
-            input[type="date"]::-webkit-clear-button {
-              display: none;
-            }
-          `}</style>
         </div>
+        
         {/* Number of Observation */}
         <div className="form-group">
-          <label>Number of Observation
-            <input
-              type="text"
-              name="Number of Observation"
-              value={newSurvey['Number of Observation'] || ''}
-              onChange={onInputChange}
-              className="form-control"
-              placeholder="e.g. 1, 2, 3..."
-            />
-          </label>
-          {fieldErrors && fieldErrors['Number of Observation'] && (
-            <div className="error-message">{fieldErrors['Number of Observation']}</div>
+          <label>Number of Observation</label>
+          <input
+            type="text"
+            name="Number of Observation"
+            value={newSurvey['Number of Observation'] || ''}
+            onChange={onInputChange}
+            className={`form-control ${this.props.fieldErrors && this.props.fieldErrors['Number of Observation'] ? 'input-error' : ''}`}
+            placeholder="e.g. 1, 2, 3..."
+          />
+          {this.props.fieldErrors && this.props.fieldErrors['Number of Observation'] && (
+            <div className="error-message">{this.props.fieldErrors['Number of Observation']}</div>
           )}
         </div>
       </div>

@@ -7,16 +7,20 @@ class NewSurveyButton extends Component {
       <button
         type="button"
         style={{
-          background: '#1976d2',
-          color: '#fff',
-          padding: '8px 16px',
-          borderRadius: 6,
-          textDecoration: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          padding: '0.75rem 1.5rem',
+          background: 'linear-gradient(135deg, var(--primary-green), var(--primary-green-dark))',
+          color: 'white',
+          border: 'none',
+          borderRadius: 'var(--radius-lg)',
           fontWeight: 600,
-          fontSize: 15,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-          transition: 'background 0.2s',
-          marginLeft: 16
+          fontSize: '0.875rem',
+          cursor: 'pointer',
+          transition: 'all var(--transition-medium)',
+          fontFamily: 'inherit',
+          boxShadow: 'var(--shadow-md)'
         }}
         onClick={onClick}
       >

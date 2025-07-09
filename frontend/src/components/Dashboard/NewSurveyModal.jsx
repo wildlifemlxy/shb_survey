@@ -438,174 +438,200 @@ class NewSurveyModal extends Component {
     const totalSections = SECTIONS.length;
 
     return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100vw',
-        height: '100vh',
-        display: 'flex',
-        alignItems: 'center', /* Changed from flex-start to center */
-        justifyContent: 'center',
-        zIndex: 2000,
-        background: 'rgba(0,0,0,0.35)',
-        padding: 0
-      }}>
+      <div className="modal-overlay">
         <div className="modal-content">
-          {/* Header */}
-          <div className="modal-header" style={{marginBottom: 0}}>
-            <h3 style={{marginBottom: 0}}>New Survey Entry</h3>
+          {/* HEADER: Title and Close Button Only */}
+          <div className="modal-header">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+              <h3 style={{ margin: 0, marginLeft: 0 }}>New Survey Entry</h3>
+              <button
+                type="button"
+                onClick={this.handleCancel}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  color: '#666',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  transition: 'all 0.2s',
+                  marginRight: 0
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = '#f0f0f0';
+                  e.target.style.color = '#333';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = 'transparent';
+                  e.target.style.color = '#666';
+                }}
+                aria-label="Close modal"
+              >
+                ×
+              </button>
+            </div>
           </div>
 
-          {/* Body */}
-          <div className="modal-body" style={{margin: '32px 0 0 0', maxHeight: 'calc(80vh - 100px)', overflowY: 'auto'}}>
-            {/* Section navigation and progress at the top of the body */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, margin: '0 0 18px 0' }}>
-              {SECTIONS.map((s, idx) => (
-                <button
-                  key={s.key}
-                  type="button"
-                  onClick={() => {
-                    // Validate before switching tab
-                    let errors = {};
-                    if (currentSection === 0) {
-                      errors = this.validateObserverSection();
-                    } else if (currentSection === 1) {
-                      errors = this.validateObservationSection();
-                    }
-                    if (Object.keys(errors).length > 0) {
-                      this.setState({ errorMessages: errors });
-                      return;
-                    }
-                    this.setState({ currentSection: idx, errorMessages: {} });
-                  }}
-                  style={{
-                    background: idx === currentSection ? '#3949ab' : '#e3e7fd',
-                    color: idx === currentSection ? '#fff' : '#3949ab',
-                    border: 'none',
-                    borderRadius: 6,
-                    padding: '6px 14px',
-                    fontWeight: 500,
-                    fontSize: '0.98rem',
-                    cursor: 'pointer',
-                    transition: 'background 0.18s, color 0.18s',
-                  }}
-                >
-                  {s.legend}
-                </button>
-              ))}
-            </div>
-            <div style={{ width: '100%', height: 6, background: '#e3e7fd', borderRadius: 4, margin: '0 0 10px 0' }}>
-              <div
-                style={{
-                  width: `${((currentSection + 1) / totalSections) * 100}%`,
-                  height: '100%',
-                  background: '#3949ab',
-                  borderRadius: 4,
-                  transition: 'width 0.3s',
-                }}
-              />
-            </div>
-            <div style={{ textAlign: 'center', margin: '0 0 18px 0', color: '#3949ab', fontWeight: 500 }}>
-              Page {currentSection + 1} of {totalSections}
+          {/* BODY: Navigation/Progress and Form Content */}
+          <div className="modal-body">
+            {/* Sub-section 1: Navigation Controls and Progress */}
+            <div className="modal-body-controls">
+              {/* Section Navigation Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
+                {SECTIONS.map((s, idx) => (
+                  <button
+                    key={s.key}
+                    type="button"
+                    style={{
+                      background: idx === currentSection ? '#007bff' : '#f8f9fa',
+                      color: idx === currentSection ? '#fff' : '#333',
+                      border: '1px solid #ccc',
+                      borderRadius: 4,
+                      padding: '6px 14px',
+                      fontWeight: 500,
+                      fontSize: '0.9rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    {s.legend}
+                  </button>
+                ))}
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="modal-progress-container" style={{ margin: '0 auto 10px auto' }}>
+                <div className="modal-progress-bar">
+                  <div 
+                    className="modal-progress-fill"
+                    style={{
+                      width: `${((currentSection + 1) / totalSections) * 100}%`
+                    }}
+                  />
+                </div>
+              </div>
+              
+              {/* Page Number */}
+              <div className="modal-page-number" style={{ textAlign: 'center', marginBottom: 0 }}>
+                Page {currentSection + 1} of {totalSections}
+              </div>
             </div>
 
-            {/* Actual form fields and navigation at the bottom of the body */}
-            <form onSubmit={this.handleSubmit} style={{ position: 'relative' }}
-              onTouchStart={this.handleTouchStart}
-              onTouchMove={this.handleTouchMove}
-              onTouchEnd={this.handleTouchEnd}
-            >
-              <div className="modal-form-flex">
-                {/* Navigation arrows absolutely positioned and overlapping fields */}
-                {!isFirst && (
-                  <button
-                    type="button"
-                    onClick={this.handleBack}
-                    className="modal-nav-arrow left"
-                    aria-label="Previous section"
-                  >
-                    {'<'}
-                  </button>
-                )}
-                <div className="modal-form-fields">
-                  <fieldset style={{ marginBottom: 0, border: 'none', padding: 0 }}>
-                    <legend className="modal-section-legend">{section.legend}</legend>
-                    {section.key === 'observer' && (
-                      <ObserverInfoSection
-                        newSurvey={newSurvey}
-                        onObserverNameChange={this.handleObserverNameChange}
-                        onAddObserverName={this.handleAddObserverName}
-                        onRemoveObserverName={this.handleRemoveObserverName}
-                        onInputChange={this.handleInputChange}
-                        onNumberOfObservationChange={this.handleNumberOfObservationChange}
-                        fieldErrors={errorMessages}
-                      />
-                    )}
-                    {section.key === 'observation' && (
-                      <ObservationDetailsSection
-                        newSurvey={newSurvey}
-                        onObservationDetailChange={this.handleObservationDetailChange}
-                        onDeleteObservationRow={(idx) => {
-                          const details = newSurvey['Observation Details'].filter((_, i) => i !== idx);
-                          this.setState(prevState => ({
-                            newSurvey: {
-                              ...prevState.newSurvey,
-                              'Observation Details': details.length ? details : [{}],
-                              'Number of Observation': details.length ? String(details.length) : '1',
-                            },
-                          }));
-                        }}
-                        fieldErrors={currentSection === 1 ? errorMessages : {}}
-                      />
-                    )}
-                    {section.key === 'height' && (
-                      <SubmissionSummarySection newSurvey={newSurvey} />
-                    )}
-                    {/* Render other fields for other sections */}
-                    {section.key !== 'observer' && section.key !== 'observation' && section.key !== 'height' && section.fields.map((key) => (
-                      <div key={key} style={{ marginBottom: 18 }}>
-                        <label>
-                          {key}
-                          <input
-                            type="text"
-                            name={key}
-                            value={newSurvey[key]}
-                            onChange={this.handleInputChange}
-                            required={key !== 'Activity Details'}
-                          />
-                        </label>
-                      </div>
-                    ))}
-                  </fieldset>
+            {/* Sub-section 2: Form Content */}
+            <div className="modal-body-form">
+              <form onSubmit={this.handleSubmit}
+                onTouchStart={this.handleTouchStart}
+                onTouchMove={this.handleTouchMove}
+                onTouchEnd={this.handleTouchEnd}
+              >
+                {/* Mid-form navigation */}
+                <div className="modal-mid-nav">
+                  {!isFirst ? (
+                    <button
+                      type="button"
+                      onClick={this.handleBack}
+                      className="modal-mid-nav-btn modal-mid-nav-left"
+                    >
+                      ←
+                    </button>
+                  ) : (
+                    <div className="modal-mid-nav-spacer"></div>
+                  )}
+                  
+                  {!isLast ? (
+                    <button
+                      type="button"
+                      onClick={this.handleNext}
+                      className="modal-mid-nav-btn modal-mid-nav-right"
+                    >
+                      →
+                    </button>
+                  ) : (
+                    <div className="modal-mid-nav-spacer"></div>
+                  )}
                 </div>
-                {!isLast && (
-                  <button
-                    type="button"
-                    onClick={this.handleNext}
-                    className="modal-nav-arrow right"
-                    aria-label="Next section"
-                  >
-                    {'>'}
-                  </button>
-                )}
-              </div>
-              {/* Footer: Cancel/Save */}
-              {section.key === 'height' ? (
-                <div className="modal-footer modal-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 32 }}>
-                  <button type="button" onClick={this.handleCancel}>Cancel</button>
-                  <button type="submit" onClick={() => this.handleSubmit()}>Submit</button>
-                </div>
-              ) : section.key === 'observation' ? (
-                <div className="modal-footer modal-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 32 }}>
-                  <button type="button" onClick={this.handleCancel}>Cancel</button>
-                </div>
+
+                <fieldset>
+                  <legend>{section.legend}</legend>
+                  {section.key === 'observer' && (
+                    <ObserverInfoSection
+                      newSurvey={newSurvey}
+                      onObserverNameChange={this.handleObserverNameChange}
+                      onAddObserverName={this.handleAddObserverName}
+                      onRemoveObserverName={this.handleRemoveObserverName}
+                      onInputChange={this.handleInputChange}
+                      onNumberOfObservationChange={this.handleNumberOfObservationChange}
+                      fieldErrors={errorMessages}
+                    />
+                  )}
+                  {section.key === 'observation' && (
+                    <ObservationDetailsSection
+                      newSurvey={newSurvey}
+                      onObservationDetailChange={this.handleObservationDetailChange}
+                      onDeleteObservationRow={(idx) => {
+                        const details = newSurvey['Observation Details'].filter((_, i) => i !== idx);
+                        this.setState(prevState => ({
+                          newSurvey: {
+                            ...prevState.newSurvey,
+                            'Observation Details': details.length ? details : [{}],
+                            'Number of Observation': details.length ? String(details.length) : '1',
+                          },
+                        }));
+                      }}
+                      fieldErrors={currentSection === 1 ? errorMessages : {}}
+                    />
+                  )}
+                  {section.key === 'height' && (
+                    <SubmissionSummarySection newSurvey={newSurvey} />
+                  )}
+                </fieldset>
+              </form>
+            </div>
+          </div>
+
+          {/* FOOTER: Navigation and Actions */}
+          <div className="modal-footer">
+            {/* Navigation arrows */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              {!isFirst ? (
+                <button
+                  type="button"
+                  onClick={this.handleBack}
+                  className="modal-nav-arrow"
+                >
+                  ← Back
+                </button>
               ) : (
-                <div className="modal-footer modal-actions" style={{ justifyContent: 'flex-end', marginTop: 32 }}>
-                  <button type="button" onClick={this.handleCancel}>Cancel</button>
-                </div>
+                <div></div>
               )}
-            </form>
+
+              {!isLast && (
+                <button
+                  type="button"
+                  onClick={this.handleNext}
+                  className="modal-nav-arrow"
+                >
+                  Next →
+                </button>
+              )}
+            </div>
+            
+            {/* Action buttons */}
+            {section.key === 'height' ? (
+              <div className="modal-actions">
+                <button type="button" onClick={this.handleCancel}>Cancel</button>
+                <button type="submit" onClick={this.handleSubmit}>Submit</button>
+              </div>
+            ) : section.key === 'observation' ? (
+              <div className="modal-actions">
+                <button type="button" onClick={this.handleCancel}>Cancel</button>
+              </div>
+            ) : (
+              <div className="modal-actions" style={{ justifyContent: 'flex-end' }}>
+                <button type="button" onClick={this.handleCancel}>Cancel</button>
+              </div>
+            )}
           </div>
         </div>
       </div>

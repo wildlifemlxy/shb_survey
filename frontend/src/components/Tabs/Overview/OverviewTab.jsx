@@ -306,9 +306,9 @@ class OverviewTab extends Component {
             >
               <div className="stat-content">
                 <div className="stat-header">
-                  <h3>Survey Overview</h3>
+                  <h3>Number of Surveys</h3>
                 </div>
-                <div className="stat-value">{filteredData.length} Observations</div>
+                <div className="stat-value">{filteredData.length} Data Points</div>
                 {!expandedCards.overview && (
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.5rem 0 0 0' }}>
                     {successRate}% success rate • {uniqueLocations} locations • {uniqueDates} survey days
