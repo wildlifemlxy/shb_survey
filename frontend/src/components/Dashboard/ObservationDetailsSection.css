@@ -263,3 +263,45 @@
   border-right: 1px solid #ddd;
   z-index: 1000005 !important; /* Higher than all other dropdowns */
 }
+
+/* Observation dropdown styles for SeenHeard and Activity fields */
+.observation-dropdown-container {
+  position: relative;
+  overflow: visible;
+  z-index: 1000;
+}
+
+.observation-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #ccc;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000003 !important; /* Higher than most other elements */
+}
+
+.observation-dropdown-option {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.95rem;
+}
+
+.observation-dropdown-option:last-child {
+  border-bottom: none;
+}
+
+.observation-dropdown-option:hover {
+  background-color: #f8f9fa;
+}
+
+.observation-dropdown-option:active {
+  background-color: #e9ecef;
+}
