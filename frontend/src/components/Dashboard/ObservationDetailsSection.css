@@ -222,3 +222,26 @@
     width: 100%;
   }
 }
+
+/* Time dropdown specific styles */
+.time-dropdown {
+  min-height: 200px;
+  max-height: 250px;
+}
+
+.time-dropdown .location-option:hover {
+  background: #f0f0f0;
+}
+
+.time-dropdown .location-option {
+  cursor: pointer;
+  transition: background 0.2s;
+  font-family: monospace;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* Time dropdown headers */
+.time-dropdown > div:first-child {
+  border-right: 1px solid #ddd;
+}

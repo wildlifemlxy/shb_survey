@@ -26,25 +26,33 @@ class ObservationDetailsSection extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      currentObservationIndex: 0
+      currentObservationIndex: 0,
+      activityPlaceholder: "Select or type activity",
+      seenHeardPlaceholder: "Select option",
+      showActivityDropdown: false,
+      showSeenHeardDropdown: false,
+      showTimeDropdown: false,
+      selectedHour: "",
+      selectedMinute: "",
+      activityOptions: ["Calling", "Feeding", "Perching", "Preening"],
+      seenHeardOptions: ["Seen", "Heard", "Not Found"],
+      hourOptions: Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')),
+      minuteOptions: Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
     };
-    // Workaround: keep a ref to the last focused datalist input
-    this._datalistFocusTimeout = null;
   }
-
-  // Workaround for Chrome/Edge bug: blur and refocus text input with datalist to prevent time picker
-  handleDatalistTextFocus = (e) => {
-    // Only run if not already in the workaround
-    if (!e.target.__datalistWorkaround) {
-      e.target.__datalistWorkaround = true;
-      e.target.blur();
-      // Use a short timeout to refocus
-      this._datalistFocusTimeout = setTimeout(() => {
-        e.target.focus();
-        e.target.__datalistWorkaround = false;
-      }, 0);
-    }
-  };
+  
+  // Set refs for dropdown containers
+  setActivityDropdownRef = (node) => {
+    this.activityDropdownRef = node;
+  }
+  
+  setSeenHeardDropdownRef = (node) => {
+    this.seenHeardDropdownRef = node;
+  }
+  
+  setTimeDropdownRef = (node) => {
+    this.timeDropdownRef = node;
+  }
 
   handleNavigatePrevious = () => {
     const { currentObservationIndex } = this.state;
@@ -117,24 +125,131 @@ class ObservationDetailsSection extends Component {
   };
 
   handleTimeFieldFocus = (e) => {
-    if (e.target.showPicker) {
-      e.target.showPicker();
-    }
+    // Toggle time dropdown instead of showing native time picker
+    this.toggleTimeDropdown();
   };
 
   handleTimeBlur = (e) => {
-    // Ensure time picker is closed when clicking outside
-    if (document.activeElement !== e.target) {
-      e.target.blur();
-    }
+    // Keep this for compatibility but we'll handle dropdown closing via click outside
   };
 
   handleTimeChange = (e) => {
-    // Extract the time value from the event
+    // Handle manual input changes
     const timeValue = e.target.value;
-    // Pass it to the main field change handler
     this.handleFieldChange('Time', timeValue);
   };
+
+  // Toggle time dropdown visibility
+  toggleTimeDropdown = () => {
+    this.setState(prevState => ({
+      showTimeDropdown: !prevState.showTimeDropdown,
+      showActivityDropdown: false, // Close other dropdowns
+      showSeenHeardDropdown: false
+    }));
+  }
+
+  // Handle hour selection
+  handleHourSelect = (hour) => {
+    const currentObservation = this.getCurrentObservation();
+    const currentTime = currentObservation.Time || "";
+    const currentMinute = currentTime.includes(':') ? currentTime.split(':')[1] : "00";
+    const timeValue = `${hour}:${currentMinute}`;
+    
+    this.setState({ 
+      selectedHour: hour,
+      selectedMinute: currentMinute,
+      showTimeDropdown: false 
+    });
+    
+    this.handleFieldChange('Time', timeValue);
+  }
+
+  // Handle minute selection
+  handleMinuteSelect = (minute) => {
+    const currentObservation = this.getCurrentObservation();
+    const currentTime = currentObservation.Time || "";
+    const currentHour = currentTime.includes(':') ? currentTime.split(':')[0] : "00";
+    const timeValue = `${currentHour}:${minute}`;
+    
+    this.setState({ 
+      selectedMinute: minute,
+      selectedHour: currentHour,
+      showTimeDropdown: false 
+    });
+    
+    this.handleFieldChange('Time', timeValue);
+  }
+
+  handleActivityChange = (e) => {
+    const value = e.target.value;
+    this.handleFieldChange('Activity', value);
+  };
+
+  handleSeenHeardChange = (e) => {
+    const value = e.target.value;
+    this.handleFieldChange('SeenHeard', value);
+  };
+
+  // Toggle activity dropdown visibility
+  toggleActivityDropdown = () => {
+    this.setState(prevState => ({
+      showActivityDropdown: !prevState.showActivityDropdown,
+      showSeenHeardDropdown: false, // Close other dropdowns
+      showTimeDropdown: false
+    }));
+  }
+
+  // Toggle seen/heard dropdown visibility
+  toggleSeenHeardDropdown = () => {
+    this.setState(prevState => ({
+      showSeenHeardDropdown: !prevState.showSeenHeardDropdown,
+      showActivityDropdown: false, // Close other dropdowns
+      showTimeDropdown: false
+    }));
+  }
+
+  // Handle activity selection from dropdown
+  handleActivitySelect = (activity) => {
+    // Update placeholder if Others is selected and set appropriate value
+    const newPlaceholder = activity === "Others" ? "Others" : "Select or type activity";
+    
+    // Create a synthetic event to pass to the parent's change handler
+    const syntheticEvent = {
+      target: {
+        name: 'Activity',
+        value: activity === "Others" ? "" : activity
+      }
+    };
+    
+    this.handleFieldChange('Activity', activity === "Others" ? "" : activity);
+    
+    // Update state with new placeholder and hide dropdown
+    this.setState({ 
+      showActivityDropdown: false,
+      activityPlaceholder: newPlaceholder
+    });
+  }
+
+  // Handle seen/heard selection from dropdown
+  handleSeenHeardSelect = (option) => {
+    this.handleFieldChange('SeenHeard', option);
+    
+    // Hide the dropdown after selection
+    this.setState({ showSeenHeardDropdown: false });
+  }
+
+  // Handle clicks outside the dropdowns
+  handleClickOutside = (e) => {
+    if (this.activityDropdownRef && !this.activityDropdownRef.contains(e.target)) {
+      this.setState({ showActivityDropdown: false });
+    }
+    if (this.seenHeardDropdownRef && !this.seenHeardDropdownRef.contains(e.target)) {
+      this.setState({ showSeenHeardDropdown: false });
+    }
+    if (this.timeDropdownRef && !this.timeDropdownRef.contains(e.target)) {
+      this.setState({ showTimeDropdown: false });
+    }
+  }
 
   getObservationDetails = () => {
     const { newSurvey } = this.props;
@@ -227,11 +342,14 @@ class ObservationDetailsSection extends Component {
     );
   };
 
+  componentDidMount() {
+    // Add event listener for clicks outside the dropdowns
+    document.addEventListener('mousedown', this.handleClickOutside);
+  }
+
   componentWillUnmount() {
-    // Clear any pending timeouts when component unmounts
-    if (this._datalistFocusTimeout) {
-      clearTimeout(this._datalistFocusTimeout);
-    }
+    // Remove event listener when component unmounts
+    document.removeEventListener('mousedown', this.handleClickOutside);
   }
 
   handleNavigateToNextError = () => {
@@ -266,7 +384,18 @@ class ObservationDetailsSection extends Component {
   };
 
   render() {
-    const { currentObservationIndex } = this.state;
+    const { 
+      currentObservationIndex, 
+      activityPlaceholder, 
+      seenHeardPlaceholder, 
+      showActivityDropdown, 
+      showSeenHeardDropdown, 
+      showTimeDropdown,
+      activityOptions, 
+      seenHeardOptions,
+      hourOptions,
+      minuteOptions
+    } = this.state;
     const { fieldErrors = {} } = this.props;
     const observationDetails = this.getObservationDetails();
     const currentIndex = Math.min(currentObservationIndex, observationDetails.length - 1);
@@ -479,40 +608,88 @@ class ObservationDetailsSection extends Component {
                     <label className={`observation-form-label ${this.getErrorClass('Time')}`} htmlFor={`time-${currentIndex}`}>
                       Time*
                     </label>
-                    <input
-                      id={`time-${currentIndex}`}
-                      type="time"
-                      className={`observation-form-input time-input ${this.getErrorClass('Time')}`}
-                      value={currentObservation.Time || ''}
-                      onChange={this.handleTimeChange}
-                      onFocus={this.handleTimeFieldFocus}
-                      onBlur={this.handleTimeBlur}
-                      required
-                    />
+                    <div className="location-field-container" ref={this.setTimeDropdownRef}>
+                      <input
+                        id={`time-${currentIndex}`}
+                        type="text"
+                        className={`observation-form-input ${this.getErrorClass('Time')}`}
+                        value={currentObservation.Time || ''}
+                        onChange={this.handleTimeChange}
+                        onFocus={this.handleTimeFieldFocus}
+                        placeholder="Select time (HH:MM)"
+                        autoComplete="off"
+                        required
+                      />
+                      {showTimeDropdown && (
+                        <div className="location-dropdown time-dropdown" style={{ display: 'flex', width: '100%' }}>
+                          <div style={{ flex: 1, borderRight: '1px solid #ddd' }}>
+                            <div style={{ padding: '8px 12px', fontWeight: 'bold', borderBottom: '1px solid #ddd', backgroundColor: '#f8f9fa' }}>
+                              Hours
+                            </div>
+                            <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
+                              {hourOptions.map((hour, index) => (
+                                <div 
+                                  key={index} 
+                                  className="location-option"
+                                  onClick={() => this.handleHourSelect(hour)}
+                                  style={{ padding: '6px 12px' }}
+                                >
+                                  {hour}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ padding: '8px 12px', fontWeight: 'bold', borderBottom: '1px solid #ddd', backgroundColor: '#f8f9fa' }}>
+                              Minutes
+                            </div>
+                            <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
+                              {minuteOptions.map((minute, index) => (
+                                <div 
+                                  key={index} 
+                                  className="location-option"
+                                  onClick={() => this.handleMinuteSelect(minute)}
+                                  style={{ padding: '6px 12px' }}
+                                >
+                                  {minute}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="observation-form-field">
                     <label className={`observation-form-label ${this.getErrorClass('Activity')}`} htmlFor={`activity-${currentIndex}`}>
                       Activity*
                     </label>
-                    <input
-                      id={`activity-${currentIndex}`}
-                      type="text"
-                      className={`observation-form-input ${this.getErrorClass('Activity')}`}
-                      value={currentObservation.Activity || ''}
-                      onChange={e => this.handleFieldChange('Activity', e.target.value)}
-                      list={`activityOptions-${currentIndex}`}
-                      autoComplete="off"
-                      placeholder="Select or type activity"
-                      required
-                      onFocus={this.handleDatalistTextFocus}
-                    />
-                    <datalist id={`activityOptions-${currentIndex}`}>
-                      <option value="Calling" />
-                      <option value="Feeding" />
-                      <option value="Perching" />
-                      <option value="Preening" />
-                      <option value="Others" />
-                    </datalist>
+                    <div className="location-field-container" ref={this.setActivityDropdownRef}>
+                      <input
+                        id={`activity-${currentIndex}`}
+                        type="text"
+                        className={`observation-form-input ${this.getErrorClass('Activity')}`}
+                        value={currentObservation.Activity || ''}
+                        onChange={this.handleActivityChange}
+                        onFocus={this.toggleActivityDropdown}
+                        placeholder={activityPlaceholder}
+                        autoComplete="off"
+                        required
+                      />
+                      {showActivityDropdown && (
+                        <div className="location-dropdown">
+                          {activityOptions.map((option, index) => (
+                            <div 
+                              key={index} 
+                              className="location-option"
+                              onClick={() => this.handleActivitySelect(option)}
+                            >
+                              {option}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
                 {/* Row 5: Seen/Heard, (empty for alignment) */}
@@ -521,23 +698,32 @@ class ObservationDetailsSection extends Component {
                     <label className={`observation-form-label ${this.getErrorClass('SeenHeard')}`} htmlFor={`seenHeard-${currentIndex}`}>
                       Seen/Heard*
                     </label>
-                    <input
-                      id={`seenHeard-${currentIndex}`}
-                      type="text"
-                      className={`observation-form-input ${this.getErrorClass('SeenHeard')}`}
-                      value={currentObservation.SeenHeard || ''}
-                      onChange={e => this.handleFieldChange('SeenHeard', e.target.value)}
-                      list={`seenHeardOptions-${currentIndex}`}
-                      autoComplete="off"
-                      placeholder="Select option"
-                      required
-                      onFocus={this.handleDatalistTextFocus}
-                    />
-                    <datalist id={`seenHeardOptions-${currentIndex}`}>
-                      <option value="Seen" />
-                      <option value="Heard" />
-                      <option value="Not Found" />
-                    </datalist>
+                    <div className="location-field-container" ref={this.setSeenHeardDropdownRef}>
+                      <input
+                        id={`seenHeard-${currentIndex}`}
+                        type="text"
+                        className={`observation-form-input ${this.getErrorClass('SeenHeard')}`}
+                        value={currentObservation.SeenHeard || ''}
+                        onChange={this.handleSeenHeardChange}
+                        onFocus={this.toggleSeenHeardDropdown}
+                        placeholder={seenHeardPlaceholder}
+                        autoComplete="off"
+                        required
+                      />
+                      {showSeenHeardDropdown && (
+                        <div className="location-dropdown">
+                          {seenHeardOptions.map((option, index) => (
+                            <div 
+                              key={index} 
+                              className="location-option"
+                              onClick={() => this.handleSeenHeardSelect(option)}
+                            >
+                              {option}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   {/* Empty div for alignment in the two-column layout - intentionally empty */}
                   <div 
