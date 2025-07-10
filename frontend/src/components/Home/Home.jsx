@@ -305,7 +305,7 @@ class Home extends React.Component {
     this.setState(prevState => ({
       isUploadPopupOpen: !prevState.isUploadPopupOpen,
       uploadForm: {
-        type: 'pictures', // Default to pictures, but backend will handle mixed uploads
+        type: 'pictures',
         files: []
       }
     }));
@@ -354,31 +354,43 @@ class Home extends React.Component {
     e.currentTarget.style.backgroundColor = '#f9fafb';
     
     const files = Array.from(e.dataTransfer.files);
+    const { type } = this.state.uploadForm;
     
-    // Accept both images and videos regardless of selected type
+    // Filter files based on selected type
     const filteredFiles = files.filter(file => {
-      return file.type.startsWith('image/') || file.type.startsWith('video/');
+      if (type === 'pictures') {
+        return file.type.startsWith('image/');
+      } else if (type === 'videos') {
+        return file.type.startsWith('video/');
+      }
+      return false;
     });
     
     if (filteredFiles.length > 0) {
       this.setState(prevState => ({
         uploadForm: {
           ...prevState.uploadForm,
-          files: [...prevState.uploadForm.files, ...filteredFiles]
+          files: filteredFiles
         }
       }));
     } else {
-      alert(`Please drop image or video files only.`);
+      alert(`Please drop ${type === 'pictures' ? 'image' : 'video'} files only.`);
     }
   };
 
   // Handle file selection from input
   handleFileSelection = (e) => {
     const files = Array.from(e.target.files);
+    const { type } = this.state.uploadForm;
     
-    // Accept both images and videos regardless of selected type
+    // Filter files based on selected type
     const filteredFiles = files.filter(file => {
-      return file.type.startsWith('image/') || file.type.startsWith('video/');
+      if (type === 'pictures') {
+        return file.type.startsWith('image/');
+      } else if (type === 'videos') {
+        return file.type.startsWith('video/');
+      }
+      return false;
     });
     
     if (filteredFiles.length > 0) {
@@ -389,7 +401,7 @@ class Home extends React.Component {
         }
       }));
     } else {
-      alert(`Please select image or video files only.`);
+      alert(`Please select ${type === 'pictures' ? 'image' : 'video'} files only.`);
     }
   };
 
@@ -402,20 +414,6 @@ class Home extends React.Component {
       return;
     }
 
-    // Check total file size for very large batches
-    const totalSize = uploadForm.files.reduce((total, file) => total + file.size, 0);
-    const totalSizeMB = (totalSize / (1024 * 1024)).toFixed(1);
-    
-    if (totalSize > 1000 * 1024 * 1024) { // 1GB total
-      const proceed = confirm(
-        `You're uploading ${uploadForm.files.length} files (${totalSizeMB}MB total). ` +
-        `Large uploads may take several minutes. Continue?`
-      );
-      if (!proceed) return;
-    }
-
-    console.log(`Starting bulk upload of ${uploadForm.files.length} files (${totalSizeMB}MB total)`);
-
     // Process the upload
     this.processUpload(uploadForm);
     
@@ -424,152 +422,47 @@ class Home extends React.Component {
   };
 
   processUpload = async (formData) => {
-    const { files } = formData;
+    const { type, files } = formData;
     
     try {
-      // Show uploading message
-      this.showUploadProgressMessage(files.length);
+      // Create FormData for backend upload
+      const uploadData = new FormData();
+      uploadData.append('purpose', 'upload');
+      uploadData.append('type', type);
       
-      // Separate files by type for backend processing
-      const imageFiles = files.filter(file => file.type.startsWith('image/'));
-      const videoFiles = files.filter(file => file.type.startsWith('video/'));
-      
-      console.log(`Uploading ${files.length} files: ${imageFiles.length} images, ${videoFiles.length} videos`);
+      // Add all files to FormData
+      files.forEach(file => {
+        uploadData.append('files', file);
+      });
 
-      // Process uploads (can be done in parallel for better performance)
-      const uploadPromises = [];
+      // Upload to backend API
+      const response = await axios.post('http://localhost:3001/gallery', uploadData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      console.log('Upload response:', response.data);
 
-      // Upload images if any
-      if (imageFiles.length > 0) {
-        const imageFormData = new FormData();
-        imageFormData.append('purpose', 'upload');
-        imageFormData.append('type', 'pictures');
-        imageFiles.forEach((file, index) => {
-          imageFormData.append('files', file);
-          console.log(`Added image ${index + 1}/${imageFiles.length}: ${file.name}`);
-        });
-        uploadPromises.push(
-          axios.post('http://localhost:3001/gallery', imageFormData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-            timeout: 120000
-          })
-        );
-      }
-
-      // Upload videos if any
-      if (videoFiles.length > 0) {
-        const videoFormData = new FormData();
-        videoFormData.append('purpose', 'upload');
-        videoFormData.append('type', 'videos');
-        videoFiles.forEach((file, index) => {
-          videoFormData.append('files', file);
-          console.log(`Added video ${index + 1}/${videoFiles.length}: ${file.name}`);
-        });
-        uploadPromises.push(
-          axios.post('http://localhost:3001/gallery', videoFormData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-            timeout: 120000
-          })
-        );
-      }
-
-      // Wait for all uploads to complete
-      const responses = await Promise.all(uploadPromises);
-      console.log('Upload responses:', responses.map(r => r.data));
-
-      // Check if all uploads were successful
-      const allSuccessful = responses.every(response => response.data.success);
-      if (allSuccessful) {
+      if (response.data.success) {
         // Reload gallery items from backend
         await this.loadUploadedFiles();
         
-        // Calculate total uploaded files
-        const totalUploaded = responses.reduce((total, response) => 
-          total + (response.data.files?.length || 0), 0
-        );
-        
         // Show success message
-        this.showUploadSuccessMessage(totalUploaded);
+        alert(`${response.data.files.length} file(s) uploaded successfully!`);
       } else {
-        const errors = responses.filter(r => !r.data.success).map(r => r.data.error);
-        throw new Error(`Some uploads failed: ${errors.join(', ')}`);
+        throw new Error(response.data.error || 'Upload failed');
       }
       
     } catch (error) {
       console.error('Error uploading files:', error);
-      const errorMessage = error.code === 'ECONNABORTED' 
-        ? 'Upload timeout - try uploading fewer files at once'
-        : error.response?.data?.error || error.message;
-      alert(`Error uploading files: ${errorMessage}`);
+      alert(`Error uploading files: ${error.response?.data?.error || error.message}`);
     }
-  };
-
-  // Show upload progress message
-  showUploadProgressMessage = (fileCount) => {
-    // Remove any existing progress messages
-    const existingProgress = document.querySelector('.upload-progress-message');
-    if (existingProgress) {
-      existingProgress.remove();
-    }
-
-    // Create a progress message
-    const progressDiv = document.createElement('div');
-    progressDiv.className = 'upload-progress-message';
-    progressDiv.innerHTML = `
-      <div style="
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-        color: white;
-        padding: 1rem 1.5rem;
-        border-radius: 8px;
-        box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
-        z-index: 10000;
-        font-weight: 600;
-        max-width: 300px;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-      ">
-        <div style="
-          width: 20px;
-          height: 20px;
-          border: 2px solid rgba(255,255,255,0.3);
-          border-radius: 50%;
-          border-top-color: white;
-          animation: spin 1s ease-in-out infinite;
-        "></div>
-        <div>
-          📤 Uploading ${fileCount} file${fileCount > 1 ? 's' : ''}...<br>
-          <small style="opacity: 0.9;">Please wait, this may take a moment</small>
-        </div>
-      </div>
-      <style>
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      </style>
-    `;
-    
-    document.body.appendChild(progressDiv);
   };
 
   // Convert file to base64 for permanent storage
-  showUploadSuccessMessage = (fileCount) => {
-    // Remove any existing messages
-    const existingProgress = document.querySelector('.upload-progress-message');
-    if (existingProgress) {
-      existingProgress.remove();
-    }
-    const existingSuccess = document.querySelector('.upload-success-message');
-    if (existingSuccess) {
-      existingSuccess.remove();
-    }
-
+  showUploadSuccessMessage = () => {
     // Create a temporary success message
     const successDiv = document.createElement('div');
-    successDiv.className = 'upload-success-message';
     successDiv.innerHTML = `
       <div style="
         position: fixed;
@@ -584,19 +477,19 @@ class Home extends React.Component {
         font-weight: 600;
         max-width: 300px;
       ">
-        ✅ ${fileCount} file${fileCount > 1 ? 's' : ''} uploaded successfully!<br>
-        <small style="opacity: 0.9;">Visible in gallery and saved to server</small>
+        ✅ Files uploaded successfully!<br>
+        <small style="opacity: 0.9;">Visible in gallery and saved locally</small>
       </div>
     `;
     
     document.body.appendChild(successDiv);
     
-    // Remove after 4 seconds
+    // Remove after 3 seconds
     setTimeout(() => {
       if (document.body.contains(successDiv)) {
         document.body.removeChild(successDiv);
       }
-    }, 4000);
+    }, 3000);
   };
 
   openFullscreen = (media) => {
@@ -1600,7 +1493,7 @@ class Home extends React.Component {
                         gap: '1rem',
                         flexDirection: 'column'
                       }}>
-                        <label style={{ fontSize: '0.9rem', color: '#374151' }}>Primary Type (accepts both images and videos):</label>
+                        <label style={{ fontSize: '0.9rem', color: '#374151' }}>Type:</label>
                         <select
                           value={this.state.uploadForm.type}
                           onChange={(e) => this.handleUploadFormChange('type', e.target.value)}
@@ -1660,14 +1553,14 @@ class Home extends React.Component {
                               justifyContent: 'center',
                               fontSize: '24px'
                             }}>
-                              �
+                              {this.state.uploadForm.type === 'pictures' ? '🖼️' : '🎥'}
                             </div>
                             <div>
                               <p style={{ margin: 0, fontWeight: '600', color: '#374151' }}>
-                                Drop images and videos here or click to browse
+                                Drop multiple {this.state.uploadForm.type} here or click to browse
                               </p>
                               <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#6b7280' }}>
-                                Support for multiple JPG, PNG, GIF, MP4, MOV, AVI files
+                                Support for multiple {this.state.uploadForm.type === 'pictures' ? 'JPG, PNG, GIF' : 'MP4, MOV, AVI'} files
                               </p>
                             </div>
                           </div>
@@ -1676,7 +1569,7 @@ class Home extends React.Component {
                             id="file-input"
                             type="file"
                             multiple
-                            accept="image/*,video/*"
+                            accept={this.state.uploadForm.type === 'pictures' ? 'image/*' : 'video/*'}
                             onChange={this.handleFileSelection}
                             style={{ display: 'none' }}
                           />
@@ -1704,11 +1597,6 @@ class Home extends React.Component {
                                   fontWeight: '600'
                                 }}>
                                   {this.state.uploadForm.files.length} file{this.state.uploadForm.files.length !== 1 ? 's' : ''} selected
-                                  {this.state.uploadForm.files.length > 0 && (
-                                    <span style={{ color: '#6b7280', fontWeight: '400', marginLeft: '0.5rem' }}>
-                                      ({(this.state.uploadForm.files.reduce((total, file) => total + file.size, 0) / (1024 * 1024)).toFixed(1)}MB total)
-                                    </span>
-                                  )}
                                 </span>
                               </div>
                               <button
@@ -1737,7 +1625,7 @@ class Home extends React.Component {
                               marginTop: '0.5rem'
                             }}>
                               <label style={{ fontSize: '0.9rem', color: '#374151', fontWeight: '600' }}>
-                                Preview: ({this.state.uploadForm.files.length} file{this.state.uploadForm.files.length !== 1 ? 's' : ''}{this.state.uploadForm.files.length > 0 ? `, ${(this.state.uploadForm.files.reduce((total, file) => total + file.size, 0) / (1024 * 1024)).toFixed(1)}MB` : ''})
+                                Preview: ({this.state.uploadForm.files.length} file{this.state.uploadForm.files.length !== 1 ? 's' : ''})
                               </label>
                               <div className="upload-preview-container" style={{
                                 display: 'grid',
