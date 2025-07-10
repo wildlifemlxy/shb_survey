@@ -5,28 +5,40 @@ const parseCustomDate = require('./parseCustomDate');
 const TelegramController = require('../Controller/Telegram/telegramController');
 
 function setupTelegramFeatures(app, io) {
-  // --- Event Reminders Scheduler (10:00 AM every day) ---
-  schedule.scheduleJob('0 10 * * *', async () => {
+  // Helper function to send event reminders
+  async function sendEventReminders(timeLabel) {
     try {
-      console.log('Running event reminders scheduler at 10:00 AM');
+      console.log(`Running event reminders scheduler at ${timeLabel}`);
       const controller = new EventsController();
       const result = await controller.getAllEvents();
       const events = result.events;
       const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set to midnight for accurate date comparison
 
       for (const event of events) {
+        // Only process events with Type "Upcoming"
+        if (event.Type !== "Upcoming") {
+          console.log(`Skipping event ${event._id} - Type: ${event.Type || 'undefined'}`);
+          continue;
+        }
+
         const eventDate = event.Date;
         if (!eventDate) continue;
         const dateObj = parseCustomDate(eventDate);
         if (!dateObj) continue;
+        
+        // Set event date to midnight for accurate comparison
+        dateObj.setHours(0, 0, 0, 0);
         console.log('Parsed event date:', dateObj.toISOString());
 
         // Calculate the date 2 days before the event
         const twoDaysBefore = new Date(dateObj);
         twoDaysBefore.setDate(twoDaysBefore.getDate() - 2);
 
-        // Set both dates to midnight for date-only comparison
-        if (twoDaysBefore.getDate() === today.getDate()) {
+        // Check if today is exactly 2 days before the event
+        if (twoDaysBefore.getTime() === today.getTime()) {
+          console.log(`Sending reminder for upcoming event: ${event._id} on ${eventDate}`);
+          
           // Format event date as: Fri, Date dd Full Month YYYY
           const eventDay = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
           const eventDayNum = dateObj.getDate();
@@ -61,8 +73,13 @@ function setupTelegramFeatures(app, io) {
         }
       }
     } catch (error) {
-      console.error('Error sending event reminders:', error);
+      console.error(`Error sending event reminders at ${timeLabel}:`, error);
     }
+  }
+
+  // --- Event Reminders Scheduler (10:00 AM UTC = 6:00 PM Singapore time) ---
+  schedule.scheduleJob('0 10 * * *', async () => {
+    await sendEventReminders('10:00 UTC (18:00 Singapore time)');
   });
 
   // --- Telegram Webhook Route ---
