@@ -1269,13 +1269,34 @@
   filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.1));
 }
 
-/* Blur effect when screenshot is detected */
+/* Instant and strong blur effect when screenshot is detected */
 .screenshot-protection-active .gallery-card img,
 .screenshot-protection-active .gallery-card video,
 .screenshot-protection-active .upload-preview-item img,
-.screenshot-protection-active .upload-preview-item video {
-  filter: blur(10px) !important;
-  transition: filter 0.3s ease;
+.screenshot-protection-active .upload-preview-item video,
+.screenshot-protection-active img,
+.screenshot-protection-active video {
+  filter: blur(20px) brightness(0.3) saturate(0.2) !important;
+  transition: filter 0.05s ease !important; /* Nearly instant */
+}
+
+/* Fullscreen media blur protection - highest priority */
+.screenshot-protection-active .fullscreen-media img,
+.screenshot-protection-active .fullscreen-media video,
+body.screenshot-protection-active img[style*="maxWidth"],
+body.screenshot-protection-active video[style*="maxWidth"],
+body.screenshot-protection-active [style*="position: fixed"] img,
+body.screenshot-protection-active [style*="position: fixed"] video {
+  filter: blur(25px) brightness(0.2) contrast(0.3) saturate(0.1) !important;
+  transition: filter 0.01s ease !important; /* Instant */
+  opacity: 0.5 !important;
+}
+
+/* Emergency blur for all media when protection is active */
+body.screenshot-protection-active img:not([src*="logo"]):not([src*="icon"]),
+body.screenshot-protection-active video {
+  filter: blur(18px) brightness(0.3) !important;
+  transition: filter 0.02s ease !important;
 }
 
 /* Enhanced watermark visibility */
@@ -1306,4 +1327,67 @@
   -ms-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Real-time protection overlay */
+.protection-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: rgba(0, 0, 0, 0.9) !important;
+  z-index: 99999 !important;
+  display: none !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: white !important;
+  font-size: 2rem !important;
+}
+
+/* Show protection overlay when screenshot protection is active */
+body.screenshot-protection-active .protection-overlay {
+  display: flex !important;
+}
+
+/* Additional CSS-only protection for fullscreen media */
+[style*="position: fixed"] img,
+[style*="position: fixed"] video {
+  transition: filter 0.01s ease !important;
+}
+
+/* Blur protection triggered by class */
+body.screenshot-protection-active [style*="position: fixed"] img,
+body.screenshot-protection-active [style*="position: fixed"] video {
+  filter: blur(25px) brightness(0.1) !important;
+  opacity: 0.3 !important;
+}
+
+/* Protect against developer tools inspection */
+body.screenshot-protection-active * {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* CSS-only instant blur for all protected content */
+body.screenshot-protection-active .gallery-card img,
+body.screenshot-protection-active .gallery-card video,
+body.screenshot-protection-active .upload-preview-item img,
+body.screenshot-protection-active .upload-preview-item video {
+  filter: blur(20px) brightness(0.2) !important;
+  transition: none !important; /* No transition for instant effect */
+}
+
+/* Maximum protection for fullscreen elements */
+.fullscreen-media-wrapper.screenshot-protection-active img,
+.fullscreen-media-wrapper.screenshot-protection-active video {
+  filter: blur(30px) brightness(0.1) contrast(0.2) saturate(0.1) !important;
+  opacity: 0.2 !important;
+  transition: filter 0.005s ease !important; /* Nearly instant */
+}
+
+/* Emergency CSS protection */
+body.screenshot-protection-active img:not([src*="logo"]):not([src*="icon"]):not([alt*="logo"]):not([alt*="icon"]) {
+  filter: blur(15px) brightness(0.4) !important;
+  transition: filter 0.02s ease !important;
 }

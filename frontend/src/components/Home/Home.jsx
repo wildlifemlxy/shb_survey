@@ -186,6 +186,18 @@ class Home extends React.Component {
   // Handle window blur (potential screenshot)
   handleWindowBlur = () => {
     if (this.state.fullscreenMedia) {
+      // Apply blur effect immediately - multiple layers of protection
+      document.body.classList.add('screenshot-protection-active');
+      
+      // Force immediate style update for all media elements
+      const allMedia = document.querySelectorAll('img, video');
+      allMedia.forEach(element => {
+        if (!element.src.includes('logo') && !element.src.includes('icon')) {
+          element.style.filter = 'blur(25px) brightness(0.2) !important';
+          element.style.transition = 'filter 0.01s ease !important';
+        }
+      });
+      
       this.showScreenshotWarning();
     }
   };
@@ -213,6 +225,20 @@ class Home extends React.Component {
     if (isScreenshotKey) {
       e.preventDefault();
       e.stopPropagation();
+      
+      // Apply blur effect immediately - multiple layers of protection
+      document.body.classList.add('screenshot-protection-active');
+      
+      // Force immediate style update for all media elements
+      const allMedia = document.querySelectorAll('img, video');
+      allMedia.forEach(element => {
+        if (!element.src.includes('logo') && !element.src.includes('icon')) {
+          element.style.filter = 'blur(25px) brightness(0.2) !important';
+          element.style.transition = 'filter 0.01s ease !important';
+          element.style.opacity = '0.3';
+        }
+      });
+      
       this.showScreenshotWarning();
       
       // Temporarily hide media content
@@ -226,6 +252,19 @@ class Home extends React.Component {
   monitorScreenCapture = () => {
     const originalGetDisplayMedia = navigator.mediaDevices.getDisplayMedia;
     navigator.mediaDevices.getDisplayMedia = (...args) => {
+      // Apply blur effect immediately - multiple layers of protection
+      document.body.classList.add('screenshot-protection-active');
+      
+      // Force immediate style update for all media elements
+      const allMedia = document.querySelectorAll('img, video');
+      allMedia.forEach(element => {
+        if (!element.src.includes('logo') && !element.src.includes('icon')) {
+          element.style.filter = 'blur(30px) brightness(0.1) !important';
+          element.style.transition = 'filter 0.01s ease !important';
+          element.style.opacity = '0.2';
+        }
+      });
+      
       this.showScreenshotWarning();
       if (this.state.fullscreenMedia) {
         this.temporarilyHideMedia();
@@ -237,6 +276,18 @@ class Home extends React.Component {
   // Handle visibility change (print screen detection on some browsers)
   handleVisibilityChange = () => {
     if (document.hidden && this.state.fullscreenMedia) {
+      // Apply blur effect immediately - multiple layers of protection
+      document.body.classList.add('screenshot-protection-active');
+      
+      // Force immediate style update for all media elements
+      const allMedia = document.querySelectorAll('img, video');
+      allMedia.forEach(element => {
+        if (!element.src.includes('logo') && !element.src.includes('icon')) {
+          element.style.filter = 'blur(25px) brightness(0.2) !important';
+          element.style.transition = 'filter 0.01s ease !important';
+        }
+      });
+      
       this.showScreenshotWarning();
     }
   };
@@ -245,13 +296,32 @@ class Home extends React.Component {
   showScreenshotWarning = () => {
     this.setState({ showScreenshotWarning: true });
     
-    // Add blur effect to protected content
+    // Add blur effect to protected content immediately
     document.body.classList.add('screenshot-protection-active');
+    
+    // Force immediate blur on all media elements for maximum protection
+    const allMedia = document.querySelectorAll('img, video');
+    allMedia.forEach(element => {
+      if (!element.src.includes('logo') && !element.src.includes('icon')) {
+        element.style.filter = 'blur(20px) brightness(0.3) !important';
+        element.style.transition = 'filter 0.01s ease !important';
+      }
+    });
     
     // Auto-hide warning after 3 seconds
     this.screenshotWarningTimeout = setTimeout(() => {
       this.setState({ showScreenshotWarning: false });
       document.body.classList.remove('screenshot-protection-active');
+      
+      // Restore normal media styling
+      const allMedia = document.querySelectorAll('img, video');
+      allMedia.forEach(element => {
+        if (!element.src.includes('logo') && !element.src.includes('icon')) {
+          element.style.filter = '';
+          element.style.transition = '';
+          element.style.opacity = '';
+        }
+      });
     }, 3000);
   };
 
@@ -2644,7 +2714,34 @@ class Home extends React.Component {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
-          }} onClick={this.closeFullscreen}>
+          }} onClick={this.closeFullscreen} className="fullscreen-media-wrapper">
+            
+            {/* Protection overlay - shown when screenshot is detected */}
+            {(this.state.showScreenshotWarning || document.body.classList.contains('screenshot-protection-active')) && (
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0, 0, 0, 0.9)',
+                zIndex: 10000,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'column',
+                color: '#ffffff',
+                fontSize: '2rem',
+                fontWeight: 'bold'
+              }}>
+                <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🛡️</div>
+                <div>Content Protected</div>
+                <div style={{ fontSize: '1rem', marginTop: '0.5rem', opacity: 0.7 }}>
+                  Screenshot/Print attempt detected
+                </div>
+              </div>
+            )}
+
             {/* Close Button */}
             <button
               onClick={this.closeFullscreen}
@@ -2689,7 +2786,8 @@ class Home extends React.Component {
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap'
-              }}>                              {this.state.uploadForm.type === 'pictures' ? '�️' : '🎥'}{this.state.fullscreenMedia.name}
+              }}>
+                {this.state.uploadForm.type === 'pictures' ? '🖼️' : '🎥'} {this.state.fullscreenMedia.name}
               </div>
             )}
 
@@ -2737,8 +2835,8 @@ class Home extends React.Component {
                           width: 'auto',
                           height: 'auto',
                           objectFit: 'contain',
-                          filter: (this.state.showScreenshotWarning || document.body.classList.contains('print-protection-active')) ? 'blur(16px) brightness(0.7)' : 'none',
-                          transition: 'filter 0.3s ease'
+                          filter: (this.state.showScreenshotWarning || document.body.classList.contains('screenshot-protection-active')) ? 'blur(20px) brightness(0.2) contrast(0.3) saturate(0.1)' : 'none',
+                          transition: (this.state.showScreenshotWarning || document.body.classList.contains('screenshot-protection-active')) ? 'filter 0.01s ease' : 'filter 0.3s ease'
                         }}
                       />
                       {/* Watermark overlay for video */}
@@ -2774,8 +2872,8 @@ class Home extends React.Component {
                           objectFit: 'contain',
                           userSelect: 'none',
                           pointerEvents: 'none',
-                          filter: (this.state.showScreenshotWarning || document.body.classList.contains('print-protection-active')) ? 'blur(16px) brightness(0.7)' : 'none',
-                          transition: 'filter 0.3s ease'
+                          filter: (this.state.showScreenshotWarning || document.body.classList.contains('screenshot-protection-active')) ? 'blur(20px) brightness(0.2) contrast(0.3) saturate(0.1)' : 'none',
+                          transition: (this.state.showScreenshotWarning || document.body.classList.contains('screenshot-protection-active')) ? 'filter 0.01s ease' : 'filter 0.3s ease'
                         }}
                       />
                       {/* Watermark overlay for image */}
