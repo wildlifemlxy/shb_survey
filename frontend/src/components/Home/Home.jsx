@@ -87,13 +87,10 @@ class Home extends React.Component {
     this.timer = setInterval(() => {
       this.setState({ currentDateTime: this.getFormattedDateTime() });
     }, 1000);
-    
-    // Add event listeners for content protection
     document.addEventListener('contextmenu', this.handleContextMenuPrevention);
     document.addEventListener('keydown', this.handleKeyDownPrevention);
-    
-    // Add screenshot detection and prevention
-    this.addScreenshotProtection();
+    // Add document click listener for closing popup
+    document.addEventListener('mousedown', this.handleDocumentClickForPopup, true);
   }
 
   // Format time in MM:SS format
@@ -159,194 +156,6 @@ class Home extends React.Component {
     return false;
   };
 
-  // Add comprehensive screenshot protection
-  addScreenshotProtection = () => {
-    // Track window focus/blur for screenshot detection
-    window.addEventListener('blur', this.handleWindowBlur);
-    window.addEventListener('focus', this.handleWindowFocus);
-    
-    // Detect keyboard shortcuts for screenshots
-    document.addEventListener('keydown', this.handleScreenshotKeyPrevention);
-    
-    // Monitor for screen capture APIs (modern browsers)
-    if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
-      this.monitorScreenCapture();
-    }
-    
-    // Prevent print screen via visibility change (works on some browsers)
-    document.addEventListener('visibilitychange', this.handleVisibilityChange);
-    
-    // Add protection overlay when screenshot keys are detected
-    this.screenshotProtectionActive = false;
-
-    // Prevent printing of protected content
-    window.addEventListener('beforeprint', this.handleBeforePrint);
-  };
-
-  // Handle window blur (potential screenshot)
-  handleWindowBlur = () => {
-    if (this.state.fullscreenMedia) {
-      // Apply blur effect immediately - multiple layers of protection
-      document.body.classList.add('screenshot-protection-active');
-      
-      // Force immediate style update for all media elements
-      const allMedia = document.querySelectorAll('img, video');
-      allMedia.forEach(element => {
-        if (!element.src.includes('logo') && !element.src.includes('icon')) {
-          element.style.filter = 'blur(25px) brightness(0.2) !important';
-          element.style.transition = 'filter 0.01s ease !important';
-        }
-      });
-      
-      this.showScreenshotWarning();
-    }
-  };
-
-  // Handle window focus
-  handleWindowFocus = () => {
-    if (this.screenshotWarningTimeout) {
-      clearTimeout(this.screenshotWarningTimeout);
-    }
-  };
-
-  // Detect and prevent screenshot keyboard shortcuts
-  handleScreenshotKeyPrevention = (e) => {
-    const isScreenshotKey = 
-      // Windows: PrtScn, Alt+PrtScn, Win+PrtScn, Win+Shift+S
-      e.key === 'PrintScreen' ||
-      (e.altKey && e.key === 'PrintScreen') ||
-      (e.metaKey && e.key === 'PrintScreen') ||
-      (e.metaKey && e.shiftKey && e.key === 'S') ||
-      // Mac: Cmd+Shift+3, Cmd+Shift+4, Cmd+Shift+5
-      (e.metaKey && e.shiftKey && ['3', '4', '5'].includes(e.key)) ||
-      // Additional prevention
-      (e.ctrlKey && e.shiftKey && e.key === 'S');
-
-    if (isScreenshotKey) {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      // Apply blur effect immediately - multiple layers of protection
-      document.body.classList.add('screenshot-protection-active');
-      
-      // Force immediate style update for all media elements
-      const allMedia = document.querySelectorAll('img, video');
-      allMedia.forEach(element => {
-        if (!element.src.includes('logo') && !element.src.includes('icon')) {
-          element.style.filter = 'blur(25px) brightness(0.2) !important';
-          element.style.transition = 'filter 0.01s ease !important';
-          element.style.opacity = '0.3';
-        }
-      });
-      
-      this.showScreenshotWarning();
-      
-      // Temporarily hide media content
-      if (this.state.fullscreenMedia) {
-        this.temporarilyHideMedia();
-      }
-    }
-  };
-
-  // Monitor for screen capture API usage
-  monitorScreenCapture = () => {
-    const originalGetDisplayMedia = navigator.mediaDevices.getDisplayMedia;
-    navigator.mediaDevices.getDisplayMedia = (...args) => {
-      // Apply blur effect immediately - multiple layers of protection
-      document.body.classList.add('screenshot-protection-active');
-      
-      // Force immediate style update for all media elements
-      const allMedia = document.querySelectorAll('img, video');
-      allMedia.forEach(element => {
-        if (!element.src.includes('logo') && !element.src.includes('icon')) {
-          element.style.filter = 'blur(30px) brightness(0.1) !important';
-          element.style.transition = 'filter 0.01s ease !important';
-          element.style.opacity = '0.2';
-        }
-      });
-      
-      this.showScreenshotWarning();
-      if (this.state.fullscreenMedia) {
-        this.temporarilyHideMedia();
-      }
-      return originalGetDisplayMedia.apply(navigator.mediaDevices, args);
-    };
-  };
-
-  // Handle visibility change (print screen detection on some browsers)
-  handleVisibilityChange = () => {
-    if (document.hidden && this.state.fullscreenMedia) {
-      // Apply blur effect immediately - multiple layers of protection
-      document.body.classList.add('screenshot-protection-active');
-      
-      // Force immediate style update for all media elements
-      const allMedia = document.querySelectorAll('img, video');
-      allMedia.forEach(element => {
-        if (!element.src.includes('logo') && !element.src.includes('icon')) {
-          element.style.filter = 'blur(25px) brightness(0.2) !important';
-          element.style.transition = 'filter 0.01s ease !important';
-        }
-      });
-      
-      this.showScreenshotWarning();
-    }
-  };
-
-  // Show screenshot warning
-  showScreenshotWarning = () => {
-    this.setState({ showScreenshotWarning: true });
-    
-    // Add blur effect to protected content immediately
-    document.body.classList.add('screenshot-protection-active');
-    
-    // Force immediate blur on all media elements for maximum protection
-    const allMedia = document.querySelectorAll('img, video');
-    allMedia.forEach(element => {
-      if (!element.src.includes('logo') && !element.src.includes('icon')) {
-        element.style.filter = 'blur(20px) brightness(0.3) !important';
-        element.style.transition = 'filter 0.01s ease !important';
-      }
-    });
-    
-    // Auto-hide warning after 3 seconds
-    this.screenshotWarningTimeout = setTimeout(() => {
-      this.setState({ showScreenshotWarning: false });
-      document.body.classList.remove('screenshot-protection-active');
-      
-      // Restore normal media styling
-      const allMedia = document.querySelectorAll('img, video');
-      allMedia.forEach(element => {
-        if (!element.src.includes('logo') && !element.src.includes('icon')) {
-          element.style.filter = '';
-          element.style.transition = '';
-          element.style.opacity = '';
-        }
-      });
-    }, 3000);
-  };
-
-  // Temporarily hide media content when screenshot is detected
-  temporarilyHideMedia = () => {
-    this.setState({ hideMediaTemporarily: true });
-    
-    setTimeout(() => {
-      this.setState({ hideMediaTemporarily: false });
-    }, 1000);
-  };
-
-  // Remove screenshot protection listeners
-  removeScreenshotProtection = () => {
-    window.removeEventListener('blur', this.handleWindowBlur);
-    window.removeEventListener('focus', this.handleWindowFocus);
-    document.removeEventListener('keydown', this.handleScreenshotKeyPrevention);
-    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
-    window.removeEventListener('beforeprint', this.handleBeforePrint);
-    
-    if (this.screenshotWarningTimeout) {
-      clearTimeout(this.screenshotWarningTimeout);
-    }
-  };
-
   loadGalleryFolderItems = () => {
     // Load existing uploaded files from manifest and localStorage
     this.loadUploadedFiles();
@@ -393,7 +202,7 @@ class Home extends React.Component {
     // Clean up event listeners
     document.removeEventListener('contextmenu', this.handleContextMenuPrevention);
     document.removeEventListener('keydown', this.handleKeyDownPrevention);
-    this.removeScreenshotProtection();
+    document.removeEventListener('mousedown', this.handleDocumentClickForPopup, true);
   }
 
   componentDidUpdate(prevProps) {
@@ -882,7 +691,14 @@ class Home extends React.Component {
   };
 
   render() {
-    const { statistics, currentDateTime, isAuthenticated, isLoginPopupOpen, isUploadPopupOpen } = this.state;
+    const { statistics, currentDateTime, isAuthenticated, isLoginPopupOpen, isUploadPopupOpen, fullscreenMedia } = this.state;
+    // Determine if user is WWF-Volunteer
+    let isWWFVolunteer = false;
+    try {
+      const user = JSON.parse(localStorage.getItem('user'));
+      isWWFVolunteer = user && user.role === 'WWF-Volunteer';
+    } catch (e) {}
+
     return (
       <div className="home-container">
         {/* Add CSS animations */}
@@ -1049,7 +865,7 @@ class Home extends React.Component {
           </div>
         </section>
 
-        {/* Features Section - Only show when authenticated */}
+        {/* Features section only for authenticated users */}
         {isAuthenticated && (
           <section className="features-section" style={{
             display: 'flex',
@@ -1099,7 +915,7 @@ class Home extends React.Component {
                   <div style={{background: 'linear-gradient(135deg, #818cf8 0%, #f472b6 100%)', borderRadius: 14, padding: 14, marginBottom: 18, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                     <svg width="36" height="36" viewBox="0 0 24 24" fill="white">
                       <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2Z"/>
-                    </svg>
+                  </svg>
                   </div>
                   <h3 style={{fontWeight: 700, fontSize: '1.25rem', marginBottom: 12, textAlign: 'center'}}>Survey System</h3>
                   <ul style={{padding: 0, margin: 0, listStyle: 'none', color: '#334155', fontSize: '1rem', marginBottom: 24, textAlign: 'left'}}>
@@ -1157,11 +973,10 @@ class Home extends React.Component {
             </div>
           </section>
         )}
-
-        {/* Studio Gallery Section - Show for all users */}
+        {/* Gallery is always visible */}
         <section className="studio-gallery-section" style={{
           padding: '80px 0',
-          background: 'linear-gradient(to bottom, #e6e6fa 0%, #f5f5ff 100%)',   
+          background: 'linear-gradient(to bottom, #e6e6fa 0%, #f5f5ff 100%)',
           borderTop: '1px solid #e2e8f0'
         }}>
           <div className="studio-container" style={{
@@ -1175,6 +990,30 @@ class Home extends React.Component {
               marginBottom: '60px',
               position: 'relative'
             }}>
+              {/* Upload Button - only for non WWF-Volunteer and authenticated, now top right */}
+              {isAuthenticated && !isWWFVolunteer && (
+                <button
+                  onClick={this.toggleUploadPopup}
+                  className="btn btn-primary"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    right: 0,
+                    margin: '0 0 0 0',
+                    zIndex: 2,
+                    padding: '0.7rem 2.2rem',
+                    fontWeight: 700,
+                    fontSize: '1rem',
+                    borderRadius: '24px',
+                    boxShadow: '0 2px 8px rgba(34,197,94,0.08)',
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                    color: '#fff',
+                    border: 'none',
+                    transition: 'all 0.2s',
+                    cursor: 'pointer',
+                  }}
+                >Upload</button>
+              )}
               <div style={{
                 display: 'inline-block',
                 background: 'linear-gradient(135deg, #1e293b 0%, #475569 100%)',
@@ -1326,111 +1165,62 @@ class Home extends React.Component {
                 </button>
               </div>
 
-              {/* Upload Button - Modern Studio Style */}
-              {(() => {
-                try {
-                  const userDataString = localStorage.getItem('user');
-                  if (userDataString) {
-                    const userData = JSON.parse(userDataString);
-                    if (userData && userData.role !== 'WWF-Volunteer') {
-                      return (
-                        <button
-                          onClick={this.toggleUploadPopup}
-                          style={{
-                            position: 'absolute',
-                            top: '0',
-                            right: '0',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.75rem',
-                            padding: '1rem 2rem',
-                            background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                            color: '#ffffff',
-                            borderRadius: '50px',
-                            cursor: 'pointer',
-                            border: 'none',
-                            transition: 'all 0.3s ease',
-                            fontSize: '1rem',
-                            fontWeight: '600',
-                            boxShadow: '0 8px 25px rgba(59, 130, 246, 0.25)',
-                            transform: 'translateY(0)',
-                            letterSpacing: '0.02em'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.target.style.transform = 'translateY(-2px)';
-                            e.target.style.boxShadow = '0 12px 35px rgba(59, 130, 246, 0.35)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.target.style.transform = 'translateY(0)';
-                            e.target.style.boxShadow = '0 8px 25px rgba(59, 130, 246, 0.25)';
-                          }}
-                        >
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2C13.1 2 14 2.9 14 4V10H20C21.1 10 22 10.9 22 12S21.1 14 20 14H14V20C14 21.1 13.1 22 12 22S10 21.1 10 20V14H4C2.9 14 2 13.1 2 12S2.9 10 4 10H10V4C10 2.9 10.9 2 12 2Z"/>
-                          </svg>
-                          Add to Collection
-                        </button>
-                      );
-                    }
-                  }
-                } catch (error) {
-                  console.error('Error checking user role for gallery upload:', error);
-                }
-                return null;
-              })()}
-            </div>
-            
-            {/* Studio Gallery Grid */}
-            <div className="studio-gallery-grid" style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-              gap: '1.5rem',
-              marginBottom: '3rem',
-              padding: '0 1rem'
-            }}>
-              {/* Use filtered items with live updates */}
-              {(() => {
-                const filteredItems = this.getFilteredGalleryItems();
-                
-                if (filteredItems.length > 0) {
-                  return filteredItems.map((media, index) => (
-                    <div 
-                      key={media.id || index} 
-                      className="gallery-card" 
-                      style={{
-                        background: '#ffffff',
-                        borderRadius: '16px',
-                        overflow: 'hidden',
-                        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-                        transition: 'all 0.3s ease',
-                        border: '1px solid #e2e8f0',
-                        cursor: 'pointer',
-                        position: 'relative',
-                        aspectRatio: '4/3',
-                        minHeight: '250px'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-8px)';
-                        e.currentTarget.style.boxShadow = '0 12px 40px rgba(0, 0, 0, 0.15)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.08)';
-                      }}
-                    >
-                      {/* Media Container */}
+              {/* Upload Button - only for non WWF-Volunteer and authenticated, now top right */}
+              
+
+              {/* Studio Gallery Grid */}
+              <div className="studio-gallery-grid" style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                gap: '2.2rem', // Increased gap for visible spacing
+                marginBottom: '3rem',
+                padding: '0 1rem'
+              }}>
+                {/* Use filtered items with live updates */}
+                {(() => {
+                  const filteredItems = this.getFilteredGalleryItems();
+                  
+                  if (filteredItems.length > 0) {
+                    return filteredItems.map((media, index) => (
                       <div 
+                        key={media.id || index} 
+                        className="gallery-card" 
                         style={{
-                          position: 'relative',
-                          width: '100%',
-                          height: '100%',
+                          background: '#ffffff',
+                          borderRadius: '16px',
                           overflow: 'hidden',
-                          background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)'
+                          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                          transition: 'all 0.3s ease',
+                          border: '1px solid #e2e8f0',
+                          cursor: 'pointer',
+                          position: 'relative',
+                          aspectRatio: '4/3',
+                          minHeight: '250px',
+                          margin: '12px', // Add margin for 4-side gap
                         }}
-                        onClick={() => this.openFullscreen(media)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-8px)';
+                          e.currentTarget.style.boxShadow = '0 12px 40px rgba(0, 0, 0, 0.15)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.08)';
+                        }}
                       >
-                        {media.type && media.type.startsWith('video/') ? (
-                          <div className="gallery-video-container">
+                        {/* Media Container */}
+                        <div 
+                          style={{
+                            position: 'relative',
+                            width: '100%',
+                            height: '100%',
+                            overflow: 'hidden',
+                            background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+                            padding: 0,
+                            borderRadius: 0,
+                          }}
+                          onClick={() => this.openFullscreen(media)}
+                        >
+                          {media.type && media.type.startsWith('video/') ? (
                             <video 
                               ref={(video) => {
                                 if (video) {
@@ -1440,10 +1230,17 @@ class Home extends React.Component {
                               src={media.url}
                               preload="metadata"
                               style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
                                 width: '100%',
                                 height: '100%',
                                 objectFit: 'cover',
-                                backgroundColor: '#000'
+                                backgroundColor: '#000',
+                                borderRadius: 0,
+                                margin: 0,
+                                padding: 0,
+                                display: 'block',
                               }}
                               onContextMenu={(e) => e.preventDefault()}
                               controlsList="nodownload"
@@ -1465,716 +1262,134 @@ class Home extends React.Component {
                                 if (overlay) overlay.classList.remove('hidden');
                               }}
                             />
-                            {/* Play button overlay */}
-                            <div 
-                              className="gallery-video-overlay"
-                              data-video-index={index}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const video = media.videoElement;
-                                if (video) {
-                                  if (video.paused) {
-                                    video.play();
-                                  } else {
-                                    video.pause();
-                                  }
-                                }
+                          ) : (
+                            <img 
+                              src={media.url}
+                              alt="Gallery item"
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                                transition: 'transform 0.3s ease',
+                                userSelect: 'none',
+                                pointerEvents: 'none',
+                                borderRadius: 0,
+                                margin: 0,
+                                padding: 0,
+                                display: 'block',
+                                background: '#fff',
                               }}
-                            >
-                              <button className="gallery-play-button">
-                                <svg viewBox="0 0 24 24">
-                                  <path d="M8,5.14V19.14L19,12.14L8,5.14Z" />
-                                </svg>
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <img 
-                            src={media.url}
-                            alt="Gallery item"
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'cover',
-                              transition: 'transform 0.3s ease',
-                              userSelect: 'none',
-                              pointerEvents: 'none'
-                            }}
-                            onContextMenu={(e) => e.preventDefault()}
-                            onDragStart={(e) => e.preventDefault()}
-                            onError={(e) => {
-                              console.error('Image failed to load:', media.url);
-                              e.target.style.display = 'none';
-                              e.target.parentElement.innerHTML = `
-                                <div style="
-                                  width: 100%;
-                                  height: 100%;
-                                  display: flex;
-                                  align-items: center;
-                                  justify-content: center;
-                                  flex-direction: column;
-                                  background: #f3f4f6;
-                                  color: #6b7280;
-                                ">
-                                  <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M21,19V5C21,3.89 20.1,3 19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19M8.5,13.5L11,16.5L14.5,12L19,18H5L8.5,13.5Z"/>
-                                  </svg>
-                                  <p style="margin: 8px 0 0 0; font-size: 0.875rem;">Image not found</p>
-                                </div>
-                              `;
-                            }}
-                            onLoad={() => {
-                              console.log('Image loaded successfully:', media.url);
-                            }}
-                          />
-                        )}
+                              onContextMenu={(e) => e.preventDefault()}
+                              onDragStart={(e) => e.preventDefault()}
+                              onError={(e) => {
+                                console.error('Image failed to load:', media.url);
+                                e.target.style.display = 'none';
+                                e.target.parentElement.innerHTML = `
+                                  <div style="
+                                    width: 100%;
+                                    height: 100%;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    flex-direction: column;
+                                    background: #f3f4f6;
+                                    color: #6b7280;
+                                  ">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+                                      <path d="M21,19V5C21,3.89 20.1,3 19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19M8.5,13.5L11,16.5L14.5,12L19,18H5L8.5,13.5Z"/>
+                                    </svg>
+                                    <p style="margin: 8px 0 0 0; font-size: 0.875rem;">Image not found</p>
+                                  </div>
+                                `;
+                              }}
+                              onLoad={() => {
+                                console.log('Image loaded successfully:', media.url);
+                              }}
+                            />
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ));
-                } else {
-                  return (
-                    /* Enhanced Empty State - Studio Style */
-                    <div style={{
-                      gridColumn: '1 / -1',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '6rem 2rem',
-                      background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
-                      borderRadius: '24px',
-                      border: '2px dashed #cbd5e1',
-                      minHeight: '500px',
-                      position: 'relative'
-                    }}>
-                      {/* Animated background elements */}
+                    ));
+                  } else {
+                    return (
+                      /* Enhanced Empty State - Studio Style */
                       <div style={{
-                        position: 'absolute',
-                        top: '20%',
-                        left: '20%',
-                        width: '60px',
-                        height: '60px',
-                        background: 'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)',
-                        borderRadius: '50%',
-                        opacity: '0.3',
-                        animation: 'float 6s ease-in-out infinite'
-                      }}></div>
-                      <div style={{
-                        position: 'absolute',
-                        top: '60%',
-                        right: '25%',
-                        width: '40px',
-                        height: '40px',
-                        background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-                        borderRadius: '50%',
-                        opacity: '0.4',
-                        animation: 'float 8s ease-in-out infinite reverse'
-                      }}></div>
-
-                      <div style={{
-                        width: '140px',
-                        height: '140px',
-                        background: 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)',
-                        borderRadius: '50%',
+                        gridColumn: '1 / -1',
                         display: 'flex',
+                        flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        marginBottom: '2.5rem',
+                        padding: '6rem 2rem',
+                        background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
+                        borderRadius: '24px',
+                        border: '2px dashed #cbd5e1',
+                        minHeight: '500px',
                         position: 'relative'
                       }}>
-                        <svg width="64" height="64" viewBox="0 0 24 24" fill="#64748b">
-                          <path d="M4,6H2V20A2,2 0 0,0 4,22H18V20H4V6M20,2H8A2,2 0 0,0 6,4V16A2,2 0 0,0 8,18H20A2,2 0 0,0 22,16V4A2,2 0 0,0 20,2M20,16H8V4H20V16M11,14L13.5,11L16.5,15H9.5L11,14Z"/>
-                        </svg>
+                        {/* Animated background elements */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '20%',
+                          left: '20%',
+                          width: '60px',
+                          height: '60px',
+                          background: 'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)',
+                          borderRadius: '50%',
+                          opacity: '0.3',
+                          animation: 'float 6s ease-in-out infinite'
+                        }}></div>
+                        <div style={{
+                          position: 'absolute',
+                          top: '60%',
+                          right: '25%',
+                          width: '40px',
+                          height: '40px',
+                          background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                          borderRadius: '50%',
+                          opacity: '0.4',
+                          animation: 'float 8s ease-in-out infinite reverse'
+                        }}></div>
+
+                        <div style={{
+                          width: '140px',
+                          height: '140px',
+                          background: 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)',
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginBottom: '2.5rem',
+                          position: 'relative'
+                        }}>
+                          <svg width="64" height="64" viewBox="0 0 24 24" fill="#64748b">
+                            <path d="M4,6H2V20A2,2 0 0,0 4,22H18V20H4V6M20,2H8A2,2 0 0,0 6,4V16A2,2 0 0,0 8,18H20A2,2 0 0,0 22,16V4A2,2 0 0,0 20,2M20,16H8V4H20V16M11,14L13.5,11L16.5,15H9.5L11,14Z"/>
+                          </svg>
+                        </div>
+                        
+                        <h3 style={{
+                          fontSize: '2rem',
+                          fontWeight: '800',
+                          color: '#1e293b',
+                          marginBottom: '1rem',
+                          textAlign: 'center'
+                        }}>Coming Soon...</h3>
+                        
+                        <p style={{
+                          fontSize: '1.1rem',
+                          color: '#64748b',
+                          textAlign: 'center',
+                          maxWidth: '500px',
+                          lineHeight: '1.7',
+                          marginBottom: '2rem'
+                        }}>
+                          Our conservation gallery is being curated. Check back soon for stunning wildlife photography and research documentation.
+                        </p>
+
                       </div>
-                      
-                      <h3 style={{
-                        fontSize: '2rem',
-                        fontWeight: '800',
-                        color: '#1e293b',
-                        marginBottom: '1rem',
-                        textAlign: 'center'
-                      }}>Coming Soon...</h3>
-                      
-                      <p style={{
-                        fontSize: '1.1rem',
-                        color: '#64748b',
-                        textAlign: 'center',
-                        maxWidth: '500px',
-                        lineHeight: '1.7',
-                        marginBottom: '2rem'
-                      }}>
-                        Our conservation gallery is being curated. Check back soon for stunning wildlife photography and research documentation.
-                      </p>
-
-                    </div>
-                  );
-                }
-              })()}
-            </div>
-          </div>
-        </section>
-
-        {/* Features Section - Only show when authenticated */}
-        {isAuthenticated && (
-          <section className="features-section" style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '60vh',
-            padding: '0 0 60px 0',
-            background: '#f8fafc'
-          }}>
-            <div className="features-container" style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              maxWidth: 1100,
-              margin: '0 auto',
-              padding: '2rem',
-              width: '100%'
-            }}>
-              <div className="features-header" style={{textAlign: 'center', marginBottom: 40}}>
-                <h2 className="features-title" style={{fontSize: '2.5rem', fontWeight: 700, marginBottom: 8}}>Comprehensive Conservation Tools</h2>
-                <p className="features-subtitle" style={{color: '#64748b', fontSize: '1.1rem'}}>Everything you need to monitor, analyze, and protect the Straw-headed Bulbul population</p>
-              </div>
-              <div className="features-grid" style={{display: 'flex', flexDirection: 'row', gap: 40, justifyContent: 'center', alignItems: 'stretch', flexWrap: 'nowrap'}}>
-                {/* Dashboard Card */}
-                <div className="feature-card" style={{background: '#fff', borderRadius: 18, boxShadow: '0 4px 24px 0 rgba(0,0,0,0.06)', padding: '36px 32px', width: 340, display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1.5px solid #e0e7ef', transition: 'box-shadow 0.2s', minHeight: 370}}>
-                  <div style={{background: 'linear-gradient(135deg, #4ade80 0%, #22d3ee 100%)', borderRadius: 14, padding: 14, marginBottom: 18, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="white">
-                      <path d="M3 13H11V3H3V13ZM3 21H11V15H3V21ZM13 21H21V11H13V21ZM13 3V9H21V3H13Z"/>
-                    </svg>
-                  </div>
-                  <h3 style={{fontWeight: 700, fontSize: '1.25rem', marginBottom: 12, textAlign: 'center'}}>Interactive Dashboard</h3>
-                  <ul style={{padding: 0, margin: 0, listStyle: 'none', color: '#334155', fontSize: '1rem', marginBottom: 24, textAlign: 'left'}}>
-                    <li style={{marginBottom: 8, display: 'flex', alignItems: 'center'}}><span style={{color: '#22d3ee', fontWeight: 700, marginRight: 8}}>&#8226;</span>Advanced charts & real-time analytics</li>
-                    <li style={{marginBottom: 8, display: 'flex', alignItems: 'center'}}><span style={{color: '#22d3ee', fontWeight: 700, marginRight: 8}}>&#8226;</span>Interactive maps for spatial insights</li>
-                    <li style={{display: 'flex', alignItems: 'center'}}><span style={{color: '#22d3ee', fontWeight: 700, marginRight: 8}}>&#8226;</span>Comprehensive conservation reports</li>
-                  </ul>
-                  <Link to="/dashboard" className="feature-button" style={{background: '#22c55e', color: '#fff', borderRadius: 8, padding: '10px 22px', fontWeight: 600, fontSize: '1rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, marginTop: 'auto', boxShadow: '0 2px 8px 0 rgba(34,197,94,0.08)'}}>
-                    View Dashboard
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 4L10.59 5.41L16.17 11H4V13H16.17L10.59 18.59L12 20L20 12L12 4Z"/>
-                    </svg>
-                  </Link>
-                </div>
-                {/* Survey System Card */}
-                <div className="feature-card" style={{background: '#fff', borderRadius: 18, boxShadow: '0 4px 24px 0 rgba(0,0,0,0.06)', padding: '36px 32px', width: 340, display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1.5px solid #e0e7ef', transition: 'box-shadow 0.2s', minHeight: 370}}>
-                  <div style={{background: 'linear-gradient(135deg, #818cf8 0%, #f472b6 100%)', borderRadius: 14, padding: 14, marginBottom: 18, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="white">
-                      <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2Z"/>
-                    </svg>
-                  </div>
-                  <h3 style={{fontWeight: 700, fontSize: '1.25rem', marginBottom: 12, textAlign: 'center'}}>Survey System</h3>
-                  <ul style={{padding: 0, margin: 0, listStyle: 'none', color: '#334155', fontSize: '1rem', marginBottom: 24, textAlign: 'left'}}>
-                    <li style={{marginBottom: 8, display: 'flex', alignItems: 'center'}}><span style={{color: '#818cf8', fontWeight: 700, marginRight: 8}}>&#8226;</span>Centralized management of all survey events</li>
-                    <li style={{marginBottom: 8, display: 'flex', alignItems: 'center'}}><span style={{color: '#818cf8', fontWeight: 700, marginRight: 8}}>&#8226;</span>View past and upcoming events</li>
-                    <li style={{marginBottom: 8, display: 'flex', alignItems: 'center'}}><span style={{color: '#818cf8', fontWeight: 700, marginRight: 8}}>&#8226;</span>Add upcoming events and participants</li>
-                    <li style={{display: 'flex', alignItems: 'center'}}><span style={{color: '#818cf8', fontWeight: 700, marginRight: 8}}>&#8226;</span>Live updates for upcoming events</li>
-                  </ul>
-                  <Link to="/surveyEvents" className="feature-button" style={{background: '#6366f1', color: '#fff', borderRadius: 8, padding: '10px 22px', fontWeight: 600, fontSize: '1rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, marginTop: 'auto', boxShadow: '0 2px 8px 0 rgba(129,140,248,0.08)'}}>
-                    Manage Surveys
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 4L10.59 5.41L16.17 11H4V13H16.17L10.59 18.59L12 20L20 12L12 4Z"/>
-                    </svg>
-                  </Link>
-                </div>
-                {/* Telegram Settings Card - Only show if not WWF-Volunteer */}
-                {(() => {
-                  // Get user role from localStorage
-                  try {
-                    const userDataString = localStorage.getItem('user');
-                    if (userDataString) {
-                      const userData = JSON.parse(userDataString);
-                      // Only show Telegram Settings card if user is not a WWF-Volunteer
-                      if (userData && userData.role !== 'WWF-Volunteer') {
-                        return (
-                          <div className="feature-card" style={{background: '#fff', borderRadius: 18, boxShadow: '0 4px 24px 0 rgba(0,0,0,0.06)', padding: '36px 32px', width: 340, display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1.5px solid #e0e7ef', transition: 'box-shadow 0.2s', minHeight: 370}}>
-                            <div style={{background: 'linear-gradient(135deg, #229ED9 0%, #0A5C8C 100%)', borderRadius: 14, padding: 14, marginBottom: 18, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                              <svg width="36" height="36" viewBox="0 0 240 240" fill="white">
-                                <circle cx="120" cy="120" r="120" fill="#229ED9"/>
-                                <path d="M180 72L160 168C158.5 174.5 154.5 176 149 173.5L122.5 154.5L110.5 165.5C109 167 107.5 168.5 105 168.5L107 141.5L157.5 92.5C159.5 90.5 157 89.5 154.5 91.5L93.5 134.5L67.5 126.5C61.5 124.5 61.5 120.5 69.5 117.5L170.5 78.5C176.5 76.5 181.5 80.5 180 72Z" fill="white"/>
-                              </svg>
-                            </div>
-                            <h3 style={{fontWeight: 700, fontSize: '1.25rem', marginBottom: 12, textAlign: 'center'}}>Telegram Settings</h3>
-                            <ul style={{padding: 0, margin: 0, listStyle: 'none', color: '#334155', fontSize: '1rem', marginBottom: 24, textAlign: 'left'}}>
-                              <li style={{marginBottom: 8, display: 'flex', alignItems: 'center'}}><span style={{color: '#229ED9', fontWeight: 700, marginRight: 8}}>&#8226;</span>Configure Telegram bot integration</li>
-                              <li style={{marginBottom: 8, display: 'flex', alignItems: 'center'}}><span style={{color: '#229ED9', fontWeight: 700, marginRight: 8}}>&#8226;</span>Set up notifications and alerts</li>
-                              <li style={{display: 'flex', alignItems: 'center'}}><span style={{color: '#229ED9', fontWeight: 700, marginRight: 8}}>&#8226;</span>Manage Telegram access and permissions</li>
-                            </ul>
-                            <Link to="/settings" className="feature-button" style={{background: '#229ED9', color: '#fff', borderRadius: 8, padding: '10px 22px', fontWeight: 600, fontSize: '1rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, marginTop: 'auto', boxShadow: '0 2px 8px 0 rgba(34,197,94,0.08)'}}>
-                              Telegram Settings
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 4L10.59 5.41L16.17 11H4V13H16.17L10.59 18.59L12 20L20 12L12 4Z"/>
-                              </svg>
-                            </Link>
-                          </div>
-                        );
-                      }
-                    }
-                  } catch (error) {
-                    console.error('Error checking user role for Telegram card:', error);
+                    );
                   }
-                  return null;
                 })()}
               </div>
-            </div>
-          </section>
-        )}
-
-        {/* Studio Gallery Section - Show for all users */}
-        <section className="studio-gallery-section" style={{
-          padding: '80px 0',
-          background: 'linear-gradient(to bottom, #e6e6fa 0%, #f5f5ff 100%)',   
-          borderTop: '1px solid #e2e8f0'
-        }}>
-          <div className="studio-container" style={{
-            maxWidth: '1400px',
-            margin: '0 auto',
-            padding: '0 2rem'
-          }}>
-            {/* Studio Header */}
-            <div className="studio-header" style={{
-              textAlign: 'center',
-              marginBottom: '60px',
-              position: 'relative'
-            }}>
-              <div style={{
-                display: 'inline-block',
-                background: 'linear-gradient(135deg, #1e293b 0%, #475569 100%)',
-                color: '#ffffff',
-                padding: '0.5rem 1.5rem',
-                borderRadius: '30px',
-                fontSize: '0.9rem',
-                fontWeight: '600',
-                marginBottom: '1.5rem',
-                letterSpacing: '0.5px'
-              }}>
-                CONSERVATION GALLERY
-              </div>
-              <h2 style={{
-                fontSize: '3rem',
-                fontWeight: '800',
-                color: '#1e293b',
-                marginBottom: '1rem',
-                letterSpacing: '-0.02em'
-              }}>Collection</h2>
-              <p style={{
-                fontSize: '1.2rem',
-                color: '#64748b',
-                maxWidth: '600px',
-                margin: '0 auto 2rem auto',
-                lineHeight: '1.6'
-              }}>A curated showcase of wildlife photography and videography taken by the volunteers and staffs.   </p>
-
-              {/* Content Protection Notice */}
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                background: 'rgba(239, 68, 68, 0.1)',
-                color: '#dc2626',
-                padding: '0.5rem 1rem',
-                borderRadius: '20px',
-                fontSize: '0.85rem',
-                fontWeight: '500',
-                marginBottom: '2rem',
-                border: '1px solid rgba(239, 68, 68, 0.2)'
-              }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,7C13.4,7 14.8,8.6 14.8,10V11.5C15.4,11.5 16,12.4 16,13V16C16,17.4 15.4,18 14.8,18H9.2C8.6,18 8,17.4 8,16V13C8,12.4 8.6,11.5 9.2,11.5V10C9.2,8.6 10.6,7 12,7M12,8.2C11.2,8.2 10.5,8.7 10.5,10V11.5H13.5V10C13.5,8.7 12.8,8.2 12,8.2Z"/>
-                </svg>
-                Protected Content - Screenshots & Downloads Disabled
-              </div>
-
-              {/* Filter Buttons - Always Visible */}
-              <div style={{
-                display: 'flex',
-                gap: '1rem',
-                justifyContent: 'center',
-                marginBottom: '2rem',
-                flexWrap: 'wrap'
-              }}>
-                <button
-                  onClick={() => this.setGalleryFilter('all')}
-                  className="filter-button"
-                  style={{
-                    padding: '0.75rem 1.5rem',
-                    background: this.state.galleryFilter === 'all' ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' : '#f8fafc',
-                    color: this.state.galleryFilter === 'all' ? '#ffffff' : '#64748b',
-                    border: '2px solid',
-                    borderColor: this.state.galleryFilter === 'all' ? '#3b82f6' : '#e2e8f0',
-                    borderRadius: '25px',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    letterSpacing: '0.02em'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (this.state.galleryFilter !== 'all') {
-                      e.target.style.background = '#e2e8f0';
-                      e.target.style.borderColor = '#cbd5e1';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (this.state.galleryFilter !== 'all') {
-                      e.target.style.background = '#f8fafc';
-                      e.target.style.borderColor = '#e2e8f0';
-                    }
-                  }}
-                >
-                  All
-                </button>
-                <button
-                  onClick={() => this.setGalleryFilter('pictures')}
-                  className="filter-button"
-                  style={{
-                    padding: '0.75rem 1.5rem',
-                    background: this.state.galleryFilter === 'pictures' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : '#f8fafc',
-                    color: this.state.galleryFilter === 'pictures' ? '#ffffff' : '#64748b',
-                    border: '2px solid',
-                    borderColor: this.state.galleryFilter === 'pictures' ? '#10b981' : '#e2e8f0',
-                    borderRadius: '25px',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    letterSpacing: '0.02em'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (this.state.galleryFilter !== 'pictures') {
-                      e.target.style.background = '#e2e8f0';
-                      e.target.style.borderColor = '#cbd5e1';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (this.state.galleryFilter !== 'pictures') {
-                      e.target.style.background = '#f8fafc';
-                      e.target.style.borderColor = '#e2e8f0';
-                    }
-                  }}
-                >
-                  Pictures
-                </button>
-                <button
-                  onClick={() => this.setGalleryFilter('videos')}
-                  className="filter-button"
-                  style={{
-                    padding: '0.75rem 1.5rem',
-                    background: this.state.galleryFilter === 'videos' ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' : '#f8fafc',
-                    color: this.state.galleryFilter === 'videos' ? '#ffffff' : '#64748b',
-                    border: '2px solid',
-                    borderColor: this.state.galleryFilter === 'videos' ? '#8b5cf6' : '#e2e8f0',
-                    borderRadius: '25px',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    letterSpacing: '0.02em'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (this.state.galleryFilter !== 'videos') {
-                      e.target.style.background = '#e2e8f0';
-                      e.target.style.borderColor = '#cbd5e1';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (this.state.galleryFilter !== 'videos') {
-                      e.target.style.background = '#f8fafc';
-                      e.target.style.borderColor = '#e2e8f0';
-                    }
-                  }}
-                >
-                  Videos
-                </button>
-              </div>
-
-              {/* Upload Button - Modern Studio Style */}
-              {(() => {
-                try {
-                  const userDataString = localStorage.getItem('user');
-                  if (userDataString) {
-                    const userData = JSON.parse(userDataString);
-                    if (userData && userData.role !== 'WWF-Volunteer') {
-                      return (
-                        <button
-                          onClick={this.toggleUploadPopup}
-                          style={{
-                            position: 'absolute',
-                            top: '0',
-                            right: '0',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.75rem',
-                            padding: '1rem 2rem',
-                            background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                            color: '#ffffff',
-                            borderRadius: '50px',
-                            cursor: 'pointer',
-                            border: 'none',
-                            transition: 'all 0.3s ease',
-                            fontSize: '1rem',
-                            fontWeight: '600',
-                            boxShadow: '0 8px 25px rgba(59, 130, 246, 0.25)',
-                            transform: 'translateY(0)',
-                            letterSpacing: '0.02em'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.target.style.transform = 'translateY(-2px)';
-                            e.target.style.boxShadow = '0 12px 35px rgba(59, 130, 246, 0.35)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.target.style.transform = 'translateY(0)';
-                            e.target.style.boxShadow = '0 8px 25px rgba(59, 130, 246, 0.25)';
-                          }}
-                        >
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2C13.1 2 14 2.9 14 4V10H20C21.1 10 22 10.9 22 12S21.1 14 20 14H14V20C14 21.1 13.1 22 12 22S10 21.1 10 20V14H4C2.9 14 2 13.1 2 12S2.9 10 4 10H10V4C10 2.9 10.9 2 12 2Z"/>
-                          </svg>
-                          Add to Collection
-                        </button>
-                      );
-                    }
-                  }
-                } catch (error) {
-                  console.error('Error checking user role for gallery upload:', error);
-                }
-                return null;
-              })()}
-            </div>
-            
-            {/* Studio Gallery Grid */}
-            <div className="studio-gallery-grid" style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-              gap: '1.5rem',
-              marginBottom: '3rem',
-              padding: '0 1rem'
-            }}>
-              {/* Use filtered items with live updates */}
-              {(() => {
-                const filteredItems = this.getFilteredGalleryItems();
-                
-                if (filteredItems.length > 0) {
-                  return filteredItems.map((media, index) => (
-                    <div 
-                      key={media.id || index} 
-                      className="gallery-card" 
-                      style={{
-                        background: '#ffffff',
-                        borderRadius: '16px',
-                        overflow: 'hidden',
-                        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-                        transition: 'all 0.3s ease',
-                        border: '1px solid #e2e8f0',
-                        cursor: 'pointer',
-                        position: 'relative',
-                        aspectRatio: '4/3',
-                        minHeight: '250px'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-8px)';
-                        e.currentTarget.style.boxShadow = '0 12px 40px rgba(0, 0, 0, 0.15)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.08)';
-                      }}
-                    >
-                      {/* Media Container */}
-                      <div 
-                        style={{
-                          position: 'relative',
-                          width: '100%',
-                          height: '100%',
-                          overflow: 'hidden',
-                          background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)'
-                        }}
-                        onClick={() => this.openFullscreen(media)}
-                      >
-                        {media.type && media.type.startsWith('video/') ? (
-                          <div className="gallery-video-container">
-                            <video 
-                              ref={(video) => {
-                                if (video) {
-                                  media.videoElement = video;
-                                }
-                              }}
-                              src={media.url}
-                              preload="metadata"
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'cover',
-                                backgroundColor: '#000'
-                              }}
-                              onContextMenu={(e) => e.preventDefault()}
-                              controlsList="nodownload"
-                              disablePictureInPicture
-                              muted
-                              onPlay={() => {
-                                // Hide play button overlay when video starts playing
-                                const overlay = document.querySelector(`[data-video-index="${index}"]`);
-                                if (overlay) overlay.classList.add('hidden');
-                              }}
-                              onPause={() => {
-                                // Show play button overlay when video is paused
-                                const overlay = document.querySelector(`[data-video-index="${index}"]`);
-                                if (overlay) overlay.classList.remove('hidden');
-                              }}
-                              onEnded={() => {
-                                // Show play button overlay when video ends
-                                const overlay = document.querySelector(`[data-video-index="${index}"]`);
-                                if (overlay) overlay.classList.remove('hidden');
-                              }}
-                            />
-                            {/* Play button overlay */}
-                            <div 
-                              className="gallery-video-overlay"
-                              data-video-index={index}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const video = media.videoElement;
-                                if (video) {
-                                  if (video.paused) {
-                                    video.play();
-                                  } else {
-                                    video.pause();
-                                  }
-                                }
-                              }}
-                            >
-                              <button className="gallery-play-button">
-                                <svg viewBox="0 0 24 24">
-                                  <path d="M8,5.14V19.14L19,12.14L8,5.14Z" />
-                                </svg>
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <img 
-                            src={media.url}
-                            alt="Gallery item"
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'cover',
-                              transition: 'transform 0.3s ease',
-                              userSelect: 'none',
-                              pointerEvents: 'none'
-                            }}
-                            onContextMenu={(e) => e.preventDefault()}
-                            onDragStart={(e) => e.preventDefault()}
-                            onError={(e) => {
-                              console.error('Image failed to load:', media.url);
-                              e.target.style.display = 'none';
-                              e.target.parentElement.innerHTML = `
-                                <div style="
-                                  width: 100%;
-                                  height: 100%;
-                                  display: flex;
-                                  align-items: center;
-                                  justify-content: center;
-                                  flex-direction: column;
-                                  background: #f3f4f6;
-                                  color: #6b7280;
-                                ">
-                                  <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M21,19V5C21,3.89 20.1,3 19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19M8.5,13.5L11,16.5L14.5,12L19,18H5L8.5,13.5Z"/>
-                                  </svg>
-                                  <p style="margin: 8px 0 0 0; font-size: 0.875rem;">Image not found</p>
-                                </div>
-                              `;
-                            }}
-                            onLoad={() => {
-                              console.log('Image loaded successfully:', media.url);
-                            }}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  ));
-                } else {
-                  return (
-                    /* Enhanced Empty State - Studio Style */
-                    <div style={{
-                      gridColumn: '1 / -1',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '6rem 2rem',
-                      background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
-                      borderRadius: '24px',
-                      border: '2px dashed #cbd5e1',
-                      minHeight: '500px',
-                      position: 'relative'
-                    }}>
-                      {/* Animated background elements */}
-                      <div style={{
-                        position: 'absolute',
-                        top: '20%',
-                        left: '20%',
-                        width: '60px',
-                        height: '60px',
-                        background: 'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)',
-                        borderRadius: '50%',
-                        opacity: '0.3',
-                        animation: 'float 6s ease-in-out infinite'
-                      }}></div>
-                      <div style={{
-                        position: 'absolute',
-                        top: '60%',
-                        right: '25%',
-                        width: '40px',
-                        height: '40px',
-                        background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-                        borderRadius: '50%',
-                        opacity: '0.4',
-                        animation: 'float 8s ease-in-out infinite reverse'
-                      }}></div>
-
-                      <div style={{
-                        width: '140px',
-                        height: '140px',
-                        background: 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: '2.5rem',
-                        position: 'relative'
-                      }}>
-                        <svg width="64" height="64" viewBox="0 0 24 24" fill="#64748b">
-                          <path d="M4,6H2V20A2,2 0 0,0 4,22H18V20H4V6M20,2H8A2,2 0 0,0 6,4V16A2,2 0 0,0 8,18H20A2,2 0 0,0 22,16V4A2,2 0 0,0 20,2M20,16H8V4H20V16M11,14L13.5,11L16.5,15H9.5L11,14Z"/>
-                        </svg>
-                      </div>
-                      
-                      <h3 style={{
-                        fontSize: '2rem',
-                        fontWeight: '800',
-                        color: '#1e293b',
-                        marginBottom: '1rem',
-                        textAlign: 'center'
-                      }}>Coming Soon...</h3>
-                      
-                      <p style={{
-                        fontSize: '1.1rem',
-                        color: '#64748b',
-                        textAlign: 'center',
-                        maxWidth: '500px',
-                        lineHeight: '1.7',
-                        marginBottom: '2rem'
-                      }}>
-                        Our conservation gallery is being curated. Check back soon for stunning wildlife photography and research documentation.
-                      </p>
-
-                    </div>
-                  );
-                }
-              })()}
             </div>
           </div>
         </section>
@@ -2701,229 +1916,137 @@ class Home extends React.Component {
           return null;
         })()}
 
-        {/* Fullscreen Media Viewer */}
-        {this.state.fullscreenMedia && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.95)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }} onClick={this.closeFullscreen} className="fullscreen-media-wrapper">
-            
-            {/* Protection overlay - shown when screenshot is detected */}
-            {(this.state.showScreenshotWarning || document.body.classList.contains('screenshot-protection-active')) && (
+        {/* Gallery Popup Modal (no background overlay) */}
+        {fullscreenMedia && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(30,41,59,0.12)',
+            }}
+            onClick={this.closeFullscreen}
+          >
+            <div
+              id="gallery-popup-media"
+              style={{
+                position: 'relative',
+                background: '#fff',
+                borderRadius: 18,
+                boxShadow: '0 8px 32px 0 rgba(30,41,59,0.18)',
+                padding: 0, // Remove padding for edge-to-edge
+                maxWidth: fullscreenMedia.type && fullscreenMedia.type.startsWith('video/') ? 640 : 520,
+                width: '90vw',
+                maxHeight: '70vh',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Close button OUTSIDE media, no background/shadow, just a plain × */}
+              <button
+                onClick={this.closeFullscreen}
+                style={{
+                  position: 'absolute',
+                  top: -32, // Move above the modal
+                  right: 0,
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '2.2rem',
+                  color: '#222',
+                  cursor: 'pointer',
+                  zIndex: 10,
+                  width: 40,
+                  height: 40,
+                  lineHeight: '40px',
+                  textAlign: 'center',
+                  boxShadow: 'none',
+                  borderRadius: 0,
+                  padding: 0,
+                }}
+                aria-label="Close"
+              >×</button>
+              {/* WWF logo always visible in popup, above media */}
               <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: 'rgba(0, 0, 0, 0.9)',
-                zIndex: 10000,
+                width: 80,
+                height: 80,
+                margin: '0 auto 10px auto',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                flexDirection: 'column',
-                color: '#ffffff',
-                fontSize: '2rem',
-                fontWeight: 'bold'
               }}>
-                <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🛡️</div>
-                <div>Content Protected</div>
-                <div style={{ fontSize: '1rem', marginTop: '0.5rem', opacity: 0.7 }}>
-                  Screenshot/Print attempt detected
-                </div>
+                <img
+                  src="/WWF Logo/WWF Logo Large.jpg"
+                  alt="WWF Logo"
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                    objectFit: 'contain',
+                    borderRadius: 0,
+                    background: 'none',
+                    boxShadow: 'none',
+                  }}
+                />
               </div>
-            )}
-
-            {/* Close Button */}
-            <button
-              onClick={this.closeFullscreen}
-              onMouseEnter={(e) => {
-                e.target.style.opacity = '1';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.opacity = '0.8';
-              }}
-              style={{
-                position: 'absolute',
-                top: '2rem',
-                right: '2rem',
-                background: 'transparent',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '50%',
-                width: '48px',
-                height: '48px',
-                fontSize: '24px',
-                cursor: 'pointer',
-                opacity: '0.8',
-                transition: 'opacity 0.2s ease'
-              }}
-            >
-              ×
-            </button>
-
-            {/* File name overlay for preview files */}
-            {this.state.fullscreenMedia.isPreview && (
+              {/* Media area, edge-to-edge, no padding */}
               <div style={{
-                position: 'absolute',
-                top: '2rem',
-                left: '2rem',
-                background: 'rgba(0, 0, 0, 0.7)',
-                color: '#ffffff',
-                padding: '0.75rem 1.5rem',
-                borderRadius: '8px',
-                fontSize: '1rem',
-                fontWeight: '500',
-                maxWidth: '50%',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: fullscreenMedia.type && fullscreenMedia.type.startsWith('video/') ? '#000' : '#fff',
+                borderRadius: 0,
+                boxShadow: 'none',
+                padding: 0,
               }}>
-                {this.state.uploadForm.type === 'pictures' ? '🖼️' : '🎥'} {this.state.fullscreenMedia.name}
+                {fullscreenMedia.type && fullscreenMedia.type.startsWith('video/') ? (
+                  <video
+                    src={fullscreenMedia.url}
+                    controls
+                    autoPlay
+                    style={{
+                      width: '100%',
+                      height: '56vh',
+                      objectFit: 'contain',
+                      borderRadius: 0,
+                      background: '#000',
+                      boxShadow: 'none',
+                      margin: 0,
+                      padding: 0,
+                      display: 'block',
+                    }}
+                    id="gallery-popup-video"
+                  />
+                ) : (
+                  <img
+                    src={fullscreenMedia.url}
+                    alt="Gallery media"
+                    style={{
+                      width: '100%',
+                      height: '56vh',
+                      objectFit: 'contain',
+                      borderRadius: 0,
+                      background: '#fff',
+                      boxShadow: 'none',
+                      margin: 0,
+                      padding: 0,
+                      display: 'block',
+                    }}
+                    id="gallery-popup-img"
+                  />
+                )}
               </div>
-            )}
-
-            {/* Media Content */}
-            <div style={{
-              width: '100vw',
-              height: '100vh',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }} onClick={(e) => e.stopPropagation()}>
-              {this.state.hideMediaTemporarily ? (
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#ffffff',
-                  fontSize: '1.5rem',
-                  textAlign: 'center'
-                }}>
-                  <div style={{
-                    fontSize: '4rem',
-                    marginBottom: '1rem'
-                  }}>🔒</div>
-                  <div>Content Hidden</div>
-                  <div style={{ fontSize: '1rem', marginTop: '0.5rem', opacity: 0.7 }}>
-                    Screenshot attempt detected
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {this.state.fullscreenMedia.type && this.state.fullscreenMedia.type.startsWith('video/') ? (
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <video 
-                        src={this.state.fullscreenMedia.url}
-                        controls
-                        autoPlay
-                        onContextMenu={(e) => e.preventDefault()}
-                        controlsList="nodownload"
-                        disablePictureInPicture
-                        style={{
-                          maxWidth: '100vw',
-                          maxHeight: '100vh',
-                          width: 'auto',
-                          height: 'auto',
-                          objectFit: 'contain',
-                          filter: (this.state.showScreenshotWarning || document.body.classList.contains('screenshot-protection-active')) ? 'blur(20px) brightness(0.2) contrast(0.3) saturate(0.1)' : 'none',
-                          transition: (this.state.showScreenshotWarning || document.body.classList.contains('screenshot-protection-active')) ? 'filter 0.01s ease' : 'filter 0.3s ease'
-                        }}
-                      />
-                      {/* Watermark overlay for video */}
-                      <div style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        color: 'rgba(255, 255, 255, 0.15)',
-                        fontSize: '2rem',
-                        fontWeight: 'bold',
-                        pointerEvents: 'none',
-                        zIndex: 2,
-                        userSelect: 'none',
-                        textShadow: '2px 2px 8px rgba(0, 0, 0, 0.7)',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        WWF-SG Protected Content
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <img 
-                        src={this.state.fullscreenMedia.url}
-                        alt="Gallery media"
-                        onContextMenu={(e) => e.preventDefault()}
-                        onDragStart={(e) => e.preventDefault()}
-                        style={{
-                          maxWidth: '100vw',
-                          maxHeight: '100vh',
-                          width: 'auto',
-                          height: 'auto',
-                          objectFit: 'contain',
-                          userSelect: 'none',
-                          pointerEvents: 'none',
-                          filter: (this.state.showScreenshotWarning || document.body.classList.contains('screenshot-protection-active')) ? 'blur(20px) brightness(0.2) contrast(0.3) saturate(0.1)' : 'none',
-                          transition: (this.state.showScreenshotWarning || document.body.classList.contains('screenshot-protection-active')) ? 'filter 0.01s ease' : 'filter 0.3s ease'
-                        }}
-                      />
-                      {/* Watermark overlay for image */}
-                      <div style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        color: 'rgba(255, 255, 255, 0.15)',
-                        fontSize: '2rem',
-                        fontWeight: 'bold',
-                        pointerEvents: 'none',
-                        zIndex: 2,
-                        userSelect: 'none',
-                        textShadow: '2px 2px 8px rgba(0, 0, 0, 0.7)',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        WWF-SG Protected Content
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
             </div>
-
-            {/* Screenshot Warning Overlay */}
-            {this.state.showScreenshotWarning && (
-              <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                background: 'rgba(220, 38, 38, 0.95)',
-                color: '#ffffff',
-                padding: '2rem 3rem',
-                borderRadius: '12px',
-                fontSize: '1.2rem',
-                fontWeight: '600',
-                textAlign: 'center',
-                boxShadow: '0 10px 25px rgba(0, 0, 0, 0.5)',
-                zIndex: 10000,
-                border: '2px solid #ef4444'
-              }}>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
-                <div style={{ marginBottom: '0.5rem' }}>Screenshot Detected!</div>
-                <div style={{ fontSize: '1rem', opacity: 0.9 }}>
-                  This content is protected and cannot be captured
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>
