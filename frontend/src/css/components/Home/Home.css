@@ -1,4 +1,105 @@
 /* Modern Home Page Design */
+
+/* Screenshot Protection Styles */
+.gallery-card img,
+.gallery-card video,
+.upload-preview-item img,
+.upload-preview-item video {
+  /* Disable text selection and dragging */
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  pointer-events: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  
+  /* Prevent highlighting */
+  -webkit-highlight: none;
+  -moz-highlight: none;
+  
+  /* Additional protection */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* Fullscreen media extra protection */
+.fullscreen-media-content img,
+.fullscreen-media-content video {
+  /* Disable all interactions */
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  
+  /* Prevent copying via CSS */
+  -webkit-user-modify: read-only;
+  -moz-user-modify: read-only;
+  
+  /* Additional screenshot deterrent */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Disable print for protected content */
+@media print {
+  .gallery-card,
+  .upload-preview-item,
+  .fullscreen-media-content {
+    display: none !important;
+    visibility: hidden !important;
+  }
+}
+
+/* Prevent printing of protected content */
+@media print {
+  .home-container,
+  .gallery-card,
+  .upload-preview-item,
+  .fullscreen-media-content,
+  .studio-gallery-section,
+  .features-section,
+  .info-section {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  body.print-protection-active::before {
+    content: 'Printing is disabled for protected content.';
+    display: block;
+    position: fixed;
+    top: 40vh;
+    left: 0;
+    width: 100vw;
+    text-align: center;
+    font-size: 2rem;
+    color: #dc2626;
+    background: #fff;
+    z-index: 99999;
+    padding: 2rem 0;
+  }
+}
+
+/* Protection against developer tools screenshots */
+.gallery-card::before,
+.upload-preview-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
 .home-container {
   min-height: 100vh;
   background: linear-gradient(135deg, #F0FDF4 0%, #ECFDF5 50%, #F0F9FF 100%);
@@ -1160,4 +1261,49 @@
   pointer-events: none;
   font-family: monospace;
   white-space: nowrap;
+}
+
+/* Additional screenshot deterrent styles */
+.gallery-card img:not(:hover),
+.gallery-card video:not(:hover) {
+  filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.1));
+}
+
+/* Blur effect when screenshot is detected */
+.screenshot-protection-active .gallery-card img,
+.screenshot-protection-active .gallery-card video,
+.screenshot-protection-active .upload-preview-item img,
+.screenshot-protection-active .upload-preview-item video {
+  filter: blur(10px) !important;
+  transition: filter 0.3s ease;
+}
+
+/* Enhanced watermark visibility */
+.gallery-card::after {
+  content: 'WWF-SG Protected Content';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-15deg);
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 0.8rem;
+  font-weight: bold;
+  pointer-events: none;
+  z-index: 3;
+  user-select: none;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  letter-spacing: 1px;
+}
+
+/* Prevent selection highlighting */
+.gallery-card,
+.upload-preview-item,
+.fullscreen-media-content {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
