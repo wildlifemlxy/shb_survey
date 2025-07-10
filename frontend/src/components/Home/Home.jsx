@@ -693,6 +693,109 @@ class Home extends React.Component {
                 lineHeight: '1.6'
               }}>A curated showcase of wildlife photography and videography taken by the volunteers and staffs.   </p>
 
+              {/* Filter Buttons - Always Visible */}
+              <div style={{
+                display: 'flex',
+                gap: '1rem',
+                justifyContent: 'center',
+                marginBottom: '2rem',
+                flexWrap: 'wrap'
+              }}>
+                <button
+                  onClick={() => this.setGalleryFilter('all')}
+                  className="filter-button"
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: this.state.galleryFilter === 'all' ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' : '#f8fafc',
+                    color: this.state.galleryFilter === 'all' ? '#ffffff' : '#64748b',
+                    border: '2px solid',
+                    borderColor: this.state.galleryFilter === 'all' ? '#3b82f6' : '#e2e8f0',
+                    borderRadius: '25px',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    letterSpacing: '0.02em'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (this.state.galleryFilter !== 'all') {
+                      e.target.style.background = '#e2e8f0';
+                      e.target.style.borderColor = '#cbd5e1';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (this.state.galleryFilter !== 'all') {
+                      e.target.style.background = '#f8fafc';
+                      e.target.style.borderColor = '#e2e8f0';
+                    }
+                  }}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => this.setGalleryFilter('pictures')}
+                  className="filter-button"
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: this.state.galleryFilter === 'pictures' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : '#f8fafc',
+                    color: this.state.galleryFilter === 'pictures' ? '#ffffff' : '#64748b',
+                    border: '2px solid',
+                    borderColor: this.state.galleryFilter === 'pictures' ? '#10b981' : '#e2e8f0',
+                    borderRadius: '25px',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    letterSpacing: '0.02em'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (this.state.galleryFilter !== 'pictures') {
+                      e.target.style.background = '#e2e8f0';
+                      e.target.style.borderColor = '#cbd5e1';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (this.state.galleryFilter !== 'pictures') {
+                      e.target.style.background = '#f8fafc';
+                      e.target.style.borderColor = '#e2e8f0';
+                    }
+                  }}
+                >
+                  Pictures
+                </button>
+                <button
+                  onClick={() => this.setGalleryFilter('videos')}
+                  className="filter-button"
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: this.state.galleryFilter === 'videos' ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' : '#f8fafc',
+                    color: this.state.galleryFilter === 'videos' ? '#ffffff' : '#64748b',
+                    border: '2px solid',
+                    borderColor: this.state.galleryFilter === 'videos' ? '#8b5cf6' : '#e2e8f0',
+                    borderRadius: '25px',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    letterSpacing: '0.02em'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (this.state.galleryFilter !== 'videos') {
+                      e.target.style.background = '#e2e8f0';
+                      e.target.style.borderColor = '#cbd5e1';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (this.state.galleryFilter !== 'videos') {
+                      e.target.style.background = '#f8fafc';
+                      e.target.style.borderColor = '#e2e8f0';
+                    }
+                  }}
+                >
+                  Videos
+                </button>
+              </div>
+
               {/* Upload Button - Modern Studio Style */}
               {(() => {
                 try {
@@ -860,40 +963,6 @@ class Home extends React.Component {
                             }}
                           />
                         )}
-
-                        {/* Location badge */}
-                        {media.location && (
-                          <div style={{
-                            position: 'absolute',
-                            bottom: '8px',
-                            left: '8px',
-                            background: 'rgba(0, 0, 0, 0.7)',
-                            color: 'white',
-                            padding: '4px 8px',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
-                            fontWeight: '500',
-                            backdropFilter: 'blur(4px)'
-                          }}>
-                            📍 {media.location}
-                          </div>
-                        )}
-
-                        {/* Type indicator */}
-                        <div style={{
-                          position: 'absolute',
-                          bottom: '8px',
-                          right: '8px',
-                          background: 'rgba(255, 255, 255, 0.9)',
-                          color: '#374151',
-                          padding: '4px 8px',
-                          borderRadius: '12px',
-                          fontSize: '0.75rem',
-                          fontWeight: '600',
-                          backdropFilter: 'blur(4px)'
-                        }}>
-                          {media.type && media.type.startsWith('video/') ? '🎥' : '📸'}
-                        </div>
                       </div>
                     </div>
                   ));
@@ -972,31 +1041,6 @@ class Home extends React.Component {
                         Our conservation gallery is being curated. Check back soon for stunning wildlife photography and research documentation.
                       </p>
 
-                      {/* Quick action buttons */}
-                      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-                        <button
-                          onClick={() => this.setGalleryFilter('all')}
-                          style={{
-                            padding: '0.75rem 1.5rem',
-                            background: '#f1f5f9',
-                            color: '#475569',
-                            border: 'none',
-                            borderRadius: '25px',
-                            fontSize: '0.9rem',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.target.style.background = '#e2e8f0';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.target.style.background = '#f1f5f9';
-                          }}
-                        >
-                          View All Media
-                        </button>
-                      </div>
                     </div>
                   );
                 }
@@ -1356,8 +1400,7 @@ class Home extends React.Component {
             zIndex: 9999,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            padding: '2rem'
+            justifyContent: 'center'
           }} onClick={this.closeFullscreen}>
             {/* Close Button */}
             <button
@@ -1366,7 +1409,7 @@ class Home extends React.Component {
                 position: 'absolute',
                 top: '2rem',
                 right: '2rem',
-                background: 'rgba(255, 255, 255, 0.2)',
+                background: 'transparent',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '50%',
@@ -1376,16 +1419,16 @@ class Home extends React.Component {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '1.5rem',
+                fontSize: '2rem',
                 fontWeight: 'bold',
-                transition: 'background 0.2s ease',
-                backdropFilter: 'blur(10px)'
+                transition: 'opacity 0.2s ease',
+                opacity: '0.8'
               }}
               onMouseEnter={(e) => {
-                e.target.style.background = 'rgba(255, 255, 255, 0.3)';
+                e.target.style.opacity = '1';
               }}
               onMouseLeave={(e) => {
-                e.target.style.background = 'rgba(255, 255, 255, 0.2)';
+                e.target.style.opacity = '0.8';
               }}
             >
               ×
@@ -1393,11 +1436,11 @@ class Home extends React.Component {
 
             {/* Media Content */}
             <div style={{
-              maxWidth: '90vw',
-              maxHeight: '90vh',
+              width: '100vw',
+              height: '100vh',
               display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center'
+              alignItems: 'center',
+              justifyContent: 'center'
             }} onClick={(e) => e.stopPropagation()}>
               {this.state.fullscreenMedia.type && this.state.fullscreenMedia.type.startsWith('video/') ? (
                 <video 
@@ -1405,10 +1448,11 @@ class Home extends React.Component {
                   controls
                   autoPlay
                   style={{
-                    maxWidth: '100%',
-                    maxHeight: '80vh',
-                    borderRadius: '8px',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+                    maxWidth: '100vw',
+                    maxHeight: '100vh',
+                    width: 'auto',
+                    height: 'auto',
+                    objectFit: 'contain'
                   }}
                 />
               ) : (
@@ -1416,15 +1460,14 @@ class Home extends React.Component {
                   src={this.state.fullscreenMedia.url}
                   alt="Gallery media"
                   style={{
-                    maxWidth: '100%',
-                    maxHeight: '80vh',
-                    borderRadius: '8px',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+                    maxWidth: '100vw',
+                    maxHeight: '100vh',
+                    width: 'auto',
+                    height: 'auto',
+                    objectFit: 'contain'
                   }}
                 />
               )}
-              
-
             </div>
           </div>
         )}
