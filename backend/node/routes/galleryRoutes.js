@@ -53,7 +53,8 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 100 * 1024 * 1024 // 100MB limit
+    fileSize: 200 * 1024 * 1024, // 200MB limit per file
+    files: undefined // No limit on number of files
   }
 });
 
@@ -126,7 +127,7 @@ router.post('/', function(req, res, next)
     const io = req.app.get('io'); // Get the Socket.IO instance
     
     // First, try to parse the request to see if it's a file upload
-    upload.array('files', 10)(req, res, async function(err) {
+    upload.array('files')(req, res, async function(err) {
         // Check if this is a file upload request (has files)
         if (req.files && req.files.length > 0) {
             // This is an upload request

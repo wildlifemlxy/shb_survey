@@ -85,7 +85,61 @@ class Home extends React.Component {
     this.timer = setInterval(() => {
       this.setState({ currentDateTime: this.getFormattedDateTime() });
     }, 1000);
+    
+    // Add event listeners for content protection
+    document.addEventListener('contextmenu', this.handleContextMenuPrevention);
+    document.addEventListener('keydown', this.handleKeyDownPrevention);
   }
+
+  // Format time in MM:SS format
+  formatTime = (timeInSeconds) => {
+    if (isNaN(timeInSeconds) || timeInSeconds < 0) return '0:00';
+    const minutes = Math.floor(timeInSeconds / 60);
+    const seconds = Math.floor(timeInSeconds % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
+
+  // Update video timing display
+  updateVideoTiming = (videoElement, index) => {
+    if (!videoElement) return;
+    
+    const currentTimeElement = document.querySelector(`[data-current-time-index="${index}"]`);
+    if (currentTimeElement) {
+      currentTimeElement.textContent = this.formatTime(videoElement.currentTime);
+    }
+  }
+
+  // Set video duration display
+  setVideoDuration = (videoElement, index) => {
+    if (!videoElement) return;
+    
+    const durationElement = document.querySelector(`[data-duration-index="${index}"]`);
+    if (durationElement && videoElement.duration) {
+      durationElement.textContent = this.formatTime(videoElement.duration);
+    }
+  }
+
+  // Prevent context menu on media elements
+  handleContextMenuPrevention = (e) => {
+    if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO') {
+      e.preventDefault();
+    }
+  };
+
+  // Prevent common shortcuts for saving/copying media
+  handleKeyDownPrevention = (e) => {
+    // Prevent common save shortcuts
+    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+      const target = document.activeElement;
+      if (target.tagName === 'IMG' || target.tagName === 'VIDEO') {
+        e.preventDefault();
+      }
+    }
+    // Prevent developer tools (optional - can be removed if too restrictive)
+    if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) {
+      e.preventDefault();
+    }
+  };
 
   loadGalleryFolderItems = () => {
     // Load existing uploaded files from manifest and localStorage
@@ -129,6 +183,10 @@ class Home extends React.Component {
 
   componentWillUnmount() {
     if (this.timer) clearInterval(this.timer);
+    
+    // Clean up event listeners
+    document.removeEventListener('contextmenu', this.handleContextMenuPrevention);
+    document.removeEventListener('keydown', this.handleKeyDownPrevention);
   }
 
   componentDidUpdate(prevProps) {
@@ -235,10 +293,19 @@ class Home extends React.Component {
   };
 
   toggleUploadPopup = () => {
+    // Clean up object URLs if popup is being closed
+     if (this.state.isUploadPopupOpen && this.state.uploadForm.files.length > 0) {
+      this.state.uploadForm.files.forEach(file => {
+        if (file.objectURL) {
+          URL.revokeObjectURL(file.objectURL);
+        }
+      });
+    }
+    
     this.setState(prevState => ({
       isUploadPopupOpen: !prevState.isUploadPopupOpen,
       uploadForm: {
-        type: 'pictures',
+        type: 'pictures', // Default to pictures, but backend will handle mixed uploads
         files: []
       }
     }));
@@ -253,14 +320,77 @@ class Home extends React.Component {
     }));
   };
 
-  handleFileSelection = (event) => {
-    const files = Array.from(event.target.files);
-    this.setState(prevState => ({
-      uploadForm: {
-        ...prevState.uploadForm,
-        files: files
-      }
-    }));
+  // Drag and drop handlers for multiple file support
+  handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.style.borderColor = '#22c55e';
+    e.currentTarget.style.backgroundColor = '#f0fdf4';
+  };
+
+  handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.style.borderColor = '#22c55e';
+    e.currentTarget.style.backgroundColor = '#f0fdf4';
+  };
+
+  handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only reset styles if we're leaving the drop zone entirely
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      e.currentTarget.style.borderColor = '#d1d5db';
+      e.currentTarget.style.backgroundColor = '#f9fafb';
+    }
+  };
+
+  handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Reset visual feedback
+    e.currentTarget.style.borderColor = '#d1d5db';
+    e.currentTarget.style.backgroundColor = '#f9fafb';
+    
+    const files = Array.from(e.dataTransfer.files);
+    
+    // Accept both images and videos regardless of selected type
+    const filteredFiles = files.filter(file => {
+      return file.type.startsWith('image/') || file.type.startsWith('video/');
+    });
+    
+    if (filteredFiles.length > 0) {
+      this.setState(prevState => ({
+        uploadForm: {
+          ...prevState.uploadForm,
+          files: [...prevState.uploadForm.files, ...filteredFiles]
+        }
+      }));
+    } else {
+      alert(`Please drop image or video files only.`);
+    }
+  };
+
+  // Handle file selection from input
+  handleFileSelection = (e) => {
+    const files = Array.from(e.target.files);
+    
+    // Accept both images and videos regardless of selected type
+    const filteredFiles = files.filter(file => {
+      return file.type.startsWith('image/') || file.type.startsWith('video/');
+    });
+    
+    if (filteredFiles.length > 0) {
+      this.setState(prevState => ({
+        uploadForm: {
+          ...prevState.uploadForm,
+          files: [...prevState.uploadForm.files, ...filteredFiles] // Add to existing files instead of replacing
+        }
+      }));
+    } else {
+      alert(`Please select image or video files only.`);
+    }
   };
 
   handleUploadSubmit = () => {
@@ -272,6 +402,20 @@ class Home extends React.Component {
       return;
     }
 
+    // Check total file size for very large batches
+    const totalSize = uploadForm.files.reduce((total, file) => total + file.size, 0);
+    const totalSizeMB = (totalSize / (1024 * 1024)).toFixed(1);
+    
+    if (totalSize > 1000 * 1024 * 1024) { // 1GB total
+      const proceed = confirm(
+        `You're uploading ${uploadForm.files.length} files (${totalSizeMB}MB total). ` +
+        `Large uploads may take several minutes. Continue?`
+      );
+      if (!proceed) return;
+    }
+
+    console.log(`Starting bulk upload of ${uploadForm.files.length} files (${totalSizeMB}MB total)`);
+
     // Process the upload
     this.processUpload(uploadForm);
     
@@ -280,47 +424,152 @@ class Home extends React.Component {
   };
 
   processUpload = async (formData) => {
-    const { type, files } = formData;
+    const { files } = formData;
     
     try {
-      // Create FormData for backend upload
-      const uploadData = new FormData();
-      uploadData.append('purpose', 'upload');
-      uploadData.append('type', type);
+      // Show uploading message
+      this.showUploadProgressMessage(files.length);
       
-      // Add all files to FormData
-      files.forEach(file => {
-        uploadData.append('files', file);
-      });
+      // Separate files by type for backend processing
+      const imageFiles = files.filter(file => file.type.startsWith('image/'));
+      const videoFiles = files.filter(file => file.type.startsWith('video/'));
+      
+      console.log(`Uploading ${files.length} files: ${imageFiles.length} images, ${videoFiles.length} videos`);
 
-      // Upload to backend API
-      const response = await axios.post('http://localhost:3001/gallery', uploadData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      console.log('Upload response:', response.data);
+      // Process uploads (can be done in parallel for better performance)
+      const uploadPromises = [];
 
-      if (response.data.success) {
+      // Upload images if any
+      if (imageFiles.length > 0) {
+        const imageFormData = new FormData();
+        imageFormData.append('purpose', 'upload');
+        imageFormData.append('type', 'pictures');
+        imageFiles.forEach((file, index) => {
+          imageFormData.append('files', file);
+          console.log(`Added image ${index + 1}/${imageFiles.length}: ${file.name}`);
+        });
+        uploadPromises.push(
+          axios.post('http://localhost:3001/gallery', imageFormData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 120000
+          })
+        );
+      }
+
+      // Upload videos if any
+      if (videoFiles.length > 0) {
+        const videoFormData = new FormData();
+        videoFormData.append('purpose', 'upload');
+        videoFormData.append('type', 'videos');
+        videoFiles.forEach((file, index) => {
+          videoFormData.append('files', file);
+          console.log(`Added video ${index + 1}/${videoFiles.length}: ${file.name}`);
+        });
+        uploadPromises.push(
+          axios.post('http://localhost:3001/gallery', videoFormData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 120000
+          })
+        );
+      }
+
+      // Wait for all uploads to complete
+      const responses = await Promise.all(uploadPromises);
+      console.log('Upload responses:', responses.map(r => r.data));
+
+      // Check if all uploads were successful
+      const allSuccessful = responses.every(response => response.data.success);
+      if (allSuccessful) {
         // Reload gallery items from backend
         await this.loadUploadedFiles();
         
+        // Calculate total uploaded files
+        const totalUploaded = responses.reduce((total, response) => 
+          total + (response.data.files?.length || 0), 0
+        );
+        
         // Show success message
-        alert(`${response.data.files.length} file(s) uploaded successfully!`);
+        this.showUploadSuccessMessage(totalUploaded);
       } else {
-        throw new Error(response.data.error || 'Upload failed');
+        const errors = responses.filter(r => !r.data.success).map(r => r.data.error);
+        throw new Error(`Some uploads failed: ${errors.join(', ')}`);
       }
       
     } catch (error) {
       console.error('Error uploading files:', error);
-      alert(`Error uploading files: ${error.response?.data?.error || error.message}`);
+      const errorMessage = error.code === 'ECONNABORTED' 
+        ? 'Upload timeout - try uploading fewer files at once'
+        : error.response?.data?.error || error.message;
+      alert(`Error uploading files: ${errorMessage}`);
     }
   };
 
+  // Show upload progress message
+  showUploadProgressMessage = (fileCount) => {
+    // Remove any existing progress messages
+    const existingProgress = document.querySelector('.upload-progress-message');
+    if (existingProgress) {
+      existingProgress.remove();
+    }
+
+    // Create a progress message
+    const progressDiv = document.createElement('div');
+    progressDiv.className = 'upload-progress-message';
+    progressDiv.innerHTML = `
+      <div style="
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+        z-index: 10000;
+        font-weight: 600;
+        max-width: 300px;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      ">
+        <div style="
+          width: 20px;
+          height: 20px;
+          border: 2px solid rgba(255,255,255,0.3);
+          border-radius: 50%;
+          border-top-color: white;
+          animation: spin 1s ease-in-out infinite;
+        "></div>
+        <div>
+          📤 Uploading ${fileCount} file${fileCount > 1 ? 's' : ''}...<br>
+          <small style="opacity: 0.9;">Please wait, this may take a moment</small>
+        </div>
+      </div>
+      <style>
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      </style>
+    `;
+    
+    document.body.appendChild(progressDiv);
+  };
+
   // Convert file to base64 for permanent storage
-  showUploadSuccessMessage = () => {
+  showUploadSuccessMessage = (fileCount) => {
+    // Remove any existing messages
+    const existingProgress = document.querySelector('.upload-progress-message');
+    if (existingProgress) {
+      existingProgress.remove();
+    }
+    const existingSuccess = document.querySelector('.upload-success-message');
+    if (existingSuccess) {
+      existingSuccess.remove();
+    }
+
     // Create a temporary success message
     const successDiv = document.createElement('div');
+    successDiv.className = 'upload-success-message';
     successDiv.innerHTML = `
       <div style="
         position: fixed;
@@ -335,24 +584,43 @@ class Home extends React.Component {
         font-weight: 600;
         max-width: 300px;
       ">
-        ✅ Files uploaded successfully!<br>
-        <small style="opacity: 0.9;">Visible in gallery and saved locally</small>
+        ✅ ${fileCount} file${fileCount > 1 ? 's' : ''} uploaded successfully!<br>
+        <small style="opacity: 0.9;">Visible in gallery and saved to server</small>
       </div>
     `;
     
     document.body.appendChild(successDiv);
     
-    // Remove after 3 seconds
+    // Remove after 4 seconds
     setTimeout(() => {
       if (document.body.contains(successDiv)) {
         document.body.removeChild(successDiv);
       }
-    }, 3000);
+    }, 4000);
   };
 
   openFullscreen = (media) => {
     console.log('Opening fullscreen for media:', media);
     this.setState({ fullscreenMedia: media });
+  };
+
+  openPreviewFullscreen = (file, index) => {
+    // Create a temporary URL for the file to display in fullscreen
+    const objectURL = URL.createObjectURL(file);
+    const mediaData = {
+      url: objectURL,
+      type: file.type,
+      name: file.name || `File ${index + 1}`,
+      isPreview: true // Flag to identify this as a preview file
+    };
+    
+    console.log('Opening preview fullscreen for file:', file.name);
+    this.setState({ fullscreenMedia: mediaData });
+    
+    // Clean up the object URL after a delay to prevent memory leaks
+    setTimeout(() => {
+      URL.revokeObjectURL(objectURL);
+    }, 30000); // 30 seconds should be enough for viewing
   };
 
   closeFullscreen = () => {
@@ -380,6 +648,15 @@ class Home extends React.Component {
     }
     
     return filteredItems;
+  };
+
+  removeFile = (indexToRemove) => {
+    this.setState(prevState => ({
+      uploadForm: {
+        ...prevState.uploadForm,
+        files: prevState.uploadForm.files.filter((_, index) => index !== indexToRemove)
+      }
+    }));
   };
 
   render() {
@@ -864,9 +1141,10 @@ class Home extends React.Component {
             {/* Studio Gallery Grid */}
             <div className="studio-gallery-grid" style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
               gap: '1.5rem',
-              marginBottom: '3rem'
+              marginBottom: '3rem',
+              padding: '0 1rem'
             }}>
               {/* Use filtered items with live updates */}
               {(() => {
@@ -886,7 +1164,8 @@ class Home extends React.Component {
                         border: '1px solid #e2e8f0',
                         cursor: 'pointer',
                         position: 'relative',
-                        aspectRatio: '4/3'
+                        aspectRatio: '4/3',
+                        minHeight: '250px'
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.transform = 'translateY(-8px)';
@@ -909,35 +1188,64 @@ class Home extends React.Component {
                         onClick={() => this.openFullscreen(media)}
                       >
                         {media.type && media.type.startsWith('video/') ? (
-                          <>
+                          <div className="gallery-video-container">
                             <video 
+                              ref={(video) => {
+                                if (video) {
+                                  media.videoElement = video;
+                                }
+                              }}
                               src={media.url}
+                              preload="metadata"
                               style={{
                                 width: '100%',
                                 height: '100%',
-                                objectFit: 'cover'
+                                objectFit: 'cover',
+                                backgroundColor: '#000'
+                              }}
+                              onContextMenu={(e) => e.preventDefault()}
+                              controlsList="nodownload"
+                              disablePictureInPicture
+                              muted
+                              onPlay={() => {
+                                // Hide play button overlay when video starts playing
+                                const overlay = document.querySelector(`[data-video-index="${index}"]`);
+                                if (overlay) overlay.classList.add('hidden');
+                              }}
+                              onPause={() => {
+                                // Show play button overlay when video is paused
+                                const overlay = document.querySelector(`[data-video-index="${index}"]`);
+                                if (overlay) overlay.classList.remove('hidden');
+                              }}
+                              onEnded={() => {
+                                // Show play button overlay when video ends
+                                const overlay = document.querySelector(`[data-video-index="${index}"]`);
+                                if (overlay) overlay.classList.remove('hidden');
                               }}
                             />
-                            {/* Video overlay indicator */}
-                            <div style={{
-                              position: 'absolute',
-                              top: '50%',
-                              left: '50%',
-                              transform: 'translate(-50%, -50%)',
-                              background: 'rgba(0, 0, 0, 0.7)',
-                              borderRadius: '50%',
-                              width: '60px',
-                              height: '60px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              pointerEvents: 'none'
-                            }}>
-                              <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-                                <path d="M8,5.14V19.14L19,12.14L8,5.14Z"/>
-                              </svg>
+                            {/* Play button overlay */}
+                            <div 
+                              className="gallery-video-overlay"
+                              data-video-index={index}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const video = media.videoElement;
+                                if (video) {
+                                  if (video.paused) {
+                                    video.play();
+                                  } else {
+                                    video.pause();
+                                  }
+                                }
+                              }}
+                            >
+                              <button className="gallery-play-button">
+                                <svg viewBox="0 0 24 24">
+                                  <path d="M8,5.14V19.14L19,12.14L8,5.14Z" />
+                                </svg>
+                              </button>
                             </div>
-                          </>
+                          </div>
                         ) : (
                           <img 
                             src={media.url}
@@ -946,8 +1254,12 @@ class Home extends React.Component {
                               width: '100%',
                               height: '100%',
                               objectFit: 'cover',
-                              transition: 'transform 0.3s ease'
+                              transition: 'transform 0.3s ease',
+                              userSelect: 'none',
+                              pointerEvents: 'none'
                             }}
+                            onContextMenu={(e) => e.preventDefault()}
+                            onDragStart={(e) => e.preventDefault()}
                             onError={(e) => {
                               console.error('Image failed to load:', media.url);
                               e.target.style.display = 'none';
@@ -1288,7 +1600,7 @@ class Home extends React.Component {
                         gap: '1rem',
                         flexDirection: 'column'
                       }}>
-                        <label style={{ fontSize: '0.9rem', color: '#374151' }}>Type:</label>
+                        <label style={{ fontSize: '0.9rem', color: '#374151' }}>Primary Type (accepts both images and videos):</label>
                         <select
                           value={this.state.uploadForm.type}
                           onChange={(e) => this.handleUploadFormChange('type', e.target.value)}
@@ -1313,28 +1625,324 @@ class Home extends React.Component {
                         flexDirection: 'column'
                       }}>
                         <label style={{ fontSize: '0.9rem', color: '#374151' }}>Select Files:</label>
-                        <input 
-                          type="file"
-                          multiple
-                          accept={this.state.uploadForm.type === 'pictures' ? 'image/*' : 'video/*'}
-                          onChange={this.handleFileSelection}
+                        
+                        {/* Drag and Drop Zone */}
+                        <div
+                          onDragOver={this.handleDragOver}
+                          onDragEnter={this.handleDragEnter}
+                          onDragLeave={this.handleDragLeave}
+                          onDrop={this.handleDrop}
                           style={{
-                            padding: '0.75rem',
-                            borderRadius: '8px',
-                            border: '1px solid #d1d5db',
-                            fontSize: '1rem',
-                            color: '#111827',
-                            cursor: 'pointer'
+                            border: '2px dashed #d1d5db',
+                            borderRadius: '12px',
+                            padding: '2rem',
+                            textAlign: 'center',
+                                                       backgroundColor: '#f9fafb',
+                            transition: 'all 0.2s ease',
+                            cursor: 'pointer',
+                            position: 'relative'
                           }}
-                        />
-                        {this.state.uploadForm.files.length > 0 && (
-                          <p style={{
-                            fontSize: '0.8rem',
-                            color: '#6b7280',
-                            margin: 0
+                          onClick={() => document.getElementById('file-input').click()}
+                        >
+                          <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '1rem'
                           }}>
-                            {this.state.uploadForm.files.length} file(s) selected
-                          </p>
+                            <div style={{
+                              width: '48px',
+                              height: '48px',
+                              borderRadius: '50%',
+                              backgroundColor: '#e5e7eb',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '24px'
+                            }}>
+                              �
+                            </div>
+                            <div>
+                              <p style={{ margin: 0, fontWeight: '600', color: '#374151' }}>
+                                Drop images and videos here or click to browse
+                              </p>
+                              <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#6b7280' }}>
+                                Support for multiple JPG, PNG, GIF, MP4, MOV, AVI files
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <input 
+                            id="file-input"
+                            type="file"
+                            multiple
+                            accept="image/*,video/*"
+                            onChange={this.handleFileSelection}
+                            style={{ display: 'none' }}
+                          />
+                        </div>
+                        
+                        {this.state.uploadForm.files.length > 0 && (
+                          <>
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '0.75rem 1rem',
+                              backgroundColor: '#f0fdf4',
+                              border: '1px solid #22c55e',
+                              borderRadius: '8px',
+                              marginTop: '0.5rem'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="#22c55e">
+                                  <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/>
+                                </svg>
+                                <span style={{
+                                  fontSize: '0.875rem',
+                                  color: '#16a34a',
+                                  fontWeight: '600'
+                                }}>
+                                  {this.state.uploadForm.files.length} file{this.state.uploadForm.files.length !== 1 ? 's' : ''} selected
+                                  {this.state.uploadForm.files.length > 0 && (
+                                    <span style={{ color: '#6b7280', fontWeight: '400', marginLeft: '0.5rem' }}>
+                                      ({(this.state.uploadForm.files.reduce((total, file) => total + file.size, 0) / (1024 * 1024)).toFixed(1)}MB total)
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => this.setState(prevState => ({
+                                  uploadForm: { ...prevState.uploadForm, files: [] }
+                                }))}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: '#16a34a',
+                                  cursor: 'pointer',
+                                  fontSize: '0.875rem',
+                                  textDecoration: 'underline',
+                                  padding: 0
+                                }}
+                              >
+                                Clear all
+                              </button>
+                            </div>
+                            
+                            {/* Media Preview Section */}
+                            <div style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '0.75rem',
+                              marginTop: '0.5rem'
+                            }}>
+                              <label style={{ fontSize: '0.9rem', color: '#374151', fontWeight: '600' }}>
+                                Preview: ({this.state.uploadForm.files.length} file{this.state.uploadForm.files.length !== 1 ? 's' : ''}{this.state.uploadForm.files.length > 0 ? `, ${(this.state.uploadForm.files.reduce((total, file) => total + file.size, 0) / (1024 * 1024)).toFixed(1)}MB` : ''})
+                              </label>
+                              <div className="upload-preview-container" style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+                                gridAutoRows: '120px',
+                                gap: '0.75rem',
+                                maxHeight: '280px',
+                                overflowY: 'auto',
+                                padding: '0.75rem',
+                                backgroundColor: '#f9fafb',
+                                borderRadius: '12px',
+                                border: '1px solid #e5e7eb',
+                                width: '100%'
+                              }}>
+                                {this.state.uploadForm.files.map((file, index) => (
+                                  <div key={index} className="upload-preview-item" style={{
+                                    position: 'relative',
+                                    width: '100%',
+                                    height: '120px',
+                                    borderRadius: '8px',
+                                    overflow: 'hidden',
+                                    backgroundColor: '#ffffff',
+                                    border: '1px solid #d1d5db',
+                                    transition: 'all 0.2s ease'
+                                  }}>
+                                    {/* Remove button */}
+                                    <button
+                                      onClick={() => this.removeFile(index)}
+                                      style={{
+                                        position: 'absolute',
+                                        top: '4px',
+                                        right: '4px',
+                                        width: '20px',
+                                        height: '20px',
+                                        borderRadius: '50%',
+                                        backgroundColor: 'rgba(239, 68, 68, 0.9)',
+                                        color: 'white',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '12px',
+                                        fontWeight: 'bold',
+                                        zIndex: 10,
+                                        transition: 'all 0.2s ease'
+                                      }}
+                                    >
+                                      ×
+                                    </button>
+                                    
+                                    {/* File type badge */}
+                                    <div style={{
+                                      position: 'absolute',
+                                      bottom: '4px',
+                                      left: '4px',
+                                      backgroundColor: file.type.startsWith('image/') ? 'rgba(34, 197, 94, 0.9)' : 'rgba(59, 130, 246, 0.9)',
+                                      color: 'white',
+                                      padding: '2px 6px',
+                                      borderRadius: '4px',
+                                      fontSize: '10px',
+                                      fontWeight: '600',
+                                      textTransform: 'uppercase',
+                                      zIndex: 10
+                                    }}>
+                                      {file.type.startsWith('image/') ? 'IMG' : 'VIDEO'}
+                                    </div>
+                                    
+                                    {/* Media preview - clickable for fullscreen */}
+                                    <div 
+                                      style={{
+                                        width: '100%',
+                                        height: '100%',
+                                        cursor: 'pointer',
+                                        position: 'relative'
+                                      }}
+                                      onClick={(e) => {
+                                        // Don't trigger fullscreen if clicking remove button
+                                        if (e.target.closest('button')) return;
+                                        this.openPreviewFullscreen(file, index);
+                                      }}
+                                    >
+                                      {file.type.startsWith('image/') ? (
+                                        <>
+                                          <img
+                                            src={URL.createObjectURL(file)}
+                                            alt={`Preview ${index + 1}`}
+                                            style={{
+                                              width: '100%',
+                                              height: '100%',
+                                              objectFit: 'cover',
+                                              transition: 'transform 0.2s ease'
+                                            }}
+                                            onLoad={(e) => {
+                                              setTimeout(() => URL.revokeObjectURL(e.target.src), 1000);
+                                            }}
+                                            onMouseEnter={(e) => {
+                                              e.target.style.transform = 'scale(1.05)';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                              e.target.style.transform = 'scale(1)';
+                                            }}
+                                          />
+                                          {/* Fullscreen icon overlay */}
+                                          <div style={{
+                                            position: 'absolute',
+                                            top: '50%',
+                                            left: '50%',
+                                            transform: 'translate(-50%, -50%)',
+                                            background: 'rgba(0, 0, 0, 0.6)',
+                                            borderRadius: '50%',
+                                            width: '32px',
+                                            height: '32px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            opacity: '0',
+                                            transition: 'opacity 0.2s ease',
+                                            pointerEvents: 'none'
+                                          }}
+                                          onMouseEnter={(e) => {
+                                            e.target.style.opacity = '1';
+                                          }}
+                                          onMouseLeave={(e) => {
+                                            e.target.style.opacity = '0';
+                                          }}>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                                              <path d="M7,14H5V19H10V17H7V14M12,10A2,2 0 0,0 10,12A2,2 0 0,0 12,14A2,2 0 0,0 14,12A2,2 0 0,0 12,10M7,10H10V7H5V12H7V10M17,7V10H19V12H17V14H19V19H14V17H17V14H19V12H17V10H19V7H17Z"/>
+                                            </svg>
+                                          </div>
+                                        </>
+                                      ) : file.type.startsWith('video/') ? (
+                                        <div className="upload-preview-video-container" style={{ position: 'relative' }}>
+                                          <video
+                                            src={URL.createObjectURL(file)}
+                                            className="upload-preview-video"
+                                            preload="metadata"
+                                            muted
+                                            style={{
+                                              width: '100%',
+                                              height: '100%',
+                                              objectFit: 'cover',
+                                              pointerEvents: 'none'
+                                            }}
+                                            onLoadedData={(e) => {
+                                              setTimeout(() => URL.revokeObjectURL(e.target.src), 1000);
+                                            }}
+                                          />
+                                          {/* Video play/fullscreen overlay */}
+                                          <div style={{
+                                            position: 'absolute',
+                                            top: '0',
+                                            left: '0',
+                                            right: '0',
+                                            bottom: '0',
+                                            background: 'rgba(0, 0, 0, 0.3)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            opacity: '0',
+                                            transition: 'opacity 0.2s ease',
+                                            pointerEvents: 'none'
+                                          }}
+                                          onMouseEnter={(e) => {
+                                            e.target.style.opacity = '1';
+                                          }}
+                                          onMouseLeave={(e) => {
+                                            e.target.style.opacity = '0';
+                                          }}>
+                                            <div style={{
+                                              background: 'rgba(255, 255, 255, 0.9)',
+                                              borderRadius: '50%',
+                                              width: '40px',
+                                              height: '40px',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              boxShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
+                                            }}>
+                                              <svg width="20" height="20" viewBox="0 0 24 24" fill="#22c55e">
+                                                <path d="M8,5.14V19.14L19,12.14L8,5.14Z"/>
+                                              </svg>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <div style={{
+                                          width: '100%',
+                                          height: '100%',
+                                          backgroundColor: '#e5e7eb',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          color: '#6b7280',
+                                          fontSize: '1.5rem'
+                                        }}>
+                                          📄
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </>
                         )}
                       </div>
                     </div>
@@ -1367,25 +1975,36 @@ class Home extends React.Component {
                       </button>
                       <button
                         onClick={this.handleUploadSubmit}
+                        disabled={this.state.uploadForm.files.length === 0}
                         style={{
                           padding: '0.75rem 1.5rem',
                           borderRadius: '8px',
-                          background: '#4ade80',
+                          background: this.state.uploadForm.files.length === 0 ? '#9ca3af' : '#4ade80',
                           color: '#ffffff',
                           border: 'none',
                           fontSize: '1rem',
                           fontWeight: '600',
-                          cursor: 'pointer',
-                          transition: 'background 0.2s ease'
+                          cursor: this.state.uploadForm.files.length === 0 ? 'not-allowed' : 'pointer',
+                          transition: 'background 0.2s ease',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem'
                         }}
                         onMouseEnter={(e) => {
-                          e.target.style.background = '#38b000';
+                          if (this.state.uploadForm.files.length > 0) {
+                            e.target.style.background = '#38b000';
+                          }
                         }}
                         onMouseLeave={(e) => {
-                          e.target.style.background = '#4ade80';
+                          if (this.state.uploadForm.files.length > 0) {
+                            e.target.style.background = '#4ade80';
+                          }
                         }}
                       >
-                        Upload
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                        </svg>
+                        Upload {this.state.uploadForm.files.length > 0 ? `${this.state.uploadForm.files.length} file${this.state.uploadForm.files.length !== 1 ? 's' : ''}` : 'Files'}
                       </button>
                     </div>
                     </div>
@@ -1416,6 +2035,12 @@ class Home extends React.Component {
             {/* Close Button */}
             <button
               onClick={this.closeFullscreen}
+              onMouseEnter={(e) => {
+                e.target.style.opacity = '1';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.opacity = '0.8';
+              }}
               style={{
                 position: 'absolute',
                 top: '2rem',
@@ -1426,24 +2051,35 @@ class Home extends React.Component {
                 borderRadius: '50%',
                 width: '48px',
                 height: '48px',
+                fontSize: '24px',
                 cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '2rem',
-                fontWeight: 'bold',
-                transition: 'opacity 0.2s ease',
-                opacity: '0.8'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.opacity = '1';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.opacity = '0.8';
+                opacity: '0.8',
+                transition: 'opacity 0.2s ease'
               }}
             >
               ×
             </button>
+
+            {/* File name overlay for preview files */}
+            {this.state.fullscreenMedia.isPreview && (
+              <div style={{
+                position: 'absolute',
+                top: '2rem',
+                left: '2rem',
+                background: 'rgba(0, 0, 0, 0.7)',
+                color: '#ffffff',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '8px',
+                fontSize: '1rem',
+                fontWeight: '500',
+                maxWidth: '50%',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}>
+                📁 {this.state.fullscreenMedia.name}
+              </div>
+            )}
 
             {/* Media Content */}
             <div style={{
@@ -1458,6 +2094,9 @@ class Home extends React.Component {
                   src={this.state.fullscreenMedia.url}
                   controls
                   autoPlay
+                  onContextMenu={(e) => e.preventDefault()}
+                  controlsList="nodownload"
+                  disablePictureInPicture
                   style={{
                     maxWidth: '100vw',
                     maxHeight: '100vh',
@@ -1470,12 +2109,16 @@ class Home extends React.Component {
                 <img 
                   src={this.state.fullscreenMedia.url}
                   alt="Gallery media"
+                  onContextMenu={(e) => e.preventDefault()}
+                  onDragStart={(e) => e.preventDefault()}
                   style={{
                     maxWidth: '100vw',
                     maxHeight: '100vh',
                     width: 'auto',
                     height: 'auto',
-                    objectFit: 'contain'
+                    objectFit: 'contain',
+                    userSelect: 'none',
+                    pointerEvents: 'none'
                   }}
                 />
               )}
