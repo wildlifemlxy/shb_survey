@@ -832,11 +832,21 @@ class ObservationDetailsSection extends Component {
                         className={`observation-form-input ${this.getErrorClass('Activity')}`}
                         value={currentObservation.Activity || ''}
                         onChange={this.handleActivityChange}
-                        onClick={this.toggleActivityDropdown}
-                        onFocus={() => this.setState({ 
-                          showActivityDropdown: true, 
-                          showAllActivityOptions: true 
-                        })}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          this.toggleActivityDropdown();
+                        }}
+                        onFocus={(e) => {
+                          // Only show dropdown on focus if it's not already shown
+                          if (!this.state.showActivityDropdown) {
+                            this.setState({ 
+                              showActivityDropdown: true, 
+                              showAllActivityOptions: true,
+                              showSeenHeardDropdown: false,
+                              showTimeDropdown: false
+                            });
+                          }
+                        }}
                         placeholder={activityPlaceholder}
                         autoComplete="off"
                         required
@@ -870,11 +880,21 @@ class ObservationDetailsSection extends Component {
                         className={`observation-form-input ${this.getErrorClass('SeenHeard')}`}
                         value={currentObservation.SeenHeard || ''}
                         onChange={this.handleSeenHeardChange}
-                        onClick={this.toggleSeenHeardDropdown}
-                        onFocus={() => this.setState({ 
-                          showSeenHeardDropdown: true, 
-                          showAllSeenHeardOptions: true 
-                        })}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          this.toggleSeenHeardDropdown();
+                        }}
+                        onFocus={(e) => {
+                          // Only show dropdown on focus if it's not already shown
+                          if (!this.state.showSeenHeardDropdown) {
+                            this.setState({ 
+                              showSeenHeardDropdown: true, 
+                              showAllSeenHeardOptions: true,
+                              showActivityDropdown: false,
+                              showTimeDropdown: false
+                            });
+                          }
+                        }}
                         placeholder={seenHeardPlaceholder}
                         autoComplete="off"
                         required

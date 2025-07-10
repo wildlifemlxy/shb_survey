@@ -1,4 +1,5 @@
-  import React, { Component } from 'react';
+import React, { Component } from 'react';
+  import { createPortal } from 'react-dom';
   import { AgGridReact } from 'ag-grid-react';
   import { ModuleRegistry } from 'ag-grid-community';
   import { AllCommunityModule } from 'ag-grid-community';
@@ -8,21 +9,384 @@
   ModuleRegistry.registerModules([AllCommunityModule]);
 
   class ObservationTable extends Component {
-    constructor(props) {
-      super(props);
-      this.state = {
-        currentPage: 0,
-        cardsPerPage: 6,
-        searchQuery: '',
-        selectedLocation: 'All',
-        selectedSeenHeard: 'All',
-        filteredData: [],
-        openCardIndex: null,
-        sortField: 'Date', // Default sort field
-        sortDirection: 'default', // Three modes: 'asc', 'desc', 'default'
-        originalOrder: [] // To store original order for 'default' mode
+  constructor(props) {
+    super(props);
+    this.state = {
+      currentPage: 0,
+      cardsPerPage: 6,
+      searchQuery: '',
+      selectedLocation: 'All',
+      selectedSeenHeard: 'All',
+      filteredData: [],
+      openCardIndex: null,
+      sortField: 'Date', // Default sort field
+      sortDirection: 'default', // Three modes: 'asc', 'desc', 'default'
+      originalOrder: [] // To store original order for 'default' mode
+    };
+    
+    // Location options for dropdown
+    this.locationOptions = [
+      'Bidadari Park',
+      'Bukit Timah Nature Park',
+      'Bukit Batok Nature Park',
+      'Gillman Barracks',
+      'Hindhede Nature Park',
+      'Mandai Boardwalk',
+      'Pulau Ubin',
+      'Rifle Range Nature Park',
+      'Rail Corridor (Kranji)',
+      'Rail Corridor (Hillview)',
+      'Rail Corridor (Bukit Timah)',
+      'Singapore Botanic Gardens',
+      'Springleaf Nature Park',
+      'Sungei Buloh Wetland Reserve',
+      'Windsor Nature Park',
+      'Others'
+    ];
+  }
+
+    // Custom Date Cell Editor Component
+    DateCellEditor = React.forwardRef((props, ref) => {
+      const [value, setValue] = React.useState('');
+      const inputRef = React.useRef();
+
+      React.useImperativeHandle(ref, () => ({
+        getValue: () => {
+          // Convert yyyy-mm-dd back to dd/mm/yyyy for storage
+          if (!value) return '';
+          const [year, month, day] = value.split('-');
+          return `${day}/${month}/${year}`;
+        },
+        isCancelBeforeStart: () => false,
+        isCancelAfterEnd: () => false
+      }));
+
+      React.useEffect(() => {
+        // Convert dd/mm/yyyy to yyyy-mm-dd for the date input
+        let initialValue = '';
+        if (props.value) {
+          const dateStr = props.value.toString().trim();
+          if (dateStr.includes('/')) {
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+              const [day, month, year] = parts;
+              // Ensure proper formatting for date input (yyyy-mm-dd)
+              const paddedDay = day.padStart(2, '0');
+              const paddedMonth = month.padStart(2, '0');
+              const fullYear = year.length === 2 ? (parseInt(year) < 50 ? `20${year}` : `19${year}`) : year;
+              initialValue = `${fullYear}-${paddedMonth}-${paddedDay}`;
+            }
+          }
+        }
+        setValue(initialValue);
+        
+        // Focus the input when editor starts and ensure the value is set
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.value = initialValue; // Explicitly set the value
+            inputRef.current.focus();
+            // Try to open the date picker calendar
+            if (initialValue) {
+              // Dispatch events to ensure the picker shows the date
+              const inputEvent = new Event('input', { bubbles: true });
+              inputRef.current.dispatchEvent(inputEvent);
+              
+              // Try to trigger the calendar to open
+              try {
+                inputRef.current.showPicker && inputRef.current.showPicker();
+              } catch (e) {
+                // showPicker might not be supported in all browsers
+                console.log('showPicker not supported');
+              }
+            } else {
+              // Even if no initial value, try to open the picker
+              try {
+                inputRef.current.showPicker && inputRef.current.showPicker();
+              } catch (e) {
+                // showPicker might not be supported in all browsers
+                console.log('showPicker not supported');
+              }
+            }
+          }
+        }, 100); // Increased timeout to ensure proper rendering
+      }, [props.value]);
+
+      const handleInputChange = (e) => {
+        setValue(e.target.value);
       };
-    }
+
+      const handleKeyDown = (e) => {
+        if (e.key === 'Escape') {
+          if (props.stopEditing) {
+            props.stopEditing();
+          }
+        } else if (e.key === 'Enter' || e.key === 'Tab') {
+          if (props.stopEditing) {
+            props.stopEditing();
+          }
+        }
+      };
+
+      const handleBlur = () => {
+        // End editing when input loses focus
+        setTimeout(() => {
+          if (props.stopEditing) {
+            props.stopEditing();
+          }
+        }, 10);
+      };
+
+      const handleClick = () => {
+        // Try to open the date picker when clicked
+        if (inputRef.current) {
+          try {
+            inputRef.current.showPicker && inputRef.current.showPicker();
+          } catch (e) {
+            // showPicker might not be supported in all browsers
+            console.log('showPicker not supported');
+          }
+        }
+      };
+
+      return (
+        <input
+          ref={inputRef}
+          type="date"
+          value={value}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          onBlur={handleBlur}
+          onClick={handleClick}
+          autoFocus
+          style={{
+            width: '100%',
+            height: '100%',
+            border: 'none',
+            outline: 'none',
+            padding: '4px 8px',
+            fontSize: '14px',
+            backgroundColor: 'white',
+            boxSizing: 'border-box'
+          }}
+        />
+      );
+    });
+
+    // Custom Location Cell Editor Component
+    LocationCellEditor = React.forwardRef((props, ref) => {
+      const [value, setValue] = React.useState(props.value || '');
+      const [showDropdown, setShowDropdown] = React.useState(false);
+      const [filteredOptions, setFilteredOptions] = React.useState(this.locationOptions);
+      const [isOthersSelected, setIsOthersSelected] = React.useState(false);
+      const [dropdownPosition, setDropdownPosition] = React.useState({ top: 0, left: 0, width: 0 });
+      const inputRef = React.useRef();
+      const dropdownRef = React.useRef();
+
+      React.useImperativeHandle(ref, () => ({
+        getValue: () => value,
+        isCancelBeforeStart: () => false,
+        isCancelAfterEnd: () => false
+      }));
+
+      // Calculate dropdown position
+      const updateDropdownPosition = () => {
+        if (inputRef.current) {
+          const rect = inputRef.current.getBoundingClientRect();
+          setDropdownPosition({
+            top: rect.bottom + window.scrollY,
+            left: rect.left + window.scrollX,
+            width: Math.max(rect.width, 250)
+          });
+        }
+      };
+
+      React.useEffect(() => {
+        // Focus the input when editor starts and show all options
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+            inputRef.current.select();
+            updateDropdownPosition();
+          }
+        }, 50);
+        
+        // Set initial options and show dropdown
+        setFilteredOptions(this.locationOptions);
+        setShowDropdown(true);
+
+        // Update position on scroll or resize
+        const handleScroll = () => updateDropdownPosition();
+        const handleResize = () => updateDropdownPosition();
+        
+        window.addEventListener('scroll', handleScroll, true);
+        window.addEventListener('resize', handleResize);
+        
+        return () => {
+          window.removeEventListener('scroll', handleScroll, true);
+          window.removeEventListener('resize', handleResize);
+        };
+      }, []);
+
+      const handleInputChange = (e) => {
+        const inputValue = e.target.value;
+        setValue(inputValue);
+        setIsOthersSelected(false);
+        
+        // Filter options based on input
+        const filtered = this.locationOptions.filter(option =>
+          option.toLowerCase().includes(inputValue.toLowerCase())
+        );
+        setFilteredOptions(filtered);
+        setShowDropdown(true);
+      };
+
+      const handleOptionSelect = (option) => {
+        if (option === 'Others') {
+          setValue('');
+          setIsOthersSelected(true);
+          setShowDropdown(false);
+          setTimeout(() => {
+            if (inputRef.current) {
+              inputRef.current.focus();
+            }
+          }, 10);
+        } else {
+          setValue(option);
+          setIsOthersSelected(false);
+          setShowDropdown(false);
+          // End editing after selection
+          setTimeout(() => {
+            if (props.stopEditing) {
+              props.stopEditing();
+            }
+          }, 10);
+        }
+      };
+
+      const handleInputFocus = () => {
+        // Always show all options when focusing
+        setFilteredOptions(this.locationOptions);
+        setShowDropdown(true);
+        updateDropdownPosition();
+      };
+
+      const handleInputBlur = (e) => {
+        // Don't hide dropdown if clicking on dropdown
+        if (dropdownRef.current && dropdownRef.current.contains(e.relatedTarget)) {
+          return;
+        }
+        // Delay hiding dropdown to allow option selection
+        setTimeout(() => setShowDropdown(false), 150);
+      };
+
+      const handleKeyDown = (e) => {
+        if (e.key === 'Escape') {
+          setShowDropdown(false);
+          if (props.stopEditing) {
+            props.stopEditing();
+          }
+        } else if (e.key === 'Enter') {
+          setShowDropdown(false);
+          if (props.stopEditing) {
+            props.stopEditing();
+          }
+        } else if (e.key === 'Tab') {
+          setShowDropdown(false);
+          if (props.stopEditing) {
+            props.stopEditing();
+          }
+        }
+      };
+
+      const getPlaceholder = () => {
+        if (isOthersSelected) {
+          return 'Others';
+        }
+        return 'Select or type location';
+      };
+
+      return (
+        <>
+          <input
+            ref={inputRef}
+            type="text"
+            value={value}
+            onChange={handleInputChange}
+            onFocus={handleInputFocus}
+            onBlur={handleInputBlur}
+            onKeyDown={handleKeyDown}
+            placeholder={getPlaceholder()}
+            style={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              outline: 'none',
+              padding: '4px 8px',
+              fontSize: '14px',
+              backgroundColor: 'white',
+              boxSizing: 'border-box'
+            }}
+          />
+          {showDropdown && typeof document !== 'undefined' && 
+            createPortal(
+              <div
+                ref={dropdownRef}
+                style={{
+                  position: 'fixed',
+                  top: `${dropdownPosition.top}px`,
+                  left: `${dropdownPosition.left}px`,
+                  width: `${dropdownPosition.width}px`,
+                  backgroundColor: 'white',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  zIndex: 999999,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.25)'
+                }}
+              >
+                {filteredOptions.map((option, index) => (
+                  <div
+                    key={index}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleOptionSelect(option);
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      borderBottom: index < filteredOptions.length - 1 ? '1px solid #f0f0f0' : 'none',
+                      backgroundColor: 'white',
+                      fontSize: '14px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.backgroundColor = '#e9ecef';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.backgroundColor = 'white';
+                    }}
+                  >
+                    {option}
+                  </div>
+                ))}
+                {filteredOptions.length === 0 && (
+                  <div style={{
+                    padding: '8px 12px',
+                    color: '#666',
+                    fontStyle: 'italic',
+                    fontSize: '14px'
+                  }}>
+                    No matching locations found
+                  </div>
+                )}
+              </div>,
+              document.body
+            )
+          }
+        </>
+      );
+    });
 
     // Format bird ID to ensure consistent SHBx format
     formatBirdId(birdId) {
@@ -730,7 +1094,11 @@
           cellRenderer: (params) =>
             params.value ? `${params.value}` : '',
           width: 300,
-          editable: isEditable
+          editable: isEditable,
+          cellEditor: 'LocationCellEditor',
+          cellEditorParams: {
+            values: this.locationOptions
+          }
         },
         { 
           headerName: "Number of Bird(s)", 
@@ -760,7 +1128,9 @@
           headerName: "Date", 
           field: "Date", 
           cellRenderer: (params) => params.value ? this.formatDate(params.value) : '',
-          editable: isEditable
+          editable: isEditable,
+          cellEditor: this.DateCellEditor,
+          width: 120
         },
         {
           headerName: "Time",
@@ -835,6 +1205,9 @@
             <AgGridReact
               columnDefs={columns}
               rowData={transformedData}
+              components={{
+                LocationCellEditor: this.LocationCellEditor
+              }}
               domLayout="normal"
               pagination={true}
               defaultColDef={{
