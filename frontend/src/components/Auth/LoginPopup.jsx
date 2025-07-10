@@ -90,8 +90,8 @@ class LoginPopup extends Component {
           </button>
           
           <div className="login-header">
-            <img src="/shb.png" alt="SHB Logo" className="login-logo" />
-            <h1>SHB Survey System</h1>
+            <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF Logo" className="login-logo" />
+            <h1>WWF SHB Survey System</h1>
             <p>Please sign in to continue</p>
           </div>
           

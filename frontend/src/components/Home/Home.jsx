@@ -420,6 +420,17 @@ class Home extends React.Component {
               </svg>
               Conservation in Action
             </div>
+            {/* WWF Logo */}
+            <div className="hero-logo-enhanced">
+              <img 
+                src="/WWF Logo/WWF Logo Large.jpg" 
+                alt="WWF Logo"
+                onError={(e) => {
+                  console.error('WWF logo failed to load:', e.target.src);
+                  e.target.style.display = 'none';
+                }}
+              />
+            </div>
             <h1 className="hero-title">
               WWF Straw-headed Bulbul Survey Platform
             </h1>
