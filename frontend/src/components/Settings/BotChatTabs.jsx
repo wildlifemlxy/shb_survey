@@ -11,6 +11,34 @@ class BotChatTabs extends React.Component {
 
   chatMessagesRef = React.createRef();
 
+  // Sort messages by date and time chronologically (earliest first)
+  sortMessagesByDateTime = (messages) => {
+    if (!messages || !Array.isArray(messages)) return [];
+    
+    return messages.sort((a, b) => {
+      const dateA = a.sentAt ? new Date(a.sentAt) : new Date();
+      const dateB = b.sentAt ? new Date(b.sentAt) : new Date();
+      return dateA - dateB; // Ascending order (earliest first)
+    });
+  };
+
+  // Group messages by date for better organization
+  groupMessagesByDate = (messages) => {
+    if (!messages || !Array.isArray(messages)) return {};
+    
+    return messages.reduce((groups, message) => {
+      const sentDate = message.sentAt ? new Date(message.sentAt) : new Date();
+      const dateKey = sentDate.toLocaleDateString();
+      
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(message);
+      
+      return groups;
+    }, {});
+  };
+
   async componentDidMount() {
     // Use token and chatId from props if available
     const { botToken, botId } = this.props;
@@ -23,7 +51,11 @@ class BotChatTabs extends React.Component {
       data3 = await fetchChatData();
       console.log('Fetched Chat Data:', data3);
     }
-    this.setState({ chatMessages: data3 }, () => {
+    
+    // Sort messages chronologically by date and time (earliest first)
+    const sortedMessages = this.sortMessagesByDateTime(data3);
+    
+    this.setState({ chatMessages: sortedMessages }, () => {
       // Setup scroll listener after state is updated and DOM is rendered
       setTimeout(() => {
         this.setupScrollListener();
@@ -55,7 +87,8 @@ class BotChatTabs extends React.Component {
   setInitialDate = () => {
     // Get the first date from messages if available
     if (this.state.chatMessages && this.state.chatMessages.length > 0) {
-      const firstMsg = this.state.chatMessages[0];
+      const sortedMessages = this.sortMessagesByDateTime(this.state.chatMessages);
+      const firstMsg = sortedMessages[0];
       if (firstMsg.sentAt) {
         const sentDate = new Date(firstMsg.sentAt);
         const formattedDate = `${sentDate.toLocaleDateString('en-US', { weekday: 'long' })}, ${sentDate.getDate().toString().padStart(2, '0')}/${(sentDate.getMonth() + 1).toString().padStart(2, '0')}/${sentDate.getFullYear()}`;
@@ -83,25 +116,42 @@ class BotChatTabs extends React.Component {
     let closestDistance = Infinity;
 
     // Find the date header that's closest to the top of the visible area
+    // Since messages are now properly sorted chronologically, we look for the topmost visible date
     dateHeaders.forEach((header) => {
       const headerRect = header.getBoundingClientRect();
       const relativeTop = headerRect.top - containerRect.top;
-      const distance = Math.abs(relativeTop);
       
-      console.log('Header:', header.textContent.trim(), 'relativeTop:', relativeTop, 'distance:', distance);
+      console.log('Header:', header.textContent.trim(), 'relativeTop:', relativeTop);
       
-      // If this header is closer to the top than previous ones
-      if (distance < closestDistance && relativeTop >= -100) {
-        closestDistance = distance;
-        closestHeader = header;
-        currentDate = header.textContent.trim();
+      // Check if this header is visible (within the container bounds)
+      if (relativeTop >= -50 && relativeTop <= containerRect.height) {
+        if (relativeTop < closestDistance || closestDistance === Infinity) {
+          closestDistance = relativeTop;
+          closestHeader = header;
+          currentDate = header.textContent.trim();
+        }
       }
     });
 
-    // If no header found, get the first one
+    // If no header found in viewport, find the one just above the viewport
     if (!currentDate && dateHeaders.length > 0) {
-      currentDate = dateHeaders[0].textContent.trim();
-      console.log('Using first header as fallback:', currentDate);
+      let lastHeaderAbove = null;
+      dateHeaders.forEach((header) => {
+        const headerRect = header.getBoundingClientRect();
+        const relativeTop = headerRect.top - containerRect.top;
+        
+        if (relativeTop < 0) {
+          lastHeaderAbove = header;
+        }
+      });
+      
+      if (lastHeaderAbove) {
+        currentDate = lastHeaderAbove.textContent.trim();
+        console.log('Using last header above viewport:', currentDate);
+      } else {
+        currentDate = dateHeaders[0].textContent.trim();
+        console.log('Using first header as fallback:', currentDate);
+      }
     }
 
     console.log('Final current visible date:', currentDate);
@@ -125,7 +175,11 @@ class BotChatTabs extends React.Component {
         data3 = await fetchChatData();
         console.log('Fetched Chat Data (update):', data3);
       }
-      this.setState({ chatMessages: data3 }, () => {
+      
+      // Sort messages chronologically by date and time (earliest first)
+      const sortedMessages = this.sortMessagesByDateTime(data3);
+      
+      this.setState({ chatMessages: sortedMessages }, () => {
         // Re-setup scroll listener after data update and DOM re-render
         this.removeScrollListener();
         setTimeout(() => {
@@ -207,233 +261,142 @@ class BotChatTabs extends React.Component {
               {/* Chat Messages */}
               <div className="telegram-chat-messages" ref={this.chatMessagesRef}>
                 {chatMessages && chatMessages.length > 0 ? (
-                  chatMessages.map((msg, idx, arr) => {
-                    // Date grouping logic
-                    const sentDate = msg.sentAt ? new Date(msg.sentAt) : null;
-                    const currentDate = sentDate ? sentDate.toLocaleDateString() : msg.date;
-                    const prevSentDate = idx > 0 && arr[idx - 1].sentAt ? new Date(arr[idx - 1].sentAt) : null;
-                    const prevDate = prevSentDate ? prevSentDate.toLocaleDateString() : (idx > 0 ? arr[idx - 1].date : null);
-                    const showDateHeader = currentDate !== prevDate;
+                  (() => {
+                    // Group messages by date
+                    const groupedMessages = this.groupMessagesByDate(chatMessages);
+                    const sortedDates = Object.keys(groupedMessages).sort((a, b) => new Date(a) - new Date(b));
                     
-                    return (
-                      <React.Fragment key={msg._id || idx}>
-                        {/* Hidden Date header for scroll detection */}
-                        {showDateHeader && (
-                          <div className="telegram-date-header" data-date={sentDate ? 
-                            `${sentDate.toLocaleDateString('en-US', { weekday: 'long' })}, ${sentDate.getDate().toString().padStart(2, '0')}/${(sentDate.getMonth() + 1).toString().padStart(2, '0')}/${sentDate.getFullYear()}` 
-                            : currentDate}>
-                            {sentDate ? 
-                              `${sentDate.toLocaleDateString('en-US', { weekday: 'long' })}, ${sentDate.getDate().toString().padStart(2, '0')}/${(sentDate.getMonth() + 1).toString().padStart(2, '0')}/${sentDate.getFullYear()}` 
-                              : currentDate}
+                    return sortedDates.map((dateKey) => {
+                      const messagesForDate = groupedMessages[dateKey];
+                      const firstMessage = messagesForDate[0];
+                      const sentDate = firstMessage.sentAt ? new Date(firstMessage.sentAt) : new Date(dateKey);
+                      const formattedDate = `${sentDate.toLocaleDateString('en-US', { weekday: 'long' })}, ${sentDate.getDate().toString().padStart(2, '0')}/${(sentDate.getMonth() + 1).toString().padStart(2, '0')}/${sentDate.getFullYear()}`;
+                      
+                      return (
+                        <React.Fragment key={dateKey}>
+                          {/* Date header for each group */}
+                          <div className="telegram-date-header" data-date={formattedDate}>
+                            {formattedDate}
                           </div>
-                        )}
-                        
-                        {/* Message bubble */}
-                        <div className="telegram-message-wrapper">
-                          <div className="telegram-message bot-message">
-                            <div className="telegram-message-avatar">
-                              <div className="bot-avatar-circle">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#ffffff"/>
-                                </svg>
-                              </div>
-                            </div>
-                            <div className="telegram-message-bubble">
-                              <div className="telegram-message-header">
-                                <span className="message-sender">SHB Survey Bot</span>
-                                <span className="message-timestamp">
-                                  {msg.sentAt ? new Date(msg.sentAt).toLocaleTimeString([], { 
-                                    hour: '2-digit', 
-                                    minute: '2-digit' 
-                                  }) : ''}
-                                </span>
-                              </div>
-                              <div className="telegram-message-content">
-                                <div className="message-text">
-                                  <span dangerouslySetInnerHTML={{ __html: msg.message }} />
+                          
+                          {/* Messages for this date */}
+                          {messagesForDate.map((msg, idx) => (
+                            <div key={msg._id || `${dateKey}-${idx}`} className="telegram-message-wrapper">
+                              <div className="telegram-message bot-message">
+                                <div className="telegram-message-avatar">
+                                  <div className="bot-avatar-circle">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#ffffff"/>
+                                    </svg>
+                                  </div>
                                 </div>
-                                
-                                {/* Google Maps preview */}
-                                {(() => {
-                                  const match = msg.message && msg.message.match(/https:\/\/www\.google\.com\/maps\/search\/?api=1&query=([^"'>\s]+)/);
-                                  if (match && match[1]) {
-                                    const mapQuery = decodeURIComponent(match[1]);
-                                    const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}`;
-                                    let mapTitle = 'Location';
-                                    const titleMatch = msg.message.match(/<a [^>]*href=["']https:\/\/www\.google\.com\/maps\/search\/?api=1&query=[^"']+["'][^>]*>([^<]+)<\/a>/);
-                                    if (titleMatch && titleMatch[1]) mapTitle = titleMatch[1];
+                                <div className="telegram-message-bubble">
+                                  <div className="telegram-message-header">
+                                    <span className="message-sender">SHB Survey Bot</span>
+                                    <span className="message-timestamp">
+                                      {msg.sentAt ? new Date(msg.sentAt).toLocaleTimeString([], { 
+                                        hour: '2-digit', 
+                                        minute: '2-digit' 
+                                      }) : ''}
+                                    </span>
+                                  </div>
+                                  <div className="telegram-message-content">
+                                    <div className="message-text">
+                                      <span dangerouslySetInnerHTML={{ __html: msg.message }} />
+                                    </div>
                                     
-                                    return (
-                                      <div className="telegram-map-preview">
-                                        <div className="map-info">
-                                          <div className="map-title">{mapTitle}</div>
-                                          <div className="map-description">Location details</div>
-                                          <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="map-link">
-                                            View on Google Maps
-                                          </a>
-                                        </div>
-                                        <div className="map-icon">📍</div>
-                                      </div>
-                                    );
-                                  }
-                                  return null;
-                                })()}
-                              </div>
-                              <div className="message-footer group-chat">
-                                <div className="message-info">
-                                  <span className="message-time">
-                                    {msg.sentAt ? new Date(msg.sentAt).toLocaleTimeString([], { 
-                                      hour: '2-digit', 
-                                      minute: '2-digit' 
-                                    }) : ''}
-                                  </span>
-                                  <div className="message-status">
-                                    {/* Dynamic Status Based on Message State */}
+                                    {/* Google Maps preview */}
                                     {(() => {
-                                      // Simulate different status states based on message age
-                                      const messageAge = msg.sentAt ? (Date.now() - new Date(msg.sentAt).getTime()) / 1000 / 60 : 0; // minutes
-                                      const isRecent = messageAge < 5;
-                                      const isRead = messageAge > 1;
-                                      
-                                      if (isRecent && !isRead) {
+                                      const match = msg.message && msg.message.match(/https:\/\/www\.google\.com\/maps\/search\/?api=1&query=([^"'>\s]+)/);
+                                      if (match && match[1]) {
+                                        const mapQuery = decodeURIComponent(match[1]);
+                                        const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}`;
+                                        let mapTitle = 'Location';
+                                        const titleMatch = msg.message.match(/<a [^>]*href=["']https:\/\/www\.google\.com\/maps\/search\/?api=1&query=[^"']+["'][^>]*>([^<]+)<\/a>/);
+                                        if (titleMatch && titleMatch[1]) mapTitle = titleMatch[1];
+                                        
                                         return (
-                                          <>
-                                            <div className="status-indicator delivered" title="Delivered">
-                                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="#4CAF50"/>
-                                              </svg>
+                                          <div className="telegram-map-preview">
+                                            <div className="map-info">
+                                              <div className="map-title">{mapTitle}</div>
+                                              <div className="map-description">Location details</div>
+                                              <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="map-link">
+                                                View on Google Maps
+                                              </a>
                                             </div>
-                                            <span className="status-text delivered">Delivered</span>
-                                          </>
-                                        );
-                                      } else {
-                                        const readCount = Math.floor(Math.random() * 5) + 1; // Simulate read count
-                                        return (
-                                          <>
-                                            <div className="status-indicator delivered" title="Delivered">
-                                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="#4CAF50"/>
-                                              </svg>
-                                            </div>
-                                            <div className="status-indicator read" title="Read">
-                                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="#2196F3"/>
-                                              </svg>
-                                            </div>
-                                            <span className="read-by-count">
-                                              👁 {readCount}
-                                            </span>
-                                            <div className="read-by-avatars">
-                                              <div className="reader-avatar" title="Alice">A</div>
-                                              {readCount > 1 && <div className="reader-avatar" title="Bob">B</div>}
-                                              {readCount > 2 && <div className="reader-avatar" title="Charlie">C</div>}
-                                              {readCount > 3 && <div className="reader-avatar more" title={`+${readCount - 3} more`}>+</div>}
-                                            </div>
-                                          </>
+                                            <div className="map-icon">📍</div>
+                                          </div>
                                         );
                                       }
+                                      return null;
                                     })()}
                                   </div>
+                                  <div className="message-footer group-chat">
+                                    <div className="message-info">
+                                      <span className="message-time">
+                                        {msg.sentAt ? new Date(msg.sentAt).toLocaleTimeString([], { 
+                                          hour: '2-digit', 
+                                          minute: '2-digit' 
+                                        }) : ''}
+                                      </span>
+                                      <div className="message-status">
+                                        {/* Dynamic Status Based on Message State */}
+                                        {(() => {
+                                          // Simulate different status states based on message age
+                                          const messageAge = msg.sentAt ? (Date.now() - new Date(msg.sentAt).getTime()) / 1000 / 60 : 0; // minutes
+                                          const isRecent = messageAge < 5;
+                                          const isRead = messageAge > 1;
+                                          
+                                          if (isRecent && !isRead) {
+                                            return (
+                                              <>
+                                                <div className="status-indicator delivered" title="Delivered">
+                                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="#4CAF50"/>
+                                                  </svg>
+                                                </div>
+                                                <span className="status-text delivered">Delivered</span>
+                                              </>
+                                            );
+                                          } else {
+                                            const readCount = Math.floor(Math.random() * 5) + 1; // Simulate read count
+                                            return (
+                                              <>
+                                                <div className="status-indicator delivered" title="Delivered">
+                                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="#4CAF50"/>
+                                                  </svg>
+                                                </div>
+                                                <div className="status-indicator read" title="Read">
+                                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="#2196F3"/>
+                                                  </svg>
+                                                </div>
+                                                <span className="read-by-count">
+                                                  👁 {readCount}
+                                                </span>
+                                                <div className="read-by-avatars">
+                                                  <div className="reader-avatar" title="Alice">A</div>
+                                                  {readCount > 1 && <div className="reader-avatar" title="Bob">B</div>}
+                                                  {readCount > 2 && <div className="reader-avatar" title="Charlie">C</div>}
+                                                  {readCount > 3 && <div className="reader-avatar more" title={`+${readCount - 3} more`}>+</div>}
+                                                </div>
+                                              </>
+                                            );
+                                          }
+                                        })()}
+                                      </div>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        </div>
-                      </React.Fragment>
-                    );
-                  })
-                ) : (
-                  <div className="telegram-sample-messages">
-                    {/* Hidden Sample Date Header for scroll detection */}
-                    <div className="telegram-date-header">
-                      Saturday, 28/06/2025
-                    </div>
-                    
-                    {/* Sample Message */}
-                    <div className="telegram-message-wrapper">
-                      <div className="telegram-message bot-message">
-                        <div className="telegram-message-avatar">
-                          <div className="bot-avatar-circle">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#ffffff"/>
-                            </svg>
-                          </div>
-                        </div>
-                        <div className="telegram-message-bubble">
-                          <div className="telegram-message-header">
-                            <span className="message-sender">SHB Survey Bot</span>
-                            <span className="message-timestamp">10:45 AM</span>
-                          </div>
-                          <div className="telegram-message-content">
-                            <div className="message-text">
-                              Hi everyone!
-
-Please find the details for <strong>Mon, Date 30 June 2025</strong> survey below:
-                              
-                              <div className="survey-details-block">
-                                <div className="details-header">📋 Survey Details</div>
-                                <div className="details-content">
-                                  <div className="detail-item">
-                                    <span className="detail-label">📍 Location:</span> TBC
-                                  </div>
-                                  <div className="detail-item">
-                                    <span className="detail-label">🚩 Meeting Point:</span> 
-                                    <a href="https://www.google.com/maps/search/?api=1&query=TBC" target="_blank" rel="noopener noreferrer" className="location-link">
-                                      TBC
-                                    </a>
-                                  </div>
-                                  <div className="detail-item">
-                                    <span className="detail-label">⏰ Time:</span> 07:30:00 AM - 09:30:00 AM
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              <div className="participant-list-block">
-                                <div className="details-header">👥 Participant List</div>
-                                <div className="participant-list">
-                                  <div className="participant-item">1. Anya</div>
-                                  <div className="participant-item">2. Keon</div>
-                                  <div className="participant-item">3. Germaine</div>
-                                </div>
-                              </div>
-                              
-                              <div className="training-link-block">
-                                <a href="https://drive.google.com/drive/folders/1aztfMfCVlNGqro492FS-3gvdaRA6kCGk?usp=drive_link" target="_blank" rel="noopener noreferrer" className="training-material-link">
-                                  📚 Training Material
-                                </a>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="message-footer">
-                            <div className="message-info">
-                              <span className="message-time">10:45 AM</span>
-                              <div className="message-status">
-                                <div className="status-indicator delivered" title="Delivered">
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="#4CAF50"/>
-                                  </svg>
-                                </div>
-                                <div className="status-indicator read" title="Read">
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="#4CAF50"/>
-                                  </svg>
-                                </div>
-                                <span className="status-text">Read by 3 members</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* No Real Messages State */}
-                    <div className="telegram-empty-state">
-                      <div className="empty-state-icon">📱</div>
-                      <div className="empty-state-title">Sample Message Format</div>
-                      <div className="empty-state-subtitle">Real bot messages will appear in this format when they are sent</div>
-                    </div>
-                  </div>
-                )}
+                          ))}
+                        </React.Fragment>
+                      );
+                    });
+                  })()
+                ) : null}
               </div>
 
               {/* Floating Date Badge - positioned to overlay messages */}

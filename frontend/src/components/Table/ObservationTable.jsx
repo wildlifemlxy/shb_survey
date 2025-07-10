@@ -1150,7 +1150,11 @@ import React, { Component } from 'react';
           field: "Activity (foraging, preening, calling, perching, others)",
           cellRenderer: (params) => params.value || '',
           width: 300,
-          editable: isEditable
+          editable: isEditable,
+          cellEditor: 'agSelectCellEditor',
+          cellEditorParams: {
+            values: ['Calling', 'Feeding', 'Perching', 'Preening', 'Others']
+          }
         },
         {
           headerName: "Seen/Heard",

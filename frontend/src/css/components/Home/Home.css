@@ -248,6 +248,18 @@
   color: var(--primary-green) !important;
 }
 
+.btn-logout {
+  background: linear-gradient(135deg, #f87171, #b91c1c) !important; /* light red to dark red */
+  color: white !important;
+  gap: 30px;
+}
+
+.btn-logout:hover {
+  background: var(--bg-secondary) !important;
+  border-color: var(--primary-green) !important;
+  color: var(--primary-green) !important;
+}
+
 .info-container {
   max-width: 1000px;
   margin: 0 auto;
