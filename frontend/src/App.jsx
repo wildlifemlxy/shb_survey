@@ -241,7 +241,7 @@ class App extends Component {
                   } 
                 />
                 
-                {/* Public Route - Home page accessible without login */}
+                {/* Public Routes - Accessible without login */}
                 <Route 
                   path="/" 
                   element={
@@ -252,6 +252,13 @@ class App extends Component {
                       openObservationPopup={this.openObservationPopup}
                       closeObservationPopup={this.closeObservationPopup}
                     />
+                  } 
+                />
+                
+                <Route 
+                  path="/reset-password" 
+                  element={
+                    <ResetPassword />
                   } 
                 />
                 
@@ -286,13 +293,6 @@ class App extends Component {
                   />
                 </Route>
 
-                <Route 
-                  path="/reset-password" 
-                  element={
-                    <ResetPassword />
-                  } 
-                />
-                
                 {/* 404 Route - Must be last */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

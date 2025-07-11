@@ -190,3 +190,50 @@ export async function resetPassword(email) {
     }
   }
 }
+
+// Reset password with token
+export async function resetPasswordWithToken(token, newPassword) {
+  try {
+    const response = await axios.post(
+      `${BASE_URL}/users/reset-password-confirm`,
+      {
+        token,
+        newPassword,
+      }
+    );
+
+    console.log('Reset password with token response:', response.data);
+
+    if (response.data.success) {
+      return {
+        success: true,
+        message: response.data.message || 'Password reset successfully',
+      };
+    } else {
+      return {
+        success: false,
+        message: response.data.message || 'Failed to reset password',
+      };
+    }
+  } catch (error) {
+    console.error('Reset password with token error:', error);
+
+    // Handle specific error types
+    if (error.response) {
+      return {
+        success: false,
+        message: error.response.data.message || 'Password reset failed',
+      };
+    } else if (error.request) {
+      return {
+        success: false,
+        message: 'No response from server. Please try again later.',
+      };
+    } else {
+      return {
+        success: false,
+        message: 'Password reset failed. Please try again.',
+      };
+    }
+  }
+}

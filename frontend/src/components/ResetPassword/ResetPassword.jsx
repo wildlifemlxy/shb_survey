@@ -1,12 +1,18 @@
 import React, { Component } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import './ResetPassword.css';
+
+const BASE_URL =
+  window.location.hostname === 'localhost'
+    ? 'http://localhost:3001'
+    : 'https://shb-backend.azurewebsites.net';
 
 class ResetPassword extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      token: '',
+      email: '',
       newPassword: '',
       confirmPassword: '',
       isLoading: false,
@@ -17,18 +23,6 @@ class ResetPassword extends Component {
     };
   }
 
-  componentDidMount() {
-    // Get token from URL parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
-    
-    if (token) {
-      this.setState({ token });
-    } else {
-      this.setState({ error: 'Invalid or missing reset token.' });
-    }
-  }
-
   handleInputChange = (e) => {
     const { name, value } = e.target;
     this.setState({ [name]: value, error: '' });
@@ -36,9 +30,14 @@ class ResetPassword extends Component {
 
   handleSubmit = async (e) => {
     e.preventDefault();
-    const { token, newPassword, confirmPassword } = this.state;
+    const { email, newPassword, confirmPassword } = this.state;
     
     // Validation
+    if (!email) {
+      this.setState({ error: 'Please enter your email address' });
+      return;
+    }
+    
     if (!newPassword || !confirmPassword) {
       this.setState({ error: 'Please fill in both password fields' });
       return;
@@ -54,42 +53,56 @@ class ResetPassword extends Component {
       return;
     }
     
-    if (!token) {
-      this.setState({ error: 'Invalid reset token' });
-      return;
-    }
-    
     try {
       this.setState({ isLoading: true, error: '' });
       
-      // TODO: Implement actual password reset API call
-      // For now, just simulate success
-      setTimeout(() => {
+      // Make API call to change password
+      const response = await axios.post(`${BASE_URL}/users`, {
+        purpose: 'changePassword',
+        email: email,
+        newPassword: newPassword
+      });
+
+      console.log('Password change response:', response.data);
+
+      if (response.data.success) {
         this.setState({ 
           success: true,
           isLoading: false 
         });
-      }, 1500);
+      } else {
+        this.setState({ 
+          error: response.data.message || 'Failed to change password. Please try again.',
+          isLoading: false 
+        });
+      }
       
     } catch (error) {
       console.error('Password reset error:', error);
+      
+      let errorMessage = 'An error occurred while resetting password. Please try again.';
+      if (error.response && error.response.data && error.response.data.message) {
+        errorMessage = error.response.data.message;
+      }
+      
       this.setState({ 
-        error: 'An error occurred while resetting password. Please try again.',
+        error: errorMessage,
         isLoading: false 
       });
     }
   };
 
   render() {
-    const { newPassword, confirmPassword, isLoading, error, success, showNewPassword, showConfirmPassword } = this.state;
+    const { email, newPassword, confirmPassword, isLoading, error, success, showNewPassword, showConfirmPassword } = this.state;
     
     if (success) {
       return (
         <div className="reset-password-container">
           <div className="reset-password-card">
             <div className="reset-password-header">
-              <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF Logo" className="reset-password-logo" />
-              <h1>Password Reset Successful</h1>
+              <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF SHB Survey System" className="reset-password-logo" />
+              <h1>WWF SHB Survey System</h1>
+              <h2>Password Reset Successful</h2>
               <p>Your password has been successfully reset.</p>
             </div>
             
@@ -114,8 +127,9 @@ class ResetPassword extends Component {
       <div className="reset-password-container">
         <div className="reset-password-card">
           <div className="reset-password-header">
-            <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF Logo" className="reset-password-logo" />
-            <h1>Reset Your Password</h1>
+            <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF SHB Survey System" className="reset-password-logo" />
+            <h1>WWF SHB Survey System</h1>
+            <h2>Reset Your Password</h2>
             <p>Enter your new password below</p>
           </div>
           
@@ -128,6 +142,20 @@ class ResetPassword extends Component {
                 {error}
               </div>
             )}
+            
+            <div className="form-group">
+              <label htmlFor="email">Email Address</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={email}
+                onChange={this.handleInputChange}
+                placeholder="Enter your email address"
+                disabled={isLoading}
+                required
+              />
+            </div>
             
             <div className="form-group">
               <label htmlFor="newPassword">New Password</label>
