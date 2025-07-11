@@ -1,10 +1,8 @@
-class ResetPasswordTemplate {
+class ChangePasswordTemplate {
     constructor() {
         this.companyName = 'WWF SHB Survey System';
         this.supportEmail = 'mossleegermany@gmail.com';
         this.websiteUrl = process.env.FRONTEND_URL || 'https://gentle-dune-0405ec500.1.azurestaticapps.net';
-        this.backendUrl = process.env.BACKEND_URL || 'https://shb-backend.azurewebsites.net';
-        this.logoUrl = `${this.backendUrl}/Others/Email/WWF%20Logo%20Medium.jpg`;
     }
 
     generateResetEmailContent(email, resetLink = null) {
@@ -14,10 +12,12 @@ class ResetPasswordTemplate {
         const resetUrl = resetLink || `${this.websiteUrl}/reset-password`;
         
         const htmlContent = this.generateHTMLTemplate(email, resetUrl);
+        const textContent = this.generateTextTemplate(email, resetUrl);
 
         return {
             subject: subject,
-            html: htmlContent
+            html: htmlContent,
+            text: textContent
         };
     }
 
@@ -48,12 +48,6 @@ class ResetPasswordTemplate {
         .logo {
             text-align: center;
             margin-bottom: 30px;
-        }
-        .logo img {
-            max-width: 200px;
-            height: auto;
-            display: block;
-            margin: 0 auto 10px auto;
         }
         .logo h1 {
             color: #00B8EA;
@@ -97,8 +91,7 @@ class ResetPasswordTemplate {
 <body>
     <div class="email-container">
         <div class="logo">
-            <img src="${this.logoUrl}" alt="WWF Logo" style="max-width: 200px; height: auto; display: block; margin: 0 auto 10px auto;" />
-            <h1>${this.companyName}</h1>
+            <h1>🦅 ${this.companyName}</h1>
         </div>
         
         <div class="content">
@@ -145,6 +138,33 @@ class ResetPasswordTemplate {
         `;
     }
 
+    generateTextTemplate(email, resetUrl) {
+        return `
+${this.companyName} - Password Reset Request
+
+Hello,
+
+We received a request to reset the password for your account associated with ${email}.
+
+If you requested this password reset, please visit the following link to proceed:
+${resetUrl}
+
+SECURITY NOTICE:
+- This link will expire in 1 hour for security reasons
+- If you didn't request this reset, please ignore this email
+- Never share this link with anyone
+
+Need Help?
+If you're having trouble, or if you didn't request this password reset, please contact our support team at ${this.supportEmail}
+
+Best regards,
+The ${this.companyName} Team
+
+---
+This is an automated email. Please do not reply to this message.
+        `;
+    }
+
     // Method to generate a simple notification email (without reset link)
     generateNotificationEmailContent(email) {
         const subject = `${this.companyName} - Password Reset Notification`;
@@ -160,15 +180,13 @@ class ResetPasswordTemplate {
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
         .container { background-color: white; padding: 30px; border-radius: 10px; border: 1px solid #ddd; }
         .logo { text-align: center; margin-bottom: 30px; }
-        .logo img { max-width: 200px; height: auto; display: block; margin: 0 auto 10px auto; }
         .logo h1 { color: #00B8EA; margin: 0; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="logo">
-            <img src="${this.logoUrl}" alt="WWF Logo" style="max-width: 200px; height: auto; display: block; margin: 0 auto 10px auto;" />
-            <h1>${this.companyName}</h1>
+            <h1>🦅 ${this.companyName}</h1>
         </div>
         
         <h2>Password Reset Request Received</h2>
@@ -210,4 +228,4 @@ The ${this.companyName} Team
     }
 }
 
-module.exports = ResetPasswordTemplate;
+module.exports = ChangePasswordTemplate;

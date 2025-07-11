@@ -218,7 +218,7 @@ class ResetPassword extends Component {
             </div>
             
             <div className="reset-password-actions">
-              <Link to="/login" className="back-link">
+              <Link to="/" className="back-link">
                 Back to Login
               </Link>
               

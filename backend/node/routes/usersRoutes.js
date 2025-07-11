@@ -38,20 +38,19 @@ router.post('/', async function(req, res, next)
     else if(req.body.purpose === "changePassword")
     {
         try {
-            const { userId, email, newPassword } = req.body;
+            const { email, newPassword } = req.body;
             console.log('Password change request body:', req.body);
-            console.log('Extracted values - userId:', userId, 'email:', email, 'newPassword length:', newPassword?.length);
+            console.log('Extracted values - email:', email, 'newPassword length:', newPassword?.length);
             
             // Validate required fields
-            if (!userId || !email || !newPassword) {
+            if (!email || !newPassword) {
                 console.log('Validation failed:', {
-                    userId: !!userId,
                     email: !!email,
                     newPassword: !!newPassword
                 });
                 return res.status(400).json({
                     success: false,
-                    message: 'Missing required fields: userId, email, and newPassword are required'
+                    message: 'Missing required fields: email and newPassword are required'
                 });
             }
             
@@ -64,7 +63,7 @@ router.post('/', async function(req, res, next)
             }
             
             var controller = new UsersController();
-            var result = await controller.changePassword(userId, email, newPassword);
+            var result = await controller.changePasswordByEmail(email, newPassword);
             console.log('Password change result:', result);
             
             if (result.success) {

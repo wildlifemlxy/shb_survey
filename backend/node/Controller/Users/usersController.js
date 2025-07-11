@@ -137,6 +137,61 @@ class UsersController {
         }
     }
 
+    async changePasswordByEmail(email, newPassword) {
+        try {
+            console.log('Changing password for user with email:', email);
+            await this.dbConnection.initialize();
+            
+            // First, check if the user exists
+            const user = await this.dbConnection.findDocument(
+                'Straw-Headed-Bulbul', // database name
+                'Accounts', // collection name
+                { email: email }
+            );
+
+            if (!user) {
+                return { 
+                    success: false, 
+                    message: 'User not found with this email address' 
+                };
+            }
+            
+            // Update the password and clear first-time login flag
+            const result = await this.dbConnection.updateDocument(
+                'Straw-Headed-Bulbul', // database name
+                'Accounts', // collection name
+                { email: email }, // filter by email
+                { 
+                    $set: { 
+                        password: newPassword,
+                        firstTimeLogin: false, // Clear first-time login flag
+                        lastPasswordChange: new Date() // Track when password was changed
+                    } 
+                }
+            );
+
+            console.log('Password update result:', result);
+
+            if (result.modifiedCount > 0) {
+                return { 
+                    success: true, 
+                    message: 'Password changed successfully' 
+                };
+            } else {
+                return { 
+                    success: false, 
+                    message: 'Failed to update password' 
+                };
+            }
+        } catch (error) {
+            console.error('Error changing password by email:', error);
+            return { 
+                success: false, 
+                message: 'Password change error occurred' 
+            };
+        }
+    }
+
     async resetPassword(email) {
         try {
             console.log('Processing password reset for email:', email);
@@ -150,65 +205,30 @@ class UsersController {
             );
 
             if (!user) {
-                // For security reasons, we don't reveal if the email exists or not
-                // We return success but don't actually send an email
-                console.log('User not found for email:', email);
+                // Don't reveal whether user exists or not for security
                 return { 
                     success: true, 
-                    message: 'If the email exists in our system, a password reset link will be sent.' 
+                    message: 'If this email exists in our system, a password reset link will be sent.' 
                 };
             }
 
-            // For now, we'll just log and return success
-            console.log('Password reset requested for existing user:', email);
+            // Send password reset email
+            const emailResult = await this.emailService.sendResetPasswordEmail(email, user.name || 'User');
             
-            // Simple implementation without crypto - just log the request
-            const result = await this.dbConnection.updateDocument(
-                'Straw-Headed-Bulbul',
-                'Accounts',
-                { email: email },
-                { 
-                    $set: { 
-                        resetRequestedAt: new Date()
-                    } 
-                }
-            );
-
-            if (result.modifiedCount > 0) {
-                // Send reset password email
-                try {
-                    const emailResult = await this.emailService.sendResetPasswordEmail(email);
-                    
-                    if (emailResult.success) {
-                        console.log('Reset password email sent successfully to:', email);
-                        return { 
-                            success: true, 
-                            message: 'Password reset email sent successfully. Please check your inbox.' 
-                        };
-                    } else {
-                        console.log('Failed to send reset email, but request logged:', emailResult.error);
-                        // Still return success to not reveal if email exists
-                        return { 
-                            success: true, 
-                            message: 'Password reset request processed. If the email exists, you will receive instructions.' 
-                        };
-                    }
-                } catch (emailError) {
-                    console.error('Email sending error:', emailError);
-                    // Still return success to not reveal if email exists
-                    return { 
-                        success: true, 
-                        message: 'Password reset request processed. If the email exists, you will receive instructions.' 
-                    };
-                }
+            if (emailResult.success) {
+                return { 
+                    success: true, 
+                    message: 'Password reset email sent successfully' 
+                };
             } else {
+                console.error('Failed to send reset email:', emailResult.error);
                 return { 
                     success: false, 
-                    message: 'Failed to process password reset request' 
+                    message: 'Failed to send password reset email' 
                 };
             }
         } catch (error) {
-            console.error('Error during password reset:', error);
+            console.error('Error processing password reset:', error);
             return { 
                 success: false, 
                 message: 'Password reset error occurred' 
