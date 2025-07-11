@@ -30,6 +30,7 @@ const API_BASE_URL =
 const Dashboard = lazy(() => import('./components/Dashboard/Dashboard.jsx'));
 const Home = lazy(() => import('./components/Home/Home.jsx'));
 const SurveyEvents = lazy(() => import('./components/Events/SurveyEvents.jsx'));
+const ResetPassword = lazy(() => import('./components/ResetPassword/ResetPassword.jsx'));
 
 class App extends Component {
   constructor(props) {
@@ -284,6 +285,13 @@ class App extends Component {
                     } 
                   />
                 </Route>
+
+                <Route 
+                  path="/reset-password" 
+                  element={
+                    <ResetPassword />
+                  } 
+                />
                 
                 {/* 404 Route - Must be last */}
                 <Route path="*" element={<NotFound />} />

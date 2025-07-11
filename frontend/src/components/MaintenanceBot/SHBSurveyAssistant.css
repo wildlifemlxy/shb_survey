@@ -4,7 +4,7 @@
   position: fixed;
   bottom: 20px;
   right: 20px;
-  z-index: 1000;
+  z-index: 999; /* Lowered from 1000 to ensure buttons stay above */
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
 }
 
@@ -16,7 +16,7 @@
 .shb-chat-window { 
     position: fixed;
     top: 375px;
-    right: 100px;
+    right: 180px; /* Moved further left to avoid maintenance bot */
     width: 400px;
     max-width: calc(100vw - 40px);
     height: 500px;
@@ -27,7 +27,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    z-index: 1000;
+    z-index: 999; /* Lowered from 1000 to ensure buttons stay above */
     animation: slideUp 0.3s ease-out;
     transition: all 0.2s ease;
 }
@@ -625,11 +625,29 @@
 }
 
 /* Responsive Design */
+@media (max-width: 768px) {
+  .shb-chat-window {
+    width: calc(100vw - 20px);
+    right: 10px;
+    top: 120px; /* Move down to avoid header buttons */
+    height: calc(100vh - 200px);
+    max-height: 450px;
+    z-index: 999;
+  }
+  
+  .shb-chat-assistant {
+    z-index: 999;
+  }
+}
+
 @media (max-width: 480px) {
   .shb-chat-window {
-    width: calc(100vw - 40px);
-    height: 450px;
-    bottom: 70px;
+    width: calc(100vw - 20px);
+    height: 400px;
+    bottom: auto;
+    top: 140px; /* Even more space for stacked header buttons */
+    right: 10px;
+    z-index: 999;
   }
   
   .chat-header {
@@ -646,5 +664,11 @@
   
   .chat-input-container {
     padding: 12px;
+  }
+  
+  .shb-chat-assistant {
+    z-index: 999;
+    bottom: 15px;
+    right: 15px;
   }
 }

@@ -82,6 +82,21 @@ class DatabaseConnectivity {
     }
   }
 
+  async findDocument(databaseName, collectionName, query) {
+    try {
+      console.log("Finding document with query:", query, "from collection:", collectionName);
+      const db = this.client.db(databaseName);
+      const collection = db.collection(collectionName);
+      
+      const document = await collection.findOne(query);
+      console.log("Found document:", document ? "Found" : "Not found");
+      return document;
+    } catch (error) {
+      console.error("Error finding document:", error);
+      throw error;
+    }
+  }
+
   async close() {
     if (this.connected) {
       await this.client.close();

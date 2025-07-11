@@ -23,6 +23,7 @@
     "multer": "^2.0.1",
     "node-cron": "^3.0.3",
     "node-schedule": "^2.1.1",
+    "nodemailer": "^7.0.5",
     "path": "^0.12.7",
     "pm2": "^6.0.8",
     "pug": "^3.0.3",

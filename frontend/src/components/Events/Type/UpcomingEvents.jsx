@@ -27,7 +27,8 @@ class UpcomingEvents extends Component {
       editing: {},
       updated: {},
       localParticipants: {},
-      newParticipants: {} // eventId: ["", ...]
+      newParticipants: {}, // eventId: ["", ...]
+      showAddEventModal: false,
     };
   }
 

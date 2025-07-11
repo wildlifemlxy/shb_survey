@@ -11,6 +11,8 @@ import MapViewTab from '../Tabs/MapView/MapViewTab';
 import DataViewTab from '../Tabs/DataView/DataViewTab';
 import ChartsViewTab from '../Tabs/ChartsView/ChartsViewTab';
 
+// Import modal components
+import AddEventModal from '../Events/Type/AddEventModal';
 
 // Import filter component
 import FilterSection from '../Filters/FilterSection';
@@ -37,6 +39,7 @@ class DashboardContainer extends Component {
       validCoordinates: [],
       filteredData: props.shbData || [],
       currentDateTime: this.getFormattedDateTime(),
+      showAddEventModal: false,
     };
     this.timer = null;
   }
@@ -129,11 +132,12 @@ class DashboardContainer extends Component {
     handleTabChange(tab);
   };
 
-
-
-
-
-
+  // Handle after save for AddEventModal
+  handleAfterSave = () => {
+    // Close the modal after saving
+    this.setState({ showAddEventModal: false });
+    // Could add additional logic here if needed
+  };
 
   exportExcel = async () => {
     const { filteredData } = this.state;
@@ -304,6 +308,7 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
       validCoordinates,
       showPopup,
       isDownloading,
+      showAddEventModal,
     } = this.state;
 
     const standardizedFilteredData = standardizeCoordinates(filteredData);
@@ -325,6 +330,13 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
               <p>Comprehensive Bird Observation Analytics</p>
             </div>
             <div className="header-actions">
+              <button
+                className="themed-btn themed-btn-green"
+                style={{ marginRight: '12px' }}
+                onClick={() => this.setState({ showAddEventModal: true })}
+              >
+                Add New Event(s)
+              </button>
               <Link to="/" className="home-link">
                 <FontAwesomeIcon icon={faHome} />
                 <span>Home</span>
@@ -472,6 +484,14 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
               </button>
             </div>
           </div>
+        )}
+
+        {/* Add Event Modal */}
+        {showAddEventModal && (
+          <AddEventModal
+            onClose={() => this.setState({ showAddEventModal: false })}
+            onSave={this.handleAfterSave}
+          />
         )}
       </div>
     );

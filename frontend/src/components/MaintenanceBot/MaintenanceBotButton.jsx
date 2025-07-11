@@ -1836,7 +1836,7 @@ class MaintenanceBotButton extends Component {
             style={{
               position: 'fixed',
               bottom: 20,
-              right: 100,
+              right: 110, /* Moved further right to avoid chat bot */
               width: 60,
               height: 60,
               borderRadius: '50%',
@@ -1869,7 +1869,7 @@ class MaintenanceBotButton extends Component {
               style={{
                 position: 'fixed',
                 bottom: 90,
-                right: 100,
+                right: 110, /* Moved to align with button */
                 width: 320,
                 background: 'white',
                 borderRadius: 12,
