@@ -393,7 +393,28 @@ class ObservationDetailsSection extends Component {
 
   // Helper to get error class if a field has an error
   getErrorClass = (field) => {
-    return this.hasFieldError(field) ? 'has-error' : '';
+    // Return empty string to remove all error styling
+    return '';
+  };
+
+  // Helper to render field-specific error message
+  renderFieldError = (field) => {
+    const { fieldErrors = {} } = this.props;
+    const { currentObservationIndex } = this.state;
+    
+    if (fieldErrors[currentObservationIndex] && fieldErrors[currentObservationIndex][field]) {
+      return (
+        <div className="observer-error-message" style={{
+          color: '#dc3545',
+          fontSize: '0.85rem',
+          marginTop: '4px',
+          fontWeight: '500'
+        }}>
+          {COLUMN_LABELS[field] || field} is required
+        </div>
+      );
+    }
+    return null;
   };
 
   // Validate current observation against required fields
@@ -438,71 +459,6 @@ class ObservationDetailsSection extends Component {
     });
     
     return allErrors;
-  };
-
-  renderErrorMessages = () => {
-    const { fieldErrors = {} } = this.props;
-    
-    // Debug logging
-    console.log('ObservationDetailsSection fieldErrors:', fieldErrors);
-    
-    if (Object.keys(fieldErrors).length === 0) {
-      return null;
-    }
-
-    const totalErrors = Object.keys(fieldErrors).reduce((sum, rowIdx) => {
-      return sum + Object.keys(fieldErrors[rowIdx]).length;
-    }, 0);
-
-    return (
-      <div className="observation-errors-container">
-        <div className="observation-errors-title">
-          ⚠️ Cannot proceed - {totalErrors} validation error{totalErrors > 1 ? 's' : ''} found:
-        </div>
-        {Object.entries(fieldErrors).map(([rowIdx, rowErrs]) => {
-          const errorFields = Object.keys(rowErrs);
-          const rowNum = parseInt(rowIdx, 10) + 1;
-          
-          // If all required fields are missing, show a single summary error
-          const isAllEmpty = REQUIRED_FIELDS.every(f => errorFields.includes(f));
-          
-          if (isAllEmpty) {
-            return (
-              <div
-                className="observation-error-message"
-                key={`${rowIdx}-all-empty`}
-                onClick={() => this.setState({ currentObservationIndex: parseInt(rowIdx, 10) })}
-                style={{ cursor: 'pointer' }}
-              >
-                <strong>Observation {rowNum}:</strong> All required fields must be filled in
-              </div>
-            );
-          }
-          
-          // Otherwise, show individual field errors
-          return errorFields.map((field, i) => (
-            <div
-              className="observation-error-message"
-              key={`${rowIdx}-${field}-${i}`}
-              onClick={() => this.setState({ currentObservationIndex: parseInt(rowIdx, 10) })}
-              style={{ cursor: 'pointer' }}
-            >
-              <strong>Observation {rowNum}:</strong> {COLUMN_LABELS[field] || field} is required
-            </div>
-          ));
-        })}
-        <div style={{ 
-          marginTop: '12px', 
-          padding: '8px', 
-          backgroundColor: 'rgba(220, 53, 69, 0.1)', 
-          borderRadius: '4px',
-          fontSize: '0.85rem',
-          color: '#dc3545'
-        }}>
-          💡 Tip: Click on any error message above to navigate to that observation
-        </div>
-      </div>
-    );
   };
 
   componentDidMount() {
@@ -615,20 +571,6 @@ class ObservationDetailsSection extends Component {
           </button>
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {currentIndex + 1} of {observationDetails.length}
-            {hasCurrentErrors && (
-              <span style={{ 
-                color: 'white', 
-                backgroundColor: '#dc3545', 
-                borderRadius: '50%', 
-                width: 18, 
-                height: 18, 
-                display: 'inline-flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                fontSize: '0.8rem',
-                fontWeight: 'bold'
-              }}>!</span>
-            )}
           </span>
           <button
             type="button"
@@ -659,48 +601,15 @@ class ObservationDetailsSection extends Component {
           >
             −
           </button>
-          {this.hasAnyErrors() && (
-            <button
-              type="button"
-              className="observation-error-nav-btn"
-              title="Go to Next Error"
-              onClick={this.handleNavigateToNextError}
-              style={{
-                backgroundColor: '#dc3545',
-                color: 'white',
-                borderRadius: '4px',
-                border: 'none',
-                padding: '6px 12px',
-                marginLeft: '8px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              <span>Fix Errors</span>
-              <span style={{ fontSize: '0.8rem' }}>⚠️</span>
-            </button>
-          )}
         </div>
         {/* Single Card Row */}
         <div className="observation-cards-row" style={{ display: 'flex', justifyContent: 'center', gap: 24 }}>
           <>
-            <div className={`observation-card ${hasCurrentErrors ? 'has-error' : ''}`} style={hasCurrentErrors ? { borderLeft: '4px solid #dc3545' } : {}}>
+            <div className="observation-card">
               {/* Card Header */}
               <div className="observation-card-header">
                 <h4 className="observation-card-title">
                   Observation {currentIndex + 1}
-                  {hasCurrentErrors && (
-                    <span style={{ 
-                      color: '#dc3545', 
-                      marginLeft: '8px',
-                      fontSize: '0.9rem'
-                    }}>
-                      (Missing Required Fields)
-                    </span>
-                  )}
                 </h4>
               </div>
               {/* Form Fields Grid */}
@@ -720,6 +629,7 @@ class ObservationDetailsSection extends Component {
                       placeholder="Enter number"
                       required
                     />
+                    {this.renderFieldError('Number of Birds')}
                   </div>
                   <div className="observation-form-field">
                     <label className={`observation-form-label ${this.getErrorClass('SHB individual ID')}`} htmlFor={`birdId-${currentIndex}`}>
@@ -735,6 +645,7 @@ class ObservationDetailsSection extends Component {
                       autoComplete="off"
                       required
                     />
+                    {this.renderFieldError('SHB individual ID')}
                   </div>
                 </div>
                 {/* Row 2: Height of Tree, Height of Bird */}
@@ -781,6 +692,7 @@ class ObservationDetailsSection extends Component {
                       placeholder="Enter latitude"
                       required
                     />
+                    {this.renderFieldError('Lat')}
                   </div>
                   <div className="observation-form-field">
                     <label className={`observation-form-label ${this.getErrorClass('Long')}`} htmlFor={`longitude-${currentIndex}`}>
@@ -795,6 +707,7 @@ class ObservationDetailsSection extends Component {
                       placeholder="Enter longitude"
                       required
                     />
+                    {this.renderFieldError('Long')}
                   </div>
                 </div>
                 {/* Row 4: Time, Activity */}
@@ -881,6 +794,7 @@ class ObservationDetailsSection extends Component {
                         </div>
                       )}
                     </div>
+                    {this.renderFieldError('Time')}
                   </div>
                   <div className="observation-form-field">
                     <label className={`observation-form-label ${this.getErrorClass('Activity')}`} htmlFor={`activity-${currentIndex}`}>
@@ -926,6 +840,7 @@ class ObservationDetailsSection extends Component {
                         </div>
                       )}
                     </div>
+                    {this.renderFieldError('Activity')}
                   </div>
                 </div>
                 {/* Row 5: Seen/Heard, (empty for alignment) */}
@@ -974,6 +889,7 @@ class ObservationDetailsSection extends Component {
                         </div>
                       )}
                     </div>
+                    {this.renderFieldError('SeenHeard')}
                   </div>
                   {/* Empty div for alignment in the two-column layout - intentionally empty */}
                   <div 
@@ -1002,8 +918,6 @@ class ObservationDetailsSection extends Component {
             </div>
           </>
         </div>
-        {/* Error messages below the card */}
-        {this.renderErrorMessages()}
       </div>
     );
   }

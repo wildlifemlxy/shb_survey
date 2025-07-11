@@ -226,9 +226,6 @@ class ObserverInfoSection extends Component {
               )}
             </div>
           ))}
-          {this.props.fieldErrors && this.props.fieldErrors['Observer name'] && (
-            <div className="observer-error-message">{this.props.fieldErrors['Observer name']}</div>
-          )}
         </div>
         
         {/* Location with custom dropdown */}
@@ -246,7 +243,7 @@ class ObserverInfoSection extends Component {
                 showLocationDropdown: true, 
                 showAllLocationOptions: true 
               })}
-              className={`form-control ${this.props.fieldErrors && this.props.fieldErrors['Location'] ? 'input-error' : ''}`}
+              className="form-control"
               placeholder={locationPlaceholder}
               autoComplete="off"
             />
@@ -264,9 +261,6 @@ class ObserverInfoSection extends Component {
               </div>
             )}
           </div>
-          {this.props.fieldErrors && this.props.fieldErrors['Location'] && (
-            <div className="observer-error-message">{this.props.fieldErrors['Location']}</div>
-          )}
         </div>
         
         {/* Date */}
@@ -277,7 +271,7 @@ class ObserverInfoSection extends Component {
             name="Date"
             value={newSurvey['Date'] || ''}
             onChange={onInputChange}
-            className={`form-control ${this.props.fieldErrors && this.props.fieldErrors['Date'] ? 'input-error' : ''}`}
+            className="form-control"
             placeholder="DD/MM/YYYY"
             autoComplete="off"
             style={{
@@ -287,9 +281,6 @@ class ObserverInfoSection extends Component {
               e.target.showPicker && e.target.showPicker();
             }}
           />
-          {this.props.fieldErrors && this.props.fieldErrors['Date'] && (
-            <div className="observer-error-message">{this.props.fieldErrors['Date']}</div>
-          )}
         </div>
         
         {/* Number of Observation */}
@@ -300,12 +291,9 @@ class ObserverInfoSection extends Component {
             name="Number of Observation"
             value={newSurvey['Number of Observation'] || ''}
             onChange={onInputChange}
-            className={`form-control ${this.props.fieldErrors && this.props.fieldErrors['Number of Observation'] ? 'input-error' : ''}`}
+            className="form-control"
             placeholder="e.g. 1, 2, 3..."
           />
-          {this.props.fieldErrors && this.props.fieldErrors['Number of Observation'] && (
-            <div className="observer-error-message">{this.props.fieldErrors['Number of Observation']}</div>
-          )}
         </div>
       </div>
     );
