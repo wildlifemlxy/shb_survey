@@ -37,6 +37,8 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Serve uploaded files from backend uploads directory
+// Serve email assets (logos, etc.) from Others/Email directory
+app.use('/Others/Email', express.static(path.join(__dirname, 'Others/Email')));
 
 app.use('/surveys', surveyRoutes); // Register MongoDB survey routes
 app.use('/events', eventsRoutes); // Register MongoDB events routes

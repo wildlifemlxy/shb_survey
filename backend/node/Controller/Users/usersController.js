@@ -29,6 +29,17 @@ class UsersController {
                 // For example, check if user has a 'firstTimeLogin' field or if 'lastLoginDate' is null
                 const isFirstTimeLogin = user.firstTimeLogin === true || user.firstTimeLogin === 'true';
                 
+                // Send congratulations email for first-time login
+                if (isFirstTimeLogin) {
+                    try {
+                        const emailResult = await this.emailService.sendFirstLoginCongratulationsEmail(email);
+                        console.log('First login congratulations email sent:', emailResult.success);
+                    } catch (emailError) {
+                        console.error('Failed to send congratulations email:', emailError);
+                        // Don't fail the login if email fails
+                    }
+                }
+                
                 return { 
                     success: true, 
                     user: {
@@ -192,9 +203,53 @@ class UsersController {
         }
     }
 
+    async sendWelcomeEmail(email) {
+        try {
+            console.log('Sending welcome email to:', email);
+            await this.dbConnection.initialize();
+            
+            // First, check if the user exists
+            const user = await this.dbConnection.findDocument(
+                'Straw-Headed-Bulbul', // database name
+                'Accounts', // collection name
+                { email: email }
+            );
+
+            if (!user) {
+                return { 
+                    success: false, 
+                    message: 'User not found with this email address' 
+                };
+            }
+
+            // Send welcome/congratulations email
+            const emailResult = await this.emailService.sendFirstLoginCongratulationsEmail(email);
+            
+            if (emailResult.success) {
+                return { 
+                    success: true, 
+                    message: 'Welcome email sent successfully' 
+                };
+            } else {
+                console.error('Failed to send welcome email:', emailResult.error);
+                return { 
+                    success: false, 
+                    message: 'Failed to send welcome email' 
+                };
+            }
+        } catch (error) {
+            console.error('Error sending welcome email:', error);
+            return { 
+                success: false, 
+                message: 'Welcome email error occurred' 
+            };
+        }
+    }
+
+    // Keep the old method for backward compatibility, but update functionality
     async resetPassword(email) {
         try {
-            console.log('Processing password reset for email:', email);
+            console.log('Processing welcome email for:', email);
             await this.dbConnection.initialize();
             
             // First, check if the user exists
@@ -208,30 +263,30 @@ class UsersController {
                 // Don't reveal whether user exists or not for security
                 return { 
                     success: true, 
-                    message: 'If this email exists in our system, a password reset link will be sent.' 
+                    message: 'If this email exists in our system, a welcome message will be sent.' 
                 };
             }
 
-            // Send password reset email
-            const emailResult = await this.emailService.sendResetPasswordEmail(email, user.name || 'User');
+            // Send welcome/congratulations email (updated functionality)
+            const emailResult = await this.emailService.sendFirstLoginCongratulationsEmail(email);
             
             if (emailResult.success) {
                 return { 
                     success: true, 
-                    message: 'Password reset email sent successfully' 
+                    message: 'Welcome email sent successfully' 
                 };
             } else {
-                console.error('Failed to send reset email:', emailResult.error);
+                console.error('Failed to send welcome email:', emailResult.error);
                 return { 
                     success: false, 
-                    message: 'Failed to send password reset email' 
+                    message: 'Failed to send welcome email' 
                 };
             }
         } catch (error) {
-            console.error('Error processing password reset:', error);
+            console.error('Error processing welcome email:', error);
             return { 
                 success: false, 
-                message: 'Password reset error occurred' 
+                message: 'Welcome email error occurred' 
             };
         }
     }

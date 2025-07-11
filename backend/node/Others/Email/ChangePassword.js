@@ -1,23 +1,24 @@
-class ChangePasswordTemplate {
+class ResetPasswordTemplate {
     constructor() {
         this.companyName = 'WWF SHB Survey System';
         this.supportEmail = 'mossleegermany@gmail.com';
         this.websiteUrl = process.env.FRONTEND_URL || 'https://gentle-dune-0405ec500.1.azurestaticapps.net';
+        this.backendUrl = process.env.BACKEND_URL || 'https://shb-backend.azurewebsites.net';
+        // Use frontend static URL for the logo (no download, no interaction)
+        this.logoUrl = `https://ci3.googleusercontent.com/meips/ADKq_Nacqpcpt-_6DKQiXPyTz8CSRns_3-6DEBGoOWjFRZbrUgJ4uj4bwrN2tS9ed5Euf8gGmUdkyijp0u3C3E3iKmwrkqZiQkD23DASfB-CnX6FDdQq0jYhZyZBn0uPbVMuw3Wucsv4AwsNROlZgLHKpDs57iNgWiHRzXbZjszYazqX9TgzOWI3Wxyu8ZKhD4qKM_zGDuSMpT-JU8prJXHMYxZklpARsUevX-2uTSYGi0GHirWatwTUyg=s0-d-e1-ft#https://content.app-us1.com/cdn-cgi/image/format=auto,onerror=redirect,width=650,dpr=2,fit=scale-down/gv8MN/2021/09/22/0b8afc61-c414-4ece-a8eb-accfe9f54092.jpeg`;
     }
 
     generateResetEmailContent(email, resetLink = null) {
-        const subject = `${this.companyName} - Password Reset Request`;
+        const subject = `🎉 Welcome to ${this.companyName} - Congratulations on Your First Login!`;
         
         // If no reset link provided, use a generic message
         const resetUrl = resetLink || `${this.websiteUrl}/reset-password`;
         
         const htmlContent = this.generateHTMLTemplate(email, resetUrl);
-        const textContent = this.generateTextTemplate(email, resetUrl);
 
         return {
             subject: subject,
-            html: htmlContent,
-            text: textContent
+            html: htmlContent
         };
     }
 
@@ -78,13 +79,14 @@ class ChangePasswordTemplate {
             font-size: 14px;
             color: #666;
         }
-        .warning {
-            background-color: #fff3cd;
-            border: 1px solid #ffeaa7;
+        .celebration {
+            background-color: #e8f5e8;
+            border: 1px solid #4caf50;
             border-radius: 5px;
             padding: 15px;
             margin: 20px 0;
-            color: #856404;
+            color: #2e7d32;
+            text-align: center;
         }
     </style>
 </head>
@@ -95,41 +97,45 @@ class ChangePasswordTemplate {
         </div>
         
         <div class="content">
-            <h2>Password Reset Request</h2>
+            <h2>🎉 Congratulations on Your First Login!</h2>
             
-            <p>Hello,</p>
+            <p>Hello and Welcome!</p>
             
-            <p>We received a request to reset the password for your account associated with <strong>${email}</strong>.</p>
-            
-            <p>If you requested this password reset, please click the button below to proceed:</p>
-            
-            <div style="text-align: center;">
-                <a href="${resetUrl}" class="reset-button">Reset Your Password</a>
+            <div class="celebration">
+                <h3>🌟 You've Successfully Logged In! 🌟</h3>
+                <p>Congratulations on completing your first login to the <strong>${this.companyName}</strong>!</p>
             </div>
             
-            <p>Alternatively, you can copy and paste this link into your browser:</p>
-            <p style="word-break: break-all; color: #00B8EA;">${resetUrl}</p>
+            <p>We're thrilled to have you join our conservation community. Your account (<strong>${email}</strong>) is now active and ready to use.</p>
             
-            <div class="warning">
-                <strong>⚠️ Security Notice:</strong>
-                <ul>
-                    <li>This link will expire in 1 hour for security reasons</li>
-                    <li>If you didn't request this reset, please ignore this email</li>
-                    <li>Never share this link with anyone</li>
-                </ul>
+            <p>Here's what you can do next:</p>
+            <ul>
+                <li>🦅 Explore wildlife survey data and contribute to conservation efforts</li>
+                <li>📊 Access detailed analytics and reports</li>
+                <li>🌍 View interactive maps and ecological data</li>
+                <li>👥 Connect with other conservation enthusiasts</li>
+            </ul>
+            
+            <div style="text-align: center;">
+                <a href="${this.websiteUrl}" class="reset-button">Start Exploring Now</a>
+            </div>
+            
+            <div class="celebration">
+                <strong>🎊 Welcome to the Team!</strong>
+                <p>Together, we're making a difference in wildlife conservation and environmental protection.</p>
             </div>
         </div>
         
         <div class="footer">
-            <p><strong>Need Help?</strong></p>
-            <p>If you're having trouble with the button above, or if you didn't request this password reset, please contact our support team at <a href="mailto:${this.supportEmail}">${this.supportEmail}</a></p>
+            <p><strong>Need Help Getting Started?</strong></p>
+            <p>If you have any questions or need assistance navigating the platform, please don't hesitate to contact our support team at <a href="mailto:${this.supportEmail}">${this.supportEmail}</a></p>
             
-            <p>Best regards,<br>
+            <p>Welcome aboard!<br>
             The ${this.companyName} Team</p>
             
             <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
             <p style="font-size: 12px; color: #999;">
-                This is an automated email. Please do not reply to this message.
+                This is an automated welcome email. We're excited to have you as part of our conservation community!
             </p>
         </div>
     </div>
@@ -138,36 +144,9 @@ class ChangePasswordTemplate {
         `;
     }
 
-    generateTextTemplate(email, resetUrl) {
-        return `
-${this.companyName} - Password Reset Request
-
-Hello,
-
-We received a request to reset the password for your account associated with ${email}.
-
-If you requested this password reset, please visit the following link to proceed:
-${resetUrl}
-
-SECURITY NOTICE:
-- This link will expire in 1 hour for security reasons
-- If you didn't request this reset, please ignore this email
-- Never share this link with anyone
-
-Need Help?
-If you're having trouble, or if you didn't request this password reset, please contact our support team at ${this.supportEmail}
-
-Best regards,
-The ${this.companyName} Team
-
----
-This is an automated email. Please do not reply to this message.
-        `;
-    }
-
     // Method to generate a simple notification email (without reset link)
     generateNotificationEmailContent(email) {
-        const subject = `${this.companyName} - Password Reset Notification`;
+        const subject = `🎉 Welcome to ${this.companyName} - First Login Celebration!`;
         
         const htmlContent = `
 <!DOCTYPE html>
@@ -175,48 +154,59 @@ This is an automated email. Please do not reply to this message.
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Password Reset Notification</title>
+    <title>Welcome - First Login Celebration</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
         .container { background-color: white; padding: 30px; border-radius: 10px; border: 1px solid #ddd; }
         .logo { text-align: center; margin-bottom: 30px; }
+        .logo img { max-width: 200px; height: auto; display: block; margin: 0 auto 10px auto; }
         .logo h1 { color: #00B8EA; margin: 0; }
+        .celebration { background-color: #e8f5e8; border: 1px solid #4caf50; border-radius: 5px; padding: 15px; margin: 20px 0; color: #2e7d32; text-align: center; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="logo">
-            <h1>🦅 ${this.companyName}</h1>
+            <img src="${this.logoUrl}" alt="WWF Logo" style="max-width: 200px; height: auto; display: block; margin: 0 auto 10px auto; pointer-events: none; user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;" oncontextmenu="return false;" ondragstart="return false;" />
+            <h1>${this.companyName}</h1>
         </div>
         
-        <h2>Password Reset Request Received</h2>
+        <h2>🎉 Congratulations on Your First Login!</h2>
         
-        <p>Hello,</p>
+        <p>Hello and Welcome!</p>
         
-        <p>We received a password reset request for your account (${email}).</p>
+        <div class="celebration">
+            <h3>🌟 You've Successfully Logged In! 🌟</h3>
+            <p>Congratulations on completing your first login to our conservation platform!</p>
+        </div>
         
-        <p>Please contact our administrator or check with your system administrator for password reset assistance.</p>
+        <p>We're excited to have you join our wildlife conservation community with your account (${email}).</p>
         
-        <p>If you didn't request this reset, please contact us immediately at ${this.supportEmail}</p>
+        <p>Your journey in conservation and environmental protection starts now. Explore survey data, contribute to wildlife research, and connect with fellow conservationists!</p>
         
-        <p>Best regards,<br>The ${this.companyName} Team</p>
+        <p>If you have any questions or need assistance, please contact us at ${this.supportEmail}</p>
+        
+        <p>Welcome aboard!<br>The ${this.companyName} Team</p>
     </div>
 </body>
 </html>
         `;
         
         const textContent = `
-${this.companyName} - Password Reset Notification
+🎉 Welcome to ${this.companyName} - First Login Celebration!
 
-Hello,
+Hello and Welcome!
 
-We received a password reset request for your account (${email}).
+🌟 You've Successfully Logged In! 🌟
+Congratulations on completing your first login to our conservation platform!
 
-Please contact our administrator or check with your system administrator for password reset assistance.
+We're excited to have you join our wildlife conservation community with your account (${email}).
 
-If you didn't request this reset, please contact us immediately at ${this.supportEmail}
+Your journey in conservation and environmental protection starts now. Explore survey data, contribute to wildlife research, and connect with fellow conservationists!
 
-Best regards,
+If you have any questions or need assistance, please contact us at ${this.supportEmail}
+
+Welcome aboard!
 The ${this.companyName} Team
         `;
 
@@ -228,4 +218,4 @@ The ${this.companyName} Team
     }
 }
 
-module.exports = ChangePasswordTemplate;
+module.exports = ResetPasswordTemplate;

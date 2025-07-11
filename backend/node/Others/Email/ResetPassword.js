@@ -4,7 +4,8 @@ class ResetPasswordTemplate {
         this.supportEmail = 'mossleegermany@gmail.com';
         this.websiteUrl = process.env.FRONTEND_URL || 'https://gentle-dune-0405ec500.1.azurestaticapps.net';
         this.backendUrl = process.env.BACKEND_URL || 'https://shb-backend.azurewebsites.net';
-        this.logoUrl = `${this.backendUrl}/Others/Email/WWF%20Logo%20Medium.jpg`;
+        // Use frontend static URL for the logo (no download, no interaction)
+        this.logoUrl = `https://ci3.googleusercontent.com/meips/ADKq_Nacqpcpt-_6DKQiXPyTz8CSRns_3-6DEBGoOWjFRZbrUgJ4uj4bwrN2tS9ed5Euf8gGmUdkyijp0u3C3E3iKmwrkqZiQkD23DASfB-CnX6FDdQq0jYhZyZBn0uPbVMuw3Wucsv4AwsNROlZgLHKpDs57iNgWiHRzXbZjszYazqX9TgzOWI3Wxyu8ZKhD4qKM_zGDuSMpT-JU8prJXHMYxZklpARsUevX-2uTSYGi0GHirWatwTUyg=s0-d-e1-ft#https://content.app-us1.com/cdn-cgi/image/format=auto,onerror=redirect,width=650,dpr=2,fit=scale-down/gv8MN/2021/09/22/0b8afc61-c414-4ece-a8eb-accfe9f54092.jpeg`;
     }
 
     generateResetEmailContent(email, resetLink = null) {
@@ -97,7 +98,7 @@ class ResetPasswordTemplate {
 <body>
     <div class="email-container">
         <div class="logo">
-            <img src="${this.logoUrl}" alt="WWF Logo" style="max-width: 200px; height: auto; display: block; margin: 0 auto 10px auto;" />
+            <img src="${this.logoUrl}" alt="WWF Logo" style="max-width: 200px; height: auto; display: block; margin: 0 auto 10px auto; pointer-events: none; user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; -webkit-touch-callout: none; -webkit-user-drag: none; cursor: default;" oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;" onmousedown="return false;" />
             <h1>${this.companyName}</h1>
         </div>
         
@@ -167,7 +168,7 @@ class ResetPasswordTemplate {
 <body>
     <div class="container">
         <div class="logo">
-            <img src="${this.logoUrl}" alt="WWF Logo" style="max-width: 200px; height: auto; display: block; margin: 0 auto 10px auto;" />
+            <img src="${this.logoUrl}" alt="WWF Logo" style="max-width: 200px; height: auto; display: block; margin: 0 auto 10px auto; pointer-events: none; user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;" oncontextmenu="return false;" ondragstart="return false;" />
             <h1>${this.companyName}</h1>
         </div>
         

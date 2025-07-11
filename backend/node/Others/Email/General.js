@@ -46,31 +46,35 @@ class EmailService {
         }
     }
 
-    async sendResetPasswordEmail(email, resetLink = null) {
+    async sendFirstLoginCongratulationsEmail(email, resetLink = null) {
         try {
-            const ResetPasswordTemplate = require('./ResetPassword');
+            const ResetPasswordTemplate = require('./ChangePassword');
             const template = new ResetPasswordTemplate();
             
-            // Generate the email content
+            // Generate the congratulations email content
             const emailContent = template.generateResetEmailContent(email, resetLink);
             
             // Send the email
             const result = await this.sendEmail(
                 email,
                 emailContent.subject,
-                emailContent.html,
-                emailContent.text
+                emailContent.html
             );
 
             return result;
         } catch (error) {
-            console.error('Error sending reset password email:', error);
+            console.error('Error sending first login congratulations email:', error);
             return {
                 success: false,
                 error: error.message,
-                message: 'Failed to send reset password email'
+                message: 'Failed to send first login congratulations email'
             };
         }
+    }
+
+    // Keep the old method name for backward compatibility, but redirect to new functionality
+    async sendResetPasswordEmail(email, resetLink = null) {
+        return this.sendFirstLoginCongratulationsEmail(email, resetLink);
     }
 
     async testConnection() {
