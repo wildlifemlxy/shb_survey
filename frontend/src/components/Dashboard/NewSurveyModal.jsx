@@ -93,15 +93,33 @@ class NewSurveyModal extends Component {
       'Activity',
       'SeenHeard',
     ];
+    
+    // Get observation details, ensuring we have an array
     const details = Array.isArray(newSurvey['Observation Details']) ? newSurvey['Observation Details'] : [];
+    
+    // If no observation details exist, create an error for the first row
+    if (details.length === 0) {
+      errors[0] = {};
+      requiredFields.forEach(field => {
+        errors[0][field] = `${field} is required`;
+      });
+      return errors;
+    }
+    
+    // Validate each observation row
     details.forEach((row, idx) => {
       requiredFields.forEach(field => {
-        if (!row[field] || row[field].toString().trim() === '') {
+        // Check if field is missing, empty, or just whitespace
+        const fieldValue = row[field];
+        if (!fieldValue || 
+            (typeof fieldValue === 'string' && fieldValue.trim() === '') ||
+            (typeof fieldValue === 'number' && isNaN(fieldValue))) {
           if (!errors[idx]) errors[idx] = {};
-          errors[idx][field] = `${field} is required for row ${idx + 1}`;
+          errors[idx][field] = `${field} is required for observation ${idx + 1}`;
         }
       });
     });
+    
     return errors;
   };
 
@@ -290,20 +308,37 @@ class NewSurveyModal extends Component {
   };
 
   handleNext = () => {
+    // Clear any existing error messages first
+    this.setState({ errorMessages: {} });
+    
     if (this.state.currentSection === 0) {
       const errors = this.validateObserverSection();
       if (Object.keys(errors).length > 0) {
         this.setState({ errorMessages: errors });
-        return;
+        // Scroll to top to show error messages
+        const modalContent = document.querySelector('.modal-content');
+        if (modalContent) {
+          modalContent.scrollTop = 0;
+        }
+        return; // Prevent navigation
       }
     }
+    
     if (this.state.currentSection === 1) {
       const errors = this.validateObservationSection();
       if (Object.keys(errors).length > 0) {
         this.setState({ errorMessages: errors });
-        return;
+        console.log('Validation failed for observation section:', errors);
+        // Scroll to show error messages
+        const modalContent = document.querySelector('.modal-content');
+        if (modalContent) {
+          modalContent.scrollTop = modalContent.scrollHeight;
+        }
+        return; // Prevent navigation
       }
     }
+    
+    // If we get here, validation passed - proceed to next section
     this.setState(prevState => ({
       currentSection: Math.min(prevState.currentSection + 1, SECTIONS.length - 1),
       errorMessages: {},
@@ -552,8 +587,8 @@ class NewSurveyModal extends Component {
                   )}
                 </div>
 
-                <fieldset>
-                  <legend>{section.legend}</legend>
+                <div className="form-section">
+                  <h3 className="section-title">{section.legend}</h3>
                   {section.key === 'observer' && (
                     <ObserverInfoSection
                       newSurvey={newSurvey}
@@ -579,13 +614,13 @@ class NewSurveyModal extends Component {
                           },
                         }));
                       }}
-                      fieldErrors={currentSection === 1 ? errorMessages : {}}
+                      fieldErrors={errorMessages}
                     />
                   )}
                   {section.key === 'height' && (
                     <SubmissionSummarySection newSurvey={newSurvey} />
                   )}
-                </fieldset>
+                </div>
 
                 {/* Error Messages Display for first 2 sections */}
                 {(currentSection === 0 || currentSection === 1) && Object.keys(errorMessages).length > 0 && (
@@ -658,14 +693,7 @@ class NewSurveyModal extends Component {
                   Next →
                 </button>
               ) : (
-                <div></div>
-              )}
-            </div>
-            
-            {/* Action buttons */}
-            <div className="modal-actions">
-              {isLast && (
-                <button type="submit" onClick={this.handleSubmit}>Submit</button>
+                 <button type="submit" onClick={this.handleSubmit}>Submit</button>
               )}
             </div>
           </div>

@@ -8,6 +8,8 @@ const COLUMN_LABELS = {
   "SHB individual ID": 'SHB individual ID',
   HeightOfTree: 'Height of tree',
   HeightOfBird: 'Height of bird',
+  Lat: 'Latitude',
+  Long: 'Longitude',
   Time: 'Time',
   Activity: 'Activity',
   SeenHeard: 'Seen/Heard',
@@ -394,17 +396,68 @@ class ObservationDetailsSection extends Component {
     return this.hasFieldError(field) ? 'has-error' : '';
   };
 
+  // Validate current observation against required fields
+  validateCurrentObservation = () => {
+    const currentObservation = this.getCurrentObservation();
+    const missingFields = [];
+    
+    REQUIRED_FIELDS.forEach(field => {
+      const fieldValue = currentObservation[field];
+      if (!fieldValue || 
+          (typeof fieldValue === 'string' && fieldValue.trim() === '') ||
+          (typeof fieldValue === 'number' && isNaN(fieldValue))) {
+        missingFields.push(field);
+      }
+    });
+    
+    return missingFields;
+  };
+
+  // Check if all observations are valid
+  validateAllObservations = () => {
+    const observationDetails = this.getObservationDetails();
+    const allErrors = {};
+    
+    observationDetails.forEach((row, idx) => {
+      const missingFields = [];
+      REQUIRED_FIELDS.forEach(field => {
+        const fieldValue = row[field];
+        if (!fieldValue || 
+            (typeof fieldValue === 'string' && fieldValue.trim() === '') ||
+            (typeof fieldValue === 'number' && isNaN(fieldValue))) {
+          missingFields.push(field);
+        }
+      });
+      
+      if (missingFields.length > 0) {
+        allErrors[idx] = {};
+        missingFields.forEach(field => {
+          allErrors[idx][field] = `${field} is required`;
+        });
+      }
+    });
+    
+    return allErrors;
+  };
+
   renderErrorMessages = () => {
     const { fieldErrors = {} } = this.props;
+    
+    // Debug logging
+    console.log('ObservationDetailsSection fieldErrors:', fieldErrors);
     
     if (Object.keys(fieldErrors).length === 0) {
       return null;
     }
 
+    const totalErrors = Object.keys(fieldErrors).reduce((sum, rowIdx) => {
+      return sum + Object.keys(fieldErrors[rowIdx]).length;
+    }, 0);
+
     return (
       <div className="observation-errors-container">
         <div className="observation-errors-title">
-          Please fix the following errors:
+          ⚠️ Cannot proceed - {totalErrors} validation error{totalErrors > 1 ? 's' : ''} found:
         </div>
         {Object.entries(fieldErrors).map(([rowIdx, rowErrs]) => {
           const errorFields = Object.keys(rowErrs);
@@ -421,25 +474,33 @@ class ObservationDetailsSection extends Component {
                 onClick={() => this.setState({ currentObservationIndex: parseInt(rowIdx, 10) })}
                 style={{ cursor: 'pointer' }}
               >
-                Observation {rowNum}: All required fields must be filled in
+                <strong>Observation {rowNum}:</strong> All required fields must be filled in
               </div>
             );
           }
           
           // Otherwise, show individual field errors
-          return errorFields
-            .filter(field => field !== 'BirdID') // Filter out BirdID as it's handled separately
-            .map((field, i) => (
-              <div
-                className="observation-error-message"
-                key={`${rowIdx}-${field}-${i}`}
-                onClick={() => this.setState({ currentObservationIndex: parseInt(rowIdx, 10) })}
-                style={{ cursor: 'pointer' }}
-              >
-                Observation {rowNum}: {COLUMN_LABELS[field] || field} is required
-              </div>
-            ));
+          return errorFields.map((field, i) => (
+            <div
+              className="observation-error-message"
+              key={`${rowIdx}-${field}-${i}`}
+              onClick={() => this.setState({ currentObservationIndex: parseInt(rowIdx, 10) })}
+              style={{ cursor: 'pointer' }}
+            >
+              <strong>Observation {rowNum}:</strong> {COLUMN_LABELS[field] || field} is required
+            </div>
+          ));
         })}
+        <div style={{ 
+          marginTop: '12px', 
+          padding: '8px', 
+          backgroundColor: 'rgba(220, 53, 69, 0.1)', 
+          borderRadius: '4px',
+          fontSize: '0.85rem',
+          color: '#dc3545'
+        }}>
+          💡 Tip: Click on any error message above to navigate to that observation
+        </div>
       </div>
     );
   };
