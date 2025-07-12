@@ -409,7 +409,7 @@ class LoginPopup extends Component {
               <p>Scan the QR code and enter the 8-digit PIN</p>
             </div>
             
-            <form className="login-form">
+            <div className="mfa-content" style={{ textAlign: 'center', padding: '1rem 0' }}>
               {mfaError && (
                 <div className="login-error" style={{ marginBottom: '0.8rem' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -420,8 +420,8 @@ class LoginPopup extends Component {
               )}
               
               {qrCodeDataUrl && (
-                <div className="form-group" style={{ textAlign: 'center' }}>
-                  <label style={{ color: '#333', marginBottom: '0.5rem', fontSize: '14px' }}>Scan QR Code:</label>
+                <div style={{ marginBottom: '1rem' }}>
+                  <h3 style={{ color: '#333', marginBottom: '0.5rem', fontSize: '14px' }}>Scan QR Code:</h3>
                   <div style={{
                     display: 'inline-block',
                     padding: '0.5rem',
@@ -442,8 +442,8 @@ class LoginPopup extends Component {
               )}
               
               {/* 8-square PIN input grid */}
-              <div className="form-group">
-                <label style={{ color: '#333', marginBottom: '0.5rem', fontSize: '14px' }}>Enter 8-Digit PIN:</label>
+              <div style={{ marginBottom: '1rem' }}>
+                <h3 style={{ color: '#333', marginBottom: '0.5rem', fontSize: '14px' }}>Enter 8-Digit PIN:</h3>
                 <div style={{
                   display: 'flex',
                   justifyContent: 'center',
@@ -521,7 +521,7 @@ class LoginPopup extends Component {
                   )}
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       );
