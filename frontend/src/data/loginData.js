@@ -237,3 +237,62 @@ export async function resetPasswordWithToken(token, newPassword) {
     }
   }
 }
+
+// Generate MFA PIN after successful login
+export async function generateMFAPin(email) {
+  try {
+    console.log("Generating MFA PIN for email:", email);
+    
+    // Validate parameters before sending
+    if (!email) {
+      console.error("Missing email parameter");
+      return {
+        success: false,
+        message: 'Email is required for MFA PIN generation',
+      };
+    }
+    
+    const response = await axios.post(
+      `${BASE_URL}/users`,
+      {
+        purpose: 'generateMFAPin',
+        email: email
+      }
+    );
+
+    console.log('MFA PIN generation response:', response.data);
+
+    if (response.data.success) {
+      return {
+        success: true,
+        pin: response.data.pin,
+        message: response.data.message || 'MFA PIN generated successfully',
+      };
+    } else {
+      return {
+        success: false,
+        message: response.data.message || 'Failed to generate MFA PIN',
+      };
+    }
+  } catch (error) {
+    console.error('MFA PIN generation error:', error);
+
+    // Handle specific error types
+    if (error.response) {
+      return {
+        success: false,
+        message: error.response.data.message || 'MFA PIN generation failed',
+      };
+    } else if (error.request) {
+      return {
+        success: false,
+        message: 'No response from server. Please try again later.',
+      };
+    } else {
+      return {
+        success: false,
+        message: 'MFA PIN generation failed. Please try again.',
+      };
+    }
+  }
+}

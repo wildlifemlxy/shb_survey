@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import './LoginPopupUpdated.css'; // Import the updated styles
 import { fetchLoginData, changePassword, resetPassword } from '../../data/loginData';
+import QRCode from 'qrcode';
 // Note: Since we're using a class component, we can't directly use the useAuth hook
 // We'll pass the login function as a prop from a parent component that uses the hook
 
@@ -25,7 +26,14 @@ class LoginPopup extends Component {
       resetEmail: '',
       isResettingPassword: false,
       resetPasswordError: '',
-      resetPasswordSuccess: false
+      resetPasswordSuccess: false,
+      showMFAPin: false,
+      mfaPin: '',
+      qrCodeDataUrl: '',
+      isGeneratingMFA: false,
+      mfaError: '',
+      userInputPin: ['', '', '', '', '', '', '', ''], // 8 digit input array
+      currentInputIndex: 0
     };
   }
 
@@ -56,7 +64,14 @@ class LoginPopup extends Component {
       resetEmail: '',
       isResettingPassword: false,
       resetPasswordError: '',
-      resetPasswordSuccess: false
+      resetPasswordSuccess: false,
+      showMFAPin: false,
+      mfaPin: '',
+      qrCodeDataUrl: '',
+      isGeneratingMFA: false,
+      mfaError: '',
+      userInputPin: ['', '', '', '', '', '', '', ''],
+      currentInputIndex: 0
     });
   };
 
@@ -85,8 +100,9 @@ class LoginPopup extends Component {
             isLoading: false 
           });
         } else {
-          // Normal login flow
-          this.props.onLoginSuccess(result.data);
+          // Normal login flow - generate MFA PIN
+          console.log('Normal login successful, generating MFA PIN');
+          await this.generateMFAPinAndQR(email, result.data);
         }
       } else {
         this.setState({ 
@@ -106,6 +122,130 @@ class LoginPopup extends Component {
   handleCloseButton = () => {
     this.clearForm();
     this.props.onClose();
+  };
+
+  generateMFAPinAndQR = async (email, userData) => {
+    try {
+      this.setState({ isGeneratingMFA: true, mfaError: '' });
+      
+      // Generate 8-digit PIN locally (frontend only)
+      const pin = this.generateLocalMFAPin(8);
+      console.log('Generated 8-digit PIN locally:', pin);
+      
+      // Generate QR code from the PIN
+      const qrCodeDataUrl = await QRCode.toDataURL(pin, {
+        width: 256,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      
+      this.setState({
+        showMFAPin: true,
+        mfaPin: pin,
+        qrCodeDataUrl: qrCodeDataUrl,
+        userData: userData,
+        isGeneratingMFA: false
+      });
+    } catch (error) {
+      console.error('Error generating MFA PIN and QR code:', error);
+      this.setState({
+        mfaError: 'Failed to generate MFA PIN and QR code',
+        isGeneratingMFA: false
+      });
+    }
+  };
+
+  // Generate MFA PIN locally without backend
+  generateLocalMFAPin = (length = 8) => {
+    const digits = '0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += digits.charAt(Math.floor(Math.random() * digits.length));
+    }
+    return result;
+  };
+
+  // Handle PIN input for the 8-square grid
+  handlePinInputChange = (index, value) => {
+    // Only allow single digits
+    if (value.length > 1) return;
+    if (value && !/^\d$/.test(value)) return;
+
+    const newUserInputPin = [...this.state.userInputPin];
+    newUserInputPin[index] = value;
+
+    this.setState({
+      userInputPin: newUserInputPin,
+      mfaError: '' // Clear any previous error
+    });
+
+    // Auto-focus next input if digit entered
+    if (value && index < 7) {
+      const nextInput = document.getElementById(`pin-input-${index + 1}`);
+      if (nextInput) nextInput.focus();
+    }
+  };
+
+  // Handle backspace and navigation in PIN inputs
+  handlePinKeyDown = (index, e) => {
+    if (e.key === 'Backspace') {
+      if (!this.state.userInputPin[index] && index > 0) {
+        // If current input is empty and backspace pressed, go to previous
+        const prevInput = document.getElementById(`pin-input-${index - 1}`);
+        if (prevInput) {
+          prevInput.focus();
+          // Clear the previous input
+          const newUserInputPin = [...this.state.userInputPin];
+          newUserInputPin[index - 1] = '';
+          this.setState({ userInputPin: newUserInputPin });
+        }
+      }
+    } else if (e.key === 'ArrowLeft' && index > 0) {
+      const prevInput = document.getElementById(`pin-input-${index - 1}`);
+      if (prevInput) prevInput.focus();
+    } else if (e.key === 'ArrowRight' && index < 7) {
+      const nextInput = document.getElementById(`pin-input-${index + 1}`);
+      if (nextInput) nextInput.focus();
+    }
+  };
+
+  // Verify the entered PIN against the generated PIN
+  handleVerifyPin = () => {
+    const enteredPin = this.state.userInputPin.join('');
+    const generatedPin = this.state.mfaPin;
+
+    if (enteredPin.length !== 8) {
+      this.setState({ mfaError: 'Please enter all 8 digits' });
+      return;
+    }
+
+    if (enteredPin === generatedPin) {
+      // PIN matches, proceed with login
+      this.handleMFAComplete();
+    } else {
+      this.setState({ 
+        mfaError: 'PIN does not match. Please try again.',
+        userInputPin: ['', '', '', '', '', '', '', ''] // Clear the input
+      });
+      // Focus first input
+      const firstInput = document.getElementById('pin-input-0');
+      if (firstInput) firstInput.focus();
+    }
+  };
+
+  handleMFAComplete = () => {
+    // Complete the login process after MFA
+    const { userData } = this.state;
+    this.props.onLoginSuccess(userData);
+  };
+
+  handleMFASkip = () => {
+    // Allow skipping MFA for now (optional)
+    const { userData } = this.state;
+    this.props.onLoginSuccess(userData);
   };
 
   handlePasswordChange = async (e) => {
@@ -163,8 +303,8 @@ class LoginPopup extends Component {
         console.log('Password changed successfully');
         // Update userData to remove firstTimeLogin flag
         const updatedUserData = { ...userData, firstTimeLogin: false };
-        // Complete the login process
-        this.props.onLoginSuccess(updatedUserData);
+        // Generate MFA PIN after password change
+        await this.generateMFAPinAndQR(userEmail, updatedUserData);
       } else {
         this.setState({ 
           passwordChangeError: result?.message || 'Failed to change password. Please try again.' 
@@ -249,10 +389,162 @@ class LoginPopup extends Component {
   };
 
   render() {
-    const { email, password, isLoading, error, showPasswordChange, newPassword, confirmPassword, showNewPassword, showConfirmPassword, passwordChangeError, isChangingPassword, showResetPassword, resetEmail, isResettingPassword, resetPasswordError, resetPasswordSuccess } = this.state;
+    const { email, password, isLoading, error, showPasswordChange, newPassword, confirmPassword, showNewPassword, showConfirmPassword, passwordChangeError, isChangingPassword, showResetPassword, resetEmail, isResettingPassword, resetPasswordError, resetPasswordSuccess, showMFAPin, mfaPin, qrCodeDataUrl, isGeneratingMFA, mfaError, userInputPin } = this.state;
     const { isOpen } = this.props;
 
     if (!isOpen) return null;
+
+    // Show MFA PIN and QR Code dialog
+    if (showMFAPin) {
+      return (
+        <div className="login-popup-overlay">
+          <div className="login-card" style={{ 
+            minWidth: '420px', 
+            maxWidth: '420px', 
+            width: '420px',
+            minHeight: '450px'
+          }}>
+            <button className="login-close-button" onClick={this.handleCloseButton}>
+              x
+            </button>
+            
+            <div className="login-header">
+              <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF Logo" className="login-logo" />
+              <h1>Multi-Factor Authentication</h1>
+              <p>Scan the QR code and enter the 8-digit PIN</p>
+            </div>
+            
+            <div className="mfa-content" style={{ textAlign: 'center', padding: '1rem 0' }}>
+              {mfaError && (
+                <div className="login-error" style={{ marginBottom: '0.8rem' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                  {mfaError}
+                </div>
+              )}
+              
+              {qrCodeDataUrl && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <h3 style={{ color: '#333', marginBottom: '0.5rem', fontSize: '14px' }}>Scan QR Code:</h3>
+                  <div style={{
+                    display: 'inline-block',
+                    padding: '0.5rem',
+                    background: 'white',
+                    borderRadius: '6px',
+                    border: '2px solid #e9ecef'
+                  }}>
+                    <img 
+                      src={qrCodeDataUrl} 
+                      alt="MFA Authentication QR Code" 
+                      style={{ display: 'block', width: '140px', height: '140px' }}
+                    />
+                  </div>
+                  <p style={{ marginTop: '0.5rem', color: '#666', fontSize: '0.7rem' }}>
+                    Scan this QR code with your authenticator app
+                  </p>
+                </div>
+              )}
+              
+              {/* 8-square PIN input grid */}
+              <div style={{ marginBottom: '1rem' }}>
+                <h3 style={{ color: '#333', marginBottom: '0.5rem', fontSize: '14px' }}>Enter 8-Digit PIN:</h3>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  flexWrap: 'nowrap', // Prevent wrapping
+                  maxWidth: '360px',
+                  margin: '0 auto',
+                  alignItems: 'center'
+                }}>
+                  {userInputPin.map((digit, index) => (
+                    <input
+                      key={index}
+                      id={`pin-input-${index}`}
+                      type="text"
+                      maxLength="1"
+                      value={digit}
+                      onChange={(e) => this.handlePinInputChange(index, e.target.value)}
+                      onKeyDown={(e) => this.handlePinKeyDown(index, e)}
+                      style={{
+                        width: '35px',
+                        height: '35px',
+                        textAlign: 'center',
+                        fontSize: '16px',
+                        fontWeight: 'bold',
+                        border: '2px solid #e9ecef',
+                        borderRadius: '6px',
+                        backgroundColor: 'white',
+                        color: '#333',
+                        outline: 'none',
+                        transition: 'all 0.2s ease',
+                        flexShrink: 0, // Prevent shrinking
+                        ...(digit && {
+                          borderColor: '#00B8EA',
+                          backgroundColor: '#f0f9ff'
+                        })
+                      }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = '#00B8EA';
+                        e.target.style.boxShadow = '0 0 0 2px rgba(0, 184, 234, 0.1)';
+                      }}
+                      onBlur={(e) => {
+                        if (!digit) {
+                          e.target.style.borderColor = '#e9ecef';
+                          e.target.style.boxShadow = 'none';
+                        }
+                      }}
+                      disabled={isGeneratingMFA}
+                    />
+                  ))}
+                </div>
+                <p style={{ marginTop: '0.3rem', color: '#666', fontSize: '0.7rem' }}>
+                  Enter the 8-digit PIN from the QR code
+                </p>
+              </div>
+              
+              <div className="login-button-group">
+                <button 
+                  type="button" 
+                  className="login-button"
+                  style={{
+                    background: '#22c55e',
+                    color: 'white',
+                    boxShadow: '0 2px 8px rgba(34, 197, 94, 0.2)',
+                    marginRight: '1rem'
+                  }}
+                  onClick={this.handleMFASkip}
+                  disabled={isGeneratingMFA}
+                >
+                  Skip for Now
+                </button>
+                
+                <button 
+                  type="button" 
+                  className="login-button"
+                  style={{
+                    background: 'linear-gradient(135deg, #00ECFA 0%, #00B8EA 100%)',
+                    boxShadow: '0 4px 15px rgba(0, 184, 234, 0.3)'
+                  }}
+                  onClick={this.handleMFAComplete}
+                  disabled={isGeneratingMFA}
+                >
+                  {isGeneratingMFA ? (
+                    <div className="loading-spinner">
+                      <div className="spinner"></div>
+                      Generating QR Code...
+                    </div>
+                  ) : (
+                    'Continue to Dashboard'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     // Show password change dialog if first time login
     if (showPasswordChange) {

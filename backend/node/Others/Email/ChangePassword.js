@@ -8,13 +8,15 @@ class ResetPasswordTemplate {
         this.logoUrl = `https://ci3.googleusercontent.com/meips/ADKq_Nacqpcpt-_6DKQiXPyTz8CSRns_3-6DEBGoOWjFRZbrUgJ4uj4bwrN2tS9ed5Euf8gGmUdkyijp0u3C3E3iKmwrkqZiQkD23DASfB-CnX6FDdQq0jYhZyZBn0uPbVMuw3Wucsv4AwsNROlZgLHKpDs57iNgWiHRzXbZjszYazqX9TgzOWI3Wxyu8ZKhD4qKM_zGDuSMpT-JU8prJXHMYxZklpARsUevX-2uTSYGi0GHirWatwTUyg=s0-d-e1-ft#https://content.app-us1.com/cdn-cgi/image/format=auto,onerror=redirect,width=650,dpr=2,fit=scale-down/gv8MN/2021/09/22/0b8afc61-c414-4ece-a8eb-accfe9f54092.jpeg`;
     }
 
-    generateResetEmailContent(email, resetLink = null) {
+    generateResetEmailContent(email, userInfo = null) {
         const subject = `🎉 Welcome to ${this.companyName} - Congratulations on Your First Login!`;
         
-        // If no reset link provided, use a generic message
-        const resetUrl = resetLink || `${this.websiteUrl}/reset-password`;
+        // Extract user information if provided
+        const userEmail = userInfo?.email || email;
+        const userPassword = userInfo?.password || null;
+        const userName = userInfo?.name || 'User';
         
-        const htmlContent = this.generateHTMLTemplate(email, resetUrl);
+        const htmlContent = this.generateHTMLTemplate(userEmail, userPassword, userName);
 
         return {
             subject: subject,
@@ -22,7 +24,7 @@ class ResetPasswordTemplate {
         };
     }
 
-    generateHTMLTemplate(email, resetUrl) {
+    generateHTMLTemplate(email, password, userName) {
         return `
 <!DOCTYPE html>
 <html lang="en">
@@ -49,6 +51,12 @@ class ResetPasswordTemplate {
         .logo {
             text-align: center;
             margin-bottom: 30px;
+        }
+        .logo img {
+            max-width: 200px;
+            height: auto;
+            display: block;
+            margin: 0 auto 10px auto;
         }
         .logo h1 {
             color: #00B8EA;
@@ -88,25 +96,69 @@ class ResetPasswordTemplate {
             color: #2e7d32;
             text-align: center;
         }
+        .credentials-box {
+            background-color: #f8f9fa;
+            border: 2px solid #00B8EA;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .credential-item {
+            margin: 10px 0;
+            padding: 8px;
+            background-color: white;
+            border-radius: 4px;
+            border-left: 4px solid #00B8EA;
+        }
+        .credential-label {
+            font-weight: bold;
+            color: #00B8EA;
+        }
+        .credential-value {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #333;
+            word-break: break-all;
+        }
     </style>
 </head>
 <body>
     <div class="email-container">
         <div class="logo">
-            <h1>🦅 ${this.companyName}</h1>
+            <img src="${this.logoUrl}" alt="WWF Logo" style="max-width: 200px; height: auto; display: block; margin: 0 auto 10px auto; pointer-events: none; user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; -webkit-touch-callout: none; -webkit-user-drag: none; cursor: default;" oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;" onmousedown="return false;" />
+            <h1> ${this.companyName}</h1>
         </div>
         
         <div class="content">
             <h2>🎉 Congratulations on Your First Login!</h2>
             
-            <p>Hello and Welcome!</p>
+            <p>Hello ${userName}!</p>
             
             <div class="celebration">
                 <h3>🌟 You've Successfully Logged In! 🌟</h3>
                 <p>Congratulations on completing your first login to the <strong>${this.companyName}</strong>!</p>
             </div>
             
-            <p>We're thrilled to have you join our conservation community. Your account (<strong>${email}</strong>) is now active and ready to use.</p>
+            <p>We're thrilled to have you join our conservation community. Your account is now active and ready to use.</p>
+            
+            <div class="credentials-box">
+                <h3 style="color: #00B8EA; margin-top: 0;">📋 Your Login Details</h3>
+                <p><strong>Please save these login details for future access:</strong></p>
+                
+                <div class="credential-item">
+                    <div class="credential-label">Email Address:</div>
+                    <div class="credential-value">${email}</div>
+                </div>
+                
+                <div class="credential-item">
+                    <div class="credential-label">Password:</div>
+                    <div class="credential-value">${password || 'Please contact administrator for password'}</div>
+                </div>
+                
+                <p style="color: #856404; background-color: #fff3cd; padding: 10px; border-radius: 4px; font-size: 14px;">
+                    <strong>⚠️ Security Reminder:</strong> Please change your password after your first login for enhanced security.
+                </p>
+            </div>
             
             <p>Here's what you can do next:</p>
             <ul>

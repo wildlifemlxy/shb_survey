@@ -4,6 +4,11 @@ var multer = require('multer');
 var path = require('path');
 var fs = require('fs');
 
+// Determine base URL based on environment
+const BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://shb-backend.azurewebsites.net'
+  : 'http://localhost:3001';
+
 // Import Gallery Controller
 const galleryController = require('../Controller/Gallery/galleryController');
 
@@ -14,7 +19,18 @@ galleryController.initializeGallery();
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const uploadType = req.body.type || 'pictures'; // 'pictures' or 'videos'
-    const uploadPath = path.join(__dirname, '../../Gallery/', uploadType);
+    
+    // Map to correct subfolder names
+    let subfolderName;
+    if (uploadType.toLowerCase() === 'pictures') {
+      subfolderName = 'Pictures';
+    } else if (uploadType.toLowerCase() === 'videos') {
+      subfolderName = 'Videos';
+    } else {
+      subfolderName = 'Pictures'; // Default fallback
+    }
+    
+    const uploadPath = path.join(__dirname, '../Gallery/', subfolderName);
     
     // Create directory if it doesn't exist
     if (!fs.existsSync(uploadPath)) {
@@ -62,7 +78,18 @@ const upload = multer({
 router.get('/file/:type/:filename', function(req, res) {
     try {
         const { type, filename } = req.params;
-        const filePath = path.join(__dirname, '../../Gallery/', type, filename);
+        
+        // Ensure we use the correct subfolder names (Pictures/Videos)
+        let subfolderName;
+        if (type.toLowerCase() === 'pictures' || type === 'Pictures') {
+            subfolderName = 'Pictures';
+        } else if (type.toLowerCase() === 'videos' || type === 'Videos') {
+            subfolderName = 'Videos';
+        } else {
+            return res.status(400).json({ error: 'Invalid media type. Must be Pictures or Videos.' });
+        }
+        
+        const filePath = path.join(__dirname, '../Gallery/', subfolderName, filename);
         
         console.log('Serving file:', filePath);
         
@@ -78,7 +105,7 @@ router.get('/file/:type/:filename', function(req, res) {
         
         // Set appropriate content type
         let contentType = 'application/octet-stream';
-        if (type === 'Pictures' || type === 'pictures') {
+        if (subfolderName === 'Pictures') {
             const imageTypes = {
                 'jpg': 'image/jpeg',
                 'jpeg': 'image/jpeg',
@@ -87,7 +114,7 @@ router.get('/file/:type/:filename', function(req, res) {
                 'webp': 'image/webp'
             };
             contentType = imageTypes[fileExtension] || 'image/jpeg';
-        } else if (type === 'Videos' || type === 'videos') {
+        } else if (subfolderName === 'Videos') {
             const videoTypes = {
                 'mp4': 'video/mp4',
                 'avi': 'video/x-msvideo',
@@ -137,15 +164,26 @@ router.post('/', function(req, res, next)
             }
 
             try {
-                const { type } = req.body;
+                const { type, uploadedBy } = req.body;
                 const files = req.files;
 
-                const result = await galleryController.processUploadedFiles(files, type);
+                // Parse uploadedBy if it's a string
+                let userInfo = null;
+                if (uploadedBy) {
+                    try {
+                        userInfo = typeof uploadedBy === 'string' ? JSON.parse(uploadedBy) : uploadedBy;
+                    } catch (e) {
+                        console.error('Error parsing uploadedBy:', e);
+                        userInfo = { role: 'Unknown' };
+                    }
+                }
+
+                const result = await galleryController.processUploadedFiles(files, type, userInfo);
 
                 if (io) {
-                    io.emit('gallery-updated', {
-                        message: result.message,
-                        uploadedFiles: result.files
+                    // Also emit survey-updated for event tracking
+                    io.emit('survey-updated', {
+                        message: 'Gallery updated successfully',
                     });
                 }
 
@@ -181,8 +219,8 @@ router.post('/', function(req, res, next)
                     const processItems = (items, type) => {
                         return items.map(item => ({
                             ...item,
-                            url: `http://localhost:3001/gallery/file/${type}/${item.filename}`,
-                            blobUrl: `http://localhost:3001/gallery/file/${type}/${item.filename}`
+                            url: `${BASE_URL}/gallery/file/${type}/${item.filename}`,
+                            blobUrl: `${BASE_URL}/gallery/file/${type}/${item.filename}`
                         }));
                     };
                     
@@ -207,6 +245,76 @@ router.post('/', function(req, res, next)
                 } catch (error) {
                     console.error('Error getting gallery stats:', error);
                     return res.status(500).json({ error: 'Failed to get gallery statistics.' });
+                }
+            }
+            else if (purpose === "approve") {
+                try {
+                    const { mediaId } = req.body;
+                    const result = await galleryController.approveMedia(mediaId);
+                    
+                    if (io) {
+                        io.emit('gallery-updated', {
+                            message: 'Media approved',
+                            approvedMedia: result
+                        });
+                    }
+                    
+                    return res.json({"result": result, "message": "Media approved successfully"});
+                    
+                } catch (error) {
+                    console.error('Error approving media:', error);
+                    return res.status(500).json({ error: 'Failed to approve media.' });
+                }
+            }
+            else if (purpose === "reject") {
+                try {
+                    const { mediaId, reason } = req.body;
+                    const result = await galleryController.rejectMedia(mediaId, reason);
+                    
+                    if (io) {
+                        io.emit('gallery-updated', {
+                            message: 'Media rejected',
+                            rejectedMedia: result
+                        });
+                    }
+                    
+                    return res.json({"result": result, "message": "Media rejected successfully"});
+                    
+                } catch (error) {
+                    console.error('Error rejecting media:', error);
+                    return res.status(500).json({ error: 'Failed to reject media.' });
+                }
+            }
+            else if (purpose === "delete") {
+                try {
+                    const { mediaId, url, filename, type, location, uploadedBy, reason } = req.body;
+                    
+                    // Create media object with all information for proper deletion
+                    const mediaInfo = {
+                        mediaId,
+                        url,
+                        filename,
+                        type,
+                        location,
+                        uploadedBy,
+                        reason,
+                        purpose
+                    };
+                    
+                    const result = await galleryController.deleteMedia(mediaInfo);
+                    
+                    if (io) {
+                        io.emit('gallery-updated', {
+                            message: 'Media deleted',
+                            deletedMedia: result
+                        });
+                    }
+                    
+                    return res.json({"result": result, "message": "Media deleted successfully"});
+                    
+                } catch (error) {
+                    console.error('Error deleting media:', error);
+                    return res.status(500).json({ error: 'Failed to delete media.' });
                 }
             }
             else {

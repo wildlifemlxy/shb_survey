@@ -46,13 +46,14 @@ class EmailService {
         }
     }
 
-    async sendFirstLoginCongratulationsEmail(email, resetLink = null) {
+    async sendFirstLoginCongratulationsEmail(email, userInfo = null) {
         try {
             const ResetPasswordTemplate = require('./ChangePassword');
             const template = new ResetPasswordTemplate();
             
             // Generate the congratulations email content
-            const emailContent = template.generateResetEmailContent(email, resetLink);
+            // Pass userInfo object containing email, password, and name if available
+            const emailContent = template.generateResetEmailContent(email, userInfo);
             
             // Send the email
             const result = await this.sendEmail(
@@ -75,6 +76,59 @@ class EmailService {
     // Keep the old method name for backward compatibility, but redirect to new functionality
     async sendResetPasswordEmail(email, resetLink = null) {
         return this.sendFirstLoginCongratulationsEmail(email, resetLink);
+    }
+
+    async sendMFAEmail(email, mfaCode, expirationMinutes = 10) {
+        try {
+            const MFAPasswordTemplate = require('./MFA');
+            const template = new MFAPasswordTemplate();
+            
+            // Generate the MFA email content
+            const emailContent = template.generateMFAEmailContent(email, mfaCode, expirationMinutes);
+            
+            // Send the email
+            const result = await this.sendEmail(
+                email,
+                emailContent.subject,
+                emailContent.html
+            );
+
+            return result;
+        } catch (error) {
+            console.error('Error sending MFA email:', error);
+            return {
+                success: false,
+                error: error.message,
+                message: 'Failed to send MFA authentication email'
+            };
+        }
+    }
+
+    async sendMFANotificationEmail(email, mfaCode, expirationMinutes = 10) {
+        try {
+            const MFAPasswordTemplate = require('./MFA');
+            const template = new MFAPasswordTemplate();
+            
+            // Generate the MFA notification email content (with both HTML and text)
+            const emailContent = template.generateMFANotificationEmailContent(email, mfaCode, expirationMinutes);
+            
+            // Send the email
+            const result = await this.sendEmail(
+                email,
+                emailContent.subject,
+                emailContent.html,
+                emailContent.text
+            );
+
+            return result;
+        } catch (error) {
+            console.error('Error sending MFA notification email:', error);
+            return {
+                success: false,
+                error: error.message,
+                message: 'Failed to send MFA notification email'
+            };
+        }
     }
 
     async testConnection() {

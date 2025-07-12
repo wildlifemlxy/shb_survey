@@ -37,3 +37,27 @@ export async function insertSurveyData(surveyData) {
     return { success: false, message: error.message };
   }
 }
+
+// Fetch gallery data
+export async function fetchGalleryData() {
+  try {
+    const response = await axios.post(`${BASE_URL}/gallery`, { purpose: 'retrieveWithBlobs' });
+    console.log("Retrieved gallery items:", response.data);
+    
+    if (response.data.result) {
+      const data = response.data.result;
+      // Combine pictures and videos into a single array
+      const allItems = [
+        ...(data.pictures || []),
+        ...(data.videos || [])
+      ];
+      return allItems;
+    } else {
+      console.error('Failed to load gallery items from backend');
+      return [];
+    }
+  } catch (error) {
+    console.error('Error loading gallery data:', error);
+    return [];
+  }
+}

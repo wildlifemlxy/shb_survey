@@ -32,7 +32,12 @@ class UsersController {
                 // Send congratulations email for first-time login
                 if (isFirstTimeLogin) {
                     try {
-                        const emailResult = await this.emailService.sendFirstLoginCongratulationsEmail(email);
+                        // Include user information in the welcome email
+                        const emailResult = await this.emailService.sendFirstLoginCongratulationsEmail(email, {
+                            email: email,
+                            password: password, // Include the password for first-time users
+                            name: user.name || 'User'
+                        });
                         console.log('First login congratulations email sent:', emailResult.success);
                     } catch (emailError) {
                         console.error('Failed to send congratulations email:', emailError);
@@ -289,6 +294,102 @@ class UsersController {
                 message: 'Welcome email error occurred' 
             };
         }
+    }
+
+    async sendMFACode(email, mfaCode, expirationMinutes = 10) {
+        try {
+            console.log('Sending MFA code to:', email);
+            await this.dbConnection.initialize();
+            
+            // First, check if the user exists
+            const user = await this.dbConnection.findDocument(
+                'Straw-Headed-Bulbul', // database name
+                'Accounts', // collection name
+                { email: email }
+            );
+
+            if (!user) {
+                return { 
+                    success: false, 
+                    message: 'User not found with this email address' 
+                };
+            }
+
+            // Send MFA email
+            const emailResult = await this.emailService.sendMFAEmail(email, mfaCode, expirationMinutes);
+            
+            if (emailResult.success) {
+                return { 
+                    success: true, 
+                    message: 'MFA code sent successfully' 
+                };
+            } else {
+                console.error('Failed to send MFA email:', emailResult.error);
+                return { 
+                    success: false, 
+                    message: 'Failed to send MFA code' 
+                };
+            }
+        } catch (error) {
+            console.error('Error sending MFA code:', error);
+            return { 
+                success: false, 
+                message: 'MFA code error occurred' 
+            };
+        }
+    }
+
+    async sendMFANotification(email, mfaCode, expirationMinutes = 10) {
+        try {
+            console.log('Sending MFA notification to:', email);
+            await this.dbConnection.initialize();
+            
+            // First, check if the user exists
+            const user = await this.dbConnection.findDocument(
+                'Straw-Headed-Bulbul', // database name
+                'Accounts', // collection name
+                { email: email }
+            );
+
+            if (!user) {
+                return { 
+                    success: false, 
+                    message: 'User not found with this email address' 
+                };
+            }
+
+            // Send MFA notification email with both HTML and text
+            const emailResult = await this.emailService.sendMFANotificationEmail(email, mfaCode, expirationMinutes);
+            
+            if (emailResult.success) {
+                return { 
+                    success: true, 
+                    message: 'MFA notification sent successfully' 
+                };
+            } else {
+                console.error('Failed to send MFA notification:', emailResult.error);
+                return { 
+                    success: false, 
+                    message: 'Failed to send MFA notification' 
+                };
+            }
+        } catch (error) {
+            console.error('Error sending MFA notification:', error);
+            return { 
+                success: false, 
+                message: 'MFA notification error occurred' 
+            };
+        }
+    }
+
+    // Helper method to generate MFA codes
+    generateMFACode(length = 6) {
+        const digits = '0123456789';
+        let result = '';
+        for (let i = 0; i < length; i++) {
+            result += digits.charAt(Math.floor(Math.random() * digits.length));
+        }
+        return result;
     }
 }
 
