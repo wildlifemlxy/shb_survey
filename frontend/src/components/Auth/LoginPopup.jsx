@@ -504,25 +504,11 @@ class LoginPopup extends Component {
                   type="button" 
                   className="login-button"
                   style={{
-                    background: '#22c55e',
-                    color: 'white',
-                    boxShadow: '0 2px 8px rgba(34, 197, 94, 0.2)',
-                    marginRight: '1rem'
-                  }}
-                  onClick={this.handleMFASkip}
-                  disabled={isGeneratingMFA}
-                >
-                  Skip for Now
-                </button>
-                
-                <button 
-                  type="button" 
-                  className="login-button"
-                  style={{
                     background: 'linear-gradient(135deg, #00ECFA 0%, #00B8EA 100%)',
-                    boxShadow: '0 4px 15px rgba(0, 184, 234, 0.3)'
+                    boxShadow: '0 4px 15px rgba(0, 184, 234, 0.3)',
+                    width: '100%'
                   }}
-                  onClick={this.handleMFAComplete}
+                  onClick={this.handleVerifyPin}
                   disabled={isGeneratingMFA}
                 >
                   {isGeneratingMFA ? (
@@ -531,7 +517,7 @@ class LoginPopup extends Component {
                       Generating QR Code...
                     </div>
                   ) : (
-                    'Continue to Dashboard'
+                    'Verify PIN'
                   )}
                 </button>
               </div>
