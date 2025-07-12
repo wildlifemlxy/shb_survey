@@ -671,6 +671,40 @@ class Gallery extends Component {
                         </div>
                       )}
 
+                      {/* Delete Button - Show for Non-WWF Volunteers on their own content or when not in approval mode */}
+                      {!isWWFVolunteer && !approvalMode && (
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '8px',
+                          right: '8px',
+                          display: 'flex',
+                          gap: '4px'
+                        }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              this.deleteMedia(item, index);
+                            }}
+                            style={{
+                              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '20px',
+                              padding: '6px 12px',
+                              fontSize: '0.75rem',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                              opacity: '0',
+                              transform: 'translateY(4px)',
+                              transition: 'all 0.3s ease'
+                            }}
+                          >
+                            🗑️ Delete
+                          </button>
+                        </div>
+                      )}
+
 
                     </div>
                   ))
@@ -843,6 +877,11 @@ class Gallery extends Component {
           }
           
           .gallery-card:hover .approval-status-badge {
+            opacity: 1 !important;
+            transform: translateY(0) !important;
+          }
+          
+          .gallery-card:hover button[style*="opacity: 0"] {
             opacity: 1 !important;
             transform: translateY(0) !important;
           }
