@@ -254,91 +254,89 @@ class Home extends React.Component {
 
   loadStatistics = async () => {
     const { shbData, isAuthenticated, shbDataForPublic } = this.props;
-    console.log('🏠 Home loadStatistics called');
-    console.log('🏠 isAuthenticated:', isAuthenticated);
-    console.log('🏠 shbData structure:', shbData);
-    console.log('🏠 shbDataForPublic:', shbDataForPublic);
+    console.log('Home component received shbData:', shbData);
+    console.log('Home component isAuthenticated:', isAuthenticated);
+    console.log('Home component shbDataForPublic:', shbDataForPublic);
+    console.log('Type of shbDataForPublic:', typeof shbDataForPublic);
     
-    // PRIORITY 1: If user is authenticated and we have full shbData, use it for richer statistics
-    if (isAuthenticated && shbData) {
-      console.log('🔒 User is authenticated, checking shbData structure...');
-      
-      // Handle different possible structures of shbData
-      let surveyArray = null;
-      
-      if (Array.isArray(shbData)) {
-        console.log('🔒 shbData is array with length:', shbData.length);
-        surveyArray = shbData;
-      } else if (shbData.survey && Array.isArray(shbData.survey)) {
-        console.log('🔒 shbData.survey is array with length:', shbData.survey.length);
-        surveyArray = shbData.survey;
-      } else if (shbData.result && Array.isArray(shbData.result)) {
-        console.log('🔒 shbData.result is array with length:', shbData.result.length);
-        surveyArray = shbData.result;
-      } else if (shbData.result && shbData.result.survey && Array.isArray(shbData.result.survey)) {
-        console.log('🔒 shbData.result.survey is array with length:', shbData.result.survey.length);
-        surveyArray = shbData.result.survey;
-      }
-      
-      if (surveyArray && surveyArray.length > 0) {
-        console.log('🔒 Using survey array for authenticated user statistics, count:', surveyArray.length);
-        
-        try {
-          const calculatedStats = this.calculateStatistics(surveyArray);
-          console.log('🔒 Calculated statistics from full survey data:', calculatedStats);
+    // If authenticated, skip shbDataForPublic and always use fresh shbData
+    if (isAuthenticated) {
+      console.log('🔐 User is authenticated, using fresh shbData...');
+      try {
+        if (shbData && typeof shbData === 'object') {
+          console.log('✅ Using shbData for authenticated user:', shbData);
           
-          this.setState({
-            statistics: calculatedStats
-          });
-          return;
-        } catch (error) {
-          console.error('🔒 Error calculating statistics from survey data:', error);
-          // Fall through to next option
+          // Check if shbData has pre-calculated statistics
+          if (shbData.surveys && typeof shbData.volunteers === 'number') {
+            console.log('📊 Using pre-calculated statistics from shbData');
+            
+            // Calculate some stats from surveys but use pre-calculated volunteers count
+            const calculatedStats = this.calculateStatistics(shbData.surveys);
+            
+            this.setState({
+              statistics: {
+                totalObservations: shbData.surveys.length.toString(),
+                uniqueLocations: calculatedStats.uniqueLocations,
+                totalVolunteers: shbData.volunteers.toString(),
+                yearsActive: calculatedStats.yearsActive
+              }
+            });
+            return;
+          } else if (shbData.surveys) {
+            // Fallback: calculate all statistics from raw survey data
+            console.log('📊 Calculating all statistics from survey data');
+            const calculatedStats = this.calculateStatistics(shbData.surveys);
+            
+            this.setState({
+              statistics: calculatedStats
+            });
+            return;
+          }
         }
-      } else {
-        console.log('🔒 No usable survey array found in shbData, falling back...');
+      } catch (error) {
+        console.error('Error processing shbData for authenticated user:', error);
       }
-    }
-    
-    // PRIORITY 2: Use shbDataForPublic prop if available (public statistics)
-    if (shbDataForPublic && typeof shbDataForPublic === 'object' && 
-        'observations' in shbDataForPublic && 'locations' in shbDataForPublic && 
-        'volunteers' in shbDataForPublic && 'yearsActive' in shbDataForPublic) {
-      
-      console.log('🌐 Using shbDataForPublic prop for statistics:', shbDataForPublic);
-      this.setState({
-        statistics: {
-          totalObservations: shbDataForPublic.observations.toString(),
-          uniqueLocations: shbDataForPublic.locations.toString(),
-          totalVolunteers: shbDataForPublic.volunteers.toString(),
-          yearsActive: shbDataForPublic.yearsActive.toString()
-        }
-      });
-      return;
-    }
-    
-    // FALLBACK: Fetch public statistics if props are not available
-    console.log('⚠️ No usable props available, falling back to fetch...');
-    try {
-      const publicStats = await fetchSurveyDataForHomePage();
-      console.log('Fetched public statistics for home page:', publicStats);
-      
-      if (publicStats && typeof publicStats === 'object' && 
-          'observations' in publicStats && 'locations' in publicStats && 
-          'volunteers' in publicStats && 'yearsActive' in publicStats) {
+    } else {
+      // PRIORITY 1: Use shbDataForPublic prop if available (only for unauthenticated users)
+      if (shbDataForPublic && typeof shbDataForPublic === 'object' && 
+          'observations' in shbDataForPublic && 'locations' in shbDataForPublic && 
+          'volunteers' in shbDataForPublic && 'yearsActive' in shbDataForPublic) {
         
+        console.log('✅ Using shbDataForPublic prop for unauthenticated user:', shbDataForPublic);
         this.setState({
           statistics: {
-            totalObservations: publicStats.observations.toString(),
-            uniqueLocations: publicStats.locations.toString(),
-            totalVolunteers: publicStats.volunteers.toString(),
-            yearsActive: publicStats.yearsActive.toString()
+            totalObservations: shbDataForPublic.observations.toString(),
+            uniqueLocations: shbDataForPublic.locations.toString(),
+            totalVolunteers: shbDataForPublic.volunteers.toString(),
+            yearsActive: shbDataForPublic.yearsActive.toString()
           }
         });
         return;
       }
-    } catch (error) {
-      console.error('Error fetching public statistics for home page:', error);
+      
+      // FALLBACK: Fetch if shbDataForPublic prop is not available for unauthenticated users
+      console.log('⚠️ shbDataForPublic prop not available for unauthenticated user, falling back to fetch...');
+      try {
+        const publicStats = await fetchSurveyDataForHomePage();
+        console.log('Fetched public statistics for unauthenticated user:', publicStats);
+        
+        if (publicStats && typeof publicStats === 'object' && 
+            'observations' in publicStats && 'locations' in publicStats && 
+            'volunteers' in publicStats && 'yearsActive' in publicStats) {
+          
+          this.setState({
+            statistics: {
+              totalObservations: publicStats.observations.toString(),
+              uniqueLocations: publicStats.locations.toString(),
+              totalVolunteers: publicStats.volunteers.toString(),
+              yearsActive: publicStats.yearsActive.toString()
+            }
+          });
+          return;
+        }
+      } catch (error) {
+        console.error('Error fetching public statistics for unauthenticated user:', error);
+      }
     }
     
     // LAST RESORT: Set default values
