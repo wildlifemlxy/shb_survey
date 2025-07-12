@@ -175,3 +175,64 @@
     border: 2px solid #00B8EA !important; /* Blue border on focus */
     background-color: #f0f9ff !important;
 }
+
+/* Loading spinner styles */
+.loading-spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.spinner {
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Bot detection challenge styles */
+.bot-challenge {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.bot-challenge h4 {
+    color: #856404;
+    margin-bottom: 0.5rem;
+    font-size: 14px;
+}
+
+.bot-challenge p {
+    color: #856404;
+    font-size: 13px;
+    margin-bottom: 0.5rem;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Slide in up animation */
+@keyframes slideInUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}

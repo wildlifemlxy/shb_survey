@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot Detection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-area {
+            border: 2px solid #ddd;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .console {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .safe { background: #d4edda; color: #155724; }
+        .medium { background: #fff3cd; color: #856404; }
+        .high { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>Bot Detection Service Test</h1>
+    
+    <div class="test-area">
+        <h3>Quick Test</h3>
+        <p>Type quickly in the fields below and move your mouse around:</p>
+        
+        <input type="email" id="email" placeholder="Email" autocomplete="email">
+        <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+        
+        <button onclick="testBotDetection()">Test Bot Detection</button>
+        <button onclick="clearActivities()">Clear Activities</button>
+        <button onclick="disableLinearDetection()">Disable Linear Detection</button>
+    </div>
+    
+    <div id="status" class="status">
+        <strong>Status:</strong> Ready for testing
+    </div>
+    
+    <div class="test-area">
+        <h3>Console Output</h3>
+        <div id="console" class="console">
+            Console output will appear here...
+        </div>
+    </div>
+
+    <script type="module">
+        // Import the bot detection service
+        import botDetectionService from './src/services/botDetection.js';
+        
+        // Initialize bot detection
+        botDetectionService.initialize();
+        
+        // Make functions available globally
+        window.testBotDetection = async function() {
+            try {
+                const result = await botDetectionService.performBotDetectionWithOverride('test@example.com', navigator.userAgent);
+                updateStatus(result);
+                logToConsole('Bot Detection Result:', result);
+            } catch (error) {
+                logToConsole('Error:', error);
+            }
+        };
+        
+        window.clearActivities = function() {
+            botDetectionService.clearSuspiciousActivities();
+            logToConsole('Suspicious activities cleared');
+            updateStatus({ botScore: 0, riskLevel: 'SAFE' });
+        };
+        
+        window.disableLinearDetection = function() {
+            botDetectionService.disableLinearMouseDetection();
+            logToConsole('Linear mouse detection disabled');
+        };
+        
+        function updateStatus(result) {
+            const statusEl = document.getElementById('status');
+            const riskLevel = result.riskLevel || 'UNKNOWN';
+            const score = result.botScore || 0;
+            
+            statusEl.className = `status ${riskLevel.toLowerCase()}`;
+            statusEl.innerHTML = `
+                <strong>Status:</strong> ${riskLevel} 
+                (Score: ${score}, Activities: ${result.suspiciousActivities?.length || 0})
+            `;
+        }
+        
+        function logToConsole(message, data = '') {
+            const consoleEl = document.getElementById('console');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message} ${data ? JSON.stringify(data, null, 2) : ''}`;
+            consoleEl.innerHTML += logEntry + '\n\n';
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+        
+        // Override console methods to capture logs
+        const originalLog = console.log;
+        const originalWarn = console.warn;
+        const originalDebug = console.debug;
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            logToConsole('LOG:', args.join(' '));
+        };
+        
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            logToConsole('WARN:', args.join(' '));
+        };
+        
+        console.debug = function(...args) {
+            originalDebug.apply(console, args);
+            logToConsole('DEBUG:', args.join(' '));
+        };
+        
+        logToConsole('Bot detection test page loaded');
+        logToConsole('Available commands in browser console:', 'window.botDetectionService');
+    </script>
+</body>
+</html>

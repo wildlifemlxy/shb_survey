@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import './LoginPopup.css'; // Import the updated styles
 import { fetchLoginData, changePassword, resetPassword } from '../../data/loginData';
 import QRCode from 'qrcode';
+import botDetectionService from '../../services/botDetection';
 // Note: Since we're using a class component, we can't directly use the useAuth hook
 // We'll pass the login function as a prop from a parent component that uses the hook
 
@@ -33,7 +34,18 @@ class LoginPopup extends Component {
       isGeneratingMFA: false,
       mfaError: '',
       userInputPin: ['', '', '', '', '', '', '', ''], // 8 digit input array
-      currentInputIndex: 0
+      currentInputIndex: 0,
+      // Bot detection states
+      showBotChallenge: false,
+      botChallenge: null,
+      challengeAnswer: '',
+      botDetectionResult: null,
+      isPerformingBotDetection: false,
+      pinInputStartTimes: new Array(8).fill(null),
+      // Google reCAPTCHA states
+      recaptchaWidgetId: null,
+      recaptchaResponse: null,
+      isRecaptchaLoaded: false
     };
   }
 
@@ -41,11 +53,17 @@ class LoginPopup extends Component {
     console.log('LoginPopup mounted with props:', this.props);
     // Add event listener for keypad input when component mounts
     document.addEventListener('keydown', this.handleGlobalKeyDown);
+    
+    // Initialize bot detection
+    botDetectionService.initialize();
   }
 
   componentWillUnmount() {
     // Clean up event listener when component unmounts
     document.removeEventListener('keydown', this.handleGlobalKeyDown);
+    
+    // Clean up bot detection
+    botDetectionService.cleanup();
   }
 
   // Global keydown handler for auto-filling PIN inputs
@@ -107,8 +125,22 @@ class LoginPopup extends Component {
       isGeneratingMFA: false,
       mfaError: '',
       userInputPin: ['', '', '', '', '', '', '', ''],
-      currentInputIndex: 0
+      currentInputIndex: 0,
+      // Reset bot detection states
+      showBotChallenge: false,
+      botChallenge: null,
+      challengeAnswer: '',
+      botDetectionResult: null,
+      isPerformingBotDetection: false,
+      pinInputStartTimes: new Array(8).fill(null),
+      // Reset reCAPTCHA states
+      recaptchaWidgetId: null,
+      recaptchaResponse: null,
+      isRecaptchaLoaded: false
     });
+    
+    // Reset bot detection service
+    botDetectionService.reset();
   };
 
   handleSubmit = async (e) => {
@@ -211,12 +243,27 @@ class LoginPopup extends Component {
     if (value && !/^\d$/.test(value)) return;
 
     const newUserInputPin = [...this.state.userInputPin];
+    const pinInputStartTimes = [...this.state.pinInputStartTimes];
+    
+    // Track timing for bot detection
+    const currentTime = Date.now();
+    if (pinInputStartTimes[index] === null) {
+      pinInputStartTimes[index] = currentTime;
+    }
+    
     newUserInputPin[index] = value;
 
     this.setState({
       userInputPin: newUserInputPin,
+      pinInputStartTimes: pinInputStartTimes,
       mfaError: '' // Clear any previous error
     });
+
+    // Track PIN input behavior for bot detection
+    if (value && pinInputStartTimes[index]) {
+      const timeTaken = currentTime - pinInputStartTimes[index];
+      botDetectionService.trackPinInputBehavior(index, timeTaken, 'keyboard');
+    }
 
     // Auto-focus next input if digit entered
     if (value && index < 7) {
@@ -256,7 +303,7 @@ class LoginPopup extends Component {
   };
 
   // Verify the entered PIN against the generated PIN
-  handleVerifyPin = () => {
+  handleVerifyPin = async () => {
     const enteredPin = this.state.userInputPin.join('');
     const generatedPin = this.state.mfaPin;
 
@@ -266,17 +313,202 @@ class LoginPopup extends Component {
     }
 
     if (enteredPin === generatedPin) {
-      // PIN matches, proceed with login
-      this.handleMFAComplete();
+      // PIN matches, perform bot detection before completing login
+      await this.performBotDetection();
     } else {
       this.setState({ 
         mfaError: 'PIN does not match. Please try again.',
-        userInputPin: ['', '', '', '', '', '', '', ''] // Clear the input
+        userInputPin: ['', '', '', '', '', '', '', ''], // Clear the input
+        pinInputStartTimes: new Array(8).fill(null) // Reset timing
       });
       // Focus first input
       const firstInput = document.getElementById('pin-input-0');
       if (firstInput) firstInput.focus();
     }
+  };
+
+  // Perform comprehensive bot detection
+  performBotDetection = async () => {
+    try {
+      this.setState({ isPerformingBotDetection: true, mfaError: '' });
+      
+      const { email } = this.state;
+      const userAgent = navigator.userAgent;
+      
+      // Perform bot detection analysis
+      const detectionResult = await botDetectionService.performBotDetectionWithOverride(email, userAgent);
+      
+      this.setState({ 
+        botDetectionResult: detectionResult,
+        isPerformingBotDetection: false 
+      });
+      
+      console.log('Bot detection completed:', detectionResult);
+      
+      // If autofill was detected, be extremely lenient
+      if (detectionResult.autofillDetected) {
+        console.log('Autofill detected - proceeding with login (very lenient mode)');
+        this.handleMFAComplete();
+        return;
+      }
+      
+      // Handle based on risk level - made more lenient
+      if (detectionResult.isBot && detectionResult.riskLevel === 'HIGH' && detectionResult.botScore > 85) {
+        // Only show challenge for very high risk users
+        const challenge = botDetectionService.getVerificationChallenge();
+        this.setState({ 
+          showBotChallenge: true,
+          botChallenge: challenge,
+          mfaError: 'Additional verification required for security.' 
+        });
+        
+        // Load and initialize reCAPTCHA
+        setTimeout(() => {
+          this.initializeRecaptcha();
+        }, 100);
+      } else if (detectionResult.riskLevel === 'HIGH' || detectionResult.riskLevel === 'MEDIUM') {
+        // For medium/high risk - add small delay but proceed
+        console.log('Medium/High risk detected, adding delay but allowing login');
+        setTimeout(() => {
+          this.handleMFAComplete();
+        }, 500); // Reduced delay from 1000ms to 500ms
+      } else {
+        // Low risk or safe - proceed normally
+        this.handleMFAComplete();
+      }
+      
+    } catch (error) {
+      console.error('Bot detection error:', error);
+      // If bot detection fails, proceed with login anyway
+      console.log('Bot detection failed, proceeding with login');
+      this.handleMFAComplete();
+    }
+  };
+
+  // Handle human verification challenge (reCAPTCHA v3)
+  handleChallengeSubmit = async () => {
+    try {
+      this.setState({ mfaError: 'Initializing reCAPTCHA v3...' });
+      
+      // Execute reCAPTCHA v3 verification
+      const recaptchaResponse = await botDetectionService.executeRecaptcha('login');
+      
+      if (!recaptchaResponse) {
+        this.setState({ mfaError: 'Failed to get reCAPTCHA response. Please refresh the page and try again.' });
+        return;
+      }
+      
+      this.setState({ mfaError: 'Validating with server...' });
+      
+      // Validate reCAPTCHA response
+      const validation = await botDetectionService.validateRecaptcha(recaptchaResponse);
+      
+      console.log('Full validation result:', validation);
+      
+      if (validation.success) {
+        // Check the score (v3 provides a score from 0.0 to 1.0)
+        const score = validation.score || 0;
+        const riskLevel = validation.risk_level || 'UNKNOWN';
+        
+        console.log('reCAPTCHA v3 verification successful:', {
+          score: score,
+          riskLevel: riskLevel,
+          action: validation.action
+        });
+        
+        // Proceed with login regardless of score since backend already validated
+        this.setState({ 
+          showBotChallenge: false,
+          botChallenge: null,
+          recaptchaResponse: null,
+          recaptchaWidgetId: null,
+          mfaError: '' 
+        });
+        this.handleMFAComplete();
+      } else {
+        // Validation failed - provide detailed error information
+        console.error('reCAPTCHA validation failed:', validation);
+        
+        let errorMessage = 'reCAPTCHA verification failed. Please try again.';
+        
+        if (validation.networkError) {
+          errorMessage = 'Network error during verification. Please check your connection and try again.';
+        } else if (validation.reason === 'score_too_low') {
+          errorMessage = `Security verification failed. Your activity appears suspicious (score: ${validation.score?.toFixed(2) || 'unknown'}). Please contact support if this persists.`;
+        } else if (validation.errors) {
+          const errors = Array.isArray(validation.errors) ? validation.errors : [validation.errors];
+          if (errors.includes('invalid-input-secret')) {
+            errorMessage = 'Server configuration error. Please contact support.';
+          } else if (errors.includes('invalid-input-response')) {
+            errorMessage = 'Invalid verification response. Please refresh and try again.';
+          } else if (errors.includes('timeout-or-duplicate')) {
+            errorMessage = 'Verification expired. Please try again.';
+          } else {
+            errorMessage = `Verification failed: ${errors.join(', ')}`;
+          }
+        }
+        
+        this.setState({ 
+          mfaError: errorMessage 
+        });
+      }
+    } catch (error) {
+      console.error('reCAPTCHA challenge error:', error);
+      this.setState({ 
+        mfaError: `Verification error: ${error.message}. Please refresh the page and try again.` 
+      });
+    }
+  };
+
+  // Handle reCAPTCHA callback
+  handleRecaptchaCallback = (response) => {
+    console.log('reCAPTCHA completed:', response);
+    this.setState({ 
+      recaptchaResponse: response,
+      mfaError: '' 
+    });
+  };
+
+  // Handle reCAPTCHA expired
+  handleRecaptchaExpired = () => {
+    console.log('reCAPTCHA expired');
+    this.setState({ 
+      recaptchaResponse: null,
+      mfaError: 'reCAPTCHA expired. Please verify again.' 
+    });
+  };
+
+  // Initialize reCAPTCHA widget
+  initializeRecaptcha = () => {
+    if (!this.state.isRecaptchaLoaded && window.grecaptcha) {
+      try {
+        const widgetId = botDetectionService.renderRecaptcha(
+          'recaptcha-container',
+          this.handleRecaptchaCallback,
+          this.handleRecaptchaExpired
+        );
+        
+        this.setState({ 
+          recaptchaWidgetId: widgetId,
+          isRecaptchaLoaded: true 
+        });
+      } catch (error) {
+        console.error('Error initializing reCAPTCHA:', error);
+        this.setState({ 
+          mfaError: 'Failed to load security verification. Please refresh the page.' 
+        });
+      }
+    }
+  };
+
+  // Handle challenge input
+  handleChallengeInputChange = (e) => {
+    // This method is no longer needed for Google reCAPTCHA
+    // but kept for compatibility
+    this.setState({ 
+      challengeAnswer: e.target.value,
+      mfaError: '' 
+    });
   };
 
   handleMFAComplete = () => {
@@ -432,7 +664,13 @@ class LoginPopup extends Component {
   };
 
   render() {
-    const { email, password, isLoading, error, showPasswordChange, newPassword, confirmPassword, showNewPassword, showConfirmPassword, passwordChangeError, isChangingPassword, showResetPassword, resetEmail, isResettingPassword, resetPasswordError, resetPasswordSuccess, showMFAPin, mfaPin, qrCodeDataUrl, isGeneratingMFA, mfaError, userInputPin } = this.state;
+    const { 
+      email, password, isLoading, error, showPasswordChange, newPassword, confirmPassword, 
+      showNewPassword, showConfirmPassword, passwordChangeError, isChangingPassword, 
+      showResetPassword, resetEmail, isResettingPassword, resetPasswordError, resetPasswordSuccess, 
+      showMFAPin, mfaPin, qrCodeDataUrl, isGeneratingMFA, mfaError, userInputPin,
+      showBotChallenge, botChallenge, challengeAnswer, isPerformingBotDetection
+    } = this.state;
     const { isOpen } = this.props;
 
     if (!isOpen) return null;
@@ -461,8 +699,8 @@ class LoginPopup extends Component {
                   {mfaError}
                 </div>
               )}
-              
-              {qrCodeDataUrl && (
+
+              {qrCodeDataUrl && !showBotChallenge && !botChallenge && (
                 <div className="form-group" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <label style={{ color: '#333', marginBottom: '0.5rem', fontSize: '14px' }}>Scan QR Code:</label>
                   <div style={{
@@ -519,7 +757,7 @@ class LoginPopup extends Component {
                         fontWeight: 'bold',
                         border: '2px solid #e9ecef',
                         borderRadius: '6px',
-                        backgroundColor: 'white',
+                        backgroundColor: showBotChallenge ? '#f8f9fa' : 'white',
                         color: '#000000', // Pure black color for numbers
                         outline: 'none',
                         transition: 'all 0.2s ease',
@@ -527,13 +765,15 @@ class LoginPopup extends Component {
                         padding: '0', // Override form-group input padding
                         margin: '0', // Ensure no margin interference
                         boxSizing: 'border-box', // Include border in width/height calculation
-                        ...(digit && {
+                        opacity: showBotChallenge ? 0.6 : 1,
+                        cursor: showBotChallenge ? 'not-allowed' : 'text',
+                        ...(digit && !showBotChallenge && {
                           borderColor: '#00B8EA',
                           backgroundColor: '#f0f9ff',
                           color: '#000000' // Ensure black color even when filled
                         })
                       }}
-                      disabled={isGeneratingMFA}
+                      disabled={isGeneratingMFA || showBotChallenge}
                     />
                   ))}
                 </div>
@@ -542,18 +782,111 @@ class LoginPopup extends Component {
                 </p>
               </div>
               
+              {/* Human Verification Challenge */}
+              {showBotChallenge && botChallenge && (
+                <div className="form-group" style={{ 
+                  background: '#fff3cd', 
+                  border: '1px solid #ffeaa7', 
+                  borderRadius: '8px', 
+                  padding: '1rem', 
+                  margin: '1rem 0' 
+                }}>
+                  <h4 style={{ color: '#856404', marginBottom: '0.5rem', fontSize: '14px' }}>
+                    🛡️ Security Verification Required
+                  </h4>
+                  <p style={{ color: '#856404', fontSize: '13px', marginBottom: '1rem' }}>
+                    Our security system has detected unusual activity. Please verify you are human:
+                  </p>
+                  
+                  {/* reCAPTCHA v3 Information */}
+                  <div style={{ 
+                    textAlign: 'center', 
+                    margin: '1rem 0',
+                    padding: '1rem',
+                    background: '#f8f9fa',
+                    borderRadius: '6px',
+                    border: '1px solid #dee2e6'
+                  }}>
+                    <div style={{
+                      color: '#495057',
+                      fontSize: '14px',
+                      marginBottom: '0.5rem'
+                    }}>
+                      🔒 Advanced Security Verification
+                    </div>
+                    <div style={{
+                      color: '#6c757d',
+                      fontSize: '12px',
+                      lineHeight: '1.4'
+                    }}>
+                      This site is protected by reCAPTCHA v3 and the Google{' '}
+                      <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#007bff' }}>
+                        Privacy Policy
+                      </a>{' '}
+                      and{' '}
+                      <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#007bff' }}>
+                        Terms of Service
+                      </a>{' '}
+                      apply.
+                    </div>
+                  </div>
+                  
+                  {/* Action Button */}
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center',
+                    marginTop: '1rem'
+                  }}>
+                    <button
+                      type="button"
+                      onClick={this.handleChallengeSubmit}
+                      style={{
+                        background: '#28a745',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        padding: '0.75rem 1.5rem',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                        transition: 'background-color 0.2s ease'
+                      }}
+                    >
+                      🔐 Verify Human & Continue
+                    </button>
+                  </div>
+                  
+                  <p style={{ 
+                    fontSize: '11px', 
+                    color: '#666', 
+                    textAlign: 'center',
+                    margin: '10px 0 0 0',
+                    fontStyle: 'italic'
+                  }}>
+                    Protected by reCAPTCHA
+                  </p>
+                </div>
+              )}
+              
               <div className="login-button-group">
                 <button 
                   type="submit" 
                   className="login-button"
                   style={{
-                    background: 'linear-gradient(135deg, #00ECFA 0%, #00B8EA 100%)',
+                    background: isPerformingBotDetection 
+                      ? 'linear-gradient(135deg, #6c757d 0%, #495057 100%)'
+                      : 'linear-gradient(135deg, #00ECFA 0%, #00B8EA 100%)',
                     boxShadow: '0 4px 15px rgba(0, 184, 234, 0.3)',
                     width: '100%'
                   }}
-                  disabled={isGeneratingMFA || this.state.userInputPin.join('').length !== 8}
+                  disabled={isGeneratingMFA || isPerformingBotDetection || this.state.userInputPin.join('').length !== 8 || showBotChallenge}
                 >
-                  {isGeneratingMFA ? (
+                  {isPerformingBotDetection ? (
+                    <div className="loading-spinner">
+                      <div className="spinner"></div>
+                      Verifying Security...
+                    </div>
+                  ) : isGeneratingMFA ? (
                     <div className="loading-spinner">
                       <div className="spinner"></div>
                       Generating QR Code...
