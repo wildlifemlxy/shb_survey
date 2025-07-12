@@ -398,12 +398,7 @@ class LoginPopup extends Component {
     if (showMFAPin) {
       return (
         <div className="login-popup-overlay">
-          <div className="login-card" style={{ 
-            minWidth: '420px', 
-            maxWidth: '420px', 
-            width: '420px',
-            minHeight: '450px'
-          }}>
+          <div className="login-card">
             <button className="login-close-button" onClick={this.handleCloseButton}>
               x
             </button>
