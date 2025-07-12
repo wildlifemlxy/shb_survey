@@ -12,6 +12,8 @@
   justify-content: center;
   z-index: 9999;
   animation: fadeIn 0.3s ease-out;
+  padding: 20px; /* Add padding to prevent content from touching edges */
+  overflow-y: auto; /* Allow scrolling if content is too tall */
 }
 
 .login-card {
@@ -19,11 +21,16 @@
   border-radius: 16px;
   width: 90%;
   max-width: 420px;
-  max-height: 900px;
+  max-height: calc(100vh - 40px); /* Ensure it fits within viewport with padding */
   padding: 2.5rem;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
   position: relative;
   animation: slideInUp 0.4s ease-out;
+  text-align: center;
+  margin: auto; /* Center the card */
+  overflow-y: auto; /* Allow scrolling within the card if needed */
+  display: flex;
+  flex-direction: column;
 }
 
 .login-close-button {
@@ -150,4 +157,21 @@
 .form-group input:focus {
     outline: none;
     border-bottom: 2px solid green;
+}
+
+/* PIN input box specific overrides */
+.pin-input-box {
+    color: #000000 !important;
+    border: 2px solid #e9ecef !important; /* Ensure border is visible */
+    border-radius: 6px !important;
+    padding: 0 !important;
+    margin: 2px !important; /* Add small margin to prevent border cutting */
+    box-sizing: border-box !important;
+    background-color: white !important;
+}
+
+.pin-input-box:focus {
+    color: #000000 !important;
+    border: 2px solid #00B8EA !important; /* Blue border on focus */
+    background-color: #f0f9ff !important;
 }

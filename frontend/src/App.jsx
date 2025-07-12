@@ -2,7 +2,6 @@ import React, { Suspense, lazy, Component } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
 import { ClipLoader } from 'react-spinners';
-import axios from 'axios';
 import { initializeMapUtils } from './utils/mapUtils';
 import { initializeTheme } from './utils/themeUtils';
 import DetailedAnalysisPopup from './components/DetailedAnalysisPopup';
@@ -10,7 +9,6 @@ import ThemeToggle from './components/ThemeToggle';
 import NewSurveyModal from './components/Dashboard/NewSurveyModal';
 import Settings from './components/Settings/Settings';
 import MaintenanceBotButton from './components/MaintenanceBot/MaintenanceBotButton';
-import Login from './components/Auth/Login';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import NotFound from './components/NotFound/NotFound';
 import ObservationPopup from './components/Map/ObservationPopup';
@@ -231,15 +229,6 @@ class App extends Component {
           <Router>
             <Suspense fallback={<div className="spinner-container"><ClipLoader color="#3498db" size={50} /></div>}>
               <Routes>
-                {/* Login Route */}
-                <Route 
-                  path="/login" 
-                  element={
-                    isAuthenticated ? 
-                    <Navigate to="/dashboard" replace /> : 
-                    <Login onLoginSuccess={this.onLoginSuccess} />
-                  } 
-                />
                 
                 {/* Public Routes - Accessible without login */}
                 <Route 

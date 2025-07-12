@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import './LoginPopupUpdated.css'; // Import the updated styles
+import './LoginPopup.css'; // Import the updated styles
 import { fetchLoginData, changePassword, resetPassword } from '../../data/loginData';
 import QRCode from 'qrcode';
 // Note: Since we're using a class component, we can't directly use the useAuth hook
@@ -39,7 +39,43 @@ class LoginPopup extends Component {
 
   componentDidMount() {
     console.log('LoginPopup mounted with props:', this.props);
+    // Add event listener for keypad input when component mounts
+    document.addEventListener('keydown', this.handleGlobalKeyDown);
   }
+
+  componentWillUnmount() {
+    // Clean up event listener when component unmounts
+    document.removeEventListener('keydown', this.handleGlobalKeyDown);
+  }
+
+  // Global keydown handler for auto-filling PIN inputs
+  handleGlobalKeyDown = (e) => {
+    // Only handle keypad input when MFA dialog is open
+    if (!this.state.showMFAPin) return;
+    
+    // Check if it's a number key (0-9) from either main keyboard or numpad
+    const isNumberKey = (e.key >= '0' && e.key <= '9') || 
+                       (e.keyCode >= 96 && e.keyCode <= 105); // Numpad keys
+    
+    if (isNumberKey) {
+      e.preventDefault(); // Prevent default behavior
+      
+      // Find the first empty PIN input box
+      const currentInputs = this.state.userInputPin;
+      const firstEmptyIndex = currentInputs.findIndex(digit => digit === '');
+      
+      if (firstEmptyIndex !== -1) {
+        // Auto-fill the number in the first empty box
+        this.handlePinInputChange(firstEmptyIndex, e.key);
+        
+        // Focus the input box that was just filled
+        setTimeout(() => {
+          const targetInput = document.getElementById(`pin-input-${firstEmptyIndex}`);
+          if (targetInput) targetInput.focus();
+        }, 0);
+      }
+    }
+  };
 
   handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -192,17 +228,24 @@ class LoginPopup extends Component {
   // Handle backspace and navigation in PIN inputs
   handlePinKeyDown = (index, e) => {
     if (e.key === 'Backspace') {
-      if (!this.state.userInputPin[index] && index > 0) {
-        // If current input is empty and backspace pressed, go to previous
+      e.preventDefault(); // Prevent default backspace behavior
+      
+      const currentInputs = [...this.state.userInputPin];
+      
+      if (currentInputs[index]) {
+        // If current input has a value, clear it and stay in same box
+        currentInputs[index] = '';
+        this.setState({ userInputPin: currentInputs });
+      } else if (index > 0) {
+        // If current input is empty, move to previous box and clear it
         const prevInput = document.getElementById(`pin-input-${index - 1}`);
         if (prevInput) {
+          currentInputs[index - 1] = '';
+          this.setState({ userInputPin: currentInputs });
           prevInput.focus();
-          // Clear the previous input
-          const newUserInputPin = [...this.state.userInputPin];
-          newUserInputPin[index - 1] = '';
-          this.setState({ userInputPin: newUserInputPin });
         }
       }
+      
     } else if (e.key === 'ArrowLeft' && index > 0) {
       const prevInput = document.getElementById(`pin-input-${index - 1}`);
       if (prevInput) prevInput.focus();
@@ -409,9 +452,9 @@ class LoginPopup extends Component {
               <p>Scan the QR code and enter the 8-digit PIN</p>
             </div>
             
-            <div className="mfa-content" style={{ textAlign: 'center', padding: '1rem 0' }}>
+            <form className="login-form" onSubmit={(e) => { e.preventDefault(); this.handleVerifyPin(); }}>
               {mfaError && (
-                <div className="login-error" style={{ marginBottom: '0.8rem' }}>
+                <div className="login-error">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                   </svg>
@@ -420,38 +463,43 @@ class LoginPopup extends Component {
               )}
               
               {qrCodeDataUrl && (
-                <div style={{ marginBottom: '1rem' }}>
-                  <h3 style={{ color: '#333', marginBottom: '0.5rem', fontSize: '14px' }}>Scan QR Code:</h3>
+                <div className="form-group" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <label style={{ color: '#333', marginBottom: '0.5rem', fontSize: '14px' }}>Scan QR Code:</label>
                   <div style={{
                     display: 'inline-block',
                     padding: '0.5rem',
                     background: 'white',
                     borderRadius: '6px',
-                    border: '2px solid #e9ecef'
+                    border: '2px solid #e9ecef',
+                    margin: '0 auto'
                   }}>
                     <img 
                       src={qrCodeDataUrl} 
                       alt="MFA Authentication QR Code" 
-                      style={{ display: 'block', width: '140px', height: '140px' }}
+                      style={{ display: 'block', width: '140px', height: '140px', margin: '0 auto' }}
                     />
                   </div>
-                  <p style={{ marginTop: '0.5rem', color: '#666', fontSize: '0.7rem' }}>
+                  <p style={{ marginTop: '0.5rem', color: '#666', fontSize: '0.7rem', textAlign: 'center' }}>
                     Scan this QR code with your authenticator app
                   </p>
                 </div>
               )}
               
               {/* 8-square PIN input grid */}
-              <div style={{ marginBottom: '1rem' }}>
-                <h3 style={{ color: '#333', marginBottom: '0.5rem', fontSize: '14px' }}>Enter 8-Digit PIN:</h3>
+              <div className="form-group">
+                <label style={{ color: '#333', marginBottom: '0.5rem', fontSize: '14px' }}>Enter 8-Digit PIN:</label>
                 <div style={{
                   display: 'flex',
                   justifyContent: 'center',
-                  gap: '6px',
+                  gap: '6px', // Increased gap between inputs
                   flexWrap: 'nowrap', // Prevent wrapping
-                  maxWidth: '360px',
+                  maxWidth: '100%',
                   margin: '0 auto',
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  paddingBottom: '1.5rem', // Increased padding to ensure bottom border is visible
+                  paddingTop: '0.5rem',
+                  paddingLeft: '10px', // Add side padding
+                  paddingRight: '10px' // Add side padding
                 }}>
                   {userInputPin.map((digit, index) => (
                     <input
@@ -461,6 +509,7 @@ class LoginPopup extends Component {
                       maxLength="1"
                       value={digit}
                       onChange={(e) => this.handlePinInputChange(index, e.target.value)}
+                      className="pin-input-box"
                       onKeyDown={(e) => this.handlePinKeyDown(index, e)}
                       style={{
                         width: '35px',
@@ -471,45 +520,38 @@ class LoginPopup extends Component {
                         border: '2px solid #e9ecef',
                         borderRadius: '6px',
                         backgroundColor: 'white',
-                        color: '#333',
+                        color: '#000000', // Pure black color for numbers
                         outline: 'none',
                         transition: 'all 0.2s ease',
                         flexShrink: 0, // Prevent shrinking
+                        padding: '0', // Override form-group input padding
+                        margin: '0', // Ensure no margin interference
+                        boxSizing: 'border-box', // Include border in width/height calculation
                         ...(digit && {
                           borderColor: '#00B8EA',
-                          backgroundColor: '#f0f9ff'
+                          backgroundColor: '#f0f9ff',
+                          color: '#000000' // Ensure black color even when filled
                         })
-                      }}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = '#00B8EA';
-                        e.target.style.boxShadow = '0 0 0 2px rgba(0, 184, 234, 0.1)';
-                      }}
-                      onBlur={(e) => {
-                        if (!digit) {
-                          e.target.style.borderColor = '#e9ecef';
-                          e.target.style.boxShadow = 'none';
-                        }
                       }}
                       disabled={isGeneratingMFA}
                     />
                   ))}
                 </div>
-                <p style={{ marginTop: '0.3rem', color: '#666', fontSize: '0.7rem' }}>
+                <p style={{ marginTop: '0.3rem', color: '#666', fontSize: '0.7rem', textAlign: 'center' }}>
                   Enter the 8-digit PIN from the QR code
                 </p>
               </div>
               
               <div className="login-button-group">
                 <button 
-                  type="button" 
+                  type="submit" 
                   className="login-button"
                   style={{
                     background: 'linear-gradient(135deg, #00ECFA 0%, #00B8EA 100%)',
                     boxShadow: '0 4px 15px rgba(0, 184, 234, 0.3)',
                     width: '100%'
                   }}
-                  onClick={this.handleVerifyPin}
-                  disabled={isGeneratingMFA}
+                  disabled={isGeneratingMFA || this.state.userInputPin.join('').length !== 8}
                 >
                   {isGeneratingMFA ? (
                     <div className="loading-spinner">
@@ -521,7 +563,7 @@ class LoginPopup extends Component {
                   )}
                 </button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       );
