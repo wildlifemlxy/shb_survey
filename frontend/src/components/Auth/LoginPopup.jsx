@@ -139,8 +139,15 @@ class LoginPopup extends Component {
       isRecaptchaLoaded: false
     });
     
+    // Clear stored authentication tokens
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('publicKey');
+    localStorage.removeItem('sessionId');
+    
     // Reset bot detection service
     botDetectionService.reset();
+    
+    console.log('Form and authentication tokens cleared');
   };
 
   handleSubmit = async (e) => {
@@ -157,7 +164,27 @@ class LoginPopup extends Component {
       
       const result = await fetchLoginData(email, password);
       console.log('Login result:', result);
+      
       if (result.success) {
+        // Enhanced token-based authentication response handling
+        console.log('Login successful with token-based authentication');
+        
+        // Store token data if available (from new encryption system)
+        if (result.token && result.publicKey && result.sessionId) {
+          console.log('Token-based authentication data received:', {
+            hasToken: !!result.token,
+            hasPublicKey: !!result.publicKey,
+            hasSessionId: !!result.sessionId
+          });
+          
+          // Store authentication data for the new system
+          localStorage.setItem('authToken', result.token);
+          localStorage.setItem('publicKey', result.publicKey);
+          localStorage.setItem('sessionId', result.sessionId);
+          
+          console.log('Encrypted authentication tokens stored successfully');
+        }
+        
         // Check if this is first time login
         if (result.data && result.data.firstTimeLogin) {
           console.log('First time login detected, showing password change dialog');
@@ -300,7 +327,7 @@ class LoginPopup extends Component {
     }
   };
 
-  // Verify the entered PIN against the generated PIN
+  // Verify the entered PIN against the generated PIN (Frontend-only verification)
   handleVerifyPin = async () => {
     const enteredPin = this.state.userInputPin.join('');
     const generatedPin = this.state.mfaPin;
@@ -311,8 +338,9 @@ class LoginPopup extends Component {
     }
 
     if (enteredPin === generatedPin) {
-      // PIN matches, perform bot detection before completing login
-      await this.performBotDetection();
+      // PIN matches - complete login immediately (frontend-only verification)
+      console.log('PIN verified successfully - completing login');
+      this.handleMFAComplete();
     } else {
       this.setState({ 
         mfaError: 'PIN does not match. Please try again.',
@@ -510,17 +538,34 @@ class LoginPopup extends Component {
   };
 
   handleMFAComplete = () => {
-    // Complete the login process after MFA
+    // Complete the login process after MFA with enhanced token data
     const { userData } = this.state;
-    this.props.onLoginSuccess(userData);
+    
+    // Validate userData exists
+    if (!userData) {
+      console.error('userData is undefined in handleMFAComplete');
+      this.setState({ mfaError: 'Session data lost. Please login again.' });
+      return;
+    }
+    
+    // Prepare enhanced login response for parent component
+    const enhancedUserData = {
+      ...userData,
+      // Include token-based authentication data if available
+      token: localStorage.getItem('authToken'),
+      publicKey: localStorage.getItem('publicKey'),
+      sessionId: localStorage.getItem('sessionId')
+    };
+    
+    console.log('MFA Complete - sending enhanced user data:', {
+      userData: userData,
+      hasToken: !!enhancedUserData.token,
+      hasPublicKey: !!enhancedUserData.publicKey,
+      hasSessionId: !!enhancedUserData.sessionId
+    });
+    
+    this.props.onLoginSuccess(enhancedUserData);
   };
-
-  handleMFASkip = () => {
-    // Allow skipping MFA for now (optional)
-    const { userData } = this.state;
-    this.props.onLoginSuccess(userData);
-  };
-
   handlePasswordChange = async (e) => {
     e.preventDefault();
     const { newPassword, confirmPassword, userData } = this.state;
@@ -543,6 +588,14 @@ class LoginPopup extends Component {
     
     try {
       this.setState({ isChangingPassword: true, passwordChangeError: '' });
+      
+      // Validate userData exists
+      if (!userData) {
+        this.setState({ 
+          passwordChangeError: 'User data not found. Please login again.' 
+        });
+        return;
+      }
       
       // Extract user ID (could be 'id' or '_id' depending on database)
       const userId = userData._id || userData.id;

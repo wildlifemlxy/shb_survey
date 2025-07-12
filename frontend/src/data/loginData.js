@@ -1,28 +1,67 @@
 import axios from 'axios';
+import tokenService from '../utils/tokenService';
 
 const BASE_URL =
   window.location.hostname === 'localhost'
     ? 'http://localhost:3001'
     : 'https://shb-backend.azurewebsites.net';
 
-// Fetch login data and return the result
+// Main login function (encrypted only)
 export async function fetchLoginData(email, password) {
   try {
-    const response = await axios.post(
-      `${BASE_URL}/users`,
-      {
-        loginDetails: { email, password },
-        purpose: 'login',
-      }
-    );
+    console.log('Starting encrypted login process...');
+    
+    // First, get the public key from the server
+    const publicKeyResponse = await axios.post(`${BASE_URL}/users`, {
+      purpose: 'getPublicKey'
+    });
+    
+    if (!publicKeyResponse.data.success) {
+      throw new Error('Failed to get public key from server');
+    }
+    
+    console.log('Public key received from server');
+    
+    // Set the public key in tokenService for encryption
+    tokenService.publicKey = publicKeyResponse.data.publicKey; 
+    
+    // Encrypt the login credentials (await the async function)
+    const loginDetails = await tokenService.encryptData({ email, password });
 
-    console.log('Response from server:', response.data);
+    console.log('Sending encrypted login request...');
+    const response = await axios.post(`${BASE_URL}/users`, { loginDetails, purpose: 'login' });
+
+    console.log('Encrypted login response received:', response.data);
 
     if (response.data.success) {
+      // Store token data if available
+      if (response.data.token && response.data.publicKey && response.data.sessionId) {
+        // Add user data to the response object for initializeSession
+        const sessionData = {
+          token: response.data.token,
+          publicKey: response.data.publicKey,
+          sessionId: response.data.sessionId,
+          user: response.data.data || {} // Ensure user is at least an empty object
+        };
+        
+        console.log('Initializing session with data:', sessionData);
+        
+        // Only initialize session if we have valid user data
+        if (sessionData.user) {
+          tokenService.initializeSession(sessionData);
+        } else {
+          console.warn('User data is missing, skipping tokenService initialization');
+        }
+      }
+      
       return {
         success: true,
         data: response.data.data,
         message: response.data.message,
+        // Pass through token data
+        token: response.data.token,
+        publicKey: response.data.publicKey,
+        sessionId: response.data.sessionId
       };
     } else {
       return {
@@ -31,7 +70,7 @@ export async function fetchLoginData(email, password) {
       };
     }
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('Encrypted login error:', error);
 
     // Handle specific error types
     if (error.response) {
@@ -56,11 +95,10 @@ export async function fetchLoginData(email, password) {
   }
 }
 
-// Change password for first-time login users
+// Main change password function (encrypted only)
 export async function changePassword(userId, email, newPassword) {
   try {
-    console.log("Changing password for user:", email, "with ID:", userId);
-    console.log("Parameters received - userId:", userId, "email:", email, "newPassword length:", newPassword?.length);
+    console.log("Starting encrypted password change for user:", email, "with ID:", userId);
     
     // Validate parameters before sending
     if (!userId) {
@@ -87,17 +125,32 @@ export async function changePassword(userId, email, newPassword) {
       };
     }
     
-    const response = await axios.post(
-      `${BASE_URL}/users`,
-      {
-        purpose: 'changePassword',
+    // Get public key if not already available
+    if (!tokenService.publicKey) {
+      const publicKeyResponse = await axios.post(`${BASE_URL}/users`, {
+        purpose: 'getPublicKey'
+      });
+      
+      if (!publicKeyResponse.data.success) {
+        throw new Error('Failed to get public key from server');
+      }
+      
+      tokenService.publicKey = publicKeyResponse.data.publicKey;
+    }
+    
+    const changePasswordData = {
+      purpose: 'changePassword',
+      loginDetails: await tokenService.encryptData({
         userId: userId,
         email: email,
         newPassword: newPassword
-      }
-    );
+      })
+    };
+    
+    console.log('Sending encrypted password change request...');
+    const response = await axios.post(`${BASE_URL}/users`, changePasswordData);
 
-    console.log('Password change response:', response.data);
+    console.log('Encrypted password change response:', response.data);
 
     if (response.data.success) {
       return {
@@ -111,7 +164,7 @@ export async function changePassword(userId, email, newPassword) {
       };
     }
   } catch (error) {
-    console.error('Password change error:', error);
+    console.error('Encrypted password change error:', error);
 
     // Handle specific error types
     if (error.response) {
@@ -133,10 +186,10 @@ export async function changePassword(userId, email, newPassword) {
   }
 }
 
-// Reset password - send reset email
+// Main reset password function (encrypted only)
 export async function resetPassword(email) {
   try {
-    console.log("Requesting password reset for email:", email);
+    console.log("Starting encrypted password reset for email:", email);
     
     // Validate parameters before sending
     if (!email) {
@@ -147,15 +200,30 @@ export async function resetPassword(email) {
       };
     }
     
-    const response = await axios.post(
-      `${BASE_URL}/users`,
-      {
-        purpose: 'resetPassword',
-        email: email
+    // Get public key if not already available
+    if (!tokenService.publicKey) {
+      const publicKeyResponse = await axios.post(`${BASE_URL}/users`, {
+        purpose: 'getPublicKey'
+      });
+      
+      if (!publicKeyResponse.data.success) {
+        throw new Error('Failed to get public key from server');
       }
-    );
+      
+      tokenService.publicKey = publicKeyResponse.data.publicKey;
+    }
+    
+    const resetData = {
+      purpose: 'resetPassword',
+      loginDetails: await tokenService.encryptData({
+        email: email
+      })
+    };
+    
+    console.log('Sending encrypted password reset request...');
+    const response = await axios.post(`${BASE_URL}/users`, resetData);
 
-    console.log('Password reset response:', response.data);
+    console.log('Encrypted password reset response:', response.data);
 
     if (response.data.success) {
       return {
@@ -169,7 +237,7 @@ export async function resetPassword(email) {
       };
     }
   } catch (error) {
-    console.error('Password reset error:', error);
+    console.error('Encrypted password reset error:', error);
 
     // Handle specific error types
     if (error.response) {
@@ -191,7 +259,7 @@ export async function resetPassword(email) {
   }
 }
 
-// Reset password with token
+// Reset password with token (kept as is since it uses a different endpoint)
 export async function resetPasswordWithToken(token, newPassword) {
   try {
     const response = await axios.post(
@@ -238,7 +306,7 @@ export async function resetPasswordWithToken(token, newPassword) {
   }
 }
 
-// Generate MFA PIN after successful login
+// Generate MFA PIN after successful login (kept as is since it's a simple operation)
 export async function generateMFAPin(email) {
   try {
     console.log("Generating MFA PIN for email:", email);

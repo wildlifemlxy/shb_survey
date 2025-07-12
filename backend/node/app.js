@@ -45,22 +45,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Serve email assets (logos, etc.) from Others/Email directory
 app.use('/Others/Email', express.static(path.join(__dirname, 'Others/Email')));
 
-// Public authentication routes (no token required)
-app.post('/api/auth/login', tokenEncryption.login);
-
-// Protected authentication routes (require valid token)
-app.use('/api/auth/refresh', tokenEncryption.authenticateToken, tokenEncryption.refreshToken);
-app.use('/api/auth/logout', tokenEncryption.authenticateToken, tokenEncryption.logout);
-
-// Public key endpoint (for client-side encryption setup)
-app.get('/api/encryption/public-key', (req, res) => {
-  res.json({ 
-    publicKey: tokenEncryption.publicKey,
-    algorithm: 'RSA-OAEP',
-    keySize: 2048
-  });
-});
-
 app.use('/surveys', surveyRoutes); // Register MongoDB survey routes
 app.use('/events', eventsRoutes); // Register MongoDB events routes
 app.use('/telegram', telegramRoutes); // Register MongoDB telegram routes

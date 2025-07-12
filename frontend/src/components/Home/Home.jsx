@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import LoginPopup from '../Auth/LoginPopup';
 import Gallery from '../Gallery';
+import tokenService from '../../utils/tokenService';
 
 import { getUniqueLocations } from '../../utils/dataProcessing';
 import { standardizeCoordinates } from '../../utils/coordinateStandardization';
@@ -252,15 +253,75 @@ class Home extends React.Component {
   };
 
   loadStatistics = async () => {
-    const { shbData, isAuthenticated } = this.props;
-    console.log('Home component received shbData:', shbData);
-    console.log('Home component isAuthenticated:', isAuthenticated);
-    console.log('Type of shbData:', typeof shbData);
+    const { shbData, isAuthenticated, shbDataForPublic } = this.props;
+    console.log('🏠 Home loadStatistics called');
+    console.log('🏠 isAuthenticated:', isAuthenticated);
+    console.log('🏠 shbData structure:', shbData);
+    console.log('🏠 shbDataForPublic:', shbDataForPublic);
     
-    // Always fetch the most accurate statistics from the backend public API
+    // PRIORITY 1: If user is authenticated and we have full shbData, use it for richer statistics
+    if (isAuthenticated && shbData) {
+      console.log('🔒 User is authenticated, checking shbData structure...');
+      
+      // Handle different possible structures of shbData
+      let surveyArray = null;
+      
+      if (Array.isArray(shbData)) {
+        console.log('🔒 shbData is array with length:', shbData.length);
+        surveyArray = shbData;
+      } else if (shbData.survey && Array.isArray(shbData.survey)) {
+        console.log('🔒 shbData.survey is array with length:', shbData.survey.length);
+        surveyArray = shbData.survey;
+      } else if (shbData.result && Array.isArray(shbData.result)) {
+        console.log('🔒 shbData.result is array with length:', shbData.result.length);
+        surveyArray = shbData.result;
+      } else if (shbData.result && shbData.result.survey && Array.isArray(shbData.result.survey)) {
+        console.log('🔒 shbData.result.survey is array with length:', shbData.result.survey.length);
+        surveyArray = shbData.result.survey;
+      }
+      
+      if (surveyArray && surveyArray.length > 0) {
+        console.log('🔒 Using survey array for authenticated user statistics, count:', surveyArray.length);
+        
+        try {
+          const calculatedStats = this.calculateStatistics(surveyArray);
+          console.log('🔒 Calculated statistics from full survey data:', calculatedStats);
+          
+          this.setState({
+            statistics: calculatedStats
+          });
+          return;
+        } catch (error) {
+          console.error('🔒 Error calculating statistics from survey data:', error);
+          // Fall through to next option
+        }
+      } else {
+        console.log('🔒 No usable survey array found in shbData, falling back...');
+      }
+    }
+    
+    // PRIORITY 2: Use shbDataForPublic prop if available (public statistics)
+    if (shbDataForPublic && typeof shbDataForPublic === 'object' && 
+        'observations' in shbDataForPublic && 'locations' in shbDataForPublic && 
+        'volunteers' in shbDataForPublic && 'yearsActive' in shbDataForPublic) {
+      
+      console.log('🌐 Using shbDataForPublic prop for statistics:', shbDataForPublic);
+      this.setState({
+        statistics: {
+          totalObservations: shbDataForPublic.observations.toString(),
+          uniqueLocations: shbDataForPublic.locations.toString(),
+          totalVolunteers: shbDataForPublic.volunteers.toString(),
+          yearsActive: shbDataForPublic.yearsActive.toString()
+        }
+      });
+      return;
+    }
+    
+    // FALLBACK: Fetch public statistics if props are not available
+    console.log('⚠️ No usable props available, falling back to fetch...');
     try {
       const publicStats = await fetchSurveyDataForHomePage();
-      console.log('Fetched accurate public statistics:', publicStats);
+      console.log('Fetched public statistics for home page:', publicStats);
       
       if (publicStats && typeof publicStats === 'object' && 
           'observations' in publicStats && 'locations' in publicStats && 
@@ -277,43 +338,19 @@ class Home extends React.Component {
         return;
       }
     } catch (error) {
-      console.error('Error fetching accurate statistics:', error);
+      console.error('Error fetching public statistics for home page:', error);
     }
     
-    // Fallback: Check if shbData is the statistics object format
-    if (shbData && typeof shbData === 'object' && 
-        'observations' in shbData && 'locations' in shbData && 
-        'volunteers' in shbData && 'yearsActive' in shbData) {
-      // Statistics object format from backend
-      console.log('Using statistics format from props:', shbData);
-      this.setState({
-        statistics: {
-          totalObservations: shbData.observations.toString(),
-          uniqueLocations: shbData.locations.toString(),
-          totalVolunteers: shbData.volunteers.toString(),
-          yearsActive: shbData.yearsActive.toString()
-        }
-      });
-    } else {
-      // Legacy format: array of survey data - calculate from array
-      console.log('Using legacy array format or no data, shbData:', shbData);
-      const dataToUse = Array.isArray(shbData) && shbData.length > 0 ? standardizeCoordinates(shbData) : [];
-
-      if (dataToUse.length > 0) {
-        const stats = this.calculateStatistics(dataToUse);
-        this.setState({ statistics: stats });
-      } else {
-        console.log('No valid data found, setting default statistics');
-        this.setState({
-          statistics: {
-            totalObservations: '0',
-            uniqueLocations: '0',
-            totalVolunteers: '0',
-            yearsActive: '0'
-          }
-        });
+    // LAST RESORT: Set default values
+    console.log('❌ All statistics fetch methods failed, setting default statistics');
+    this.setState({
+      statistics: {
+        totalObservations: '0',
+        uniqueLocations: '0',
+        totalVolunteers: '0',
+        yearsActive: '0'
       }
-    }
+    });
   };
 
   toggleLoginPopup = () => {
@@ -854,8 +891,13 @@ class Home extends React.Component {
                 })()}
                 <button
                   onClick={() => {
-                    localStorage.removeItem('isAuthenticated');
-                    localStorage.removeItem('user');
+                    // Clear all localStorage items
+                    localStorage.clear();
+                    
+                    // Clear tokenService data using the imported service
+                    tokenService.clearSession();
+                    
+                    // Reload the page to reset authentication state
                     window.location.reload();
                   }}
                   className="btn btn-logout"

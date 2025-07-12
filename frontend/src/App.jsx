@@ -77,11 +77,27 @@ class App extends Component {
   }
 
   componentDidMount() {
-    this.checkAuthenticationStatus();
-    this.loadData();
+    // CRITICAL: Ensure authentication is properly checked before loading data
+    console.log('=== ComponentDidMount - checking authentication ===');
+    
+    // First, restore authentication state from token or localStorage
+    const isAuthenticated = this.checkAuthenticationStatus();
+    console.log('Initial authentication check result:', isAuthenticated);
+    
+    // Wait a moment for state to update, then load data
+    setTimeout(() => {
+      console.log('Loading data after authentication check...');
+      console.log('Current state isAuthenticated:', this.state.isAuthenticated);
+      console.log('Token validity:', tokenService.isTokenValid());
+      console.log('LocalStorage auth:', localStorage.getItem('isAuthenticated'));
+      
+      // Pass the authentication status directly to loadData to ensure correct purpose usage
+      this.loadData(this.state.isAuthenticated);
+    }, 100);
+    
     this.socket = io(API_BASE_URL);
     this.socket.on('survey-updated', (data) => {
-      this.loadData();
+      this.loadData(); // Use current state for socket events
       console.log("Socket event received", data);
     });
 
@@ -245,9 +261,9 @@ class App extends Component {
       console.log('State updated, starting idle detection...');
       this.startIdleDetection();
       
-      // Reload data after login to fetch authenticated content
-      console.log('Reloading data after successful login...');
-      this.loadData();
+      // Reload data after login to fetch authenticated content with correct purpose
+      console.log('Reloading data after successful login with authenticated purpose...');
+      this.loadData(true); // Explicitly pass true to ensure 'retrieve' purpose is used
     });
     
     // Store in localStorage for persistence (backwards compatibility)
@@ -437,76 +453,175 @@ class App extends Component {
     window.location.href = '/';
   };
 
-  loadData = async () => {
+  loadData = async (authenticationOverride = null) => {
     console.log('=== loadData called ===');
-    console.log('Current authentication status:', this.state.isAuthenticated);
-    console.log("Current token validity:", tokenService.isTokenValid());
     
     initializeMapUtils();
     initializeTheme();
     
-    // Always fetch public data for homepage
-    const public_data = await fetchSurveyDataForHomePage();
-    console.log('Fetched SHB Data For Public:', public_data);
+    // CRITICAL: Re-check authentication status properly, especially after refresh
+    let isAuthenticated;
+    if (authenticationOverride !== null) {
+      isAuthenticated = authenticationOverride;
+      console.log('Using authentication override:', isAuthenticated);
+    } else {
+      // Double-check authentication by calling checkAuthenticationStatus again
+      // This ensures we get the most current authentication state
+      isAuthenticated = this.checkAuthenticationStatus();
+      console.log('Re-checked authentication status:', isAuthenticated);
+    }
+    
+    console.log('=== FINAL Authentication status for loadData:', isAuthenticated);
+    console.log('Token service validity:', tokenService.isTokenValid());
+    console.log('LocalStorage isAuthenticated:', localStorage.getItem('isAuthenticated'));
+    console.log('LocalStorage user:', localStorage.getItem('user'));
+    
+    // Always fetch public statistics first (for Home page)
+    console.log('Fetching public statistics for Home page...');
+    const publicStats = await fetchSurveyDataForHomePage();
+    console.log('Fetched public statistics:', publicStats);
+    
+    // FORCE AUTHENTICATED PATH if we have valid token OR localStorage indicates authentication
+    const hasValidToken = tokenService.isTokenValid();
+    const hasLocalStorageAuth = localStorage.getItem('isAuthenticated') === 'true';
+    const hasUserData = !!localStorage.getItem('user');
+    
+    const shouldUseAuthenticatedPath = isAuthenticated || hasValidToken || hasLocalStorageAuth || hasUserData;
+    
+    console.log('=== AUTHENTICATION DECISION ===');
+    console.log('isAuthenticated:', isAuthenticated);
+    console.log('hasValidToken:', hasValidToken);
+    console.log('hasLocalStorageAuth:', hasLocalStorageAuth);
+    console.log('hasUserData:', hasUserData);
+    console.log('shouldUseAuthenticatedPath:', shouldUseAuthenticatedPath);
     
     // Only fetch authenticated data if user is logged in
-    if (this.state.isAuthenticated) {
-      console.log('User is authenticated, checking token validity...');
-      console.log('Token service validity:', tokenService.isTokenValid());
+    if (shouldUseAuthenticatedPath) {
+      console.log('🔒 USING AUTHENTICATED PATH - fetching encrypted data...');
+      console.log("OKOKOK:", !tokenService.isTokenValid() || !await tokenService.getPublicKey());
+
+      // Ensure encryption session is initialized even after refresh
+      if (!tokenService.isTokenValid() || !await tokenService.getPublicKey()) {
+        console.log('Reinitializing encryption session after refresh...');
+        try {
+          await tokenService.initializeEncryptionSession();
+          console.log('Encryption session reinitialized successfully');
+        } catch (error) {
+          console.error('Failed to reinitialize encryption session:', error);
+          // If we can't initialize encryption, fall back to logout
+          this.handleLogout();
+          return;
+        }
+      }
       
-      // For now, let's try to fetch authenticated data even if token validation fails
-      // This will help us debug if the issue is with token validation or data fetching
-      console.log('Attempting to fetch protected data...');
+      console.log('🔒 Attempting to fetch protected data with purpose: retrieve...');
       
       try {
         const data = await fetchSurveyData();
-        console.log('Fetched SHB Data:', data);
+        console.log('🔒 Fetched SHB Data (encrypted with purpose: retrieve):', data);
         const data2 = await fetchEventsData();
-        console.log('Fetched Survey Data:', data2);
+        console.log('🔒 Fetched Survey Data:', data2);
         const data3 = await fetchBotData();
-        console.log('Fetched Bot Data:', data3);
+        console.log('🔒 Fetched Bot Data:', data3);
 
+        // For authenticated users, provide both encrypted data and public statistics
         this.setState({ 
-          shbDataForPublic: public_data, 
-          shbData: data, 
+          shbData: data, // Keep encrypted data for Dashboard use
+          shbDataForPublic: publicStats, // Provide public statistics for Home page
           eventData: data2, 
           botData: data3, 
-          isLoading: false 
+          isLoading: false,
+          isAuthenticated: true // Ensure state is updated
         }, () => {
-          console.log('State updated with authenticated data:', {
+          console.log('🔒 State updated with authenticated data and public stats:', {
             shbDataForPublic: this.state.shbDataForPublic,
             shbData: this.state.shbData.length,
-            isAuthenticated: this.state.isAuthenticated
+            isAuthenticated: this.state.isAuthenticated,
+            purposeUsed: 'retrieve + retrievePublic'
           });
         });
       } catch (error) {
         console.error('Error fetching authenticated data:', error);
-        // Fall back to public data only
-        this.setState({ 
-          shbDataForPublic: public_data,
-          shbData: [], 
-          eventData: [],
-          botData: [],
-          isLoading: false 
-        });
+        // If encryption fails, logout to maintain security
+        console.log('Encrypted data fetch failed, logging out for security...');
+        this.handleLogout();
       }
     } else {
-      console.log('User not authenticated, setting public data only...');
-      // For non-authenticated users, only set public data
+      console.log('🌐 USING PUBLIC PATH - using public data only...');
+      
       this.setState({ 
-        shbDataForPublic: public_data,
+        shbDataForPublic: publicStats,
         shbData: [], // Empty for unauthenticated users
         eventData: [],
         botData: [],
-        isLoading: false 
+        isLoading: false,
+        isAuthenticated: false
       }, () => {
-        console.log('State updated with public data only:', {
+        console.log('🌐 State updated with public data only:', {
           shbDataForPublic: this.state.shbDataForPublic,
-          isAuthenticated: this.state.isAuthenticated
+          isAuthenticated: this.state.isAuthenticated,
+          purposeUsed: 'retrievePublic'
         });
       });
     }
   }
+
+  // Helper function to calculate statistics from survey data
+  calculateStatisticsFromSurveyData = (surveys) => {
+    if (!surveys || !Array.isArray(surveys)) {
+      return {
+        observations: 0,
+        locations: 0,
+        volunteers: 0,
+        yearsActive: 0
+      };
+    }
+
+    const numberOfObservations = surveys.length;
+    
+    // Get unique locations
+    const uniqueLocations = new Set();
+    surveys.forEach(survey => {
+      if (survey.Location) {
+        uniqueLocations.add(survey.Location);
+      } else if (survey.location) {
+        uniqueLocations.add(survey.location);
+      }
+    });
+    
+    // Calculate years active (simplified)
+    let yearsActive = 1;
+    if (surveys.length > 0) {
+      // Find earliest date
+      let earliestDate = null;
+      surveys.forEach(survey => {
+        let surveyDate = null;
+        if (survey.Date) {
+          surveyDate = new Date(survey.Date);
+        } else if (survey.createdAt) {
+          surveyDate = new Date(survey.createdAt);
+        }
+        
+        if (surveyDate && !isNaN(surveyDate.getTime())) {
+          if (!earliestDate || surveyDate < earliestDate) {
+            earliestDate = surveyDate;
+          }
+        }
+      });
+      
+      if (earliestDate) {
+        const yearsDiff = (new Date() - earliestDate) / (1000 * 60 * 60 * 24 * 365.25);
+        yearsActive = Math.max(1, Math.ceil(yearsDiff));
+      }
+    }
+    
+    return {
+      observations: numberOfObservations,
+      locations: uniqueLocations.size,
+      volunteers: 0, // Would need user data to calculate this
+      yearsActive: yearsActive
+    };
+  };
 
   handleAddSurvey = async (newSurvey) => {
     try {
@@ -536,8 +651,8 @@ class App extends Component {
           showNewSurveyModal: false
         }));
         
-        // Reload data to get latest from server
-        this.loadData();
+        // Reload data to get latest from server (user is authenticated if they can submit surveys)
+        this.loadData(true);
       } else {
         console.error('Survey submission failed:', response.status);
       }
@@ -699,12 +814,8 @@ class App extends Component {
                   path="/" 
                   element={
                     <Home 
-                      shbData={isAuthenticated ? shbData : (shbDataForPublic || {
-                        observations: 0,
-                        locations: 0,
-                        volunteers: 0,
-                        yearsActive: 0
-                      })} 
+                      shbData={shbData}
+                      shbDataForPublic={shbDataForPublic}
                       isLoading={isLoading} 
                       isAuthenticated={isAuthenticated}
                       onLoginSuccess={this.onLoginSuccess}
@@ -727,7 +838,7 @@ class App extends Component {
                     path="/dashboard" 
                     element={
                       <Dashboard 
-                        shbData={shbData} 
+                        shbData={shbData.surveys} 
                         isLoading={isLoading} 
                         openDetailedAnalysis={this.openDetailedAnalysis}
                         onAddSurvey={this.handleAddSurvey}

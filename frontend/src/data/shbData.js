@@ -43,42 +43,64 @@ export async function fetchSurveyData() {
       return []; // Return empty array for unauthenticated users
     }
 
-    // For now, let's try without token validation to see if backend works
-    console.log('User is authenticated, attempting to fetch data...');
-    
-    // Try basic request first (without encryption)
-    const basicRequestData = { purpose: 'retrieve' };
+    console.log('User is authenticated, attempting to fetch data with encryption...');
     
     try {
-      // Try with token service if available
+      // Initialize encryption session with unique keys if not already done
+      if (!await tokenService.getPublicKey()) {
+        console.log('Initializing encryption session with unique RSA keys...');
+        await tokenService.initializeEncryptionSession();
+      }
+
+      // Check if token service is available
       if (tokenService.isTokenValid()) {
-        console.log('Using token service for request...');
-        const requestData = await tokenService.encryptData(basicRequestData);
-        const response = await tokenService.axiosPost(`${BASE_URL}/surveys`, requestData);
-        console.log("Response from backend (with token):", response.data);
+        console.log('Using encrypted request with token service...');
         
-        if (response.status === 200 && response.data.result && response.data.result.success) {
-          return response.data.result.surveys || [];
-        }
-      } else {
-        console.log('No valid token, trying basic axios request...');
-        // Fallback to basic axios request
-        const response = await axios.post(`${BASE_URL}/surveys`, basicRequestData);
-        console.log("Response from backend (basic):", response.data);
+        // Prepare request data with purpose first, then encrypt
+        const requestPayload = {
+          encrypted: true,
+          requiresEncryption: true,
+          publicKey: await tokenService.getPublicKey(),
+          sessionId: tokenService.getKeySessionId()
+        };
         
-        if (response.data.result && response.data.result.success) {
-          return response.data.result.surveys || [];
+        console.log('Request payload being sent:', {
+          encrypted: requestPayload.encrypted,
+          requiresEncryption: requestPayload.requiresEncryption,
+          publicKeyLength: requestPayload.publicKey ? requestPayload.publicKey.length : 0,
+          publicKeyStart: requestPayload.publicKey ? requestPayload.publicKey.substring(0, 50) : 'None',
+          sessionId: requestPayload.sessionId
+        });
+        
+        const encryptedData = await tokenService.encryptData(requestPayload);
+        console.log('Encrypted request data:', encryptedData);
+        
+        const response = await tokenService.axiosPost(`${BASE_URL}/surveys`, { 
+          ...encryptedData, 
+          purpose: 'retrieve' 
+        });
+        console.log("Response from backend (encrypted with session keys):", response.data);
+        
+        if (response.data.success) {
+            console.log('Survey data retrieved successfully:', response.data);
+          // Check if response is encrypted - data is directly in response.data
+          if (response.data.encryptedData) {
+            console.log('Decrypting survey response with session private key...');
+            const decryptedData = await tokenService.decryptSurveyResponse(response.data);
+            console.log('Decrypted survey data:', decryptedData.result.surveys);
+            return {"surveys": decryptedData.result.surveys, "volunteers": decryptedData.userCount}
+          } else {
+            // Fallback to unencrypted response
+            return [];
+          }
         }
       }
-    } catch (authError) {
-      console.error('Authenticated request failed, trying basic request:', authError);
-      // Try basic request as fallback
-      const response = await axios.post(`${BASE_URL}/surveys`, basicRequestData);
-      console.log("Response from backend (fallback):", response.data);
-      
-      if (response.data.result && response.data.result.success) {
-        return response.data.result.surveys || [];
-      }
+    } catch (encryptionError) {
+      console.error('Encrypted request failed:', encryptionError);
+      console.log('Authenticated users require encrypted requests. Returning empty array.');
+      // For authenticated users, we should never fallback to unencrypted requests
+      // Return empty array instead of making insecure requests
+      return [];
     }
     
     return [];
@@ -96,15 +118,19 @@ export async function insertSurveyData(surveyData) {
       return { success: false, message: 'Authentication required for data submission' };
     }
 
-    // Encrypt the request data
-    const requestData = await tokenService.encryptData({
-      purpose: 'insert',
+    // Prepare request data with purpose first, then encrypt
+    const requestPayload = {
       data: surveyData
-    });
+    };
+    
+    const encryptedData = await tokenService.encryptData(requestPayload);
     
     // Make authenticated request using axios through tokenService
-    const response = await tokenService.axiosPost(`${BASE_URL}/surveys`, requestData);
-    
+    const response = await tokenService.axiosPost(`${BASE_URL}/surveys`, { 
+      ...encryptedData, 
+      purpose: 'insert' 
+    });
+
     if (response.status === 200 && response.data.result && response.data.result.success) {
       return { success: true, message: response.data.result.message };
     } else {
