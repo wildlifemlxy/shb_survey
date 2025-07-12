@@ -1,5 +1,6 @@
 import React, { Component, createRef } from 'react';
 import axios from 'axios';
+import tokenService from '../../../utils/tokenService';
 
 class ParticipantList extends Component {
   constructor(props) {
@@ -265,15 +266,34 @@ class ParticipantList extends Component {
         : 'https://shb-backend.azurewebsites.net';
     
     try {
-      const response = await axios.post(`${BASE_URL}/events`, {
+      // Check if user is authenticated
+      if (!tokenService.isTokenValid()) {
+        console.error('Authentication required for participant updates');
+        return;
+      }
+
+      // Encrypt the request data
+      const requestData = await tokenService.encryptData({
         eventId,
         participants,
         purpose: 'updateParticipants',
       });
-      console.log('Participants updated successfully:', response.data);
       
-      // Reset unsaved changes after successful update
-      this.setState({ hasUnsavedChanges: false });
+      // Make authenticated request
+      const response = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/events`, {
+        method: 'POST',
+        body: JSON.stringify(requestData)
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Participants updated successfully:', data);
+        
+        // Reset unsaved changes after successful update
+        this.setState({ hasUnsavedChanges: false });
+      } else {
+        throw new Error('Failed to update participants');
+      }
       
     } catch (error) {
      console.log('Failed to update participants:', error);

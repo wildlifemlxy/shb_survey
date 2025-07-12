@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import './UpcomingEvents.css';
 import UpcomingEventCard from './UpcomingEventCard';
 import axios from 'axios';
+import tokenService from '../../../utils/tokenService';
 import AddEventModal from './AddEventModal';
 
 // Helper to group events by organizer type
@@ -150,29 +151,62 @@ class UpcomingEvents extends Component {
         console.log('Saving participants for event:', eventId, updatedEvent);
         // Post updated event to backend, then update parent and local state
         if (updatedEvent) {
-          const result = await axios.post(`${BASE_URL}/events`, {
+          // Check if user is authenticated
+          if (!tokenService.isTokenValid()) {
+            alert('Authentication required for event updates');
+            return;
+          }
+
+          // Encrypt the request data
+          const requestData = await tokenService.encryptData({
             purpose: 'updateEvent',
             eventId: eventId,
             ...updatedEvent
           });
-          if (result.data.success) {
-            // Only update editing state, do not use componentDidMount or socket here
-            this.setState(prevState => ({
-              editing: { ...prevState.editing, [eventId]: false },
-            }));
-            return;
+          
+          // Make authenticated request
+          const result = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/events`, {
+            method: 'POST',
+            body: JSON.stringify(requestData)
+          });
+          
+          if (result.ok) {
+            const data = await result.json();
+            if (data.success) {
+              // Only update editing state, do not use componentDidMount or socket here
+              this.setState(prevState => ({
+                editing: { ...prevState.editing, [eventId]: false },
+              }));
+              return;
+            }
           }
         }
       }
       if (action === 'delete') {
         console.log('Deleting event:', eventId);
         // Confirm deletion with user
+        
+        // Check if user is authenticated
+        if (!tokenService.isTokenValid()) {
+          alert('Authentication required for event deletion');
+          return;
+        }
 
-          const result = await axios.post(`${BASE_URL}/events`, {
-            purpose: 'deleteEvent',
-            eventId: eventId
-          });
-          if (result.data.success) {
+        // Encrypt the request data
+        const requestData = await tokenService.encryptData({
+          purpose: 'deleteEvent',
+          eventId: eventId
+        });
+        
+        // Make authenticated request
+        const result = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/events`, {
+          method: 'POST',
+          body: JSON.stringify(requestData)
+        });
+        
+        if (result.ok) {
+          const data = await result.json();
+          if (data.success) {
             console.log('Event deleted successfully');
             // Refresh events list
             if (this.props.onRefreshEvents) {
@@ -180,8 +214,9 @@ class UpcomingEvents extends Component {
             }
             return;
           } else {
-            console.error('Failed to delete event:', result.data.message);
+            console.error('Failed to delete event');
           }
+        }
       }
     } catch (error) {
       console.error('Failed to update/delete event:', error);

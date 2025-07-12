@@ -1,5 +1,6 @@
 import React from 'react';
 import axios from 'axios';
+import tokenService from '../../utils/tokenService';
 import PopupModal from './PopupModal';
 
 const BASE_URL =
@@ -28,30 +29,49 @@ class CreateTelegramBotTab extends React.Component {
     if (!token) return;
     this.setState({ status: 'loading' });
     try {
-      const result = await axios.post(`${BASE_URL}/telegram`, {
+      // Check if user is authenticated
+      if (!tokenService.isTokenValid()) {
+        this.setState({ status: 'error', error: 'Authentication required' });
+        return;
+      }
+
+      // Encrypt the request data
+      const requestData = await tokenService.encryptData({
         purpose: 'getBotInfo',
         token
       });
-      console.log('Telegram bot info:', result.data);
-      if (result.data && result.data.ok) {
-        let { username, first_name } = result.data.result;
-        // Format username: replace _ with space and capitalize each word
-        if (username) {
-          username = username.replace(/_/g, ' ')
-            .replace(/\b\w/g, c => c.toUpperCase());
-          username = username.charAt(0).toUpperCase() + username.slice(1);
-          // Replace 'Shb' with 'SHB' if present at the start or as a word
-          username = username.replace(/\bShb\b/g, 'SHB');
+      
+      // Make authenticated request
+      const result = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/telegram`, {
+        method: 'POST',
+        body: JSON.stringify(requestData)
+      });
+      
+      if (result.ok) {
+        const data = await result.json();
+        console.log('Telegram bot info:', data);
+        if (data && data.ok) {
+          let { username, first_name } = data.result;
+          // Format username: replace _ with space and capitalize each word
+          if (username) {
+            username = username.replace(/_/g, ' ')
+              .replace(/\b\w/g, c => c.toUpperCase());
+            username = username.charAt(0).toUpperCase() + username.slice(1);
+            // Replace 'Shb' with 'SHB' if present at the start or as a word
+            username = username.replace(/\bShb\b/g, 'SHB');
+          }
+          this.setState({
+            name: username || '',
+            desc: first_name || '',
+            status: null
+          });
+        } else {
+          this.setState({ status: 'error' });
         }
-        this.setState({
-          name: username || '',
-          desc: first_name || '',
-          status: null
-        });
       } else {
-        this.setState({ status: 'error' });
+        throw new Error('Failed to get bot info');
       }
-    } catch {
+    } catch (error) {
       this.setState({ status: 'error' });
     }
   };
@@ -69,15 +89,32 @@ class CreateTelegramBotTab extends React.Component {
     }
     this.setState({ status: 'loading', validation: {} });
     try {
-      const result = await axios.post(`${BASE_URL}/telegram`, {
+      // Check if user is authenticated
+      if (!tokenService.isTokenValid()) {
+        this.setState({ status: 'error' });
+        return;
+      }
+
+      // Encrypt the request data
+      const requestData = await tokenService.encryptData({
         purpose: 'createBot',
         name,
         description: desc,
         token
       });
-      if (result.status === 200 || result.status === 201) this.setState({ status: 'success' });
-      else this.setState({ status: 'error' });
-    } catch {
+      
+      // Make authenticated request
+      const result = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/telegram`, {
+        method: 'POST',
+        body: JSON.stringify(requestData)
+      });
+      
+      if (result.ok) {
+        this.setState({ status: 'success' });
+      } else {
+        this.setState({ status: 'error' });
+      }
+    } catch (error) {
       this.setState({ status: 'error' });
     }
   };

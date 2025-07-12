@@ -1,6 +1,7 @@
 var express = require('express');
 var router = express.Router();
 var SurveyController = require('../Controller/Survey/surveyController'); 
+var UsersController = require('../Controller/Users/usersController'); 
 const { sendOneSignalNotification } = require('../services/notificationService');
 const startEventTypeUpdater = require('../cron/eventTypeUpdater');
 
@@ -21,11 +22,16 @@ router.post('/', async function(req, res, next)
     if(req.body.purpose === "retrieve")
     {
         try {
-            var controller = new SurveyController();
-            var result = await controller.getAllSurveys();
-            //console.log('Surveys retrieved successfully:', result);
-            return res.json({"result": result}); 
+
+            var surveyController = new SurveyController();
+            var usersController = new UsersController();
             
+            // Get all surveys for calculating statistics
+            var surveyResult = await surveyController.getAllSurveys();
+            var userResult = await usersController.getAllUsers();
+            console.log('Surveys retrieved successfully:', surveyResult.success, userResult.success ? userResult.users.length : 0);
+            return res.json({"result": surveyResult, "userCount": userResult.success ? userResult.users.length : 0}); 
+
         } catch (error) {
             console.error('Error retrieving surveys:', error);
             return res.status(500).json({ error: 'Failed to retrieve surveys.' });
@@ -145,6 +151,172 @@ router.post('/', async function(req, res, next)
             });
         }
     }
+    else if(req.body.purpose === "retrievePublic")
+    {
+        try {
+            var surveyController = new SurveyController();
+            var usersController = new UsersController();
+            
+            // Get all surveys for calculating statistics
+            var surveyResult = await surveyController.getAllSurveys();
+            var userResult = await usersController.getAllUsers();
+            
+            const surveys = surveyResult.success ? surveyResult.surveys : [];
+            console.log('Retrieved surveys:', surveys);
+            const users = userResult.success ? userResult.users : [];
+            
+            // Calculate statistics
+            const numberOfObservations = surveys.length;
+            
+            // Get unique locations (assuming surveys have location data)
+            const uniqueLocations = new Set();
+            surveys.forEach(survey => {
+                if (survey.Location) {
+                    // Handle different location formats
+                    if (typeof survey.Location === 'string') {
+                        uniqueLocations.add(survey.Location);
+                    }
+                } else if (survey.location) {
+                    // Fallback to lowercase location field
+                    if (typeof survey.location === 'string') {
+                        uniqueLocations.add(survey.location);
+                    }
+                }
+            });
+            const numberOfLocations = uniqueLocations.size;
+            
+            // Get number of volunteers (users)
+            const numberOfVolunteers = users.length;
+            
+            // Calculate years active (from first survey date to current date)
+            let yearsActive = 0;
+            if (surveys.length > 0) {
+                // Find the earliest survey date
+                let earliestDate = null;
+                surveys.forEach(survey => {
+                    let surveyDate = null;
+                    
+                    // Try different date field names and formats
+                    if (survey.Date) {
+                        // Handle your specific date formats: '21-Jun-25' or '21/06/2025'
+                        const dateStr = survey.Date.toString();
+                        console.log('Processing date string:', dateStr);
+                        
+                        // Parse date format like '21-Jun-25' (dd-Mmm-yy)
+                        if (dateStr.includes('-')) {
+                            // Split by dash and handle dd-MMM-yy format
+                            const parts = dateStr.split('-');
+                            if (parts.length === 3) {
+                                const day = parts[0];
+                                const month = parts[1];
+                                let year = parts[2];
+                                
+                                // Convert 2-digit year to 4-digit year
+                                // Assuming years 00-50 are 2000-2050, 51-99 are 1951-1999
+                                if (year.length === 2) {
+                                    const yearNum = parseInt(year);
+                                    if (yearNum <= 50) {
+                                        year = '20' + year;
+                                    } else {
+                                        year = '19' + year;
+                                    }
+                                }
+                                
+                                // Create a date string that JavaScript can parse
+                                const jsDateStr = `${day}-${month}-${year}`;
+                                surveyDate = new Date(jsDateStr);
+                                console.log('Parsed dd-Mmm-yy date:', surveyDate);
+                            }
+                        }
+                        // Parse date format like '21/06/2025' (dd/mm/yyyy)
+                        else if (dateStr.includes('/')) {
+                            // Split by slash and handle dd/mm/yyyy format
+                            const parts = dateStr.split('/');
+                            if (parts.length === 3) {
+                                const day = parts[0];
+                                const month = parts[1];
+                                const year = parts[2];
+                                
+                                // Create a date using year, month-1 (0-indexed), day
+                                surveyDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                                console.log('Parsed dd/mm/yyyy date:', surveyDate);
+                            }
+                        }
+                        // Fallback: try direct parsing
+                        else {
+                            surveyDate = new Date(dateStr);
+                            console.log('Direct parsed date:', surveyDate);
+                        }
+                    } else if (survey.createdAt) {
+                        surveyDate = new Date(survey.createdAt);
+                    } else if (survey.date) {
+                        surveyDate = new Date(survey.date);
+                    } else if (survey.timestamp) {
+                        surveyDate = new Date(survey.timestamp);
+                    }
+                    
+                    // Check if date is valid and update earliest
+                    if (surveyDate && !isNaN(surveyDate.getTime())) {
+                        console.log('Valid date found:', surveyDate);
+                        if (!earliestDate || surveyDate < earliestDate) {
+                            earliestDate = surveyDate;
+                        }
+                    }
+                });
+                
+                // Calculate years from earliest date to now
+                if (earliestDate) {
+                    console.log('Earliest date found:', earliestDate);
+                    const currentDate = new Date();
+                    const timeDifference = currentDate - earliestDate;
+                    const daysDifference = timeDifference / (1000 * 60 * 60 * 24);
+                    
+                    // Calculate years more precisely
+                    const yearsDifference = daysDifference / 365.25; // Using 365.25 to account for leap years
+                    
+                    console.log('Years calculation:', {
+                        earliestDate: earliestDate,
+                        currentDate: currentDate,
+                        daysDifference: daysDifference,
+                        yearsDifference: yearsDifference,
+                        calculatedYears: Math.max(1, Math.ceil(yearsDifference))
+                    });
+                    
+                    // If the time span is less than 1 year but more than 6 months, show as 1 year
+                    // If more than 1 year, show the actual calculated years
+                    if (yearsDifference >= 1) {
+                        yearsActive = Math.ceil(yearsDifference);
+                    } else if (daysDifference >= 180) { // More than 6 months
+                        yearsActive = 1;
+                    } else {
+                        yearsActive = 1; // Default minimum
+                    }
+                } else {
+                    console.log('No valid dates found in surveys');
+                    yearsActive = 1; // Default if no valid dates
+                }
+            }
+            
+            const statistics = {
+                observations: numberOfObservations,
+                locations: numberOfLocations,
+                volunteers: numberOfVolunteers,
+                yearsActive: yearsActive
+            };
+            
+            console.log('Public statistics calculated:', statistics);
+            return res.json({
+                "result": { 
+                    success: true, 
+                    statistics: statistics 
+                }
+            }); 
+            
+        } catch (error) {
+            console.error('Error retrieving public statistics:', error);
+            return res.status(500).json({ error: 'Failed to retrieve statistics.' });
+        }
+    } 
     else {
         return res.status(400).json({ error: 'Invalid purpose.' });
     }

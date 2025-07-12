@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 import { fetchGalleryData } from '../../data/shbData';
+import tokenService from '../../utils/tokenService';
 import './Gallery.css';
 
 const BASE_URL =
@@ -91,8 +92,14 @@ class Gallery extends Component {
     try {
       console.log('Approving media:', media);
       
-      // Approve media on backend
-      const response = await axios.post(`${BASE_URL}/gallery`, {
+      // Check if user is authenticated
+      if (!tokenService.isTokenValid()) {
+        alert('Authentication required for media approval');
+        return;
+      }
+      
+      // Encrypt the request data
+      const requestData = await tokenService.encryptData({
         mediaId: media.id,
         url: media.url,
         type: media.type,
@@ -101,7 +108,13 @@ class Gallery extends Component {
         purpose: 'approve'
       });
       
-      if (response.status === 200) {
+      // Make authenticated request
+      const response = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/gallery`, {
+        method: 'POST',
+        body: JSON.stringify(requestData)
+      });
+      
+      if (response.ok) {
         alert(`Media "${media.name || 'Untitled'}" has been approved and is now visible in the gallery!`);
         
         // Update local state to mark as approved
@@ -126,8 +139,14 @@ class Gallery extends Component {
       
       console.log('Deleting media:', media);
       
-      // Delete from backend with full media information
-      const response = await axios.post(`${BASE_URL}/gallery`, {
+      // Check if user is authenticated
+      if (!tokenService.isTokenValid()) {
+        alert('Authentication required for media deletion');
+        return;
+      }
+      
+      // Encrypt the request data
+      const requestData = await tokenService.encryptData({
         mediaId: media.id,
         url: media.url,
         filename: media.filename || media.name,
@@ -137,7 +156,13 @@ class Gallery extends Component {
         purpose: 'delete'
       });
       
-      if (response.status === 200) {
+      // Make authenticated request
+      const response = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/gallery`, {
+        method: 'POST',
+        body: JSON.stringify(requestData)
+      });
+      
+      if (response.ok) {
         alert(`Media "${media.name || 'Untitled'}" has been deleted!`);
         
         // Remove from local state
@@ -173,8 +198,14 @@ class Gallery extends Component {
       
       console.log('Rejecting and deleting media:', media, 'Reason:', reason);
       
-      // Delete media on backend (reject = delete) with full media information
-      const response = await axios.post(`${BASE_URL}/gallery`, {
+      // Check if user is authenticated
+      if (!tokenService.isTokenValid()) {
+        alert('Authentication required for media rejection');
+        return;
+      }
+      
+      // Encrypt the request data
+      const requestData = await tokenService.encryptData({
         mediaId: media.id,
         url: media.url,
         filename: media.filename || media.name,
@@ -185,7 +216,13 @@ class Gallery extends Component {
         purpose: 'reject'
       });
       
-      if (response.status === 200) {
+      // Make authenticated request
+      const response = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/gallery`, {
+        method: 'POST',
+        body: JSON.stringify(requestData)
+      });
+      
+      if (response.ok) {
         alert(`Media "${media.name || 'Untitled'}" has been rejected and deleted.`);
         
         // Remove from local state
@@ -671,8 +708,8 @@ class Gallery extends Component {
                         </div>
                       )}
 
-                      {/* Delete Button - Show for Non-WWF Volunteers on their own content or when not in approval mode */}
-                      {!isWWFVolunteer && !approvalMode && (
+                      {/* Delete Button - Show only for authenticated non-WWF Volunteers */}
+                      {isAuthenticated && !isWWFVolunteer && !approvalMode && (
                         <div style={{
                           position: 'absolute',
                           bottom: '8px',

@@ -5,6 +5,7 @@ import ViewToggle from '../../Table/ViewToggle';
 import '../../../css/components/Tabs/DataViewTab.css';
 import NewSurveyButton from './NewSurveyButton';
 import axios from 'axios';
+import tokenService from '../../../utils/tokenService';
 
 const BASE_URL =
   window.location.hostname === 'localhost'
@@ -29,17 +30,58 @@ class DataViewTab extends Component {
   // Handle data updates (when cells are edited)
   handleDataUpdate = async(updatedRowData, recordId) => 
   {
-    console.log("Data Updated", { updatedRowData, recordId }, BASE_URL);
-    const response = await axios.post(`${BASE_URL}/surveys`, { purpose: 'update', recordId, updatedRowData });
-    //console.log('Data update requested', response);
+    try {
+      console.log("Data Updated", { updatedRowData, recordId }, BASE_URL);
+      
+      // Check if user is authenticated
+      if (!tokenService.isTokenValid()) {
+        console.error('Authentication required for data update');
+        return;
+      }
+
+      // Encrypt the request data
+      const requestData = await tokenService.encryptData({ 
+        purpose: 'update', 
+        recordId, 
+        updatedRowData 
+      });
+      
+      // Make authenticated request using axios through tokenService
+      const response = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/surveys`, {
+        method: 'POST',
+        data: requestData
+      });
+      
+      if (response.status !== 200) {
+        console.error('Data update failed');
+      }
+    } catch (error) {
+      console.error('Error updating data:', error);
+    }
   }
 
   // Handle data deletion (when rows are deleted)
   handleDataDelete = async (recordId) => {
     try {
-      const response = await axios.post(`${BASE_URL}/surveys`, { purpose: 'delete', recordId });
+      // Check if user is authenticated
+      if (!tokenService.isTokenValid()) {
+        console.error('Authentication required for data deletion');
+        return;
+      }
+
+      // Encrypt the request data
+      const requestData = await tokenService.encryptData({ 
+        purpose: 'delete', 
+        recordId 
+      });
       
-      if (response.data.success) {
+      // Make authenticated request using axios through tokenService
+      const response = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/surveys`, {
+        method: 'POST',
+        data: requestData
+      });
+      
+      if (response.status === 200 && response.data.success) {
         console.log('Record deleted successfully:', response.data);
         
         // Trigger data refresh to update the UI
@@ -47,7 +89,7 @@ class DataViewTab extends Component {
           this.props.onDataRefresh();
         }
         
-        return response;
+        return response.data;
       } else {
         throw new Error(response.data.message || 'Failed to delete record');
       }

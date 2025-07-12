@@ -68,6 +68,39 @@ class UsersController {
         }
     }
 
+    async getAllUsers() {
+        try {
+            await this.dbConnection.initialize();
+            
+            // Get all users from the database
+            const users = await this.dbConnection.getAllDocuments(
+                'Straw-Headed-Bulbul', // database name
+                'Accounts' // collection name
+            );
+
+            if (users && Array.isArray(users)) {
+                return { 
+                    success: true, 
+                    users: users,
+                    message: 'Users retrieved successfully' 
+                };
+            } else {
+                return { 
+                    success: true, 
+                    users: [],
+                    message: 'No users found' 
+                };
+            }
+        } catch (error) {
+            console.error('Error retrieving all users:', error);
+            return { 
+                success: false, 
+                users: [],
+                message: 'Error retrieving users' 
+            };
+        }
+    }
+
     async createUser(userData) {
         try {
             await this.dbConnection.initialize();

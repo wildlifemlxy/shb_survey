@@ -1,3 +1,6 @@
+// Load environment variables
+require('dotenv').config();
+
 var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
@@ -11,7 +14,9 @@ var surveyRoutes = require('./routes/surveyRoutes'); // Import MongoDB survey ro
 var eventsRoutes = require('./routes/eventsRoutes'); // Import MongoDB events routes
 var telegramRoutes = require('./routes/telegramRoutes'); // Import MongoDB telegram routes
 var userRoutes = require('./routes/usersRoutes'); // Import MongoDB user routes
-var galleryRoutes = require('./routes/galleryRoutes'); // Import MongoDB gallery routes 
+var galleryRoutes = require('./routes/galleryRoutes'); // Import MongoDB gallery routes
+var secureRoutes = require('./routes/secureRoutes'); // Import secure encrypted routes
+var tokenEncryption = require('./middleware/tokenEncryption'); // Import token encryption middleware 
 
 app.use(cors()); // Enable CORS
 app.use(logger('dev')); // HTTP request logger
@@ -40,11 +45,28 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Serve email assets (logos, etc.) from Others/Email directory
 app.use('/Others/Email', express.static(path.join(__dirname, 'Others/Email')));
 
+// Public authentication routes (no token required)
+app.post('/api/auth/login', tokenEncryption.login);
+
+// Protected authentication routes (require valid token)
+app.use('/api/auth/refresh', tokenEncryption.authenticateToken, tokenEncryption.refreshToken);
+app.use('/api/auth/logout', tokenEncryption.authenticateToken, tokenEncryption.logout);
+
+// Public key endpoint (for client-side encryption setup)
+app.get('/api/encryption/public-key', (req, res) => {
+  res.json({ 
+    publicKey: tokenEncryption.publicKey,
+    algorithm: 'RSA-OAEP',
+    keySize: 2048
+  });
+});
+
 app.use('/surveys', surveyRoutes); // Register MongoDB survey routes
 app.use('/events', eventsRoutes); // Register MongoDB events routes
 app.use('/telegram', telegramRoutes); // Register MongoDB telegram routes
 app.use('/users', userRoutes); // Register MongoDB user routes
 app.use('/gallery', galleryRoutes); // Register MongoDB gallery routes
+app.use('/secure', secureRoutes); // Register secure encrypted routes
 
 // Increase payload limits for Azure App Service
 app.use(express.json({ 
@@ -65,6 +87,16 @@ app.use(function(req, res, next) {
 
 // error handler (API style)
 app.use(function(err, req, res, next) {
+  console.error('Unhandled error:', err);
+  
+  if (err.name === 'JsonWebTokenError') {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+  
+  if (err.name === 'TokenExpiredError') {
+    return res.status(401).json({ error: 'Token expired' });
+  }
+  
   res.status(err.status || 500).json({
     message: err.message,
     error: req.app.get('env') === 'development' ? err : {}

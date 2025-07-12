@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import './UpcomingEvents.css';
 import axios from 'axios';
+import tokenService from '../../../utils/tokenService';
 import '../../Dashboard/ObserverInfoSection.css'; // Import styles for location dropdown
 import '../../Dashboard/ObservationDetailsSection.css'; // Import styles for time dropdown
 import '../../Dashboard/NewSurveyModal.css'; // Import enhanced dropdown overlapping styles
@@ -347,12 +348,32 @@ class AddEventModal extends Component {
       return null;
     }
     try {
-      const result = await axios.post(`${BASE_URL}/events`, {
+      // Check if user is authenticated
+      if (!tokenService.isTokenValid()) {
+        window.alert('Authentication required to save events');
+        return null;
+      }
+
+      // Encrypt the request data
+      const requestData = await tokenService.encryptData({
         purpose: 'addEvent',
         events: filteredEvents
       });
-      console.log('Events saved successfully:', result.data);
-      this.handleCancel()
+      
+      // Make authenticated request
+      const result = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/events`, {
+        method: 'POST',
+        body: JSON.stringify(requestData)
+      });
+      
+      if (result.ok) {
+        const data = await result.json();
+        console.log('Events saved successfully:', data);
+        this.handleCancel();
+        return data;
+      } else {
+        throw new Error('Failed to save events');
+      }
     } catch (err) {
       window.alert('Error saving events: ' + err.message);
       return null;

@@ -1,5 +1,6 @@
 import React from 'react';
 import axios from 'axios';
+import tokenService from '../../utils/tokenService';
 import BotChatTabs from './BotChatTabs'; // Adjust the import path as necessary
 
 const BASE_URL =
@@ -30,12 +31,31 @@ class BotDetailsTab extends React.Component {
     const token = bot.token;
     this.setState({ selectedBot, shownBot: selectedBot, groupData: null, groupLoading: true, groupError: null });
     try {
-      const res = await axios.post(`${BASE_URL}/telegram`, {
+      // Check if user is authenticated
+      if (!tokenService.isTokenValid()) {
+        this.setState({ groupError: 'Authentication required', groupLoading: false });
+        return;
+      }
+
+      // Encrypt the request data
+      const requestData = await tokenService.encryptData({
         purpose: 'getBotGroups',
         token
       });
-      console.log('Response from Bots:', res.data.groups);
-      this.setState({ groupData: res.data.groups, groupLoading: false, selectedBot: '' });
+      
+      // Make authenticated request
+      const res = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/telegram`, {
+        method: 'POST',
+        body: JSON.stringify(requestData)
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        console.log('Response from Bots:', data.groups);
+        this.setState({ groupData: data.groups, groupLoading: false, selectedBot: '' });
+      } else {
+        throw new Error('Failed to fetch bot groups');
+      }
     } catch (err) {
       this.setState({ groupError: err.message || 'Failed to fetch group info.', groupLoading: false });
     }
@@ -45,12 +65,31 @@ class BotDetailsTab extends React.Component {
   fetchChatHistory = async (token, chatId) => {
     this.setState({ chatHistoryLoading: true, chatHistory: null, chatHistoryError: null });
     try {
-      const res = await axios.post(`${BASE_URL}/telegram`, {
+      // Check if user is authenticated
+      if (!tokenService.isTokenValid()) {
+        this.setState({ chatHistoryError: 'Authentication required', chatHistoryLoading: false });
+        return;
+      }
+
+      // Encrypt the request data
+      const requestData = await tokenService.encryptData({
         purpose: 'getChatHistory',
         token,
         chatId
       });
-      this.setState({ chatHistory: res.data.data, chatHistoryLoading: false });
+      
+      // Make authenticated request
+      const res = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/telegram`, {
+        method: 'POST',
+        body: JSON.stringify(requestData)
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        this.setState({ chatHistory: data.data, chatHistoryLoading: false });
+      } else {
+        throw new Error('Failed to fetch chat history');
+      }
     } catch (err) {
       this.setState({ chatHistoryError: err.message || 'Failed to fetch chat history.', chatHistoryLoading: false });
     }

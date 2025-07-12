@@ -5,6 +5,7 @@ import Gallery from '../Gallery';
 
 import { getUniqueLocations } from '../../utils/dataProcessing';
 import { standardizeCoordinates } from '../../utils/coordinateStandardization';
+import { fetchSurveyDataForHomePage } from '../../data/shbData';
 import '../../css/components/Home/Home.css';
 import axios from 'axios';
 
@@ -34,22 +35,45 @@ class Home extends React.Component {
   }
 
   checkAuthenticationStatus = () => {
-    // First check isAuthenticated flag
+    // Use props authentication status from App component
+    // This ensures consistency with the app-level authentication state
+    const propsAuthenticated = this.props.isAuthenticated;
+    
+    // Also check localStorage for backup
     const isAuthenticatedFlag = localStorage.getItem('isAuthenticated') === 'true';
     
-    // Then check for user data in localStorage
+    // Get user data from localStorage and ensure role is preserved
     let currentUser = null;
     try {
       const userDataString = localStorage.getItem('user');
       if (userDataString) {
         currentUser = JSON.parse(userDataString);
+        
+        // Ensure role is set - check multiple sources
+        if (!currentUser.role) {
+          const storedRole = localStorage.getItem('userRole');
+          if (storedRole) {
+            currentUser.role = storedRole;
+            // Update localStorage with complete user data
+            localStorage.setItem('user', JSON.stringify(currentUser));
+          }
+        }
       }
     } catch (error) {
       console.error('Error parsing user data in Home component:', error);
     }
     
+    // Priority: props > localStorage flag > user data exists
+    const isAuthenticated = propsAuthenticated !== undefined ? propsAuthenticated : (isAuthenticatedFlag || !!currentUser);
+    
+    console.log('Home checkAuthenticationStatus:', {
+      propsAuthenticated: propsAuthenticated,
+      localStorageAuth: isAuthenticatedFlag,
+      currentUser: currentUser,
+      finalAuth: isAuthenticated
+    });
+    
     // Set state based on authentication status
-    const isAuthenticated = isAuthenticatedFlag || !!currentUser;
     this.setState({ 
       isAuthenticated,
       currentUser
@@ -60,6 +84,11 @@ class Home extends React.Component {
   };
 
   isAuthenticated = () => {
+    // Primary check: use props from App component
+    if (this.props.isAuthenticated !== undefined) {
+      return this.props.isAuthenticated;
+    }
+    // Fallback: check localStorage
     return localStorage.getItem('isAuthenticated') === 'true';
   };
 
@@ -222,22 +251,68 @@ class Home extends React.Component {
     };
   };
 
-  loadStatistics = () => {
-    const { shbData } = this.props;
-    const dataToUse = Array.isArray(shbData) && shbData.length > 0 ? standardizeCoordinates(shbData) : [];
-
-    if (dataToUse.length > 0) {
-      const stats = this.calculateStatistics(dataToUse);
-      this.setState({ statistics: stats });
-    } else {
+  loadStatistics = async () => {
+    const { shbData, isAuthenticated } = this.props;
+    console.log('Home component received shbData:', shbData);
+    console.log('Home component isAuthenticated:', isAuthenticated);
+    console.log('Type of shbData:', typeof shbData);
+    
+    // Always fetch the most accurate statistics from the backend public API
+    try {
+      const publicStats = await fetchSurveyDataForHomePage();
+      console.log('Fetched accurate public statistics:', publicStats);
+      
+      if (publicStats && typeof publicStats === 'object' && 
+          'observations' in publicStats && 'locations' in publicStats && 
+          'volunteers' in publicStats && 'yearsActive' in publicStats) {
+        
+        this.setState({
+          statistics: {
+            totalObservations: publicStats.observations.toString(),
+            uniqueLocations: publicStats.locations.toString(),
+            totalVolunteers: publicStats.volunteers.toString(),
+            yearsActive: publicStats.yearsActive.toString()
+          }
+        });
+        return;
+      }
+    } catch (error) {
+      console.error('Error fetching accurate statistics:', error);
+    }
+    
+    // Fallback: Check if shbData is the statistics object format
+    if (shbData && typeof shbData === 'object' && 
+        'observations' in shbData && 'locations' in shbData && 
+        'volunteers' in shbData && 'yearsActive' in shbData) {
+      // Statistics object format from backend
+      console.log('Using statistics format from props:', shbData);
       this.setState({
         statistics: {
-          totalObservations: '',
-          uniqueLocations: '',
-          totalVolunteers: '',
-          yearsActive: ''
+          totalObservations: shbData.observations.toString(),
+          uniqueLocations: shbData.locations.toString(),
+          totalVolunteers: shbData.volunteers.toString(),
+          yearsActive: shbData.yearsActive.toString()
         }
       });
+    } else {
+      // Legacy format: array of survey data - calculate from array
+      console.log('Using legacy array format or no data, shbData:', shbData);
+      const dataToUse = Array.isArray(shbData) && shbData.length > 0 ? standardizeCoordinates(shbData) : [];
+
+      if (dataToUse.length > 0) {
+        const stats = this.calculateStatistics(dataToUse);
+        this.setState({ statistics: stats });
+      } else {
+        console.log('No valid data found, setting default statistics');
+        this.setState({
+          statistics: {
+            totalObservations: '0',
+            uniqueLocations: '0',
+            totalVolunteers: '0',
+            yearsActive: '0'
+          }
+        });
+      }
     }
   };
 
@@ -637,13 +712,30 @@ class Home extends React.Component {
   };
 
   render() {
-    const { statistics, currentDateTime, isAuthenticated, isLoginPopupOpen, isUploadPopupOpen, fullscreenMedia } = this.state;
-    // Determine if user is WWF-Volunteer
+    const { statistics, currentDateTime, isLoginPopupOpen, isUploadPopupOpen, fullscreenMedia } = this.state;
+    
+    // Prioritize authentication status from props, fallback to state
+    const isAuthenticated = this.props.isAuthenticated !== undefined ? this.props.isAuthenticated : this.state.isAuthenticated;
+    
+    // Determine if user is WWF-Volunteer with better error handling and role preservation
     let isWWFVolunteer = false;
     try {
-      const user = JSON.parse(localStorage.getItem('user'));
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      
+      // Ensure role is properly set
+      if (user && !user.role) {
+        const storedRole = localStorage.getItem('userRole');
+        if (storedRole) {
+          user.role = storedRole;
+          localStorage.setItem('user', JSON.stringify(user));
+        }
+      }
+      
       isWWFVolunteer = user && user.role === 'WWF-Volunteer';
-    } catch (e) {}
+      console.log('WWF Volunteer check:', { user, isWWFVolunteer });
+    } catch (e) {
+      console.error('Error checking WWF volunteer status:', e);
+    }
 
     return (
       <div className="home-container">
@@ -738,34 +830,25 @@ class Home extends React.Component {
                   Survey Event Management
                 </Link>
                 {(() => {
-                  // Get user role from localStorage
-                  try {
-                    const userDataString = localStorage.getItem('user');
-                    if (userDataString) {
-                      const userData = JSON.parse(userDataString);
-                      // Only show Settings link if user is not a WWF-Volunteer
-                      if (userData && userData.role !== 'WWF-Volunteer') {
-                        return (
-                          <Link to="/settings" className="btn btn-secondary" style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '0.4rem',
-                            padding: '0.6rem 1rem',
-                            borderRadius: '6px',
-                            fontWeight: '600',
-                            fontSize: '0.9rem'
-                          }}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M12 2L3.09 8.26L4 21L12 17L20 21L20.91 8.26L12 2Z"/>
-                            </svg>
-                            Settings
-                          </Link>
-                        );
-                      }
-                    }
-                  } catch (error) {
-                    console.error('Error parsing user data for settings link:', error);
+                  // Only show Settings link if user is not a WWF-Volunteer (using same logic as render method)
+                  if (!isWWFVolunteer) {
+                    return (
+                      <Link to="/settings" className="btn btn-secondary" style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.4rem',
+                        padding: '0.6rem 1rem',
+                        borderRadius: '6px',
+                        fontWeight: '600',
+                        fontSize: '0.9rem'
+                      }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2L3.09 8.26L4 21L12 17L20 21L20.91 8.26L12 2Z"/>
+                        </svg>
+                        Settings
+                      </Link>
+                    );
                   }
                   return null;
                 })()}
@@ -879,39 +962,30 @@ class Home extends React.Component {
                 </div>
                 {/* Telegram Settings Card - Only show if not WWF-Volunteer */}
                 {(() => {
-                  // Get user role from localStorage
-                  try {
-                    const userDataString = localStorage.getItem('user');
-                    if (userDataString) {
-                      const userData = JSON.parse(userDataString);
-                      // Only show Telegram Settings card if user is not a WWF-Volunteer
-                      if (userData && userData.role !== 'WWF-Volunteer') {
-                        return (
-                          <div className="feature-card" style={{background: '#fff', borderRadius: 18, boxShadow: '0 4px 24px 0 rgba(0,0,0,0.06)', padding: '36px 32px', width: 340, display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1.5px solid #e0e7ef', transition: 'box-shadow 0.2s', minHeight: 370}}>
-                            <div style={{background: 'linear-gradient(135deg, #229ED9 0%, #0A5C8C 100%)', borderRadius: 14, padding: 14, marginBottom: 18, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                              <svg width="36" height="36" viewBox="0 0 240 240" fill="white">
-                                <circle cx="120" cy="120" r="120" fill="#229ED9"/>
-                                <path d="M180 72L160 168C158.5 174.5 154.5 176 149 173.5L122.5 154.5L110.5 165.5C109 167 107.5 168.5 105 168.5L107 141.5L157.5 92.5C159.5 90.5 157 89.5 154.5 91.5L93.5 134.5L67.5 126.5C61.5 124.5 61.5 120.5 69.5 117.5L170.5 78.5C176.5 76.5 181.5 80.5 180 72Z" fill="white"/>
-                              </svg>
-                            </div>
-                            <h3 style={{fontWeight: 700, fontSize: '1.25rem', marginBottom: 12, textAlign: 'center'}}>Telegram Settings</h3>
-                            <ul style={{padding: 0, margin: 0, listStyle: 'none', color: '#334155', fontSize: '1rem', marginBottom: 24, textAlign: 'left'}}>
-                              <li style={{marginBottom: 8, display: 'flex', alignItems: 'center'}}><span style={{color: '#229ED9', fontWeight: 700, marginRight: 8}}>&#8226;</span>Configure Telegram bot integration</li>
-                              <li style={{marginBottom: 8, display: 'flex', alignItems: 'center'}}><span style={{color: '#229ED9', fontWeight: 700, marginRight: 8}}>&#8226;</span>Set up notifications and alerts</li>
-                              <li style={{display: 'flex', alignItems: 'center'}}><span style={{color: '#229ED9', fontWeight: 700, marginRight: 8}}>&#8226;</span>Manage Telegram access and permissions</li>
-                            </ul>
-                            <Link to="/settings" className="feature-button" style={{background: '#229ED9', color: '#fff', borderRadius: 8, padding: '10px 22px', fontWeight: 600, fontSize: '1rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, marginTop: 'auto', boxShadow: '0 2px 8px 0 rgba(34,197,94,0.08)'}}>
-                              Telegram Settings
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 4L10.59 5.41L16.17 11H4V13H16.17L10.59 18.59L12 20L20 12L12 4Z"/>
-                              </svg>
-                            </Link>
-                          </div>
-                        );
-                      }
-                    }
-                  } catch (error) {
-                    console.error('Error checking user role for Telegram card:', error);
+                  // Only show Telegram Settings card if user is not a WWF-Volunteer (using same logic as render method)
+                  if (!isWWFVolunteer) {
+                    return (
+                      <div className="feature-card" style={{background: '#fff', borderRadius: 18, boxShadow: '0 4px 24px 0 rgba(0,0,0,0.06)', padding: '36px 32px', width: 340, display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1.5px solid #e0e7ef', transition: 'box-shadow 0.2s', minHeight: 370}}>
+                        <div style={{background: 'linear-gradient(135deg, #229ED9 0%, #0A5C8C 100%)', borderRadius: 14, padding: 14, marginBottom: 18, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                          <svg width="36" height="36" viewBox="0 0 240 240" fill="white">
+                            <circle cx="120" cy="120" r="120" fill="#229ED9"/>
+                            <path d="M180 72L160 168C158.5 174.5 154.5 176 149 173.5L122.5 154.5L110.5 165.5C109 167 107.5 168.5 105 168.5L107 141.5L157.5 92.5C159.5 90.5 157 89.5 154.5 91.5L93.5 134.5L67.5 126.5C61.5 124.5 61.5 120.5 69.5 117.5L170.5 78.5C176.5 76.5 181.5 80.5 180 72Z" fill="white"/>
+                          </svg>
+                        </div>
+                        <h3 style={{fontWeight: 700, fontSize: '1.25rem', marginBottom: 12, textAlign: 'center'}}>Telegram Settings</h3>
+                        <ul style={{padding: 0, margin: 0, listStyle: 'none', color: '#334155', fontSize: '1rem', marginBottom: 24, textAlign: 'left'}}>
+                          <li style={{marginBottom: 8, display: 'flex', alignItems: 'center'}}><span style={{color: '#229ED9', fontWeight: 700, marginRight: 8}}>&#8226;</span>Configure Telegram bot integration</li>
+                          <li style={{marginBottom: 8, display: 'flex', alignItems: 'center'}}><span style={{color: '#229ED9', fontWeight: 700, marginRight: 8}}>&#8226;</span>Set up notifications and alerts</li>
+                          <li style={{display: 'flex', alignItems: 'center'}}><span style={{color: '#229ED9', fontWeight: 700, marginRight: 8}}>&#8226;</span>Manage Telegram access and permissions</li>
+                        </ul>
+                        <Link to="/settings" className="feature-button" style={{background: '#229ED9', color: '#fff', borderRadius: 8, padding: '10px 22px', fontWeight: 600, fontSize: '1rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, marginTop: 'auto', boxShadow: '0 2px 8px 0 rgba(34,197,94,0.08)'}}>
+                          Telegram Settings
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 4L10.59 5.41L16.17 11H4V13H16.17L10.59 18.59L12 20L20 12L12 4Z"/>
+                          </svg>
+                        </Link>
+                      </div>
+                    );
                   }
                   return null;
                 })()}

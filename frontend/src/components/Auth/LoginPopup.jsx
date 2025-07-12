@@ -198,8 +198,6 @@ class LoginPopup extends Component {
       
       // Generate 8-digit PIN locally (frontend only)
       const pin = this.generateLocalMFAPin(8);
-      console.log('Generated 8-digit PIN locally:', pin);
-      
       // Generate QR code from the PIN
       const qrCodeDataUrl = await QRCode.toDataURL(pin, {
         width: 256,
