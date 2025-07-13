@@ -597,6 +597,19 @@ import React, { Component } from 'react';
       }, 100);
     }
 
+    // Helper method to check if current user is attending this event
+    isUserAttending = () => {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const currentUserName = user.name || user.username || user.Name;
+      const participants = this.props.event.Participants || [];
+      
+      return participants.some(participant => {
+        const participantName = participant.name || participant.Name || participant.username || participant;
+        return participantName && currentUserName && 
+          participantName.toLowerCase() === currentUserName.toLowerCase();
+      });
+    };
+
     render() {
       const {
         event,
@@ -618,12 +631,31 @@ import React, { Component } from 'react';
           {/* Header */}
           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px 0 16px'}}>
             {!editing && (
-              <div
-                className="upcoming-event-title clickable"
-                onClick={() => this.handleToggleExpand()}
-                style={{ cursor: 'pointer'}}
-              >
-                <span className="upcoming-event-label">Location:</span> {event.Location}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                <div
+                  className="upcoming-event-title clickable"
+                  onClick={() => this.handleToggleExpand()}
+                  style={{ cursor: 'pointer'}}
+                >
+                  <span className="upcoming-event-label">Location:</span> {event.Location}
+                </div>
+                {this.isUserAttending() && (
+                  <div style={{
+                    backgroundColor: '#22c55e',
+                    color: '#fff',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    <span>✓</span>
+                    <span>Attending</span>
+                  </div>
+                )}
               </div>
             )}
             {!editing && (userRole === 'WWF-Volunteer' ? !isWWFLed : true) && (

@@ -16,6 +16,19 @@ class PastEventCard extends Component {
     }));
   };
 
+  // Helper method to check if current user attended this event
+  isUserAttended = () => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const currentUserName = user.name || user.username || user.Name;
+    const participants = this.props.event.Participants || [];
+    
+    return participants.some(participant => {
+      const participantName = participant.name || participant.Name || participant.username || participant;
+      return participantName && currentUserName && 
+        participantName.toLowerCase() === currentUserName.toLowerCase();
+    });
+  };
+
   render() {
     const { event, cardStyle } = this.props;
     return (
@@ -44,11 +57,30 @@ class PastEventCard extends Component {
         onMouseLeave={e => e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.07)'}
       >
         <div style={{ width: '100%' }}>
-          <div
-            className="past-event-title"
-            onClick={this.handleLocationClick}
-          >
-            <span className="past-event-label">Location:</span> {event.Location}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <div
+              className="past-event-title"
+              onClick={this.handleLocationClick}
+            >
+              <span className="past-event-label">Location:</span> {event.Location}
+            </div>
+            {this.isUserAttended() && (
+              <div style={{
+                backgroundColor: '#3b82f6',
+                color: '#fff',
+                fontSize: '11px',
+                fontWeight: '600',
+                padding: '2px 8px',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                whiteSpace: 'nowrap'
+              }}>
+                <span>✓</span>
+                <span>Attended</span>
+              </div>
+            )}
           </div>
           <div className="past-event-meta">{event.Date}{event.Time ? ` • ${event.Time}` : ''}</div>
         </div>

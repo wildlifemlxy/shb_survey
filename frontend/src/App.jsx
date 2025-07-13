@@ -59,8 +59,8 @@ class App extends Component {
     };
     
     // Auto logout configuration - Extended timeout values
-    this.idleTimeout = 60 * 60 * 1000; // 30 minutes in milliseconds
-    this.warningTimeout = 30 * 60 * 1000; // 30s minute warning before logout
+    this.idleTimeout = 30 * 60 * 1000; // 30 minutes in milliseconds (1800000 ms)
+    this.warningTimeout = 1 * 60 * 1000; // 1 minute warning before logout
     this.idleTimer = null;
     this.warningTimer = null;
     this.lastActivity = Date.now();
@@ -109,14 +109,14 @@ class App extends Component {
       this.startIdleDetection();
     }
 
-    // Set up token refresh interval (check every 60 seconds)
+    // Set up token refresh interval (check every second for real-time countdown)
     this.tokenRefreshInterval = setInterval(() => {
       if (this.state.isAuthenticated) {
         const timeLeft = tokenService.getTimeUntilExpiry();
         this.setState({ tokenTimeLeft: timeLeft });
         
-        // Show warning if token expires in 60 seconds or less
-        if (timeLeft <= 60 && timeLeft > 0) {
+        // Show warning if token expires in 30 minutes (1800 seconds) or less
+        if (timeLeft <= 1800 && timeLeft > 0) {
           this.setState({ tokenExpiryWarning: true });
         } else {
           this.setState({ tokenExpiryWarning: false });
@@ -133,7 +133,7 @@ class App extends Component {
           this.handleLogout();
         }
       }
-    }, 60 * 1000); // Check every 60 seconds
+    }, 1000); // Check every second for real-time countdown
   }
 
   componentWillUnmount() {
@@ -723,21 +723,108 @@ class App extends Component {
         <div className="App">
           <ThemeToggle />
           
-          {/* Token Expiry Warning */}
+          {/* Enhanced Token Expiry Warning with Real-time Countdown */}
           {isAuthenticated && tokenExpiryWarning && tokenTimeLeft && (
             <div style={{
               position: 'fixed',
-              top: '10px',
-              right: '10px',
-              backgroundColor: '#ff9800',
-              color: 'white',
-              padding: '10px 15px',
-              borderRadius: '5px',
+              top: '20px',
+              right: '20px',
+              backgroundColor: tokenTimeLeft <= 300 ? '#dc2626' : tokenTimeLeft <= 900 ? '#f59e0b' : '#22c55e',
+              color: '#fff',
+              padding: '12px 16px',
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
               zIndex: 9999,
-              fontWeight: 'bold',
-              boxShadow: '0 2px 10px rgba(0,0,0,0.3)'
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              minWidth: '280px',
+              animation: tokenTimeLeft <= 100 ? 'sessionPulse 1s infinite' : 'none',
+              border: tokenTimeLeft <= 100 ? '2px solid #fca5a5' : 'none'
             }}>
-              ⚠️ Session expires in {tokenTimeLeft}s
+              <style>
+                {`
+                  @keyframes sessionPulse {
+                    0% { transform: scale(1); }
+                    50% { transform: scale(1.05); }
+                    100% { transform: scale(1); }
+                  }
+                `}
+              </style>
+              
+              {/* Warning icon */}
+              <div style={{ fontSize: '18px' }}>
+                {tokenTimeLeft <= 100 ? '⚠️' : tokenTimeLeft <= 900 ? '⏰' : '🔄'}
+              </div>
+              
+              {/* Message and countdown */}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: '600', fontSize: '14px', marginBottom: '2px' }}>
+                  {tokenTimeLeft <= 100 ? 'Session Expiring Soon' : 'Session Renewal Available'}
+                </div>
+                <div style={{ fontSize: '12px', opacity: 0.9 }}>
+                  {tokenTimeLeft >= 60 
+                    ? `Your session will expire in ${Math.floor(tokenTimeLeft / 60)} minute${Math.floor(tokenTimeLeft / 60) !== 1 ? 's' : ''} ${tokenTimeLeft % 60 > 0 ? `${tokenTimeLeft % 60}s` : ''}`
+                    : `Your session will expire in ${tokenTimeLeft} second${tokenTimeLeft !== 1 ? 's' : ''}`
+                  }
+                </div>
+              </div>
+              
+              {/* Action buttons */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => {
+                    // Extend session by refreshing token
+                    tokenService.refreshTokenIfNeeded().then(() => {
+                      this.setState({ tokenExpiryWarning: false });
+                    }).catch(error => {
+                      console.error('Token refresh failed:', error);
+                      this.handleLogout();
+                    });
+                  }}
+                  style={{
+                    backgroundColor: '#fff',
+                    color: tokenTimeLeft <= 300 ? '#dc2626' : tokenTimeLeft <= 900 ? '#f59e0b' : '#22c55e',
+                    border: 'none',
+                    padding: '6px 12px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#f3f4f6';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = '#fff';
+                  }}
+                >
+                  {tokenTimeLeft <= 300 ? 'Extend Session' : 'Renew Session'}
+                </button>
+                
+                <button
+                  onClick={() => this.setState({ tokenExpiryWarning: false })}
+                  style={{
+                    backgroundColor: 'transparent',
+                    color: '#fff',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    padding: '6px 8px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
             </div>
           )}
           
@@ -862,7 +949,7 @@ class App extends Component {
                   <Route 
                     path="/settings" 
                     element={ 
-                      <RoleProtectedRoute allowedRoles={['Admin', 'Researcher', 'User']} redirectTo="*">
+                      <RoleProtectedRoute excludedRoles={['WWF-Volunteer']} redirectTo="*">
                         <Settings botData={botData} isLoading={isLoading} />
                       </RoleProtectedRoute>
                     } 
