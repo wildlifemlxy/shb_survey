@@ -112,24 +112,39 @@ class App extends Component {
     // Set up token refresh interval (check every second for real-time countdown)
     this.tokenRefreshInterval = setInterval(() => {
       if (this.state.isAuthenticated) {
-        const timeLeft = tokenService.getTimeUntilExpiry();
+        // Get time left from token service
+        const serverTimeLeft = tokenService.getTimeUntilExpiry();
+        
+        // Calculate client-side session time left based on last activity
+        const clientSessionAge = Date.now() - this.lastActivity;
+        const clientTimeLeft = Math.max(0, Math.floor((this.idleTimeout - clientSessionAge) / 1000));
+        
+        // Use the minimum of server time and client session time
+        const timeLeft = Math.min(serverTimeLeft, clientTimeLeft);
+        
+        console.log('Session times - Server:', serverTimeLeft, 'Client:', clientTimeLeft, 'Using:', timeLeft);
+        
         this.setState({ tokenTimeLeft: timeLeft });
         
-        // Show warning if token expires in 30 minutes (1800 seconds) or less
-        if (timeLeft <= 1800 && timeLeft > 0) {
+        // Show warning if session expires in 5 minutes (300 seconds) or less
+        if (timeLeft <= 300 && timeLeft > 0) {
           this.setState({ tokenExpiryWarning: true });
         } else {
           this.setState({ tokenExpiryWarning: false });
         }
         
-        if (tokenService.isTokenValid()) {
+        // Try to refresh token if server token is expiring soon but client session is still valid
+        if (serverTimeLeft <= 60 && clientTimeLeft > 300) {
+          console.log('Attempting to refresh token - server expiring soon but client session valid');
           tokenService.refreshTokenIfNeeded().catch(error => {
             console.error('Token refresh failed:', error);
-            this.handleLogout();
+            // Don't logout immediately, let client session handle it
           });
-        } else {
-          // Token is invalid, logout immediately
-          console.log('Token invalid, logging out');
+        }
+        
+        // Only logout if both server token is invalid AND client session is expired
+        if (!tokenService.isTokenValid() && clientTimeLeft <= 0) {
+          console.log('Both token and client session invalid, logging out');
           this.handleLogout();
         }
       }
@@ -357,6 +372,7 @@ class App extends Component {
   resetIdleTimer = () => {
     this.lastActivity = Date.now();
     console.log('Resetting idle timer, last activity:', new Date(this.lastActivity));
+    console.log('Activity reset - new session time available:', (this.idleTimeout / 1000), 'seconds');
     
     // Clear existing timers
     if (this.idleTimer) {
@@ -388,7 +404,7 @@ class App extends Component {
         }
       }, 1000);
       
-      // Set warning timer (5 minutes before logout)
+      // Set warning timer (1 minute before logout)
       this.warningTimer = setTimeout(() => {
         console.log('Warning timer triggered');
         this.showIdleWarning();
@@ -729,7 +745,7 @@ class App extends Component {
               position: 'fixed',
               top: '20px',
               right: '20px',
-              backgroundColor: tokenTimeLeft <= 300 ? '#dc2626' : tokenTimeLeft <= 900 ? '#f59e0b' : '#22c55e',
+              backgroundColor: tokenTimeLeft <= 60 ? '#dc2626' : tokenTimeLeft <= 180 ? '#f59e0b' : '#22c55e',
               color: '#fff',
               padding: '12px 16px',
               borderRadius: '8px',
@@ -739,8 +755,8 @@ class App extends Component {
               alignItems: 'center',
               gap: '12px',
               minWidth: '280px',
-              animation: tokenTimeLeft <= 100 ? 'sessionPulse 1s infinite' : 'none',
-              border: tokenTimeLeft <= 100 ? '2px solid #fca5a5' : 'none'
+              animation: tokenTimeLeft <= 30 ? 'sessionPulse 1s infinite' : 'none',
+              border: tokenTimeLeft <= 30 ? '2px solid #fca5a5' : 'none'
             }}>
               <style>
                 {`
@@ -754,16 +770,16 @@ class App extends Component {
               
               {/* Warning icon */}
               <div style={{ fontSize: '18px' }}>
-                {tokenTimeLeft <= 100 ? '⚠️' : tokenTimeLeft <= 900 ? '⏰' : '🔄'}
+                {tokenTimeLeft <= 60 ? '⚠️' : tokenTimeLeft <= 180 ? '⏰' : '🔄'}
               </div>
               
               {/* Message and countdown */}
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: '600', fontSize: '14px', marginBottom: '2px' }}>
-                  {tokenTimeLeft <= 100 ? 'Session Expiring Soon' : 'Session Renewal Available'}
+                  {tokenTimeLeft <= 60 ? 'Session Expiring Soon' : 'Session Expiring'}
                 </div>
                 <div style={{ fontSize: '12px', opacity: 0.9 }}>
-                  {tokenTimeLeft >= 60 
+                  {tokenTimeLeft >= 60
                     ? `Your session will expire in ${Math.floor(tokenTimeLeft / 60)} minute${Math.floor(tokenTimeLeft / 60) !== 1 ? 's' : ''} ${tokenTimeLeft % 60 > 0 ? `${tokenTimeLeft % 60}s` : ''}`
                     : `Your session will expire in ${tokenTimeLeft} second${tokenTimeLeft !== 1 ? 's' : ''}`
                   }
@@ -774,17 +790,20 @@ class App extends Component {
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   onClick={() => {
-                    // Extend session by refreshing token
+                    // Extend session by refreshing token AND resetting client activity
+                    this.resetIdleTimer(); // Reset client-side activity timer
                     tokenService.refreshTokenIfNeeded().then(() => {
+                      console.log('Session extended successfully');
                       this.setState({ tokenExpiryWarning: false });
                     }).catch(error => {
                       console.error('Token refresh failed:', error);
-                      this.handleLogout();
+                      // Don't logout immediately, client session might still be valid
+                      console.log('Token refresh failed but continuing with client session');
                     });
                   }}
                   style={{
                     backgroundColor: '#fff',
-                    color: tokenTimeLeft <= 300 ? '#dc2626' : tokenTimeLeft <= 900 ? '#f59e0b' : '#22c55e',
+                    color: tokenTimeLeft <= 60 ? '#dc2626' : tokenTimeLeft <= 180 ? '#f59e0b' : '#22c55e',
                     border: 'none',
                     padding: '6px 12px',
                     borderRadius: '4px',
@@ -800,7 +819,7 @@ class App extends Component {
                     e.target.style.backgroundColor = '#fff';
                   }}
                 >
-                  {tokenTimeLeft <= 300 ? 'Extend Session' : 'Renew Session'}
+                  {tokenTimeLeft <= 60 ? 'Extend Session' : 'Renew Session'}
                 </button>
                 
                 <button

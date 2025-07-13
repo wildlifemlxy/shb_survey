@@ -1,7 +1,7 @@
 import React from 'react';
 import axios from 'axios';
 import tokenService from '../../utils/tokenService';
-import { getBotInfo } from '../../data/botData';
+import { getBotInfo, createBot } from '../../data/botData';
 import PopupModal from './PopupModal';
 
 const BASE_URL =
@@ -32,6 +32,7 @@ class CreateTelegramBotTab extends React.Component {
     this.setState({ status: 'loading' });
     
     const result = await getBotInfo(token);
+    console.log('Bot info result:', result);
     
     if (result.success) {
       this.setState({
@@ -59,34 +60,13 @@ class CreateTelegramBotTab extends React.Component {
       return;
     }
     this.setState({ status: 'loading', validation: {} });
-    try {
-      // Check if user is authenticated
-      if (!tokenService.isTokenValid()) {
-        this.setState({ status: 'error' });
-        return;
-      }
-
-      // Encrypt the request data
-      const requestData = await tokenService.encryptData({
-        purpose: 'createBot',
-        name,
-        description: desc,
-        token
-      });
-      
-      // Make authenticated request
-      const result = await tokenService.axiosPost(`${BASE_URL}/telegram`, {
-        purpose: 'createBot',
-        data: requestData
-      });
-      
-      if (result.data && result.data.success) {
-        this.setState({ status: 'success' });
-      } else {
-        this.setState({ status: 'error' });
-      }
-    } catch (error) {
-      this.setState({ status: 'error' });
+    
+    const result = await createBot(name, desc, token);
+    
+    if (result.success) {
+      this.setState({ status: 'success' });
+    } else {
+      this.setState({ status: 'error', error: result.error });
     }
   };
 

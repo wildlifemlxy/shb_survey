@@ -61,24 +61,36 @@ class TokenService {
       console.log('Token expires at:', payload.exp);
       console.log('Time until expiry:', payload.exp - now, 'seconds');
       
-      // Check if token is expired (with 5-second buffer for clock skew)
-      if (payload.exp <= (now + 5)) {
-        console.log('Token expired or about to expire');
-        this.clearSession();
-        return false;
-      }
-
-      // Check if session is too old (additional security)
+      // MODIFIED: Check session age instead of server token expiry for better UX
       const tokenTimestamp = localStorage.getItem('tokenTimestamp');
       if (tokenTimestamp) {
         const tokenAge = Date.now() - parseInt(tokenTimestamp);
-        const maxAge = 30 * 60 * 1000; // 30 minutes max session (was 2 minutes)
+        const maxAge = 30 * 60 * 1000; // 30 minutes max session
         
         console.log('Token age:', tokenAge / 1000, 'seconds');
         console.log('Max age allowed:', maxAge / 1000, 'seconds');
         
         if (tokenAge > maxAge) {
-          console.log('Session too old, clearing');
+          console.log('Session too old (30 minutes), clearing');
+          this.clearSession();
+          return false;
+        }
+      }
+      
+      // Only check server token expiry if it's extremely short (less than 30 seconds)
+      // This prevents immediate logout due to short server tokens
+      if (payload.exp <= (now + 5)) {
+        const serverTimeLeft = payload.exp - now;
+        console.log('Server token expiring in:', serverTimeLeft, 'seconds');
+        
+        // If server token is expiring but we're within our 30-minute session, try to refresh
+        const tokenAge = tokenTimestamp ? (Date.now() - parseInt(tokenTimestamp)) / 1000 : 0;
+        if (tokenAge < 1800) { // Less than 30 minutes old
+          console.log('Server token expiring but session is still valid, will attempt refresh');
+          // Don't clear session here, let the refresh mechanism handle it
+          return true;
+        } else {
+          console.log('Both server token and session expired');
           this.clearSession();
           return false;
         }
@@ -289,6 +301,24 @@ class TokenService {
     const payload = this.getTokenPayload();
     if (!payload) return 0;
 
+    // Calculate session-based expiry (30 minutes from token timestamp)
+    const tokenTimestamp = localStorage.getItem('tokenTimestamp');
+    if (tokenTimestamp) {
+      const tokenAge = Date.now() - parseInt(tokenTimestamp);
+      const maxAge = 30 * 60 * 1000; // 30 minutes
+      const timeLeft = Math.max(0, Math.floor((maxAge - tokenAge) / 1000));
+      
+      // Also check server token expiry for comparison
+      const now = Date.now() / 1000;
+      const serverTimeLeft = Math.max(0, Math.floor(payload.exp - now));
+      
+      console.log('Time calculations - Session:', timeLeft, 'seconds, Server:', serverTimeLeft, 'seconds');
+      
+      // Return session time (30 minutes) instead of server token time
+      return timeLeft;
+    }
+
+    // Fallback to server token expiry if no timestamp
     const now = Date.now() / 1000;
     const timeLeft = payload.exp - now;
     return Math.max(0, Math.floor(timeLeft));
@@ -305,10 +335,24 @@ class TokenService {
     if (!payload) return false;
 
     const now = Date.now() / 1000;
-    const timeUntilExpiry = payload.exp - now;
+    const serverTimeUntilExpiry = payload.exp - now;
     
-    // Refresh if less than 30 seconds remaining
-    if (timeUntilExpiry < 30) {
+    // Check if our 30-minute session is still valid
+    const tokenTimestamp = localStorage.getItem('tokenTimestamp');
+    if (tokenTimestamp) {
+      const tokenAge = Date.now() - parseInt(tokenTimestamp);
+      const maxAge = 30 * 60 * 1000; // 30 minutes
+      
+      if (tokenAge > maxAge) {
+        console.log('30-minute session expired, cannot refresh');
+        return false;
+      }
+    }
+    
+    // Refresh if server token expires in less than 2 minutes (instead of 30 seconds)
+    // This gives us more time to refresh short-lived server tokens
+    if (serverTimeUntilExpiry < 120) {
+      console.log('Server token expiring in', serverTimeUntilExpiry, 'seconds, attempting refresh');
       try {
         const response = await this.makeAuthenticatedRequest('/api/auth/refresh', {
           method: 'POST'
@@ -316,7 +360,10 @@ class TokenService {
         
         if (response.status === 200) {
           const refreshData = response.data;
+          // Update timestamp to extend our 30-minute session
+          localStorage.setItem('tokenTimestamp', Date.now().toString());
           this.initializeSession(refreshData);
+          console.log('Token refreshed successfully, session extended');
           return true;
         }
       } catch (error) {
@@ -608,6 +655,121 @@ class TokenService {
       };
     } catch (error) {
       console.error('Failed to initialize encryption session:', error);
+      throw error;
+    }
+  }
+
+  // Decrypt bot response data (for encrypted API responses)
+  async decryptBotResponse(encryptedResponseData) {
+    try {
+      console.log('Decrypting bot response data12:', encryptedResponseData);
+      
+      if (!this.privateKey) {
+        throw new Error('Private key not available for decryption');
+      }
+
+      // Handle the structure from backend encryption middleware
+      let encryptedData, encryptedAESKey, iv;
+      
+      if (encryptedResponseData.encryptedData && encryptedResponseData.encryptedAESKey && encryptedResponseData.iv) {
+        // Direct structure from middleware
+        encryptedData = encryptedResponseData.encryptedData;
+        encryptedAESKey = encryptedResponseData.encryptedAESKey;
+        iv = encryptedResponseData.iv;
+      } else {
+        throw new Error('Invalid encrypted response structure');
+      }
+      
+      console.log('Extracted bot response components for decryption:', {
+        hasEncryptedData: !!encryptedData,
+        hasEncryptedAESKey: !!encryptedAESKey,
+        hasIv: !!iv,
+        encryptedDataLength: encryptedData ? encryptedData.length : 0,
+        encryptedAESKeyLength: encryptedAESKey ? encryptedAESKey.length : 0,
+        ivLength: iv ? iv.length : 0
+      });
+      
+      // Validate base64 strings
+      function isValidBase64(str) {
+        try {
+          return btoa(atob(str)) === str;
+        } catch (err) {
+          return false;
+        }
+      }
+
+      if (!isValidBase64(encryptedAESKey)) {
+        throw new Error('encryptedAESKey is not valid base64');
+      }
+      if (!isValidBase64(encryptedData)) {
+        throw new Error('encryptedData is not valid base64');
+      }
+      if (!isValidBase64(iv)) {
+        throw new Error('iv is not valid base64');
+      }
+
+      // Convert base64 to ArrayBuffer
+      const encryptedKeyBuffer = Uint8Array.from(atob(encryptedAESKey), c => c.charCodeAt(0));
+      const encryptedDataWithTagBuffer = Uint8Array.from(atob(encryptedData), c => c.charCodeAt(0));
+      const ivBuffer = Uint8Array.from(atob(iv), c => c.charCodeAt(0));
+
+      console.log('Bot response buffer sizes:', {
+        encryptedKeyBuffer: encryptedKeyBuffer.length,
+        encryptedDataWithTagBuffer: encryptedDataWithTagBuffer.length,
+        ivBuffer: ivBuffer.length
+      });
+
+      // For AES-GCM, separate encrypted data and auth tag
+      const authTagLength = 16;
+      const encryptedDataBuffer = encryptedDataWithTagBuffer.slice(0, -authTagLength);
+      const authTag = encryptedDataWithTagBuffer.slice(-authTagLength);
+
+      // Decrypt AES key using RSA private key
+      console.log('Decrypting AES key for bot response...');
+      const aesKeyBuffer = await crypto.subtle.decrypt(
+        {
+          name: "RSA-OAEP",
+        },
+        this.privateKey,
+        encryptedKeyBuffer
+      );
+
+      // Import AES key
+      const aesKey = await crypto.subtle.importKey(
+        "raw",
+        aesKeyBuffer,
+        {
+          name: "AES-GCM",
+        },
+        false,
+        ["decrypt"]
+      );
+
+      // Prepare data for AES-GCM decryption
+      const dataForDecryption = new Uint8Array(encryptedDataBuffer.length + authTag.length);
+      dataForDecryption.set(encryptedDataBuffer);
+      dataForDecryption.set(authTag, encryptedDataBuffer.length);
+
+      // Decrypt data using AES-GCM
+      console.log('Decrypting bot response data with AES-GCM...');
+      const decryptedBuffer = await crypto.subtle.decrypt(
+        {
+          name: "AES-GCM",
+          iv: ivBuffer,
+        },
+        aesKey,
+        dataForDecryption
+      );
+
+      // Convert decrypted data back to string and parse JSON
+      const decryptedString = new TextDecoder().decode(decryptedBuffer);
+      console.log('Decrypted bot response string (first 200 chars):', decryptedString.substring(0, 200));
+      
+      const result = JSON.parse(decryptedString);
+      console.log('Successfully parsed bot response JSON');
+      return result;
+    } catch (error) {
+      console.error('Bot response decryption failed:', error);
       throw error;
     }
   }

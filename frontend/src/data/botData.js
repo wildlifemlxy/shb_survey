@@ -49,12 +49,9 @@ export async function fetchBotData() {
         const encryptedData = await tokenService.encryptData(requestPayload);
         console.log('Encrypted request data:', encryptedData);
         
-        const response = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/telegram`, {
-          method: 'POST',
-          body: JSON.stringify({ 
-            ...encryptedData, 
-            purpose: 'retrieve' 
-          })
+        const response = await tokenService.axiosPost(`${BASE_URL}/telegram`, { 
+          ...encryptedData, 
+          purpose: 'retrieve' 
         });
         console.log("Response from backend (encrypted with session keys):", response.data);
         
@@ -64,8 +61,12 @@ export async function fetchBotData() {
           if (response.data.encryptedData) {
             console.log('Decrypting bot response with session private key...');
             const decryptedData = await tokenService.decryptBotResponse(response.data);
-            console.log('Decrypted bot data:', decryptedData.result);
-            return decryptedData.result.data || [];
+            console.log('Decrypted bot data:', decryptedData);
+            if(decryptedData.success)
+            {
+              return decryptedData.data || [];
+            }
+            return decryptedData || [];
           } else {
             // Fallback to unencrypted response
             return response.data.data || [];
@@ -101,7 +102,8 @@ export async function getBotInfo(token) {
     }
 
     console.log('User is authenticated, attempting to get bot info with encryption...');
-    
+    console.log("TokenService:", tokenService.isTokenValid(), tokenService.getPublicKey());
+
     try {
       // Initialize encryption session with unique keys if not already done
       if (!await tokenService.getPublicKey()) {
@@ -109,12 +111,14 @@ export async function getBotInfo(token) {
         await tokenService.initializeEncryptionSession();
       }
 
-      // Encrypt the request data
+      // Encrypt the request data with client public key included
+      const clientPublicKey = await tokenService.getPublicKey();
       const requestData = await tokenService.encryptData({
-        token
+        token,
+        clientPublicKey: clientPublicKey
       });
       
-      console.log('Encrypted bot info request data:', requestData);
+      console.log('Encrypted bot info request data with client public key:', requestData);
       
       // Make authenticated request
       const response = await tokenService.axiosPost(`${BASE_URL}/telegram`, {
@@ -133,17 +137,18 @@ export async function getBotInfo(token) {
           
           // Check if response is encrypted
           if (response.data.encryptedData) {
-            console.log('Decrypting bot info response...');
             const decryptedResponse = await tokenService.decryptBotResponse(response.data);
             responseData = decryptedResponse;
+            console.log('Decrypted bot info response:', responseData);
           }
           
           // Extract bot data from the response
           const botData = responseData.data || responseData.result;
           console.log('Bot data extracted:', botData);
           
-          if (botData && botData.ok && botData.result) {
-            let { username, first_name } = botData.result;
+          if (botData) {
+            let { username, first_name } = botData;
+            console.log('Bot username:', username, 'First name:', first_name);
             
             // Format username: replace _ with space and capitalize each word
             if (username) {
@@ -159,8 +164,8 @@ export async function getBotInfo(token) {
               data: {
                 name: username || '',
                 desc: first_name || '',
-                username: botData.result.username,
-                first_name: botData.result.first_name
+                username: botData.username,
+                first_name: botData.first_name
               }
             };
           } else {
@@ -180,5 +185,158 @@ export async function getBotInfo(token) {
   } catch (error) {
     console.error('Error getting bot info:', error);
     return { success: false, error: 'Failed to get bot info' };
+  }
+}
+
+// Create a new bot (requires authentication)
+export async function createBot(name, description, token) {
+  console.log("Creating new bot:");
+  try {
+    if (!name || !description || !token) {
+      return { success: false, error: 'Name, description, and token are required' };
+    }
+
+    // Check if user is authenticated
+    if (!tokenService.isTokenValid()) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    console.log('User is authenticated, attempting to create bot with encryption...');
+    
+    try {
+      // Initialize encryption session with unique keys if not already done
+      if (!await tokenService.getPublicKey()) {
+        console.log('Initializing encryption session with unique RSA keys...');
+        await tokenService.initializeEncryptionSession();
+      }
+
+      // Encrypt the request data with client public key included
+      const clientPublicKey = await tokenService.getPublicKey();
+      const requestData = await tokenService.encryptData({
+        name,
+        description,
+        token,
+        clientPublicKey: clientPublicKey
+      });
+      
+      console.log('Encrypted bot creation request data with client public key:', requestData);
+      
+      // Make authenticated request
+      const response = await tokenService.axiosPost(`${BASE_URL}/telegram`, {
+        purpose: 'createBot',
+        data: requestData
+      });
+      
+      console.log('Bot creation response received:', response);
+      
+      if (response && response.data) {
+        console.log('Response data:', response.data);
+        
+        // Check if response is successful
+        if (response.data.success) {
+          let responseData = response.data;
+          
+          // Check if response is encrypted
+          if (response.data.encryptedData) {
+            const decryptedResponse = await tokenService.decryptBotResponse(response.data);
+            responseData = decryptedResponse;
+            console.log('Decrypted bot creation response:', responseData);
+          }
+          
+          console.log('Bot created successfully:', responseData);
+          return { success: true, data: responseData };
+        } else {
+          return { success: false, error: response.data.error || 'Failed to create bot' };
+        }
+      } else {
+        throw new Error('No response received from server');
+      }
+    } catch (encryptionError) {
+      console.error('Encrypted bot creation request failed:', encryptionError);
+      return { success: false, error: 'Failed to create bot - encryption error' };
+    }
+    
+  } catch (error) {
+    console.error('Error creating bot:', error);
+    return { success: false, error: 'Failed to create bot' };
+  }
+}
+
+// Get bot groups from Telegram API using bot token (requires authentication)
+export async function getBotGroups(token) {
+  console.log("Getting bot groups from Telegram API for token:");
+  try {
+    if (!token) {
+      return { success: false, error: 'Token is required' };
+    }
+
+    // Check if user is authenticated
+    if (!tokenService.isTokenValid()) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    console.log('User is authenticated, attempting to get bot groups with encryption...');
+    console.log("TokenService:", tokenService.isTokenValid(), tokenService.getPublicKey());
+
+    try {
+      // Initialize encryption session with unique keys if not already done
+      if (!await tokenService.getPublicKey()) {
+        console.log('Initializing encryption session with unique RSA keys...');
+        await tokenService.initializeEncryptionSession();
+      }
+
+      // Encrypt the request data with client public key included
+      const clientPublicKey = await tokenService.getPublicKey();
+      const requestData = await tokenService.encryptData({
+        token,
+        clientPublicKey: clientPublicKey
+      });
+      
+      console.log('Encrypted bot groups request data with client public key:', requestData);
+      
+      // Make authenticated request
+      const response = await tokenService.axiosPost(`${BASE_URL}/telegram`, {
+        purpose: 'getBotGroups',
+        data: requestData
+      });
+      
+      console.log('Bot groups response received:', response);
+      
+      if (response && response.data) {
+        console.log('Response data:', response.data);
+        
+        // Check if response is successful
+        if (response.data.success) {
+          let responseData = response.data;
+          
+          // Check if response is encrypted
+          if (response.data.encryptedData) {
+            const decryptedResponse = await tokenService.decryptBotResponse(response.data);
+            responseData = decryptedResponse;
+            console.log('Decrypted bot groups response:', responseData);
+          }
+          
+          // Extract groups data from the response
+          const groupsData = responseData.groups || [];
+          console.log('Bot groups extracted:', groupsData);
+          
+          return {
+            success: true,
+            groups: groupsData
+          };
+        } else {
+          return { success: false, error: response.data.error || 'Failed to get bot groups from server' };
+        }
+      } else {
+        throw new Error('No response received from server');
+      }
+    } catch (encryptionError) {
+      console.error('Encrypted bot groups request failed:', encryptionError);
+      return { success: false, error: 'Failed to get bot groups - encryption error' };
+    }
+    
+  } catch (error) {
+    console.error('Error getting bot groups:', error);
+    return { success: false, error: 'Failed to get bot groups' };
   }
 }

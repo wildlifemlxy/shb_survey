@@ -399,8 +399,8 @@ class BotChatTabs extends React.Component {
                 ) : null}
               </div>
 
-              {/* Floating Date Badge - positioned to overlay messages */}
-              {activeTab === 'Chats' && (
+              {/* Floating Date Badge - positioned to overlay messages, only show if there are messages */}
+              {activeTab === 'Chats' && chatMessages && chatMessages.length > 0 && (
                 <div className="telegram-floating-date-badge visible">
                   {currentVisibleDate || 'Saturday, 28/06/2025'}
                 </div>

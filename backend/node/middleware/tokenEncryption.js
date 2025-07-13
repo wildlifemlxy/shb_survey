@@ -779,6 +779,50 @@ class TokenEncryptionMiddleware {
       });
     }
   }
+
+  // Decrypt bot response data (for frontend tokenService compatibility)
+  decryptBotResponse(encryptedResponseData) {
+    try {
+      console.log('Decrypting bot response data:', encryptedResponseData);
+      
+      // Handle the structure that comes from encryptResponseDataMiddleware
+      let encryptedData, encryptedAESKey, iv;
+      
+      if (encryptedResponseData.encryptedData && encryptedResponseData.encryptedAESKey && encryptedResponseData.iv) {
+        // Direct structure from middleware
+        encryptedData = encryptedResponseData.encryptedData;
+        encryptedAESKey = encryptedResponseData.encryptedAESKey;
+        iv = encryptedResponseData.iv;
+      } else {
+        throw new Error('Invalid encrypted response structure');
+      }
+      
+      console.log('Extracted components for decryption:', {
+        hasEncryptedData: !!encryptedData,
+        hasEncryptedAESKey: !!encryptedAESKey,
+        hasIv: !!iv
+      });
+      
+      // This method is intended for frontend use, but we're providing the structure
+      // The actual decryption should happen on the frontend with the private key
+      // For server-side use, we would need the private key
+      
+      // Return the structured data for frontend processing
+      return {
+        success: true,
+        encryptedData: encryptedData,
+        encryptedAESKey: encryptedAESKey,
+        iv: iv,
+        algorithm: 'aes-256-gcm'
+      };
+    } catch (error) {
+      console.error('Bot response decryption error:', error);
+      return {
+        success: false,
+        error: 'Failed to decrypt bot response: ' + error.message
+      };
+    }
+  }
 }
 
 module.exports = new TokenEncryptionMiddleware();
