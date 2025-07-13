@@ -1259,13 +1259,21 @@ class Home extends React.Component {
                               width: '48px',
                               height: '48px',
                               borderRadius: '50%',
-                              backgroundColor: '#e5e7eb',
+                              backgroundColor: this.state.uploadForm.type === 'pictures' ? '#fef3f2' : '#f0f9ff',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                               fontSize: '24px'
                             }}>
-                              �
+                              {this.state.uploadForm.type === 'pictures' ? (
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="#ef4444">
+                                  <path d="M21,19V5C21,3.89 20.1,3 19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19M19,19H5V5H19M13.96,12.29L11.21,15.83L9.25,13.47L6.5,17H17.5L13.96,12.29Z"/>
+                                </svg>
+                              ) : (
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="#3b82f6">
+                                  <path d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z"/>
+                                </svg>
+                              )}
                             </div>
                             <div>
                               <p style={{ margin: 0, fontWeight: '600', color: '#374151' }}>
@@ -1357,179 +1365,286 @@ class Home extends React.Component {
                                 border: '1px solid #e5e7eb',
                                 width: '100%'
                               }}>
-                                {this.state.uploadForm.files.map((file, index) => (
-                                  <div key={index} className="upload-preview-item" style={{
-                                    position: 'relative',
-                                    width: '100%',
-                                    height: '120px',
-                                    borderRadius: '8px',
-                                    overflow: 'hidden',
-                                    backgroundColor: '#ffffff',
-                                    border: '1px solid #d1d5db',
-                                    transition: 'all 0.2s ease'
-                                  }}>
-                                    {/* Remove button */}
-                                    <button
-                                      onClick={() => this.removeFile(index)}
-                                      style={{
-                                        position: 'absolute',
-                                        top: '4px',
-                                        right: '4px',
-                                        width: '20px',
-                                        height: '20px',
-                                        borderRadius: '50%',
-                                        backgroundColor: 'rgba(239, 68, 68, 0.9)',
-                                        color: 'white',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: '12px',
-                                        fontWeight: 'bold',
-                                        zIndex: 10,
-                                        transition: 'all 0.2s ease'
-                                      }}
-                                    >
-                                      ×
-                                    </button>
-                                    
-                                    {/* Media preview - clickable for fullscreen */}
-                                    <div 
-                                      style={{
-                                        width: '100%',
-                                        height: '100%',
-                                        cursor: 'pointer',
-                                        position: 'relative'
-                                      }}
-                                      onClick={(e) => {
-                                        // Don't trigger fullscreen if clicking remove button
-                                        if (e.target.closest('button')) return;
-                                        this.openPreviewFullscreen(file, index);
-                                      }}
-                                    >
-                                      {file.type.startsWith('image/') ? (
-                                        <>
-                                          <img
-                                            src={URL.createObjectURL(file)}
-                                            alt={`Preview ${index + 1}`}
-                                            style={{
-                                              width: '100%',
-                                              height: '100%',
-                                              objectFit: 'cover',
-                                              transition: 'transform 0.2s ease'
-                                            }}
-                                            onLoad={(e) => {
-                                              setTimeout(() => URL.revokeObjectURL(e.target.src), 1000);
-                                            }}
-                                            onMouseEnter={(e) => {
-                                              e.target.style.transform = 'scale(1.05)';
-                                            }}
-                                            onMouseLeave={(e) => {
-                                              e.target.style.transform = 'scale(1)';
-                                            }}
-                                          />
-                                          {/* Fullscreen icon overlay */}
-                                          <div style={{
-                                            position: 'absolute',
-                                            top: '50%',
-                                            left: '50%',
-                                            transform: 'translate(-50%, -50%)',
-                                            background: 'rgba(0, 0, 0, 0.6)',
-                                            borderRadius: '50%',
-                                            width: '32px',
-                                            height: '32px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            opacity: '0',
-                                            transition: 'opacity 0.2s ease',
-                                            pointerEvents: 'none',
-                                            zIndex: 2
-                                          }}
-                                          onMouseEnter={(e) => {
-                                            e.target.style.opacity = '1';
-                                          }}
-                                          onMouseLeave={(e) => {
-                                            e.target.style.opacity = '0';
-                                          }}>
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-                                              <path d="M7,14H5V19H10V17H7V14M12,10A2,2 0 0,0 10,12A2,2 0 0,0 12,14A2,2 0 0,0 14,12A2,2 0 0,0 12,10M7,10H10V7H5V12H7V10M17,7V10H19V12H17V14H19V19H14V17H17V14H19V12H17V10H19V7H17Z"/>
-                                            </svg>
-                                          </div>
-                                        </>
-                                      ) : file.type.startsWith('video/') ? (
-                                        <div className="upload-preview-video-container" style={{ position: 'relative' }}>
-                                          <video
-                                            src={URL.createObjectURL(file)}
-                                            className="upload-preview-video"
-                                            preload="metadata"
-                                            muted
-                                            style={{
-                                              width: '100%',
-                                              height: '100%',
-                                              objectFit: 'cover',
-                                              pointerEvents: 'none'
-                                            }}
-                                            onLoadedData={(e) => {
-                                              setTimeout(() => URL.revokeObjectURL(e.target.src), 1000);
-                                            }}
-                                          />
-                                          {/* Video play/fullscreen overlay */}
-                                          <div style={{
-                                            position: 'absolute',
-                                            top: '0',
-                                            left: '0',
-                                            right: '0',
-                                            bottom: '0',
-                                            background: 'rgba(0, 0, 0, 0.3)',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            opacity: '0',
-                                            transition: 'opacity 0.2s ease',
-                                            pointerEvents: 'none',
-                                            zIndex: 2
-                                          }}
-                                          onMouseEnter={(e) => {
-                                            e.target.style.opacity = '1';
-                                          }}
-                                          onMouseLeave={(e) => {
-                                            e.target.style.opacity = '0';
-                                          }}>
-                                            <div style={{
-                                              background: 'rgba(255, 255, 255, 0.9)',
-                                              borderRadius: '50%',
-                                              width: '40px',
-                                              height: '40px',
-                                              display: 'flex',
-                                              alignItems: 'center',
-                                              justifyContent: 'center',
-                                              boxShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
-                                            }}>
-                                              <svg width="20" height="20" viewBox="0 0 24 24" fill="#22c55e">
-                                                <path d="M8,5.14V19.14L19,12.14L8,5.14Z"/>
-                                              </svg>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <div style={{
-                                          width: '100%',
-                                          height: '100%',
-                                          backgroundColor: '#e5e7eb',
+                                {this.state.uploadForm.files.map((file, index) => {
+                                  // Create a stable object URL for each file to prevent re-rendering
+                                  const fileKey = `${file.name}_${file.size}_${file.lastModified}`;
+                                  
+                                  return (
+                                    <div key={fileKey} className="upload-preview-item" style={{
+                                      position: 'relative',
+                                      width: '100%',
+                                      height: '120px',
+                                      borderRadius: '8px',
+                                      overflow: 'hidden',
+                                      backgroundColor: '#ffffff',
+                                      border: '1px solid #d1d5db',
+                                      transition: 'all 0.2s ease'
+                                    }}>
+                                      {/* Remove button */}
+                                      <button
+                                        onClick={() => this.removeFile(index)}
+                                        style={{
+                                          position: 'absolute',
+                                          top: '6px',
+                                          right: '6px',
+                                          width: '22px',
+                                          height: '22px',
+                                          borderRadius: '50%',
+                                          backgroundColor: 'transparent',
+                                          color: '#ef4444',
+                                          border: 'none',
+                                          cursor: 'pointer',
                                           display: 'flex',
                                           alignItems: 'center',
                                           justifyContent: 'center',
-                                          color: '#6b7280',
-                                          fontSize: '1.5rem'
-                                        }}>
-                                          📄
-                                        </div>
-                                      )}
+                                          fontSize: '16px',
+                                          fontWeight: 'bold',
+                                          zIndex: 10,
+                                          transition: 'all 0.2s ease',
+                                          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          e.target.style.color = '#dc2626';
+                                          e.target.style.transform = 'scale(1.1)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.target.style.color = '#ef4444';
+                                          e.target.style.transform = 'scale(1)';
+                                        }}
+                                      >
+                                        ×
+                                      </button>
+                                      
+                                      {/* Media preview - clickable for fullscreen */}
+                                      <div 
+                                        style={{
+                                          width: '100%',
+                                          height: '100%',
+                                          cursor: 'pointer',
+                                          position: 'relative'
+                                        }}
+                                        onClick={(e) => {
+                                          // Don't trigger fullscreen if clicking remove button
+                                          if (e.target.closest('button')) return;
+                                          this.openPreviewFullscreen(file, index);
+                                        }}
+                                      >
+                                        {file.type.startsWith('image/') ? (
+                                          <>
+                                            <img
+                                              src={URL.createObjectURL(file)}
+                                              alt={`Preview ${index + 1}`}
+                                              style={{
+                                                width: '100%',
+                                                height: '100%',
+                                                objectFit: 'cover',
+                                                transition: 'transform 0.2s ease'
+                                              }}
+                                              onLoad={(e) => {
+                                                // Don't revoke URL immediately to prevent blinking
+                                                setTimeout(() => {
+                                                  if (e.target.src && e.target.src.startsWith('blob:')) {
+                                                    URL.revokeObjectURL(e.target.src);
+                                                  }
+                                                }, 30000); // Keep for 30 seconds
+                                              }}
+                                              onMouseEnter={(e) => {
+                                                e.target.style.transform = 'scale(1.05)';
+                                              }}
+                                              onMouseLeave={(e) => {
+                                                e.target.style.transform = 'scale(1)';
+                                              }}
+                                            />
+                                            {/* Fullscreen icon overlay */}
+                                            <div style={{
+                                              position: 'absolute',
+                                              top: '50%',
+                                              left: '50%',
+                                              transform: 'translate(-50%, -50%)',
+                                              background: 'rgba(0, 0, 0, 0.6)',
+                                              borderRadius: '50%',
+                                              width: '32px',
+                                              height: '32px',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              opacity: '0',
+                                              transition: 'opacity 0.2s ease',
+                                              pointerEvents: 'none',
+                                              zIndex: 2
+                                            }}
+                                            onMouseEnter={(e) => {
+                                              e.target.style.opacity = '1';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                              e.target.style.opacity = '0';
+                                            }}>
+                                              <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                                                <path d="M7,14H5V19H10V17H7V14M12,10A2,2 0 0,0 10,12A2,2 0 0,0 12,14A2,2 0 0,0 14,12A2,2 0 0,0 12,10M7,10H10V7H5V12H7V10M17,7V10H19V12H17V14H19V19H14V17H17V14H19V12H17V10H19V7H17Z"/>
+                                              </svg>
+                                            </div>
+                                          </>
+                                        ) : file.type.startsWith('video/') ? (
+                                          <div className="upload-preview-video-container" style={{ 
+                                            position: 'relative',
+                                            width: '100%',
+                                            height: '100%',
+                                            backgroundColor: '#000'
+                                          }}>
+                                            <video
+                                              key={fileKey} // Prevent re-mounting
+                                              preload="metadata" // Changed back to metadata for better thumbnail generation
+                                              muted
+                                              playsInline
+                                              style={{
+                                                width: '100%',
+                                                height: '100%',
+                                                objectFit: 'cover',
+                                                pointerEvents: 'none',
+                                                backgroundColor: '#000'
+                                              }}
+                                              onLoadedMetadata={(e) => {
+                                                console.log('Video metadata loaded for', file.name);
+                                                // Seek to 1 second for a good thumbnail
+                                                e.target.currentTime = Math.min(1, e.target.duration * 0.1);
+                                              }}
+                                              onSeeked={(e) => {
+                                                console.log('Video seeked to', e.target.currentTime);
+                                                // Immediately try to draw to canvas
+                                                const canvas = e.target.parentNode.querySelector('canvas');
+                                                if (canvas && e.target.readyState >= 2) {
+                                                  const ctx = canvas.getContext('2d');
+                                                  try {
+                                                    ctx.drawImage(e.target, 0, 0, 120, 120);
+                                                    // Hide video and show canvas
+                                                    e.target.style.opacity = '0';
+                                                    canvas.style.opacity = '1';
+                                                    canvas.style.zIndex = '1';
+                                                  } catch (err) {
+                                                    console.warn('Canvas drawing failed:', err);
+                                                    // Keep video visible if canvas fails
+                                                    e.target.style.opacity = '1';
+                                                  }
+                                                }
+                                                e.target.pause();
+                                              }}
+                                              onCanPlay={(e) => {
+                                                console.log('Video can play');
+                                                if (e.target.currentTime === 0) {
+                                                  e.target.currentTime = 0.5;
+                                                }
+                                              }}
+                                              onLoadedData={(e) => {
+                                                console.log('Video data loaded');
+                                                if (e.target.currentTime === 0) {
+                                                  e.target.currentTime = 0.1;
+                                                }
+                                                setTimeout(() => {
+                                                  if (e.target.src && e.target.src.startsWith('blob:')) {
+                                                    URL.revokeObjectURL(e.target.src);
+                                                  }
+                                                }, 15000);
+                                              }}
+                                              onError={(e) => {
+                                                console.error('Video error:', e);
+                                              }}
+                                            >
+                                              <source src={URL.createObjectURL(file)} type={file.type} />
+                                              Your browser does not support the video tag.
+                                            </video>
+                                            
+                                            {/* Simplified Canvas for video thumbnail */}
+                                            <canvas 
+                                              ref={(canvas) => {
+                                                if (canvas && !canvas.hasAttribute('data-setup')) {
+                                                  canvas.setAttribute('data-setup', 'true');
+                                                  canvas.width = 120;
+                                                  canvas.height = 120;
+                                                  
+                                                  const ctx = canvas.getContext('2d');
+                                                  
+                                                  // Show placeholder initially
+                                                  ctx.fillStyle = '#1f2937';
+                                                  ctx.fillRect(0, 0, 120, 120);
+                                                  
+                                                  // Add video play icon as placeholder
+                                                  ctx.fillStyle = '#ffffff';
+                                                  ctx.beginPath();
+                                                  ctx.moveTo(45, 35);
+                                                  ctx.lineTo(45, 85);
+                                                  ctx.lineTo(80, 60);
+                                                  ctx.closePath();
+                                                  ctx.fill();
+                                                }
+                                              }}
+                                              style={{
+                                                position: 'absolute',
+                                                top: '0',
+                                                left: '0',
+                                                width: '100%',
+                                                height: '100%',
+                                                objectFit: 'cover',
+                                                zIndex: 0,
+                                                opacity: '0',
+                                                backgroundColor: '#1f2937'
+                                              }}
+                                            />
+                                            {/* Video play/fullscreen overlay */}
+                                            <div style={{
+                                              position: 'absolute',
+                                              top: '0',
+                                              left: '0',
+                                              right: '0',
+                                              bottom: '0',
+                                              background: 'rgba(0, 0, 0, 0.3)',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              opacity: '0',
+                                              transition: 'opacity 0.2s ease',
+                                              pointerEvents: 'none',
+                                              zIndex: 2
+                                            }}
+                                            onMouseEnter={(e) => {
+                                              e.target.style.opacity = '1';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                              e.target.style.opacity = '0';
+                                            }}>
+                                              <div style={{
+                                                background: 'rgba(255, 255, 255, 0.9)',
+                                                borderRadius: '50%',
+                                                width: '40px',
+                                                height: '40px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                boxShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
+                                              }}>
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="#22c55e">
+                                                  <path d="M8,5.14V19.14L19,12.14L8,5.14Z"/>
+                                                </svg>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            backgroundColor: '#e5e7eb',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            color: '#6b7280',
+                                            fontSize: '1.5rem'
+                                          }}>
+                                            📄
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
                           </>

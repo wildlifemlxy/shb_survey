@@ -17,7 +17,7 @@ import { io } from 'socket.io-client';
 import { AuthProvider } from './components/Auth/AuthContext.jsx';
 import tokenService from './utils/tokenService';
 
-import { fetchSurveyDataForHomePage, fetchSurveyData, fetchGalleryDataPublic } from './data/shbData';
+import { fetchSurveyDataForHomePage, fetchSurveyData } from './data/shbData';
 import { fetchEventsData } from './data/surveyData';
 import { fetchBotData } from './data/botData';
 

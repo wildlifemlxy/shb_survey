@@ -9,8 +9,9 @@ const BASE_URL = process.env.NODE_ENV === 'production'
   ? 'https://shb-backend.azurewebsites.net'
   : 'http://localhost:3001';
 
-// Import Gallery Controller
+// Import Gallery Controller and Token Encryption
 const galleryController = require('../Controller/Gallery/galleryController');
+const tokenEncryption = require('../middleware/tokenEncryption');
 
 // Initialize gallery on startup
 galleryController.initializeGallery();
@@ -249,72 +250,213 @@ router.post('/', function(req, res, next)
             }
             else if (purpose === "approve") {
                 try {
-                    const { mediaId } = req.body;
-                    const result = await galleryController.approveMedia(mediaId);
-                    
-                    if (io) {
-                        io.emit('gallery-updated', {
-                            message: 'Media approved',
-                            approvedMedia: result
-                        });
+                    // Handle encrypted request data for approve purpose
+                    if (req.body.data && req.body.data.encryptedData && req.body.data.requiresServerEncryption) {
+                        try {
+                            const decryptResult = tokenEncryption.decryptRequestData(req.body.data);
+                            if (decryptResult.success) {
+                                const requestData = decryptResult.data;
+                                console.log('🔓 Decrypted approve media request data:', requestData);
+                                
+                                const mediaId = requestData.mediaId;
+                                if (!mediaId) {
+                                    return res.status(400).json({ error: 'Media ID is required.' });
+                                }
+                                
+                                // Get client public key from decrypted request data
+                                const clientPublicKey = requestData.clientPublicKey || requestData.publicKey;
+                                
+                                // Apply token encryption for authenticated access with client's public key
+                                return await tokenEncryption.encryptResponseDataMiddleware(req, res, async () => {
+                                    const result = await galleryController.approveMedia(mediaId);
+                                    
+                                    if (io) {
+                                        io.emit('survey-updated', {
+                                            message: 'Media approved',
+                                            approvedMedia: result
+                                        });
+                                    }
+                                    
+                                    return {
+                                        success: true,
+                                        result: result,
+                                        message: "Media approved successfully"
+                                    };
+                                }, clientPublicKey);
+                            } else {
+                                console.error('🔓 approve media request decryption failed:', decryptResult.error);
+                                return res.status(400).json({ error: 'Failed to decrypt request data' });
+                            }
+                        } catch (decryptError) {
+                            console.error('🔓 approve media request decryption error:', decryptError);
+                            return res.status(400).json({ error: 'Invalid encrypted request' });
+                        }
+                    } else {
+                        // Fallback for non-encrypted requests (backwards compatibility)
+                        const { mediaId } = req.body;
+                        const result = await galleryController.approveMedia(mediaId);
+                        
+                        if (io) {
+                            io.emit('survey-updated', {
+                                message: 'Media approved',
+                                approvedMedia: result
+                            });
+                        }
+                        
+                        return res.json({"result": result, "message": "Media approved successfully"});
                     }
-                    
-                    return res.json({"result": result, "message": "Media approved successfully"});
-                    
-                } catch (error) {
-                    console.error('Error approving media:', error);
-                    return res.status(500).json({ error: 'Failed to approve media.' });
+                } catch (err) {
+                    console.error('Error in approve media:', err);
+                    return res.status(500).json({ error: err.message || 'Failed to approve media.' });
                 }
             }
             else if (purpose === "reject") {
                 try {
-                    const { mediaId, reason } = req.body;
-                    const result = await galleryController.rejectMedia(mediaId, reason);
-                    
-                    if (io) {
-                        io.emit('gallery-updated', {
-                            message: 'Media rejected',
-                            rejectedMedia: result
-                        });
+                    // Handle encrypted request data for reject purpose
+                    if (req.body.data && req.body.data.encryptedData && req.body.data.requiresServerEncryption) {
+                        try {
+                            const decryptResult = tokenEncryption.decryptRequestData(req.body.data);
+                            if (decryptResult.success) {
+                                const requestData = decryptResult.data;
+                                console.log('🔓 Decrypted reject media request data:', requestData);
+                                
+                                const mediaId = requestData.mediaId;
+                                const reason = requestData.reason;
+                                if (!mediaId) {
+                                    return res.status(400).json({ error: 'Media ID is required.' });
+                                }
+                                
+                                // Get client public key from decrypted request data
+                                const clientPublicKey = requestData.clientPublicKey || requestData.publicKey;
+                                
+                                // Apply token encryption for authenticated access with client's public key
+                                return await tokenEncryption.encryptResponseDataMiddleware(req, res, async () => {
+                                    const result = await galleryController.rejectMedia(mediaId, reason);
+                                    
+                                    if (io) {
+                                        io.emit('survey-updated', {
+                                            message: 'Media rejected',
+                                            rejectedMedia: result
+                                        });
+                                    }
+                                    
+                                    return {
+                                        success: true,
+                                        result: result,
+                                        message: "Media rejected successfully"
+                                    };
+                                }, clientPublicKey);
+                            } else {
+                                console.error('🔓 reject media request decryption failed:', decryptResult.error);
+                                return res.status(400).json({ error: 'Failed to decrypt request data' });
+                            }
+                        } catch (decryptError) {
+                            console.error('🔓 reject media request decryption error:', decryptError);
+                            return res.status(400).json({ error: 'Invalid encrypted request' });
+                        }
+                    } else {
+                        // Fallback for non-encrypted requests (backwards compatibility)
+                        const { mediaId, reason } = req.body;
+                        const result = await galleryController.rejectMedia(mediaId, reason);
+                        
+                        if (io) {
+                            io.emit('survey-updated', {
+                                message: 'Media rejected',
+                                rejectedMedia: result
+                            });
+                        }
+                        
+                        return res.json({"result": result, "message": "Media rejected successfully"});
                     }
-                    
-                    return res.json({"result": result, "message": "Media rejected successfully"});
-                    
-                } catch (error) {
-                    console.error('Error rejecting media:', error);
-                    return res.status(500).json({ error: 'Failed to reject media.' });
+                } catch (err) {
+                    console.error('Error in reject media:', err);
+                    return res.status(500).json({ error: err.message || 'Failed to reject media.' });
                 }
             }
             else if (purpose === "delete") {
                 try {
-                    const { mediaId, url, filename, type, location, uploadedBy, reason } = req.body;
-                    
-                    // Create media object with all information for proper deletion
-                    const mediaInfo = {
-                        mediaId,
-                        url,
-                        filename,
-                        type,
-                        location,
-                        uploadedBy,
-                        reason,
-                        purpose
-                    };
-                    
-                    const result = await galleryController.deleteMedia(mediaInfo);
-                    
-                    if (io) {
-                        io.emit('gallery-updated', {
-                            message: 'Media deleted',
-                            deletedMedia: result
-                        });
+                    // Handle encrypted request data for delete purpose
+                    if (req.body.data && req.body.data.encryptedData && req.body.data.requiresServerEncryption) {
+                        try {
+                            const decryptResult = tokenEncryption.decryptRequestData(req.body.data);
+                            if (decryptResult.success) {
+                                const requestData = decryptResult.data;
+                                console.log('🔓 Decrypted delete media request data:', requestData);
+                                
+                                const { mediaId, url, filename, type, location, uploadedBy } = requestData;
+                                if (!mediaId) {
+                                    return res.status(400).json({ error: 'Media ID is required.' });
+                                }
+                                
+                                // Get client public key from decrypted request data
+                                const clientPublicKey = requestData.clientPublicKey || requestData.publicKey;
+                                
+                                // Apply token encryption for authenticated access with client's public key
+                                return await tokenEncryption.encryptResponseDataMiddleware(req, res, async () => {
+                                    // Create media object with all information for proper deletion
+                                    const mediaInfo = {
+                                        mediaId,
+                                        url,
+                                        filename,
+                                        type,
+                                        location,
+                                        uploadedBy,
+                                        purpose: 'delete'
+                                    };
+                                    
+                                    const result = await galleryController.deleteMedia(mediaInfo);
+                                    
+                                    if (io) {
+                                        io.emit('survey-updated', {
+                                            message: 'Media deleted',
+                                            deletedMedia: result
+                                        });
+                                    }
+                                    
+                                    return {
+                                        success: true,
+                                        result: result,
+                                        message: "Media deleted successfully"
+                                    };
+                                }, clientPublicKey);
+                            } else {
+                                console.error('🔓 delete media request decryption failed:', decryptResult.error);
+                                return res.status(400).json({ error: 'Failed to decrypt request data' });
+                            }
+                        } catch (decryptError) {
+                            console.error('🔓 delete media request decryption error:', decryptError);
+                            return res.status(400).json({ error: 'Invalid encrypted request' });
+                        }
+                    } else {
+                        // Fallback for non-encrypted requests (backwards compatibility)
+                        const { mediaId, url, filename, type, location, uploadedBy, reason } = req.body;
+                        
+                        // Create media object with all information for proper deletion
+                        const mediaInfo = {
+                            mediaId,
+                            url,
+                            filename,
+                            type,
+                            location,
+                            uploadedBy,
+                            reason,
+                            purpose: 'delete'
+                        };
+                        
+                        const result = await galleryController.deleteMedia(mediaInfo);
+                        
+                        if (io) {
+                            io.emit('survey-updated', {
+                                message: 'Media deleted',
+                                deletedMedia: result
+                            });
+                        }
+                        
+                        return res.json({"result": result, "message": "Media deleted successfully"});
                     }
-                    
-                    return res.json({"result": result, "message": "Media deleted successfully"});
-                    
-                } catch (error) {
-                    console.error('Error deleting media:', error);
-                    return res.status(500).json({ error: 'Failed to delete media.' });
+                } catch (err) {
+                    console.error('Error in delete media:', err);
+                    return res.status(500).json({ error: err.message || 'Failed to delete media.' });
                 }
             }
             else {

@@ -298,3 +298,227 @@ export async function fetchGalleryDataPublic() {
     return [];
   }
 }
+
+// Delete gallery media (requires authentication)
+export async function deleteGalleryMedia(media) {
+  console.log("Deleting gallery media:");
+  try {
+    if (!media) {
+      return { success: false, message: 'Media object is required' };
+    }
+
+    // Check if user is authenticated
+    if (!tokenService.isTokenValid()) {
+      return { success: false, message: 'Authentication required for media deletion' };
+    }
+
+    console.log('User is authenticated, attempting to delete media...');
+    
+    try {
+      // Initialize encryption session with unique keys if not already done
+      if (!await tokenService.getPublicKey()) {
+        console.log('Initializing encryption session with unique RSA keys...');
+        await tokenService.initializeEncryptionSession();
+      }
+
+      // Encrypt the request data with client public key included
+      const clientPublicKey = await tokenService.getPublicKey();
+      const requestData = await tokenService.encryptData({
+        mediaId: media.id || media._id || media.filename,
+        url: media.url,
+        filename: media.filename || media.name,
+        type: media.type,
+        location: media.location,
+        uploadedBy: media.uploadedBy,
+        clientPublicKey: clientPublicKey
+      });
+      
+      console.log('Encrypted media deletion request data with client public key:', requestData);
+      
+      // Make authenticated request
+      const response = await tokenService.axiosPost(`${BASE_URL}/gallery`, {
+        purpose: 'delete',
+        data: requestData
+      });
+      
+      console.log('Media deletion response received:', response);
+      
+      if (response && response.data) {
+        console.log('Response data:', response.data);
+        
+        // Check if response is successful
+        if (response.data.success) {
+          let responseData = response.data;
+          
+          // Check if response is encrypted
+          if (response.data.encryptedData) {
+            const decryptedResponse = await tokenService.decryptBotResponse(response.data);
+            responseData = decryptedResponse;
+            console.log('Decrypted media deletion response:', responseData);
+          }
+          
+          console.log('Media deleted successfully:', responseData);
+          return { success: true, message: responseData.message || 'Media deleted successfully' };
+        } else {
+          return { success: false, message: response.data.error || 'Failed to delete media' };
+        }
+      } else {
+        throw new Error('No response received from server');
+      }
+    } catch (encryptionError) {
+      console.error('Encrypted media deletion request failed:', encryptionError);
+      return { success: false, message: 'Failed to delete media - encryption error' };
+    }
+    
+  } catch (error) {
+    console.error('Error deleting gallery media:', error);
+    return { success: false, message: 'Failed to delete media' };
+  }
+}
+
+// Reject gallery media (requires authentication)
+export async function rejectGalleryMedia(media, reason) {
+  console.log("Rejecting gallery media:");
+  try {
+    if (!media) {
+      return { success: false, message: 'Media object is required' };
+    }
+
+    // Check if user is authenticated
+    if (!tokenService.isTokenValid()) {
+      return { success: false, message: 'Authentication required for media rejection' };
+    }
+
+    console.log('User is authenticated, attempting to reject media...');
+    
+    try {
+      // Initialize encryption session with unique keys if not already done
+      if (!await tokenService.getPublicKey()) {
+        console.log('Initializing encryption session with unique RSA keys...');
+        await tokenService.initializeEncryptionSession();
+      }
+
+      // Encrypt the request data with client public key included
+      const clientPublicKey = await tokenService.getPublicKey();
+      const requestData = await tokenService.encryptData({
+        mediaId: media.id || media._id || media.filename,
+        reason: reason || 'No reason provided',
+        clientPublicKey: clientPublicKey
+      });
+      
+      console.log('Encrypted media rejection request data with client public key:', requestData);
+      
+      // Make authenticated request
+      const response = await tokenService.axiosPost(`${BASE_URL}/gallery`, {
+        purpose: 'reject',
+        data: requestData
+      });
+      
+      console.log('Media rejection response received:', response);
+      
+      if (response && response.data) {
+        console.log('Response data:', response.data);
+        
+        // Check if response is successful
+        if (response.data.success) {
+          let responseData = response.data;
+          
+          // Check if response is encrypted
+          if (response.data.encryptedData) {
+            const decryptedResponse = await tokenService.decryptBotResponse(response.data);
+            responseData = decryptedResponse;
+            console.log('Decrypted media rejection response:', responseData);
+          }
+          
+          console.log('Media rejected successfully:', responseData);
+          return { success: true, message: responseData.message || 'Media rejected successfully' };
+        } else {
+          return { success: false, message: response.data.error || 'Failed to reject media' };
+        }
+      } else {
+        throw new Error('No response received from server');
+      }
+    } catch (encryptionError) {
+      console.error('Encrypted media rejection request failed:', encryptionError);
+      return { success: false, message: 'Failed to reject media - encryption error' };
+    }
+    
+  } catch (error) {
+    console.error('Error rejecting gallery media:', error);
+    return { success: false, message: 'Failed to reject media' };
+  }
+}
+
+// Approve gallery media (requires authentication)
+export async function approveGalleryMedia(media) {
+  console.log("Approving gallery media:");
+  try {
+    if (!media) {
+      return { success: false, message: 'Media object is required' };
+    }
+
+    // Check if user is authenticated
+    if (!tokenService.isTokenValid()) {
+      return { success: false, message: 'Authentication required for media approval' };
+    }
+
+    console.log('User is authenticated, attempting to approve media...');
+    
+    try {
+      // Initialize encryption session with unique keys if not already done
+      if (!await tokenService.getPublicKey()) {
+        console.log('Initializing encryption session with unique RSA keys...');
+        await tokenService.initializeEncryptionSession();
+      }
+
+      // Encrypt the request data with client public key included
+      const clientPublicKey = await tokenService.getPublicKey();
+      const requestData = await tokenService.encryptData({
+        mediaId: media.id || media._id || media.filename,
+        clientPublicKey: clientPublicKey
+      });
+      
+      console.log('Encrypted media approval request data with client public key:', requestData);
+      
+      // Make authenticated request
+      const response = await tokenService.axiosPost(`${BASE_URL}/gallery`, {
+        purpose: 'approve',
+        data: requestData
+      });
+      
+      console.log('Media approval response received:', response);
+      
+      if (response && response.data) {
+        console.log('Response data:', response.data);
+        
+        // Check if response is successful
+        if (response.data.success) {
+          let responseData = response.data;
+          
+          // Check if response is encrypted
+          if (response.data.encryptedData) {
+            const decryptedResponse = await tokenService.decryptBotResponse(response.data);
+            responseData = decryptedResponse;
+            console.log('Decrypted media approval response:', responseData);
+          }
+          
+          console.log('Media approved successfully:', responseData);
+          return { success: true, message: responseData.message || 'Media approved successfully' };
+        } else {
+          return { success: false, message: response.data.error || 'Failed to approve media' };
+        }
+      } else {
+        throw new Error('No response received from server');
+      }
+    } catch (encryptionError) {
+      console.error('Encrypted media approval request failed:', encryptionError);
+      return { success: false, message: 'Failed to approve media - encryption error' };
+    }
+    
+  } catch (error) {
+    console.error('Error approving gallery media:', error);
+    return { success: false, message: 'Failed to approve media' };
+  }
+}
+
+

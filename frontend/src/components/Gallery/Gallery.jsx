@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
-import { fetchGalleryDataPublic } from '../../data/shbData';
+import { fetchGalleryDataPublic, deleteGalleryMedia, rejectGalleryMedia, approveGalleryMedia } from '../../data/shbData';
 import tokenService from '../../utils/tokenService';
 import './Gallery.css';
 
@@ -45,6 +45,7 @@ class Gallery extends Component {
     try {
       this.setState({ isLoading: true });
       const data = await fetchGalleryDataPublic();
+      console
       this.setState({ 
         galleryData: data || [],
         isLoading: false 
@@ -92,30 +93,10 @@ class Gallery extends Component {
     try {
       console.log('Approving media:', media);
       
-      // Check if user is authenticated
-      if (!tokenService.isTokenValid()) {
-        alert('Authentication required for media approval');
-        return;
-      }
+      const result = await approveGalleryMedia(media);
       
-      // Encrypt the request data
-      const requestData = await tokenService.encryptData({
-        mediaId: media.id,
-        url: media.url,
-        type: media.type,
-        location: media.location,
-        uploadedBy: media.uploadedBy,
-        purpose: 'approve'
-      });
-      
-      // Make authenticated request
-      const response = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/gallery`, {
-        method: 'POST',
-        body: JSON.stringify(requestData)
-      });
-      
-      if (response.ok) {
-        alert(`Media "${media.name || 'Untitled'}" has been approved and is now visible in the gallery!`);
+      if (result.success) {
+        alert(`Media "${media.name || media.filename || 'Untitled'}" has been approved and is now visible in the gallery!`);
         
         // Update local state to mark as approved
         this.setState(prevState => ({
@@ -124,57 +105,47 @@ class Gallery extends Component {
           )
         }));
       } else {
-        throw new Error('Failed to approve media');
+        throw new Error(result.message);
       }
     } catch (error) {
       console.error('Error approving media:', error);
-      alert('Failed to approve media. Please try again.');
+      alert(`Failed to approve media: ${error.message}`);
     }
   };
 
   deleteMedia = async (media, index) => {
     try {
-      const confirmDelete = window.confirm(`Are you sure you want to delete "${media.name || 'this media'}"?`);
+      const confirmDelete = window.confirm(`Are you sure you want to delete "${media.name || media.filename || 'this media'}"?`);
       if (!confirmDelete) return;
       
-      console.log('Deleting media:', media);
+      console.log('=== DELETE MEDIA DEBUG ===');
+      console.log('Media object:', JSON.stringify(media, null, 2));
+      console.log('Index:', index);
+      console.log('========================');
       
-      // Check if user is authenticated
-      if (!tokenService.isTokenValid()) {
-        alert('Authentication required for media deletion');
-        return;
-      }
+      const result = await deleteGalleryMedia(media);
       
-      // Encrypt the request data
-      const requestData = await tokenService.encryptData({
-        mediaId: media.id,
-        url: media.url,
-        filename: media.filename || media.name,
-        type: media.type,
-        location: media.location,
-        uploadedBy: media.uploadedBy,
-        purpose: 'delete'
-      });
-      
-      // Make authenticated request
-      const response = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/gallery`, {
-        method: 'POST',
-        body: JSON.stringify(requestData)
-      });
-      
-      if (response.ok) {
-        alert(`Media "${media.name || 'Untitled'}" has been deleted!`);
+      if (result.success) {
+        alert(`Media "${media.name || media.filename || 'Untitled'}" has been deleted!`);
         
         // Remove from local state
         this.setState(prevState => ({
           galleryData: prevState.galleryData.filter((_, i) => i !== index)
         }));
       } else {
-        throw new Error('Failed to delete media');
+        throw new Error(result.message);
       }
     } catch (error) {
       console.error('Error deleting media:', error);
-      alert('Failed to delete media. Please try again.');
+      
+      // More specific error messages
+      if (error.message.includes('Failed to fetch')) {
+        alert('Network error: Could not connect to server. Please check your internet connection.');
+      } else if (error.message.includes('authenticate')) {
+        alert('Authentication error: Please log in again.');
+      } else {
+        alert(`Failed to delete media: ${error.message}`);
+      }
     }
   };
 
@@ -192,49 +163,39 @@ class Gallery extends Component {
 
   rejectMedia = async (media, index) => {
     try {
+      console.log('=== REJECT MEDIA DEBUG ===');
+      console.log('Media object:', JSON.stringify(media, null, 2));
+      console.log('Media keys:', Object.keys(media));
+      console.log('Index:', index);
+      console.log('========================');
+      
       const reason = prompt('Please provide a reason for rejection (optional):');
-      const confirmReject = window.confirm(`Are you sure you want to reject and delete "${media.name || 'this media'}"? This action cannot be undone.`);
+      const confirmReject = window.confirm(`Are you sure you want to reject and delete "${media.name || media.filename || 'this media'}"? This action cannot be undone.`);
       if (!confirmReject) return;
       
-      console.log('Rejecting and deleting media:', media, 'Reason:', reason);
+      const result = await rejectGalleryMedia(media, reason);
       
-      // Check if user is authenticated
-      if (!tokenService.isTokenValid()) {
-        alert('Authentication required for media rejection');
-        return;
-      }
-      
-      // Encrypt the request data
-      const requestData = await tokenService.encryptData({
-        mediaId: media.id,
-        url: media.url,
-        filename: media.filename || media.name,
-        type: media.type,
-        location: media.location,
-        uploadedBy: media.uploadedBy,
-        reason: reason,
-        purpose: 'reject'
-      });
-      
-      // Make authenticated request
-      const response = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/gallery`, {
-        method: 'POST',
-        body: JSON.stringify(requestData)
-      });
-      
-      if (response.ok) {
-        alert(`Media "${media.name || 'Untitled'}" has been rejected and deleted.`);
+      if (result.success) {
+        alert(`Media "${media.name || media.filename || 'Untitled'}" has been rejected and deleted.`);
         
         // Remove from local state
         this.setState(prevState => ({
           galleryData: prevState.galleryData.filter((_, i) => i !== index)
         }));
       } else {
-        throw new Error('Failed to reject media');
+        throw new Error(result.message);
       }
     } catch (error) {
       console.error('Error rejecting media:', error);
-      alert('Failed to reject media. Please try again.');
+      
+      // More specific error messages
+      if (error.message.includes('Failed to fetch')) {
+        alert('Network error: Could not connect to server. Please check your internet connection.');
+      } else if (error.message.includes('authenticate')) {
+        alert('Authentication error: Please log in again.');
+      } else {
+        alert(`Failed to reject media: ${error.message}`);
+      }
     }
   };
 
@@ -257,9 +218,9 @@ class Gallery extends Component {
     // Filter out unapproved WWF volunteer submissions from public view
     // Only show approved content or content from non-WWF users
     const publicGalleryData = filteredGalleryData.filter(item => {
-      // If user is in approval mode (non-WWF admin), show all submissions for review
+      // If user is in approval mode (non-WWF admin), only show WWF-Volunteer submissions for review
       if (!isWWFVolunteer && approvalMode) {
-        return true;
+        return item.uploadedBy && item.uploadedBy.role === 'WWF-Volunteer';
       }
       
       // For public gallery view, only show:
@@ -525,26 +486,26 @@ class Gallery extends Component {
               {/* Gallery Grid */}
               <div className="studio-gallery-grid" style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 400px  ))',
                 gap: '0.5rem',
                 marginBottom: '3rem',
                 padding: '0 1rem'
               }}>
                 {isLoading ? (
-                  // Loading state
-                  Array.from({length: 6}).map((_, index) => (
-                    <div key={index} style={{
-                      background: '#f1f5f9',
-                      borderRadius: '12px',
-                      height: '200px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#64748b'
-                    }}>
-                      Loading...
-                    </div>
-                  ))
+                   <div style={{
+                    gridColumn: '1 / -1',
+                    textAlign: 'center',
+                    padding: '3rem',
+                    color: '#64748b'
+                  }}>
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" style={{marginBottom: '1rem'}}>
+                      <path d="M21,17H7V3A1,1 0 0,1 8,2H20A1,1 0 0,1 21,3V17M19,4H9V15H19V4M4,6H2V20A1,1 0 0,0 3,21H17V19H4V6M11.5,11.5L13.5,14L16.5,10.5L20,15H8L11.5,11.5Z"/>
+                    </svg>
+                    <p style={{fontSize: '1.1rem', marginBottom: '0.5rem'}}>No media found</p>
+                    <p style={{fontSize: '0.9rem'}}>
+                      {galleryFilter === 'all' ? 'No content available in the gallery.' : `No ${galleryFilter} available.`}
+                    </p>
+                  </div>
                 ) : publicGalleryData.length > 0 ? (
                   publicGalleryData.map((item, index) => (
                     <div
@@ -571,16 +532,42 @@ class Gallery extends Component {
                       }}
                     >
                       {item.type && item.type.startsWith('video/') ? (
-                        <video
-                          src={item.url}
-                          style={{
+                        // Hide video content for non-WWF volunteers in approval mode viewing WWF-Volunteer submissions
+                        (!isWWFVolunteer && approvalMode && item.uploadedBy && item.uploadedBy.role === 'WWF-Volunteer') ? (
+                          <div style={{
                             width: '100%',
                             height: '100%',
-                            objectFit: 'cover'
-                          }}
-                          muted
-                          preload="metadata"
-                        />
+                            backgroundColor: '#1f2937',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#9ca3af',
+                            fontSize: '0.9rem',
+                            textAlign: 'center',
+                            padding: '2rem'
+                          }}>
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" style={{marginBottom: '1rem', opacity: '0.6'}}>
+                              <path d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z"/>
+                            </svg>
+                            <div style={{fontWeight: '600', marginBottom: '0.5rem'}}>Video Content Hidden</div>
+                            <div style={{fontSize: '0.8rem', opacity: '0.8'}}>
+                              WWF-Volunteer video submission<br />
+                              Review for approval without viewing content
+                            </div>
+                          </div>
+                        ) : (
+                          <video
+                            src={item.url}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover'
+                            }}
+                            muted
+                            preload="metadata"
+                          />
+                        )
                       ) : (
                         <img
                           src={item.url}
@@ -599,7 +586,7 @@ class Gallery extends Component {
                           position: 'absolute',
                           top: '8px',
                           left: '8px',
-                          background: item.approvalStatus === 'submitted' 
+                          background: item.approved === true 
                             ? 'rgba(16, 185, 129, 0.9)' 
                             : item.approved === false 
                             ? 'rgba(239, 68, 68, 0.9)' 
@@ -609,15 +596,16 @@ class Gallery extends Component {
                           borderRadius: '12px',
                           fontSize: '0.75rem',
                           fontWeight: '600',
-                          opacity: '0',
-                          transform: 'translateY(-4px)',
-                          transition: 'all 0.3s ease'
+                          opacity: '0.8',
+                          transform: 'translateY(0)',
+                          transition: 'all 0.3s ease',
+                          backdropFilter: 'blur(4px)'
                         }}>
-                          {item.approvalStatus === 'submitted' 
-                            ? '✓ Submitted' 
+                          {item.approved === true 
+                            ? '✓ Approved' 
                             : item.approved === false 
                             ? '✗ Rejected' 
-                            : '⏳ Pending'}
+                            : '⏳ Pending Review'}
                         </div>
                       )}
 
@@ -915,7 +903,8 @@ class Gallery extends Component {
           
           .gallery-card:hover .approval-status-badge {
             opacity: 1 !important;
-            transform: translateY(0) !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
           }
           
           .gallery-card:hover button[style*="opacity: 0"] {
