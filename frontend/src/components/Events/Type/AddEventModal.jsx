@@ -5,6 +5,7 @@ import tokenService from '../../../utils/tokenService';
 import '../../Dashboard/ObserverInfoSection.css'; // Import styles for location dropdown
 import '../../Dashboard/ObservationDetailsSection.css'; // Import styles for time dropdown
 import '../../Dashboard/NewSurveyModal.css'; // Import enhanced dropdown overlapping styles
+import { addNewEvents } from '../../../data/surveyData';
 
 const DEFAULT_TIME_START = '07:30';
 const DEFAULT_TIME_END = '09:30';
@@ -343,37 +344,17 @@ class AddEventModal extends Component {
         Type: DEFAULT_TYPE,
         Time: `${ev.TimeStart || DEFAULT_TIME_START} - ${ev.TimeEnd || DEFAULT_TIME_END}`
       }));
+    
     if (filteredEvents.length === 0) {
-      window.alert('No valid events to save. Please fill in Organizer, Location, and Date.');
       return null;
     }
+    
     try {
-      // Check if user is authenticated
-      if (!tokenService.isTokenValid()) {
-        window.alert('Authentication required to save events');
-        return null;
-      }
-
-      // Encrypt the request data
-      const requestData = await tokenService.encryptData({
-        purpose: 'addEvent',
-        events: filteredEvents
-      });
-      
-      // Make authenticated request
-      const result = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/events`, {
-        method: 'POST',
-        body: JSON.stringify(requestData)
-      });
-      
-      if (result.ok) {
-        const data = await result.json();
-        console.log('Events saved successfully:', data);
-        this.handleCancel();
-        return data;
-      } else {
-        throw new Error('Failed to save events');
-      }
+      // Use the new addNewEvents function for proper encryption and authentication
+      const result = await addNewEvents(filteredEvents);
+      console.log('Events saved successfully:', result);
+      this.handleCancel();
+      return result;
     } catch (err) {
       window.alert('Error saving events: ' + err.message);
       return null;

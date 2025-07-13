@@ -78,6 +78,7 @@ class SurveyEvents extends Component {
       events: eventsByStatus[activeTab],
       ...activeTabObj.extraProps,
       isLoading,
+      onRefreshEvents: this.props.onRefreshEvents,
     };
 
     return (

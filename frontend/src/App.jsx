@@ -852,7 +852,11 @@ class App extends Component {
                   <Route 
                     path="/surveyEvents" 
                     element={
-                      <SurveyEvents eventData={eventData} isLoading={isLoading} />
+                      <SurveyEvents 
+                        eventData={eventData} 
+                        isLoading={isLoading}
+                        onRefreshEvents={this.refreshEvents}
+                      />
                     } 
                   />
                   <Route 

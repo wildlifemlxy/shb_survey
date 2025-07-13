@@ -5,9 +5,17 @@ import axios from 'axios';
 import tokenService from '../../../utils/tokenService';
 import AddEventModal from './AddEventModal';
 
-// Helper to group events by organizer type
+// Helper to group events by organizer type and remove duplicates
 function groupByOrganizer(events) {
-  return events.reduce((acc, event) => {
+  // First, remove duplicate events based on _id
+  const uniqueEvents = events.filter((event, index, self) => 
+    index === self.findIndex(e => String(e._id) === String(event._id))
+  );
+  
+  console.log('Original events count:', events.length);
+  console.log('Unique events count:', uniqueEvents.length);
+  
+  return uniqueEvents.reduce((acc, event) => {
     const key = event.Organizer || 'Other';
     if (!acc[key]) acc[key] = [];
     acc[key].push(event);
@@ -24,219 +32,31 @@ class UpcomingEvents extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      expanded: {},
-      editing: {},
-      updated: {},
-      localParticipants: {},
-      newParticipants: {}, // eventId: ["", ...]
       showAddEventModal: false,
     };
   }
 
   handleToggle = (eventId) => {
-    this.setState((prevState) => ({
-      expanded: {
-        ...prevState.expanded,
-        [eventId]: !prevState.expanded[eventId]
-      },
-      editing: {
-        ...prevState.editing,
-        [eventId]: false
-      }
-    }));
+    // Remove centralized toggle handling - let each card manage its own state
   };
 
-  handleAddRow = (eventId) => {
-    this.setState((prevState) => ({
-      expanded: {
-        ...prevState.expanded,
-        [eventId]: true
-      },
-      editing: {
-        ...prevState.editing,
-        [eventId]: true
-      },
-      newParticipants: {
-        ...prevState.newParticipants,
-        [eventId]: prevState.newParticipants[eventId]
-          ? [...prevState.newParticipants[eventId], ""]
-          : [""]
-      }
-    }));
-  };
-
-  handleInputChange = (eventId, idx, e) => {
-    const value = e.target.value;
-    this.setState(prevState => {
-      const arr = prevState.newParticipants[eventId] ? [...prevState.newParticipants[eventId]] : [];
-      arr[idx] = value;
-      return {
-        newParticipants: {
-          ...prevState.newParticipants,
-          [eventId]: arr
-        }
-      };
-    });
-  };
-
-  handleInputBlur = (eventId) => {
-    // Do not set editing[eventId] to false on blur
-    // Optionally, you can keep this empty or handle other logic if needed
-  };
-
-  handleInputKeyDown = (eventId, idx, e) => {
-    if (e.key === 'Enter') {
-      this.setState(prevState => {
-        const arr = prevState.newParticipants[eventId] ? [...prevState.newParticipants[eventId]] : [];
-        // Only add a new row if current is not empty
-        if (arr[idx] && arr[idx].trim() !== "") {
-          arr.push("");
-        }
-        return {
-          newParticipants: {
-            ...prevState.newParticipants,
-            [eventId]: arr
-          },
-          editing: { ...prevState.editing, [eventId]: true } // Always keep editing true
-        };
-      });
-      e.preventDefault();
+  handleUpdate = (eventId, action, updatedEvent) => {
+    // Dummy function for compatibility - cards should manage their own state
+    if (action === 'delete' && this.props.onRefreshEvents) {
+      this.props.onRefreshEvents();
     }
   };
-
-  // Clear localParticipants override if parent updates
-  static getDerivedStateFromProps(nextProps, prevState) {
-    const newState = { ...prevState };
-    nextProps.events.forEach(ev => {
-      if (
-        prevState.localParticipants[ev._id] &&
-        prevState.localParticipants[ev._id].length === ev.Participants.length
-      ) {
-        // If parent has updated, clear local override
-        newState.localParticipants[ev._id] = undefined;
-      }
-    });
-    return newState;
-  }
-
-  handleRemoveParticipant = (eventId, i) => {
-    const event = this.props.events.find(ev => ev._id === eventId);
-    const currentList = this.state.localParticipants[eventId] || event.Participants || [];
-    const newList = currentList.filter((_, idx) => idx !== i);
-    this.setState(prevState => ({
-      updated: { ...prevState.updated, [eventId]: true },
-      expanded: { ...prevState.expanded, [eventId]: true },
-      localParticipants: { ...prevState.localParticipants, [eventId]: newList }
-    }));
-    this.props.onParticipantsChange && this.props.onParticipantsChange(eventId, newList);
-  };
-
-  handleUpdate = async (eventId, action, updatedEvent) => {
-    try {
-      if (action === 'card-edit') {
-        this.setState(prevState => ({
-          editing: { ...prevState.editing, [eventId]: true }
-        }));
-        return;
-      }
-      if (action === 'cancel') {
-        this.setState(prevState => ({
-          editing: { ...prevState.editing, [eventId]: false },
-          newParticipants: { ...prevState.newParticipants, [eventId]: [] },
-          localParticipants: { ...prevState.localParticipants, [eventId]: undefined }
-        }));
-        return;
-      }
-      if (action === 'save') {
-        console.log('Saving participants for event:', eventId, updatedEvent);
-        // Post updated event to backend, then update parent and local state
-        if (updatedEvent) {
-          // Check if user is authenticated
-          if (!tokenService.isTokenValid()) {
-            alert('Authentication required for event updates');
-            return;
-          }
-
-          // Encrypt the request data
-          const requestData = await tokenService.encryptData({
-            purpose: 'updateEvent',
-            eventId: eventId,
-            ...updatedEvent
-          });
-          
-          // Make authenticated request
-          const result = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/events`, {
-            method: 'POST',
-            body: JSON.stringify(requestData)
-          });
-          
-          if (result.ok) {
-            const data = await result.json();
-            if (data.success) {
-              // Only update editing state, do not use componentDidMount or socket here
-              this.setState(prevState => ({
-                editing: { ...prevState.editing, [eventId]: false },
-              }));
-              return;
-            }
-          }
-        }
-      }
-      if (action === 'delete') {
-        console.log('Deleting event:', eventId);
-        // Confirm deletion with user
-        
-        // Check if user is authenticated
-        if (!tokenService.isTokenValid()) {
-          alert('Authentication required for event deletion');
-          return;
-        }
-
-        // Encrypt the request data
-        const requestData = await tokenService.encryptData({
-          purpose: 'deleteEvent',
-          eventId: eventId
-        });
-        
-        // Make authenticated request
-        const result = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/events`, {
-          method: 'POST',
-          body: JSON.stringify(requestData)
-        });
-        
-        if (result.ok) {
-          const data = await result.json();
-          if (data.success) {
-            console.log('Event deleted successfully');
-            // Refresh events list
-            if (this.props.onRefreshEvents) {
-              this.props.onRefreshEvents();
-            }
-            return;
-          } else {
-            console.error('Failed to delete event');
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Failed to update/delete event:', error);
-      if (action === 'delete') {
-        alert('Failed to delete event. Please try again.');
-      }
-    }
-  }
 
   handleAfterSave = () => {
-  // Example: fetch events again or update state
-  if (this.props.onRefreshEvents) {
-    this.props.onRefreshEvents();
-  }
-  this.setState({ showAddEventModal: false });
-};
+    // Example: fetch events again or update state
+    if (this.props.onRefreshEvents) {
+      this.props.onRefreshEvents();
+    }
+    this.setState({ showAddEventModal: false });
+  };
 
   render() {
     const { events, highlightFirstGreen } = this.props;
-    const { expanded, editing, localParticipants } = this.state;
     const grouped = groupByOrganizer(events);
     // Always show both sections, even if empty
     if (!grouped["WWF-led"]) grouped["WWF-led"] = [];
@@ -277,18 +97,20 @@ class UpcomingEvents extends Component {
                 padding: 0
               }}>
                 {grouped[orgType].map((event, idx) => {
-                  const participants = localParticipants[event._id] || event.Participants;
+                  // Generate a unique key for React rendering
+                  const eventKey = event._id ? String(event._id) : `event-${orgType}-${idx}`;
+                  console.log(`Rendering event ${idx} with key:`, eventKey, 'Event ID:', event._id);
+                  
                   return (
                     <UpcomingEventCard
-                      key={event._id}
-                      event={{ ...event, Participants: participants }}
-                      expanded={expanded[event._id]}
-                      editing={editing[event._id]}
-                      newParticipants={this.state.newParticipants[event._id] || []}
+                      key={eventKey}
+                      event={event}
+                      expanded={false}
+                      editing={false}
+                      newParticipants={[]}
                       onToggle={this.handleToggle}
-                      onAddRow={() => this.handleAddRow(event._id)}
                       onUpdate={this.handleUpdate}
-                      updated={this.state.updated[event._id]}
+                      onRefreshEvents={this.props.onRefreshEvents}
                     />
                   );
                 })}

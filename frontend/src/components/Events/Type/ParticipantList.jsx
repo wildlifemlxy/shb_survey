@@ -250,7 +250,7 @@ class ParticipantList extends Component {
   };
 
   handleUpdate = async () => {
-    const { eventId } = this.props;
+    const { eventId, onUpdateParticipants } = this.props;
     console.log('Updating participants for event:', eventId);
     
     // Add validation to ensure eventId exists
@@ -260,12 +260,29 @@ class ParticipantList extends Component {
     }
     
     const { participants } = this.state;
-    const BASE_URL =
-      window.location.hostname === 'localhost'
-        ? 'http://localhost:3001'
-        : 'https://shb-backend.azurewebsites.net';
     
     try {
+      // Use the new onUpdateParticipants prop if available
+      if (typeof onUpdateParticipants === 'function') {
+        console.log('Using parent component updateParticipants function');
+        const result = await onUpdateParticipants(participants);
+        
+        if (result && result.success) {
+          console.log('Participants updated successfully via parent:', result);
+          // Reset unsaved changes after successful update
+          this.setState({ hasUnsavedChanges: false });
+        } else {
+          console.error('Failed to update participants via parent:', result?.message);
+        }
+        return;
+      }
+      
+      // Fallback to old method if onUpdateParticipants is not available
+      const BASE_URL =
+        window.location.hostname === 'localhost'
+          ? 'http://localhost:3001'
+          : 'https://shb-backend.azurewebsites.net';
+      
       // Check if user is authenticated
       if (!tokenService.isTokenValid()) {
         console.error('Authentication required for participant updates');

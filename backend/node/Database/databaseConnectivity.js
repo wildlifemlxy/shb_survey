@@ -29,19 +29,47 @@ class DatabaseConnectivity {
   async getAllDocuments(databaseName, collectionName) {
     const db = this.client.db(databaseName);
     const collection = db.collection(collectionName);
-    return await collection.find({}).toArray();
+    const documents = await collection.find({}).toArray();
+    
+    // Convert ObjectId to string for all documents
+    return documents.map(doc => ({
+      ...doc,
+      _id: doc._id.toString()
+    }));
   }
 
   async insertDocument(databaseName, collectionName, document) {
     const db = this.client.db(databaseName);
     const collection = db.collection(collectionName);
-    return await collection.insertOne(document);
+    const result = await collection.insertOne(document);
+    
+    // Return the inserted document with string ID
+    if (result.insertedId) {
+      return {
+        ...result,
+        insertedId: result.insertedId.toString()
+      };
+    }
+    return result;
   }
 
   async insertDocuments(databaseName, collectionName, documents) {
     const db = this.client.db(databaseName);
     const collection = db.collection(collectionName);
-    return await collection.insertMany(documents);
+    const result = await collection.insertMany(documents);
+    
+    // Convert inserted IDs to strings
+    if (result.insertedIds) {
+      const insertedIds = {};
+      Object.keys(result.insertedIds).forEach(key => {
+        insertedIds[key] = result.insertedIds[key].toString();
+      });
+      return {
+        ...result,
+        insertedIds
+      };
+    }
+    return result;
   }
 
   async updateDocument(databaseName, collectionName, filter, update) {
@@ -75,6 +103,12 @@ class DatabaseConnectivity {
       
       const document = await collection.findOne(query);
       console.log("Retrieved document:", document);
+      
+      // Convert ObjectId to string if document exists
+      if (document && document._id) {
+        document._id = document._id.toString();
+      }
+      
       return document;
     } catch (error) {
       console.error("Error retrieving document:", error);
@@ -90,6 +124,12 @@ class DatabaseConnectivity {
       
       const document = await collection.findOne(query);
       console.log("Found document:", document ? "Found" : "Not found");
+      
+      // Convert ObjectId to string if document exists
+      if (document && document._id) {
+        document._id = document._id.toString();
+      }
+      
       return document;
     } catch (error) {
       console.error("Error finding document:", error);

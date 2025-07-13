@@ -3,6 +3,7 @@ import React, { Component } from 'react';
   import ParticipantList from './ParticipantList';
   import '../../Dashboard/ObserverInfoSection.css'; // Import styles for location dropdown
   import '../../Dashboard/ObservationDetailsSection.css'; // Import styles for time dropdown
+  import { deleteEvents, updateEvents, updateParticipants } from '../../../data/surveyData';
 
   const BASE_URL =
     window.location.hostname === 'localhost'
@@ -38,6 +39,7 @@ import React, { Component } from 'react';
       this.state = {
         localEvent,
         editing: false,
+        expanded: false,
         user: JSON.parse(localStorage.getItem('user')),
         // Dropdown states
         showLocationDropdown: false,
@@ -79,6 +81,19 @@ import React, { Component } from 'react';
       this.endMinuteListRef = null;
     }
 
+    handleEditClick = () => {
+      this.setState({ 
+        editing: true,
+        expanded: true 
+      });
+    };
+
+    handleToggleExpand = () => {
+      this.setState(prevState => ({ 
+        expanded: !prevState.expanded 
+      }));
+    };
+
     componentDidMount() 
     {    
       if (window.socket) {
@@ -108,7 +123,7 @@ import React, { Component } from 'react';
               }
             }
             
-            this.setState({ localEvent: updatedEvent, editing: false });
+            this.setState({ localEvent: updatedEvent });
             // Optionally notify parent
             if (typeof this.props.onUpdate === 'function') {
               this.props.onUpdate(data.event._id, 'save', updatedEvent);
@@ -155,7 +170,7 @@ import React, { Component } from 'react';
       this.endMinuteListRef = node;
     }
 
-    // Handle clicks outside dropdowns
+      // Handle clicks outside dropdowns
     handleClickOutside = (e) => {
       if (this.locationDropdownRef && !this.locationDropdownRef.contains(e.target)) {
         this.setState({ showLocationDropdown: false });
@@ -358,14 +373,52 @@ import React, { Component } from 'react';
 
     onDelete = async (id, action) => {
       try {
-        console.log('Deleting event:', id);
+        // Use the local event ID from state instead of the passed parameter
+        const eventId = this.state.localEvent._id;
+        console.log('Deleting event:', eventId);
+        console.log('Event ID type:', typeof eventId);
+        console.log('Event ID details:', eventId);
         
-        // Call the parent's onUpdate function with delete action
-        if (typeof this.props.onUpdate === 'function') {
-          this.props.onUpdate(id, action, null);
+        // Show confirmation dialog
+        const confirmDelete = window.confirm('Are you sure you want to delete this event?');
+        if (!confirmDelete) {
+          return;
+        }
+        
+        // Ensure the event ID is a string - handle ObjectId objects
+        let eventIdString;
+        if (typeof eventId === 'object' && eventId !== null) {
+          // If it's an ObjectId object, convert to string
+          eventIdString = eventId.toString();
+        } else {
+          // If it's already a string or primitive, convert to string
+          eventIdString = String(eventId);
+        }
+        console.log('Event ID as string:', eventIdString);
+        
+        // Call deleteEvents function with the event ID as string
+        const result = await deleteEvents([eventIdString]);
+        
+        if (result.success) {
+          console.log('Event deleted successfully:', result);
+          
+          // Call both the parent's onUpdate function and onRefreshEvents to refresh the events list
+          if (typeof this.props.onUpdate === 'function') {
+            this.props.onUpdate(eventId, action, null);
+          }
+          
+          // Also call onRefreshEvents if available to refresh the entire events list
+          if (typeof this.props.onRefreshEvents === 'function') {
+            this.props.onRefreshEvents();
+          }
+          
+        } else {
+          console.error('Failed to delete event:', result.message);
+          window.alert('Failed to delete event: ' + result.message);
         }
       } catch (error) {
         console.error('Error deleting event:', error);
+        window.alert('Error deleting event: ' + error.message);
       }
     };
 
@@ -373,6 +426,11 @@ import React, { Component } from 'react';
       try {
         if (action === 'cancel') {
           console.log('Edit cancelled');
+          // Reset to non-editing state and collapse the card
+          this.setState({ 
+            editing: false,
+            expanded: false 
+          });
           if (typeof this.props.onUpdate === 'function') {
             this.props.onUpdate(this.state.localEvent._id, 'cancel', "");
           }
@@ -387,10 +445,80 @@ import React, { Component } from 'react';
             updatedEvent.Time = `${updatedEvent.TimeStart} - ${updatedEvent.TimeEnd}`;
           }
           
-          this.props.onUpdate(id, 'save', updatedEvent);
+          // Use the updateEvents function with encryption
+          const eventId = this.state.localEvent._id;
+          console.log('Updating event with ID:', eventId);
+          console.log('Event fields to update:', updatedEvent);
+          
+          // Remove _id from the fields to update (backend expects eventId separately)
+          const { _id, ...eventFields } = updatedEvent;
+          
+          const result = await updateEvents(eventId, eventFields);
+          
+          if (result.success) {
+            console.log('Event updated successfully:', result);
+            
+            // Exit editing mode and collapse the card after successful save
+            this.setState({ 
+              editing: false,
+              expanded: false 
+            });
+            
+            // Call parent's onUpdate function with the updated event
+            if (typeof this.props.onUpdate === 'function') {
+              this.props.onUpdate(eventId, 'save', result.event || updatedEvent);
+            }
+            
+            // Also call onRefreshEvents if available to refresh the entire events list
+            if (typeof this.props.onRefreshEvents === 'function') {
+              this.props.onRefreshEvents();
+            }
+          } else {
+            console.error('Failed to update event:', result.message);
+            window.alert('Failed to update event: ' + result.message);
+            // Don't exit editing mode on failure
+          }
         }
       } catch (error) {
         console.error('Error saving event update:', error);
+        window.alert('Error saving event update: ' + error.message);
+        // Don't exit editing mode on error
+      }
+    }
+
+    // Update participants with encryption
+    updateEventParticipants = async (newParticipants) => {
+      try {
+        console.log('Updating participants for event:', this.state.localEvent._id, newParticipants);
+        
+        const eventId = this.state.localEvent._id;
+        const result = await updateParticipants(eventId, newParticipants);
+        
+        if (result.success) {
+          console.log('Participants updated successfully:', result);
+          
+          // Don't update local state immediately to prevent re-render and input focus loss
+          // Only update local state if the parent component needs notification
+          // The ParticipantList component will handle its own state
+          
+          // Call parent's onUpdate function with the updated event
+          if (typeof this.props.onUpdate === 'function') {
+            this.props.onUpdate(eventId, 'participantsUpdate', result.event || { ...this.state.localEvent, Participants: newParticipants });
+          }
+          
+          // Also call onRefreshEvents if available to refresh the entire events list
+          if (typeof this.props.onRefreshEvents === 'function') {
+            this.props.onRefreshEvents();
+          }
+          
+          return { success: true, message: 'Participants updated successfully' };
+        } else {
+          console.error('Failed to update participants:', result.message);
+          return { success: false, message: result.message };
+        }
+      } catch (error) {
+        console.error('Error updating participants:', error);
+        return { success: false, message: error.message };
       }
     }
 
@@ -472,13 +600,13 @@ import React, { Component } from 'react';
     render() {
       const {
         event,
-        expanded,
-        editing,
         onToggle,
         onUpdate
       } = this.props;
+      const { editing, expanded } = this.state;
       const userRole = this.state.user?.role;
       // Debug logging
+      console.log(`Event ${event._id}: editing state = ${editing}, expanded = ${expanded}`);
       console.log('Event:', event);
       console.log('Local Event:', this.state.localEvent);
       console.log('TimeStart:', this.state.localEvent.TimeStart);
@@ -492,7 +620,7 @@ import React, { Component } from 'react';
             {!editing && (
               <div
                 className="upcoming-event-title clickable"
-                onClick={() => onToggle(event._id)}
+                onClick={() => this.handleToggleExpand()}
                 style={{ cursor: 'pointer'}}
               >
                 <span className="upcoming-event-label">Location:</span> {event.Location}
@@ -505,7 +633,7 @@ import React, { Component } from 'react';
                   style={{ padding: '0 8px', fontSize: '0.85em', height: 26, minWidth: 0, lineHeight: 1.2, borderRadius: 4, border: '1.5px solid var(--theme-accent, #4f46e5)', color: 'var(--theme-accent, #4f46e5)', background: 'transparent', transition: 'background 0.2s, color 0.2s' }}
                   onMouseOver={e => { e.currentTarget.style.background = 'var(--theme-accent, #4f46e5)'; e.currentTarget.style.color = '#fff'; }}
                   onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--theme-accent, #4f46e5)'; }}
-                  onClick={() => onUpdate(event._id, 'card-edit')}
+                  onClick={() => this.handleEditClick()}
                 >
                   Edit
                 </button>
@@ -832,6 +960,7 @@ import React, { Component } from 'react';
                   <ParticipantList
                     eventId={event._id}
                     participants={event.Participants}
+                    onUpdateParticipants={this.updateEventParticipants}
                   />
                 </div>
               </div>
