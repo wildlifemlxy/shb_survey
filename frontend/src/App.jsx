@@ -59,8 +59,8 @@ class App extends Component {
     };
     
     // Auto logout configuration - Extended timeout values
-    this.idleTimeout = 30 * 60 * 1000; // 30 minutes in milliseconds
-    this.warningTimeout = 5 * 60 * 1000; // 5 minute warning before logout
+    this.idleTimeout = 60 * 60 * 1000; // 30 minutes in milliseconds
+    this.warningTimeout = 30 * 60 * 1000; // 30s minute warning before logout
     this.idleTimer = null;
     this.warningTimer = null;
     this.lastActivity = Date.now();
