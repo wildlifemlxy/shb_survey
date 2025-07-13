@@ -224,25 +224,40 @@ class Home extends React.Component {
     data.forEach(observation => {
       const dateValue = observation.Date;
       if (dateValue) {
-        if (!isNaN(parseInt(dateValue))) {
+        // Excel date
+        if (!isNaN(parseInt(dateValue)) && parseInt(dateValue) > 10000) {
           const excelDate = parseInt(dateValue);
           const date = new Date((excelDate - 25569) * 86400 * 1000);
           validDates.push(date);
-        } else if (typeof dateValue === 'string' && dateValue.includes('/')) {
-          const [day, month, year] = dateValue.split('/');
-          if (year && month && day) {
+        } else if (typeof dateValue === 'string') {
+          // dd/mm/yyyy
+          if (dateValue.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+            const [day, month, year] = dateValue.split('/');
             validDates.push(new Date(parseInt(year), parseInt(month) - 1, parseInt(day)));
+          }
+          // dd-Mmm-yy (e.g., 02-Jan-25)
+          else if (dateValue.match(/^\d{2}-[A-Za-z]{3}-\d{2}$/)) {
+            const [day, monStr, yearStr] = dateValue.split('-');
+            const monthMap = {
+              Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+              Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11
+            };
+            const month = monthMap[monStr];
+            let year = parseInt(yearStr);
+            // Assume year 00-49 is 2000+, 50-99 is 1900+
+            year += (year < 50 ? 2000 : 1900);
+            validDates.push(new Date(year, month, parseInt(day)));
           }
         }
       }
     });
     let yearsActive = 1;
     if (validDates.length > 0) {
-      const minDate = new Date(Math.min(...validDates));
-      const maxDate = new Date(Math.max(...validDates));
-      const timeDiff = maxDate.getTime() - minDate.getTime();
-      const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-      yearsActive = Math.max(1, Math.ceil(daysDiff / 365));
+      const minDate = new Date(Math.min(...validDates.map(d => d.getTime())));
+      const now = new Date();
+      const timeDiff = now.getTime() - minDate.getTime();
+      const years = timeDiff / (1000 * 3600 * 24 * 365.25);
+      yearsActive = Math.max(1, Math.floor(years));
     }
     return {
       totalObservations: totalObservations.toString(),
