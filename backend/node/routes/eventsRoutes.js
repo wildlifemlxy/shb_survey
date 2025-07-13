@@ -258,15 +258,25 @@ router.post('/', async function(req, res, next)
                         requestData = decryptResult.data;
                         console.log('🔓 DeleteEvent request decryption successful:', requestData);
                         
-                        // Get eventIds from decrypted request data
+                        // Get eventIds from decrypted request data - can be array or string
                         const { eventIds } = requestData;
                         console.log('🔍 About to delete events:', eventIds);
+                        
+                        // Normalize eventIds to always be an array
+                        const eventIdsArray = Array.isArray(eventIds) ? eventIds : [eventIds];
+                        console.log('🔍 Normalized eventIds array:', eventIdsArray);
+                        
+                        // Validate eventIds
+                        if (!eventIdsArray || eventIdsArray.length === 0 || eventIdsArray.some(id => !id || typeof id !== 'string' || id.length !== 24)) {
+                            console.error('❌ Invalid eventIds:', eventIdsArray);
+                            return res.status(400).json({ error: 'Invalid eventIds format. All IDs must be 24-character hex strings.' });
+                        }
                         
                         var controller = new EventsController();
                         let deletedCount = 0;
                         
                         // Handle array of eventIds
-                        for (const eventId of eventIds) {
+                        for (const eventId of eventIdsArray) {
                             console.log('Deleting event:', eventId);
                             await controller.deleteEvent(eventId);
                             deletedCount++;
@@ -275,7 +285,7 @@ router.post('/', async function(req, res, next)
                         if (io) {
                             io.emit('survey-updated', {
                                 message: 'Events deleted successfully',
-                                deletedEventIds: eventIds,
+                                deletedEventIds: eventIdsArray,
                                 deletedCount: deletedCount
                             });
                         }
@@ -283,7 +293,7 @@ router.post('/', async function(req, res, next)
                         return res.json({ 
                             success: true, 
                             message: 'Events deleted successfully', 
-                            deletedEventIds: eventIds,
+                            deletedEventIds: eventIdsArray,
                             deletedCount: deletedCount 
                         });
                     } else {
@@ -298,7 +308,14 @@ router.post('/', async function(req, res, next)
                 // Fallback for non-encrypted requests (backwards compatibility)
                 console.log('📝 Processing non-encrypted deleteEvent request...');
                 const { eventId } = req.body;
-                console.log('Deleting event:', eventId);
+                console.log('🔍 About to delete event:', eventId);
+                
+                // Validate eventId
+                if (!eventId || typeof eventId !== 'string' || eventId.length !== 24) {
+                    console.error('❌ Invalid eventId format:', eventId);
+                    return res.status(400).json({ error: 'Invalid eventId format. Must be a 24-character hex string.' });
+                }
+                
                 var controller = new EventsController();
                 var result = await controller.deleteEvent(eventId);
                 if (io) {

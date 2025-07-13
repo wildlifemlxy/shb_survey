@@ -772,6 +772,7 @@ class UpcomingEvents extends Component {
                         gap: 12
                       }}
                     >
+                      <div>
                       {/* Event Details */}
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
@@ -1384,8 +1385,8 @@ class UpcomingEvents extends Component {
                               }
                             })()}
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   );
                 })}
