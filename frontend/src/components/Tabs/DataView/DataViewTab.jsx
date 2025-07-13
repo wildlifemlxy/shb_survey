@@ -27,39 +27,6 @@ class DataViewTab extends Component {
     }
   }
 
-  // Handle data updates (when cells are edited)
-  handleDataUpdate = async(updatedRowData, recordId) => 
-  {
-    try {
-      console.log("Data Updated", { updatedRowData, recordId }, BASE_URL);
-      
-      // Check if user is authenticated
-      if (!tokenService.isTokenValid()) {
-        console.error('Authentication required for data update');
-        return;
-      }
-
-      // Encrypt the request data
-      const requestData = await tokenService.encryptData({ 
-        purpose: 'update', 
-        recordId, 
-        updatedRowData 
-      });
-      
-      // Make authenticated request using axios through tokenService
-      const response = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/surveys`, {
-        method: 'POST',
-        data: requestData
-      });
-      
-      if (response.status !== 200) {
-        console.error('Data update failed');
-      }
-    } catch (error) {
-      console.error('Error updating data:', error);
-    }
-  }
-
   // Handle data deletion (when rows are deleted)
   handleDataDelete = async (recordId) => {
     try {

@@ -5,6 +5,9 @@ import React, { Component } from 'react';
   import { AllCommunityModule } from 'ag-grid-community';
   import {getUniqueLocations, getUniqueSeenHeards } from '../../utils/dataProcessing';
   import isEqual from 'lodash/isEqual';
+  import ErrorBoundary from '../ErrorBoundary/ErrorBoundary';
+
+import {updateSurveyData, deleteSurveyData} from '../../data/shbData';
 
   ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -23,6 +26,9 @@ import React, { Component } from 'react';
       sortDirection: 'default', // Three modes: 'asc', 'desc', 'default'
       originalOrder: [] // To store original order for 'default' mode
     };
+    
+    // Flag to prevent infinite update loops
+    this.isUpdating = false;
     
     // Location options for dropdown
     this.locationOptions = [
@@ -567,16 +573,57 @@ import React, { Component } from 'react';
     }
 
     transformData(data) {
-      return data.map((item, index) => {
-        const newItem = { ...item };
-        if (newItem["SHB individual ID (e.g. SHB1)"]) {
-          newItem["SHB individual ID"] = newItem["SHB individual ID (e.g. SHB1)"];
-          delete newItem["SHB individual ID (e.g. SHB1)"];
+      try {
+        // Ensure data is an array
+        if (!Array.isArray(data)) {
+          console.warn('ObservationTable: transformData received non-array data:', data);
+          return [];
         }
-        // Add serial number as a field
-        newItem.serialNumber = index + 1;
-        return newItem;
-      });
+        
+        return data.map((item, index) => {
+          try {
+            // Ensure item is an object
+            if (!item || typeof item !== 'object') {
+              console.warn('ObservationTable: Invalid item at index', index, item);
+              return {
+                serialNumber: index + 1,
+                'Observer name': '',
+                'SHB individual ID': '',
+                'Location': '',
+                'Date': '',
+                'Time': '',
+                'Seen/Heard': ''
+              };
+            }
+            
+            const newItem = { ...item };
+            
+            // Handle legacy field name conversion
+            if (newItem["SHB individual ID (e.g. SHB1)"]) {
+              newItem["SHB individual ID"] = newItem["SHB individual ID (e.g. SHB1)"];
+              delete newItem["SHB individual ID (e.g. SHB1)"];
+            }
+            
+            // Add serial number as a field
+            newItem.serialNumber = index + 1;
+            return newItem;
+          } catch (itemError) {
+            console.error('Error transforming item at index', index, itemError);
+            return {
+              serialNumber: index + 1,
+              'Observer name': '',
+              'SHB individual ID': '',
+              'Location': '',
+              'Date': '',
+              'Time': '',
+              'Seen/Heard': ''
+            };
+          }
+        });
+      } catch (error) {
+        console.error('Error in transformData:', error);
+        return [];
+      }
     }
 
     toggleCard = (index) => {
@@ -648,47 +695,73 @@ import React, { Component } from 'react';
     handleDeleteRow = async (rowData) => {
       const recordId = rowData._id || rowData._rowId;
       try {
-        // Use setTimeout to avoid React lifecycle warning
         console.log('Deleting row with ID:', recordId);
         
-        // If you have a callback to delete by ID, call it here
-        if (this.props.onDataDelete) {
-          await this.props.onDataDelete(recordId);
-        } else if (this.props.onDataUpdate) {
-          // Fallback: filter out the row from current data
-          const transformedData = this.getStableTransformedData();
-          console.log('Transformed data before deletion:', transformedData);
-          const updatedData = transformedData.filter(row => 
-            (row._id || row._rowId) !== recordId
-          );
-          this.props.onDataUpdate(updatedData);
+        // Use the deleteSurveyData function for proper backend deletion
+        const deleteResult = await deleteSurveyData(recordId);
+        
+        if (deleteResult.success) {
+          console.log('Row deleted successfully:', deleteResult.message);
+          
+          // Call the parent callback to refresh data after successful deletion
+          if (this.props.onDataDelete) {
+            await this.props.onDataDelete(recordId);
+          } else if (this.props.onDataUpdate) {
+            // Fallback: filter out the row from current data
+            const transformedData = this.getStableTransformedData();
+            console.log('Transformed data before deletion:', transformedData);
+            const updatedData = transformedData.filter(row => 
+              (row._id || row._rowId) !== recordId
+            );
+            this.props.onDataUpdate(updatedData);
+          }
+        } else {
+          console.error('Failed to delete row:', deleteResult.message);
+          // You might want to show a user-friendly error message here
+          alert(`Failed to delete record: ${deleteResult.message}`);
         }
       } catch (error) {
         console.error('Error deleting row:', error);
+        // Show user-friendly error message
+        alert(`Error deleting record: ${error.message}`);
       }
     };
 
     // Central method to update filtered data
     updateFilteredData = () => {
-      const { searchQuery, selectedLocation, selectedSeenHeard, sortField, sortDirection, originalOrder } = this.state;
-      const transformedData = this.transformData(this.props.data);
+      try {
+        const { searchQuery, selectedLocation, selectedSeenHeard, sortField, sortDirection, originalOrder } = this.state;
+        const rawData = this.props.data || [];
+        
+        if (!Array.isArray(rawData)) {
+          console.warn('ObservationTable: props.data is not an array in updateFilteredData');
+          this.setState({ filteredData: [] });
+          return;
+        }
+        
+        const transformedData = this.transformData(rawData);
 
-      // Filter data based on search query, location, and Seen/Heard status
-      let filteredData = transformedData.filter((obs) => {
-        const observerName = obs['Observer name'] || '';
-        const birdId = obs['SHB individual ID'] || '';
-        const location = obs['Location'] || '';
+        // Filter data based on search query, location, and Seen/Heard status
+        let filteredData = transformedData.filter((obs) => {
+          try {
+            const observerName = obs['Observer name'] || '';
+            const birdId = obs['SHB individual ID'] || '';
+            const location = obs['Location'] || '';
 
-        const searchMatches =
-          observerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          birdId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          location.toLowerCase().includes(searchQuery.toLowerCase());
+            const searchMatches =
+              observerName.toLowerCase().includes((searchQuery || '').toLowerCase()) ||
+              birdId.toLowerCase().includes((searchQuery || '').toLowerCase()) ||
+              location.toLowerCase().includes((searchQuery || '').toLowerCase());
 
-        const locationMatches = selectedLocation === 'All' || obs['Location'] === selectedLocation;
-        const seenHeardMatches = (selectedSeenHeard === 'All' || selectedSeenHeard === '') || obs['Seen/Heard'] === selectedSeenHeard;
+            const locationMatches = selectedLocation === 'All' || obs['Location'] === selectedLocation;
+            const seenHeardMatches = (selectedSeenHeard === 'All' || selectedSeenHeard === '') || obs['Seen/Heard'] === selectedSeenHeard;
 
-        return searchMatches && locationMatches && seenHeardMatches;
-      });
+            return searchMatches && locationMatches && seenHeardMatches;
+          } catch (filterError) {
+            console.error('Error filtering observation:', obs, filterError);
+            return false; // Exclude problematic items
+          }
+        });
 
       // If we're in default mode and we have original order data, reorder based on that
       if (sortDirection === 'default' && originalOrder.length > 0) {
@@ -711,6 +784,10 @@ import React, { Component } from 'react';
       }
 
       this.setState({ filteredData });
+      } catch (error) {
+        console.error('Error in updateFilteredData:', error);
+        this.setState({ filteredData: [] }); // Set empty array on error
+      }
     }
 
     // Helper method to generate a unique ID for each item
@@ -721,13 +798,38 @@ import React, { Component } from 'react';
 
     // Get stable transformed data with proper IDs
     getStableTransformedData = () => {
-      const transformedData = this.transformData(this.props.data);
-      // Ensure each row has a stable ID for ag-Grid tracking
-      return transformedData.map((row, index) => ({
-        ...row,
-        _rowId: row._id || row.id || `row-${index}`, // Use _id from MongoDB if available
-        _originalIndex: index // Keep track of original index
-      }));
+      try {
+        // Ensure we have valid data
+        const rawData = this.props.data || [];
+        if (!Array.isArray(rawData)) {
+          console.warn('ObservationTable: props.data is not an array, using empty array');
+          return [];
+        }
+        
+        const transformedData = this.transformData(rawData);
+        
+        // Ensure each row has a stable ID for ag-Grid tracking
+        return transformedData.map((row, index) => {
+          // Ensure row is an object
+          if (!row || typeof row !== 'object') {
+            console.warn('ObservationTable: Invalid row data at index', index, row);
+            return {
+              _rowId: `row-${index}`,
+              _originalIndex: index,
+              serialNumber: index + 1
+            };
+          }
+          
+          return {
+            ...row,
+            _rowId: row._id || row.id || `row-${index}`, // Use _id from MongoDB if available
+            _originalIndex: index // Keep track of original index
+          };
+        });
+      } catch (error) {
+        console.error('Error in getStableTransformedData:', error);
+        return []; // Return empty array on error
+      }
     };
 
     sortData(data, field, direction) {
@@ -790,25 +892,48 @@ import React, { Component } from 'react';
     }  
 
     componentDidUpdate(prevProps, prevState) {
-      // Check if the data from props has changed
-      if (prevProps.data !== this.props.data) {
-        // Initialize filteredData with updated props data
-        const transformedData = this.transformData(this.props.data);
+      // Only update if the data reference has actually changed and we have valid data
+      if (prevProps.data !== this.props.data && 
+          this.props.data && 
+          Array.isArray(this.props.data) &&
+          !this.isUpdating) { // Prevent recursive updates
         
-        // Store the original order of the data
-        const originalOrder = transformedData.map(this.getItemId);
+        this.isUpdating = true; // Set flag to prevent recursive calls
         
-        // Apply current sorting if not in default mode
-        let dataToShow = transformedData;
-        if (this.state.sortDirection !== 'default') {
-          dataToShow = this.sortData(transformedData, this.state.sortField, this.state.sortDirection);
+        try {
+          // Initialize filteredData with updated props data
+          const transformedData = this.transformData(this.props.data);
+          
+          // Only update if the transformed data is actually different
+          const currentTransformedDataString = JSON.stringify(this.state.filteredData);
+          const newTransformedDataString = JSON.stringify(transformedData);
+          
+          if (currentTransformedDataString !== newTransformedDataString) {
+            // Store the original order of the data
+            const originalOrder = transformedData.map(this.getItemId);
+            
+            // Apply current sorting if not in default mode
+            let dataToShow = transformedData;
+            if (this.state.sortDirection !== 'default') {
+              dataToShow = this.sortData(transformedData, this.state.sortField, this.state.sortDirection);
+            }
+        
+            // Update the state with the new data and original order
+            this.setState({ 
+              filteredData: dataToShow,
+              originalOrder: originalOrder 
+            }, () => {
+              // Reset the flag after state update is complete
+              this.isUpdating = false;
+            });
+          } else {
+            // Reset the flag if no update was needed
+            this.isUpdating = false;
+          }
+        } catch (error) {
+          console.error('Error in componentDidUpdate:', error);
+          this.isUpdating = false; // Reset flag on error
         }
-    
-        // Update the state with the new data and original order
-        this.setState({ 
-          filteredData: dataToShow,
-          originalOrder: originalOrder 
-        });
       }
     }
     
@@ -1053,15 +1178,19 @@ import React, { Component } from 'react';
     }
 
     render() {
-      const { data } = this.props;
-      const { searchQuery, selectedSeenHeard, filteredData, sortField, sortDirection } = this.state;
-      const seenHeards = getUniqueSeenHeards(data);
-      const transformedData = this.getStableTransformedData();
+      try {
+        const { data } = this.props;
+        const { searchQuery, selectedSeenHeard, filteredData, sortField, sortDirection } = this.state;
+        
+        // Safety check for data
+        const safeData = data || [];
+        const seenHeards = getUniqueSeenHeards(safeData);
+        const transformedData = this.getStableTransformedData();
 
-      // Check if user is not WWF-Volunteer to enable editing
-      const userRole = localStorage.getItem('userRole'); // Assuming user role is stored in localStorage
-      const isEditable = userRole !== 'WWF-Volunteer' && userRole !== null;
-      console.log('User role:', userRole, 'Editable:', isEditable);
+        // Check if user is not WWF-Volunteer to enable editing
+        const userRole = localStorage.getItem('userRole'); // Assuming user role is stored in localStorage
+        const isEditable = userRole !== 'WWF-Volunteer' && userRole !== null;
+        console.log('User role:', userRole, 'Editable:', isEditable);
 
       const columns = [
         { 
@@ -1147,7 +1276,7 @@ import React, { Component } from 'react';
         },
         {
           headerName: "Activity",
-          field: "Activity (foraging, preening, calling, perching, others)",
+          field: "Activity",
           cellRenderer: (params) => params.value || '',
           width: 300,
           editable: isEditable,
@@ -1173,16 +1302,65 @@ import React, { Component } from 'react';
           field: "actions",
           width: 100,
           sortable: false,
-          suppressMenu: true,
+          suppressHeaderMenuButton: true,
           editable: false, // Actions column should never be editable
+          suppressKeyboardEvent: () => true, // Prevent keyboard events
+          suppressNavigable: true, // Make cell non-navigable
           pinned: 'right',
           cellRenderer: (params) => {
             return (
               <button
-                onClick={(e) => {
+                onMouseDown={(e) => {
                   e.preventDefault();
-                  e.stopPropagation();
-                  this.handleDeleteRow(params.data);
+
+                  // Completely self-contained delete function - no dependencies on component state
+                  const performDelete = async () => {
+                    try {
+                      console.log('🔴 Delete button clicked for row:', params.data);
+                      console.log('🔴 Row ID:', params.data._id || params.data._rowId);
+                      
+                      // Extract and process record ID (convert buffer to string if needed)
+                      let recordId = params.data._id || params.data._rowId;
+                      if (!recordId) {
+                        alert('Cannot delete: No record ID found');
+                        return;
+                      }
+                      
+                      // Process record ID if it's a MongoDB ObjectId buffer
+                      if (recordId && typeof recordId === 'object' && recordId.buffer) {
+                        const buffer = recordId.buffer;
+                        recordId = Array.from(new Uint8Array(Object.values(buffer)))
+                          .map(b => b.toString(16).padStart(2, '0'))
+                          .join('');
+                        console.log('🔴 Converted ObjectId buffer to string:', recordId);
+                      }
+
+                      
+                      console.log('🔴 User confirmed deletion, proceeding...');
+                      console.log('🗑️ Calling deleteSurveyData with ID:', recordId);
+                      
+                      // Call the delete function directly - imported at top of file
+                      const deleteResult = await deleteSurveyData(recordId);
+                      
+                      console.log('🗑️ Delete result:', deleteResult);
+                      
+                      if (deleteResult && deleteResult.success) {
+                        console.log('✅ Row deleted successfully:', deleteResult.message);
+                        alert('Record deleted successfully!');
+                      } else {
+                        const errorMsg = deleteResult?.message || 'Unknown error occurred';
+                        console.error('❌ Failed to delete row:', errorMsg);
+                        alert(`Failed to delete record: ${errorMsg}`);
+                      }
+                      
+                    } catch (error) {
+                      console.error('💥 Error in delete operation:', error);
+                      alert(`Error deleting record: ${error.message}`);
+                    }
+                  };
+                  
+                  // Execute the delete function
+                  performDelete();
                 }}
                 style={{
                   backgroundColor: '#dc3545',
@@ -1192,7 +1370,7 @@ import React, { Component } from 'react';
                   padding: '4px 8px',
                   cursor: 'pointer',
                   fontSize: '12px',
-                  marginTop: '2px'
+                  marginTop: '2px',
                 }}
                 title="Delete this row"
               >
@@ -1206,19 +1384,40 @@ import React, { Component } from 'react';
       return (
         <>
           <div className="ag-theme-alpine" style={{ height: '50vh', width: '100%' }}>
-            <AgGridReact
-              columnDefs={columns}
-              rowData={transformedData}
-              components={{
-                LocationCellEditor: this.LocationCellEditor
+            <ErrorBoundary>
+              <AgGridReact
+                columnDefs={columns}
+                rowData={transformedData}
+                components={{
+                  LocationCellEditor: this.LocationCellEditor
+                }}
+                domLayout="normal"
+                pagination={true}
+                defaultColDef={{
+                  sortable: true,
+                  resizable: true,
               }}
-              domLayout="normal"
-              pagination={true}
-              defaultColDef={{
-                sortable: true,
-                resizable: true,
-              }}
-              paginationPageSize={transformedData.length}
+              paginationPageSize={(() => {
+                try {
+                  const dataLength = transformedData?.length || 0;
+                  const allowedSizes = [20, 50, 100, 200, 500];
+                  
+                  // If no data, default to smallest size
+                  if (dataLength === 0) {
+                    return allowedSizes[0]; // 20
+                  }
+                  
+                  // Find the smallest allowed size that can accommodate all data
+                  const appropriateSize = allowedSizes.find(size => size >= dataLength);
+                  
+                  // If no size is large enough (more than 500 items), use the largest size
+                  return appropriateSize || allowedSizes[allowedSizes.length - 1]; // 500
+                } catch (error) {
+                  console.error('Error calculating pagination size:', error);
+                  return 50; // Safe fallback
+                }
+              })()}
+              paginationPageSizeSelector={[20, 50, 100, 200, 500]}
               suppressScrollOnNewData={true}
               suppressMaintainUnsortedOrder={true}
               suppressCellFocus={!isEditable} // Allow cell focus if editable
@@ -1227,26 +1426,133 @@ import React, { Component } from 'react';
               suppressAnimationFrame={true}
               singleClickEdit={isEditable}
               stopEditingWhenCellsLoseFocus={true}
-              getRowId={(params) => params.data._id || params.data._rowId || params.node.rowIndex}
-              onCellValueChanged={(event) => {
+              getRowId={(params) => {
+                // Ensure we return a string ID, not an object
+                if (params.data._id) {
+                  if (typeof params.data._id === 'string') {
+                    return params.data._id;
+                  } else if (params.data._id && params.data._id.buffer) {
+                    // Handle MongoDB ObjectId buffer format
+                    return JSON.stringify(params.data._id);
+                  } else {
+                    return String(params.data._id);
+                  }
+                }
+                if (params.data._rowId) {
+                  return String(params.data._rowId);
+                }
+                return String(params.node.rowIndex);
+              }}
+              onCellValueChanged={async (event) => {
                 // Handle cell value changes when editing
-                const recordId = event.data._id || event.data._rowId;
+                let recordId = event.data._id || event.data._rowId;
+                
+                // Convert MongoDB ObjectId buffer to string if needed
+                if (recordId && typeof recordId === 'object' && recordId.buffer) {
+                  // This is a MongoDB ObjectId buffer, convert to hex string
+                  const buffer = recordId.buffer;
+                  recordId = Array.from(new Uint8Array(Object.values(buffer)))
+                    .map(b => b.toString(16).padStart(2, '0'))
+                    .join('');
+                  console.log('🔧 Converted ObjectId buffer to string:', recordId);
+                } else if (recordId && typeof recordId === 'object') {
+                  // Try to stringify if it's still an object
+                  recordId = JSON.stringify(recordId);
+                  console.log('🔧 Stringified object ID:', recordId);
+                }
+                
                 console.log('Cell value changed:', {
                   recordId: recordId,
+                  originalId: event.data._id,
                   field: event.colDef.field,
                   oldValue: event.oldValue,
                   newValue: event.newValue,
                   rowIndex: event.node.rowIndex
                 });
                 
-                // Update the data in the parent component if callback exists
-                if (this.props.onDataUpdate) {
-                  // Send the updated row data with its ID for backend update
-                  const updatedRowData = { 
-                    ...event.data,
-                    [event.colDef.field]: event.newValue 
-                  };
-                  this.props.onDataUpdate(updatedRowData, recordId);
+                // Auto-update logic for Bird ID and Number of Birds synchronization
+                let updatedRowData = { 
+                  ...event.data,
+                  [event.colDef.field]: event.newValue 
+                };
+                
+                // If Bird ID field was changed, automatically update Number of Birds
+                if (event.colDef.field === 'SHB individual ID') {
+                  const birdIdValue = event.newValue || '';
+                  if (birdIdValue.trim() !== '') {
+                    // Count unique bird IDs from the formatted value
+                    const formattedBirdIds = this.formatBirdId(birdIdValue);
+                    const uniqueBirdIds = formattedBirdIds
+                      .split(',')
+                      .map(id => id.trim())
+                      .filter(id => id !== '')
+                      .filter((id, index, array) => array.indexOf(id) === index); // Remove duplicates
+                    
+                    const birdCount = uniqueBirdIds.length;
+                    console.log('🔄 Auto-updating Number of Birds:', { 
+                      originalBirdId: birdIdValue, 
+                      formattedBirdIds, 
+                      uniqueBirdIds, 
+                      count: birdCount 
+                    });
+                    
+                    // Update both the Bird ID and Number of Birds
+                    updatedRowData['SHB individual ID'] = formattedBirdIds;
+                    updatedRowData['Number of Birds'] = birdCount;
+                    
+                    // Update the grid cell visually for Number of Birds
+                    setTimeout(() => {
+                      const gridApi = event.api;
+                      const rowNode = event.node;
+                      rowNode.setDataValue('Number of Birds', birdCount);
+                    }, 50);
+                  } else {
+                    // If Bird ID is empty, set Number of Birds to empty/null
+                    updatedRowData['Number of Birds'] = null;
+                    setTimeout(() => {
+                      const gridApi = event.api;
+                      const rowNode = event.node;
+                      rowNode.setDataValue('Number of Birds', null);
+                    }, 50);
+                  }
+                }
+                
+                // If Number of Birds was manually changed, validate it against Bird ID count
+                if (event.colDef.field === 'Number of Birds') {
+                  const birdIdValue = event.data['SHB individual ID'] || '';
+                  if (birdIdValue.trim() !== '') {
+                    const formattedBirdIds = this.formatBirdId(birdIdValue);
+                    const uniqueBirdIds = formattedBirdIds
+                      .split(',')
+                      .map(id => id.trim())
+                      .filter(id => id !== '')
+                      .filter((id, index, array) => array.indexOf(id) === index);
+                    
+                    const actualBirdCount = uniqueBirdIds.length;
+                    const enteredCount = parseInt(event.newValue) || 0;
+                    
+                    if (enteredCount !== actualBirdCount) {
+                      console.log('⚠️ Warning: Number of Birds (' + enteredCount + ') does not match unique Bird IDs count (' + actualBirdCount + ')');
+                      // You could show a warning to the user here
+                      // For now, we'll let the user's manual entry take precedence
+                    }
+                  }
+                }
+                
+                try {
+                  console.log('🔄 Attempting to update survey data:', { recordId, updatedRowData });
+                  const result = await updateSurveyData(recordId, updatedRowData);
+                  console.log('🔄 Update result:', result);
+                  
+                  if (result.success) {
+                    console.log('✅ Survey updated successfully:', result.message);
+                  } else {
+                    console.error('❌ Survey update failed:', result.message);
+                    // You might want to revert the change or show an error message
+                  }
+                } catch (updateError) {
+                  console.error('💥 Error updating survey:', updateError);
+                  // You might want to revert the change or show an error message
                 }
               }}
               getRowStyle={params => {
@@ -1267,7 +1573,8 @@ import React, { Component } from 'react';
 
                 return { backgroundColor };  // Apply background color to the row
               }}
-            />
+              />
+            </ErrorBoundary>
           </div>
           {/* Legend below the table */}
           <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', marginTop: '1rem', justifyContent: 'center' }}>
@@ -1286,6 +1593,21 @@ import React, { Component } from 'react';
           </div>
         </>
       );
+      } catch (error) {
+        console.error('Error in ObservationTable render:', error);
+        return (
+          <div style={{ padding: '20px', textAlign: 'center', color: 'red' }}>
+            <h3>Error loading table</h3>
+            <p>There was an error loading the observation table. Please try refreshing the page.</p>
+            <details style={{ marginTop: '10px', textAlign: 'left' }}>
+              <summary>Error Details</summary>
+              <pre style={{ background: '#f8f8f8', padding: '10px', borderRadius: '4px', fontSize: '12px' }}>
+                {error.toString()}
+              </pre>
+            </details>
+          </div>
+        );
+      }
     }
   }
 

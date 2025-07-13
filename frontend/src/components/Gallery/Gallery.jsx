@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
-import { fetchGalleryData } from '../../data/shbData';
+import { fetchGalleryDataPublic } from '../../data/shbData';
 import tokenService from '../../utils/tokenService';
 import './Gallery.css';
 
@@ -44,7 +44,7 @@ class Gallery extends Component {
   loadGalleryData = async () => {
     try {
       this.setState({ isLoading: true });
-      const data = await fetchGalleryData();
+      const data = await fetchGalleryDataPublic();
       this.setState({ 
         galleryData: data || [],
         isLoading: false 

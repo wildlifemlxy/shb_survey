@@ -397,6 +397,7 @@ class NewSurveyModal extends Component {
   handleSubmit = async (e) => {
     e.preventDefault();
     const summary = JSON.parse(this.formatSubmissionSummaryAsJson());
+    console.log('Submitting survey data:', summary);
     try {
       const result = await insertSurveyData(summary);
       console.log('Insert result:', result);

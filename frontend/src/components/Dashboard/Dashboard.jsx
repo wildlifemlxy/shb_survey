@@ -382,11 +382,11 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
         </header>
         {/* Filters Section */}
         <FilterSection
-          locations={locations}
-          activities={activities}
+          locations={locations || []}
+          activities={activities || []}
           initialLocation={filterLocation}
           initialActivity={filterActivity}
-          data={filteredData}
+          data={filteredData || []}
           onFilterChange={this.handleFilterChange}
           onSearchChange={this.handleSearchChange}
         />

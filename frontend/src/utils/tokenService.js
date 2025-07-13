@@ -161,6 +161,7 @@ class TokenService {
 
     try {
       const response = await axios.post(url, data, config);
+      console.log('Axios POST request successful:', response.data);
       return response;
     } catch (error) {
       // Handle token expiration

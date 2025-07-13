@@ -113,23 +113,38 @@ export async function fetchSurveyData() {
 // Insert new survey data with encryption (requires authentication)
 export async function insertSurveyData(surveyData) {
   try {
+    console.log("Inserting survey data to backend:", surveyData);
+    
+    // Check authentication status with detailed logging
+    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    const tokenValid = tokenService.isTokenValid();
+    
+    console.log('isAuthenticated insert:', isAuthenticated);
+    console.log('tokenValid insert:', tokenValid);
+    
     // Check if user is authenticated
-    if (!tokenService.isTokenValid()) {
+    if (!tokenValid) {
+      console.log('Token validation failed - authentication required');
       return { success: false, message: 'Authentication required for data submission' };
     }
 
     // Prepare request data with purpose first, then encrypt
     const requestPayload = {
-      data: surveyData
+      data: surveyData,
+      requiresEncryption: true,
+      publicKey: await tokenService.getPublicKey(),
+      sessionId: tokenService.getKeySessionId()
     };
     
     const encryptedData = await tokenService.encryptData(requestPayload);
+    console.log('Encrypted request data for insert:', encryptedData);
     
-    // Make authenticated request using axios through tokenService
-    const response = await tokenService.axiosPost(`${BASE_URL}/surveys`, { 
-      ...encryptedData, 
-      purpose: 'insert' 
+    // Make authenticated request using regular axios (backend returns plain JSON)
+    const response = await axios.post(`${BASE_URL}/surveys`, { 
+      purpose: 'insert',
+      ...encryptedData
     });
+    console.log("Response from backend (insert):", response.data);
 
     if (response.status === 200 && response.data.result && response.data.result.success) {
       return { success: true, message: response.data.result.message };
@@ -138,6 +153,117 @@ export async function insertSurveyData(surveyData) {
     }
   } catch (error) {
     console.error('Error inserting shbData to MongoDB:', error);
+    if (error.message === 'Authentication failed') {
+      return { success: false, message: 'Session expired. Please login again.' };
+    }
+    return { success: false, message: error.message };
+  }
+}
+
+// Update survey data with encryption (requires authentication)
+export async function updateSurveyData(recordId, updatedData) {
+  try {
+    console.log("Updating survey data in backend:", { recordId, updatedData });
+    
+    // Check authentication status with detailed logging
+    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    const tokenValid = tokenService.isTokenValid();
+    
+    console.log('isAuthenticated update:', isAuthenticated);
+    console.log('tokenValid update:', tokenValid);
+    
+    // Check if user is authenticated
+    if (!tokenValid) {
+      console.log('Token validation failed - authentication required');
+      return { success: false, message: 'Authentication required for data submission' };
+    }
+
+    // Validate recordId
+    if (!recordId) {
+      return { success: false, message: 'Record ID is required for update' };
+    }
+
+    // Prepare request data with purpose first, then encrypt
+    const requestPayload = {
+      recordId: recordId,
+      updatedRowData: updatedData,
+      requiresEncryption: true,
+      publicKey: await tokenService.getPublicKey(),
+      sessionId: tokenService.getKeySessionId()
+    };
+    
+    const encryptedData = await tokenService.encryptData(requestPayload);
+    console.log('Encrypted request data for update:', encryptedData);
+    
+    // Make authenticated request using regular axios (backend returns plain JSON)
+    const response = await axios.post(`${BASE_URL}/surveys`, { 
+      purpose: 'update',
+      ...encryptedData
+    });
+    console.log("Response from backend (update):", response.data);
+
+    if (response.status === 200 && response.data.result && response.data.result.success) {
+      return { success: true, message: response.data.result.message };
+    } else {
+      return { success: false, message: response.data.result?.message || 'Update failed' };
+    }
+  } catch (error) {
+    console.error('Error updating shbData in MongoDB:', error);
+    if (error.message === 'Authentication failed') {
+      return { success: false, message: 'Session expired. Please login again.' };
+    }
+    return { success: false, message: error.message };
+  }
+}
+
+// Delete survey data with encryption (requires authentication)
+export async function deleteSurveyData(recordId) {
+  try {
+    console.log("Deleting survey data from backend:", { recordId });
+    
+    // Check authentication status with detailed logging
+    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    const tokenValid = tokenService.isTokenValid();
+    
+    console.log('isAuthenticated delete:', isAuthenticated);
+    console.log('tokenValid delete:', tokenValid);
+    
+    // Check if user is authenticated
+    if (!tokenValid) {
+      console.log('Token validation failed - authentication required');
+      return { success: false, message: 'Authentication required for data deletion' };
+    }
+
+    // Validate recordId
+    if (!recordId) {
+      return { success: false, message: 'Record ID is required for deletion' };
+    }
+
+    // Prepare request data with purpose first, then encrypt
+    const requestPayload = {
+      recordId: recordId,
+      requiresEncryption: true,
+      publicKey: await tokenService.getPublicKey(),
+      sessionId: tokenService.getKeySessionId()
+    };
+    
+    const encryptedData = await tokenService.encryptData(requestPayload);
+    console.log('Encrypted request data for delete:', encryptedData);
+    
+    // Make authenticated request using regular axios (backend returns plain JSON)
+    const response = await axios.post(`${BASE_URL}/surveys`, { 
+      purpose: 'delete',
+      ...encryptedData
+    });
+    console.log("Response from backend (delete):", response.data);
+
+    if (response.status === 200 && response.data.result && response.data.result.success) {
+      return { success: true, message: response.data.result.message };
+    } else {
+      return { success: false, message: response.data.result?.message || 'Delete failed' };
+    }
+  } catch (error) {
+    console.error('Error deleting shbData from MongoDB:', error);
     if (error.message === 'Authentication failed') {
       return { success: false, message: 'Session expired. Please login again.' };
     }
@@ -169,49 +295,6 @@ export async function fetchGalleryDataPublic() {
     }
   } catch (error) {
     console.error('Error loading public gallery data:', error);
-    return [];
-  }
-}
-
-// Fetch gallery data with encryption (requires authentication)
-export async function fetchGalleryData() {
-  try {
-    // Check if user is authenticated - if not, use public access
-    if (!tokenService.isTokenValid()) {
-      console.log('No valid token, fetching public gallery data');
-      return await fetchGalleryDataPublic();
-    }
-
-    // For authenticated users, still use public access for now (since gallery is public)
-    // Later you can implement this for private/approval features
-    console.log('User authenticated, fetching gallery data...');
-    return await fetchGalleryDataPublic();
-
-    // TODO: Implement authenticated gallery access when needed for approval/management features
-    /*
-    // Encrypt the request data
-    const requestData = await tokenService.encryptData({ purpose: 'retrieveWithBlobs' });
-    
-    // Make authenticated request using axios through tokenService
-    const response = await tokenService.axiosPost(`${BASE_URL}/gallery`, requestData);
-    
-    if (response.status === 200 && response.data.result) {
-      const data = response.data.result;
-      console.log("Retrieved gallery items:", data);
-      
-      // Combine pictures and videos into a single array
-      const allItems = [
-        ...(data.pictures || []),
-        ...(data.videos || [])
-      ];
-      return allItems;
-    } else {
-      console.error('Failed to load gallery items from backend');
-      return [];
-    }
-    */
-  } catch (error) {
-    console.error('Error loading gallery data:', error);
     return [];
   }
 }

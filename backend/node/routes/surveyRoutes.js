@@ -29,17 +29,13 @@ router.post('/', async function(req, res, next)
         try {
             // Handle encrypted request data for retrieve purpose
             if (req.body.encryptedData && req.body.requiresServerEncryption) {
-                console.log('🔓 Decrypting incoming request data...');
                 try {
                     const decryptResult = tokenEncryption.decryptRequestData(req.body);
                     if (decryptResult.success) {
                         requestData = decryptResult.data;
-                        console.log('🔓 Request decryption successful, purpose:', requestData);
                         
                         // Get client public key from decrypted request data
                         const clientPublicKey = requestData.clientPublicKey || requestData.publicKey;
-                        console.log('🔐 Using client public key for encryption:', clientPublicKey ? 'Found' : 'Not found');
-                        console.log('🔐 Client public key source:', requestData.clientPublicKey ? 'clientPublicKey' : requestData.publicKey ? 'publicKey' : 'none');
                         
                         // Apply token encryption for authenticated access with client's public key
                         return await tokenEncryption.encryptResponseDataMiddleware(req, res, async () => {
@@ -49,7 +45,7 @@ router.post('/', async function(req, res, next)
                             // Get all surveys for calculating statistics
                             var surveyResult = await surveyController.getAllSurveys();
                             var userResult = await usersController.getAllUsers();
-                            console.log('Surveys retrieved successfully:', surveyResult.success, userResult.success ? userResult.users.length : 0);
+                            //console.log('Surveys retrieved successfully:', surveyResult.success, userResult.success ? userResult.users.length : 0);
                             
                             return {"result": surveyResult, "userCount": userResult.success ? userResult.users.length : 0};
                         }, clientPublicKey);
@@ -68,61 +64,126 @@ router.post('/', async function(req, res, next)
             return res.status(500).json({ error: 'Failed to retrieve surveys.' });
         }
     } 
-    else if(requestData.purpose === "insert")
+    else if(req.body.purpose === "insert")
     {
         try {
-            // Apply token encryption for authenticated acces
-                var controller = new SurveyController();
-                let results = [];
-                if (Array.isArray(requestData.data)) {
-                    for (const survey of requestData.data) {
-                        const result = await controller.insertSurvey(survey);
-                        results.push(result);
+            // Handle encrypted request data for insert purpose
+            if (req.body.encryptedData && req.body.requiresServerEncryption) {
+                console.log('🔓 Decrypting incoming insert request data...');
+                try {
+                    const decryptResult = tokenEncryption.decryptRequestData(req.body);
+                    if (decryptResult.success) {
+                        requestData = decryptResult.data;
+                        console.log('🔓 Insert request decryption successful:', requestData);
+                        
+                        // Get client public key from decrypted request data
+                        const clientPublicKey = requestData.clientPublicKey || requestData.publicKey;
+                        console.log('🔐 Using client public key for insert response encryption:', clientPublicKey ? 'Found' : 'Not found');
+                        
+                        // Apply token encryption for authenticated access with client's public key
+                        var controller = new SurveyController();
+                        let results = [];
+                        if (Array.isArray(requestData.data)) {
+                            for (const survey of requestData.data) {
+                                const result = await controller.insertSurvey(survey);
+                                results.push(result);
+                            }
+                            await sendOneSignalNotification({
+                                title: 'New Survey Update',
+                                message: `New survey has been updated in the database on ${dateStr} at ${timeStr}`,
+                                web_url: "https://gentle-dune-0405ec500.1.azurestaticapps.net/"
+                            });
+                            console.log('New survey notification sent successfully');
+                            if (io) {
+                                io.emit('survey-updated', {
+                                    message: 'Survey updated successfully',
+                                });
+                            }
+                            return res.json({"result": { success: true, message: "All surveys inserted.", details: results }});
+                        } else {
+                            // Single object fallback
+                            console.log('🔍 About to insert single survey:', JSON.stringify(requestData.data, null, 2));
+                            const result = await controller.insertSurvey(requestData.data);
+                            console.log('Survey inserted successfully:', result);
+                            
+                            await sendOneSignalNotification({
+                                title: 'New Survey Update',
+                                message: `New survey has been updated in the database on ${dateStr} at ${timeStr}`,
+                                web_url: "https://gentle-dune-0405ec500.1.azurestaticapps.net/"
+                            });
+                            console.log('New survey notification sent successfully');
+                            if (io) {
+                                io.emit('survey-updated', {
+                                    message: 'Survey updated successfully',
+                                });
+                            }
+                            return res.json({"result": result});
+                        }
+                    } else {
+                        console.error('🔓 Insert request decryption failed:', decryptResult.error);
+                        return res.status(400).json({ error: 'Failed to decrypt insert request data' });
                     }
-                     await sendOneSignalNotification({
-                        title: 'New Survey Update',
-                        message: `New survey has been updated in the database on ${dateStr} at ${timeStr}`,
-                        web_url: "https://gentle-dune-0405ec500.1.azurestaticapps.net/"
-                    });
-                    console.log('New survey notification sent successfully');
-                    if (io) {
-                        io.emit('survey-updated', {
-                            message: 'Survey updated successfully',
-                        });
-                    }
-                    return {"result": { success: true, message: "All surveys inserted.", details: results }};
-                } else {
-                    // Single object fallback
-                    const result = await controller.insertSurvey(requestData.data);
-                    console.log('Survey inserted successfully:', result);
-                    
-
-                    await sendOneSignalNotification({
-                        title: 'New Survey Update',
-                        message: `New survey has been updated in the database on ${dateStr} at ${timeStr}`,
-                        web_url: "https://gentle-dune-0405ec500.1.azurestaticapps.net/"
-                    });
-                    console.log('New survey notification sent successfully');
-                    if (io) {
-                        io.emit('survey-updated', {
-                            message: 'Survey updated successfully',
-                        });
-                    }
-                    return {"result": result};
+                } catch (decryptError) {
+                    console.error('🔓 Insert request decryption error:', decryptError);
+                    return res.status(400).json({ error: 'Invalid encrypted insert request' });
                 }
+            }
         } catch (error) {
             console.error('Error inserting survey(s):', error);
             return res.status(500).json({ error: 'Failed to insert survey(s).' });
         }
     } 
-    else if(requestData.purpose === "update")
+    else if(req.body.purpose === "update")
     {
-        console.log('Update request for survey:', requestData);
+        console.log('Update request for survey:', req.body);
         try {
-            // Apply token encryption for authenticated access
+            // Handle encrypted request data for update purpose
+            if (req.body.encryptedData && req.body.requiresServerEncryption) {
+                console.log('🔓 Decrypting incoming update request data...');
+                try {
+                    const decryptResult = tokenEncryption.decryptRequestData(req.body);
+                    if (decryptResult.success) {
+                        requestData = decryptResult.data;
+                        console.log('🔓 Update request decryption successful:', requestData);
+                        
+                        // Get client public key from decrypted request data
+                        const clientPublicKey = requestData.clientPublicKey || requestData.publicKey;
+                        console.log('🔐 Using client public key for update response encryption:', clientPublicKey ? 'Found' : 'Not found');
+                        
+                        // Apply token encryption for authenticated access with client's public key
+                        var controller = new SurveyController();
+
+                        const { recordId, updatedRowData } = requestData;
+                        console.log('🔍 About to update survey:', { recordId, updatedRowData });
+                        
+                        // Call the update method in the controller
+                        var result = await controller.updateSurvey(recordId, updatedRowData);
+
+                        console.log('Survey updated successfully:', result);
+                        
+                        // Emit socket event for real-time updates
+                        if (io) {
+                            io.emit('survey-updated', {
+                                message: 'Survey record updated successfully',
+                            });
+                        }
+                        
+                        return res.json({"result": result});
+                    } else {
+                        console.error('🔓 Update request decryption failed:', decryptResult.error);
+                        return res.status(400).json({ error: 'Failed to decrypt update request data' });
+                    }
+                } catch (decryptError) {
+                    console.error('🔓 Update request decryption error:', decryptError);
+                    return res.status(400).json({ error: 'Invalid encrypted update request' });
+                }
+            } else {
+                // Fallback for non-encrypted requests (backwards compatibility)
+                console.log('📝 Processing non-encrypted update request...');
                 var controller = new SurveyController();
-                
-                const { recordId, updatedRowData } = requestData;
+
+                const { recordId, updatedRowData } = req.body;
+                console.log('🔍 About to update survey (non-encrypted):', { recordId, updatedRowData });
                 
                 // Call the update method in the controller
                 var result = await controller.updateSurvey(recordId, updatedRowData);
@@ -136,10 +197,8 @@ router.post('/', async function(req, res, next)
                     });
                 }
                 
-                return {
-                        success: true,
-                        message: "Survey updated successfully"
-                };
+                return res.json({"result": result});
+            }
 
         } catch (error) {
             console.error('Error updating survey:', error);
@@ -149,14 +208,64 @@ router.post('/', async function(req, res, next)
             });
         }
     }
-    else if(requestData.purpose === "delete")
+    else if(req.body.purpose === "delete")
     {
-        console.log('Delete request for survey:', requestData);
+        console.log('Delete request for survey:', req.body);
         try {
-            // Apply token encryption for authenticated access
+            // Handle encrypted request data for delete purpose
+            if (req.body.encryptedData && req.body.requiresServerEncryption) {
+                console.log('🔓 Decrypting incoming delete request data...');
+                try {
+                    const decryptResult = tokenEncryption.decryptRequestData(req.body);
+                    if (decryptResult.success) {
+                        requestData = decryptResult.data;
+                        console.log('🔓 Delete request decryption successful:', requestData);
+                        
+                        // Get client public key from decrypted request data
+                        const clientPublicKey = requestData.clientPublicKey || requestData.publicKey;
+                        console.log('🔐 Using client public key for delete response encryption:', clientPublicKey ? 'Found' : 'Not found');
+                        
+                        // Apply token encryption for authenticated access with client's public key
+                        var controller = new SurveyController();
+                        
+                        const { recordId } = requestData;
+                        console.log('🗑️ About to delete survey:', { recordId });
+                        
+                        // Call the delete method in the controller
+                        var result = await controller.deleteSurvey(recordId);
+
+                        console.log('Survey deleted successfully:', result);
+                        
+                        // Emit socket event for real-time updates
+                        if (io) {
+                            io.emit('survey-updated', {
+                                message: 'Survey record deleted successfully',
+                                recordId: recordId
+                            });
+                        }
+                        
+                        return res.json({
+                            "result": {
+                                success: true,
+                                message: "Survey deleted successfully",
+                                recordId: recordId
+                            }
+                        });
+                    } else {
+                        console.error('🔓 Delete request decryption failed:', decryptResult.error);
+                        return res.status(400).json({ error: 'Failed to decrypt delete request data' });
+                    }
+                } catch (decryptError) {
+                    console.error('🔓 Delete request decryption error:', decryptError);
+                    return res.status(400).json({ error: 'Invalid encrypted delete request' });
+                }
+            } else {
+                // Fallback for non-encrypted requests (backwards compatibility)
+                console.log('🗑️ Processing non-encrypted delete request...');
                 var controller = new SurveyController();
                 
-                const { recordId } = requestData;
+                const { recordId } = req.body;
+                console.log('🗑️ About to delete survey (non-encrypted):', { recordId });
                 
                 // Call the delete method in the controller
                 var result = await controller.deleteSurvey(recordId);
@@ -171,11 +280,14 @@ router.post('/', async function(req, res, next)
                     });
                 }
                 
-                return {
+                return res.json({
+                    "result": {
                         success: true,
                         message: "Survey deleted successfully",
                         recordId: recordId
-                };
+                    }
+                });
+            }
         } catch (error) {
             console.error('Error deleting survey:', error);
             return res.status(500).json({ 
@@ -184,7 +296,7 @@ router.post('/', async function(req, res, next)
             });
         }
     }
-    else if(requestData.purpose === "retrievePublic")
+    else if(req.body.purpose === "retrievePublic")
     {
         try {
             var surveyController = new SurveyController();
@@ -195,7 +307,6 @@ router.post('/', async function(req, res, next)
             var userResult = await usersController.getAllUsers();
             
             const surveys = surveyResult.success ? surveyResult.surveys : [];
-            console.log('Retrieved surveys:', surveys);
             const users = userResult.success ? userResult.users : [];
             
             // Calculate statistics

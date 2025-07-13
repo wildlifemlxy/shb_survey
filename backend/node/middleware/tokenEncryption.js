@@ -534,9 +534,10 @@ class TokenEncryptionMiddleware {
         
         // Decrypt the data
         let decrypted = decipher.update(encryptedContent, null, 'utf8');
+        console.log('Decrypted content length:', decrypted.length);
         decrypted += decipher.final('utf8');
         
-        console.log('Successfully decrypted client-side encrypted request data');
+        console.log('Successfully decrypted client-side encrypted request data', decrypted);
         return {
           success: true,
           data: JSON.parse(decrypted)
@@ -571,7 +572,7 @@ class TokenEncryptionMiddleware {
         let decrypted = decipher.update(encryptedContent, null, 'utf8');
         decrypted += decipher.final('utf8');
         
-        console.log('Successfully decrypted server-side encrypted request data');
+        console.log('Successfully decrypted server-side encrypted request data', decrypted);
         return {
           success: true,
           data: JSON.parse(decrypted)
@@ -591,25 +592,15 @@ class TokenEncryptionMiddleware {
   // Encrypt response data using AES-256-GCM with client's public key
   encryptResponseData(data, clientPublicKey = null) {
     try {
-      console.log('\n🔐 [ENCRYPTION] Starting response encryption...');
-      console.log('🔐 [ENCRYPTION] Client public key provided:', !!clientPublicKey);
-      console.log('🔐 [ENCRYPTION] Data type:', typeof data);
-      console.log('🔐 [ENCRYPTION] Data keys:', Object.keys(data || {}));
-      
       // Generate a random AES key and IV
       const aesKey = crypto.randomBytes(32); // 256-bit key
       const iv = crypto.randomBytes(12); // 96-bit IV for GCM
       
-      console.log('🔐 [ENCRYPTION] Generated AES key length:', aesKey.length);
-      console.log('🔐 [ENCRYPTION] Generated IV length:', iv.length);
-      
       // Sanitize data to remove circular references and non-serializable objects
       const sanitizedData = this.sanitizeDataForSerialization(data);
-      console.log('🔐 [ENCRYPTION] Data sanitized successfully');
       
       // Convert data to JSON string
       const jsonData = JSON.stringify(sanitizedData);
-      console.log('🔐 [ENCRYPTION] Data to encrypt length:', jsonData.length);
       
       // Create cipher
       const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv);
@@ -624,31 +615,23 @@ class TokenEncryptionMiddleware {
       // Combine encrypted data and auth tag
       const encryptedWithTag = Buffer.concat([encrypted, authTag]);
       
-      console.log('🔐 [ENCRYPTION] AES encryption complete. Encrypted data length:', encryptedWithTag.length);
-      
       // Use client's public key if provided, otherwise use server's public key
       let publicKeyToUse = this.publicKey;
       let usingClientKey = false;
       
       if (clientPublicKey) {
         try {
-          console.log('🔐 [ENCRYPTION] Processing client public key...');
-          console.log('🔐 [ENCRYPTION] Client public key type:', typeof clientPublicKey);
-          console.log('🔐 [ENCRYPTION] Client public key length:', clientPublicKey?.length);
           
           // Ensure clientPublicKey is a string
           if (typeof clientPublicKey !== 'string') {
-            console.warn('🔐 [ENCRYPTION] Client public key is not a string, using server key');
             publicKeyToUse = this.publicKey;
             usingClientKey = false;
           } else {
-            console.log('🔐 [ENCRYPTION] Client public key (first 50 chars):', clientPublicKey.substring(0, 50));
             
             // Check if it's already in PEM format or base64 SPKI format
             let publicKeyObject;
             
             if (clientPublicKey.startsWith('-----BEGIN PUBLIC KEY-----')) {
-              console.log('🔐 [ENCRYPTION] Client key is in PEM format');
               // It's already in PEM format, use directly
               publicKeyObject = crypto.createPublicKey({
                 key: clientPublicKey,
@@ -656,11 +639,7 @@ class TokenEncryptionMiddleware {
                 type: 'spki'
               });
             } else {
-              console.log('🔐 [ENCRYPTION] Client key is in base64 SPKI format, converting to DER');
-              // The clientPublicKey is base64-encoded SPKI format from crypto.subtle.exportKey("spki")
-              // Convert it to DER buffer first, then create public key object
               const publicKeyDER = Buffer.from(clientPublicKey, 'base64');
-              console.log('🔐 [ENCRYPTION] Converted to DER buffer length:', publicKeyDER.length);
               
               // Create public key object from DER-encoded SPKI data
               publicKeyObject = crypto.createPublicKey({
@@ -670,11 +649,6 @@ class TokenEncryptionMiddleware {
               });
             }
             
-            console.log('🔐 [ENCRYPTION] Successfully created public key object');
-            console.log('🔐 [ENCRYPTION] Key info:', {
-              asymmetricKeyType: publicKeyObject.asymmetricKeyType,
-              asymmetricKeySize: publicKeyObject.asymmetricKeySize
-            });
             
             // Test the key by encrypting a small test buffer
             const testData = Buffer.from('test');
@@ -684,31 +658,28 @@ class TokenEncryptionMiddleware {
               oaepHash: 'sha256'
             }, testData);
             
-            console.log('🔐 [ENCRYPTION] Public key test successful. Test encrypted length:', testEncrypted.length);
+         
             
             publicKeyToUse = publicKeyObject;
             usingClientKey = true;
-            console.log('🔐 [ENCRYPTION] Successfully using client public key for encryption');
+      
           }
         } catch (keyError) {
-          console.warn('🔐 [ENCRYPTION] Failed to parse client public key, using server key:', keyError.message);
-          console.warn('🔐 [ENCRYPTION] Client key that failed:', typeof clientPublicKey === 'string' ? clientPublicKey.substring(0, 100) : 'not a string');
+
           publicKeyToUse = this.publicKey;
           usingClientKey = false;
         }
       } else {
-        console.log('🔐 [ENCRYPTION] No client public key provided, using server key');
       }
       
       // Encrypt the AES key with the chosen RSA public key
-      console.log('🔐 [ENCRYPTION] Encrypting AES key with RSA...');
+     
       const encryptedAESKey = crypto.publicEncrypt({
         key: publicKeyToUse,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
         oaepHash: 'sha256'
       }, aesKey);
       
-      console.log('🔐 [ENCRYPTION] RSA encryption complete. Encrypted AES key length:', encryptedAESKey.length);
       
       const result = {
         success: true,
@@ -719,16 +690,9 @@ class TokenEncryptionMiddleware {
         usingClientKey: usingClientKey
       };
       
-      console.log('🔐 [ENCRYPTION] Final result structure:', {
-        encryptedDataLength: result.encryptedData.length,
-        encryptedAESKeyLength: result.encryptedAESKey.length,
-        ivLength: result.iv.length,
-        usingClientKey: result.usingClientKey
-      });
-      
       return result;
     } catch (error) {
-      console.error('🔐 [ENCRYPTION] Response encryption error:', error);
+
       return {
         success: false,
         error: 'Failed to encrypt response data'
@@ -789,24 +753,19 @@ class TokenEncryptionMiddleware {
   // Middleware wrapper for encrypting response data in Express routes
   async encryptResponseDataMiddleware(req, res, dataCallback, clientPublicKey = null) {
     try {
-      console.log('🔐 [MIDDLEWARE] Starting encrypted response middleware...');
       
       // Execute the callback to get the data
       const data = await dataCallback();
-      console.log('🔐 [MIDDLEWARE] Data callback executed successfully');
-      
+
       // Use provided client public key, or fallback to request headers/body
       const finalClientPublicKey = clientPublicKey || req.headers['x-client-public-key'] || req.body.clientPublicKey;
-      console.log('🔐 [MIDDLEWARE] Client public key source:', clientPublicKey ? 'parameter' : 'headers/body');
       
       // Encrypt the data
       const encryptedResult = this.encryptResponseData(data, finalClientPublicKey);
       
       if (encryptedResult.success) {
-        console.log('🔐 [MIDDLEWARE] Response encryption successful');
         return res.json(encryptedResult);
       } else {
-        console.error('🔐 [MIDDLEWARE] Response encryption failed:', encryptedResult.error);
         return res.status(500).json({ 
           error: 'Failed to encrypt response data',
           details: encryptedResult.error 
