@@ -1366,9 +1366,22 @@ class Home extends React.Component {
                                 width: '100%'
                               }}>
                                 {this.state.uploadForm.files.map((file, index) => {
-                                  // Create a stable object URL for each file to prevent re-rendering
+                                  // Cache object URLs to prevent blinking
+                                  if (!this.fileObjectURLs) this.fileObjectURLs = {};
                                   const fileKey = `${file.name}_${file.size}_${file.lastModified}`;
-                                  
+                                  if (!this.fileObjectURLs[fileKey]) {
+                                    this.fileObjectURLs[fileKey] = URL.createObjectURL(file);
+                                  }
+                                  const objectURL = this.fileObjectURLs[fileKey];
+                                  // Clean up object URLs when file is removed
+                                  const handleRemove = (idx) => {
+                                    const removeFile = this.removeFile;
+                                    if (this.fileObjectURLs[fileKey]) {
+                                      URL.revokeObjectURL(this.fileObjectURLs[fileKey]);
+                                      delete this.fileObjectURLs[fileKey];
+                                    }
+                                    removeFile(idx);
+                                  };
                                   return (
                                     <div key={fileKey} className="upload-preview-item" style={{
                                       position: 'relative',
@@ -1382,7 +1395,7 @@ class Home extends React.Component {
                                     }}>
                                       {/* Remove button */}
                                       <button
-                                        onClick={() => this.removeFile(index)}
+                                        onClick={() => handleRemove(index)}
                                         style={{
                                           position: 'absolute',
                                           top: '6px',
@@ -1432,21 +1445,13 @@ class Home extends React.Component {
                                         {file.type.startsWith('image/') ? (
                                           <>
                                             <img
-                                              src={URL.createObjectURL(file)}
+                                              src={objectURL}
                                               alt={`Preview ${index + 1}`}
                                               style={{
                                                 width: '100%',
                                                 height: '100%',
                                                 objectFit: 'cover',
                                                 transition: 'transform 0.2s ease'
-                                              }}
-                                              onLoad={(e) => {
-                                                // Don't revoke URL immediately to prevent blinking
-                                                setTimeout(() => {
-                                                  if (e.target.src && e.target.src.startsWith('blob:')) {
-                                                    URL.revokeObjectURL(e.target.src);
-                                                  }
-                                                }, 30000); // Keep for 30 seconds
                                               }}
                                               onMouseEnter={(e) => {
                                                 e.target.style.transform = 'scale(1.05)';
@@ -1489,106 +1494,64 @@ class Home extends React.Component {
                                             position: 'relative',
                                             width: '100%',
                                             height: '100%',
-                                            backgroundColor: '#000'
+                                            backgroundColor: '#f3f4f6',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
                                           }}>
                                             <video
-                                              key={fileKey} // Prevent re-mounting
-                                              preload="metadata" // Changed back to metadata for better thumbnail generation
+                                              key={fileKey}
+                                              src={objectURL}
                                               muted
                                               playsInline
+                                              preload="metadata"
                                               style={{
                                                 width: '100%',
                                                 height: '100%',
                                                 objectFit: 'cover',
                                                 pointerEvents: 'none',
-                                                backgroundColor: '#000'
+                                                backgroundColor: '#000',
+                                                display: 'block'
                                               }}
-                                              onLoadedMetadata={(e) => {
-                                                console.log('Video metadata loaded for', file.name);
-                                                // Seek to 1 second for a good thumbnail
-                                                e.target.currentTime = Math.min(1, e.target.duration * 0.1);
-                                              }}
-                                              onSeeked={(e) => {
-                                                console.log('Video seeked to', e.target.currentTime);
-                                                // Immediately try to draw to canvas
-                                                const canvas = e.target.parentNode.querySelector('canvas');
-                                                if (canvas && e.target.readyState >= 2) {
-                                                  const ctx = canvas.getContext('2d');
-                                                  try {
-                                                    ctx.drawImage(e.target, 0, 0, 120, 120);
-                                                    // Hide video and show canvas
-                                                    e.target.style.opacity = '0';
-                                                    canvas.style.opacity = '1';
-                                                    canvas.style.zIndex = '1';
-                                                  } catch (err) {
-                                                    console.warn('Canvas drawing failed:', err);
-                                                    // Keep video visible if canvas fails
-                                                    e.target.style.opacity = '1';
-                                                  }
-                                                }
+                                              onLoadedData={e => {
+                                                // Pause at first frame
+                                                e.target.currentTime = 0;
                                                 e.target.pause();
                                               }}
-                                              onCanPlay={(e) => {
-                                                console.log('Video can play');
-                                                if (e.target.currentTime === 0) {
-                                                  e.target.currentTime = 0.5;
-                                                }
-                                              }}
-                                              onLoadedData={(e) => {
-                                                console.log('Video data loaded');
-                                                if (e.target.currentTime === 0) {
-                                                  e.target.currentTime = 0.1;
-                                                }
-                                                setTimeout(() => {
-                                                  if (e.target.src && e.target.src.startsWith('blob:')) {
-                                                    URL.revokeObjectURL(e.target.src);
-                                                  }
-                                                }, 15000);
-                                              }}
-                                              onError={(e) => {
-                                                console.error('Video error:', e);
-                                              }}
-                                            >
-                                              <source src={URL.createObjectURL(file)} type={file.type} />
-                                              Your browser does not support the video tag.
-                                            </video>
-                                            
-                                            {/* Simplified Canvas for video thumbnail */}
-                                            <canvas 
-                                              ref={(canvas) => {
-                                                if (canvas && !canvas.hasAttribute('data-setup')) {
-                                                  canvas.setAttribute('data-setup', 'true');
-                                                  canvas.width = 120;
-                                                  canvas.height = 120;
-                                                  
-                                                  const ctx = canvas.getContext('2d');
-                                                  
-                                                  // Show placeholder initially
-                                                  ctx.fillStyle = '#1f2937';
-                                                  ctx.fillRect(0, 0, 120, 120);
-                                                  
-                                                  // Add video play icon as placeholder
-                                                  ctx.fillStyle = '#ffffff';
-                                                  ctx.beginPath();
-                                                  ctx.moveTo(45, 35);
-                                                  ctx.lineTo(45, 85);
-                                                  ctx.lineTo(80, 60);
-                                                  ctx.closePath();
-                                                  ctx.fill();
-                                                }
-                                              }}
-                                              style={{
-                                                position: 'absolute',
-                                                top: '0',
-                                                left: '0',
-                                                width: '100%',
-                                                height: '100%',
-                                                objectFit: 'cover',
-                                                zIndex: 0,
-                                                opacity: '0',
-                                                backgroundColor: '#1f2937'
+                                              onError={e => {
+                                                console.error('Video error:', e, 'for file:', file.name);
+                                                e.target.style.display = 'none';
+                                                const fallback = e.target.parentElement.querySelector('.video-fallback');
+                                                if (fallback) fallback.style.display = 'flex';
                                               }}
                                             />
+                                            
+                                            {/* Fallback thumbnail for when video fails */}
+                                            <div className="video-fallback" style={{
+                                              position: 'absolute',
+                                              top: 0,
+                                              left: 0,
+                                              width: '100%',
+                                              height: '100%',
+                                              backgroundColor: '#1f2937',
+                                              display: 'none',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              flexDirection: 'column',
+                                              gap: '8px'
+                                            }}>
+                                              <svg width="32" height="32" viewBox="0 0 24 24" fill="#6b7280">
+                                                <path d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z"/>
+                                              </svg>
+                                              <span style={{
+                                                color: '#9ca3af',
+                                                fontSize: '0.75rem',
+                                                textAlign: 'center',
+                                                padding: '0 8px'
+                                              }}>
+                                                {file.name.length > 15 ? file.name.substring(0, 15) + '...' : file.name}
+                                              </span>
+                                            </div>
                                             {/* Video play/fullscreen overlay */}
                                             <div style={{
                                               position: 'absolute',
