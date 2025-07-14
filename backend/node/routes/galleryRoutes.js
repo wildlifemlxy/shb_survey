@@ -61,16 +61,18 @@ router.post('/', upload, async function(req, res)
       });
 
       // --- METADATA TRACKING LOGIC ---
-      const metadataPath = path.resolve(__dirname, '../Gallery/gallery_metadata.json');
-      let galleryMeta = [];
-      if (fs.existsSync(metadataPath)) {
-        try {
-          const raw = fs.readFileSync(metadataPath, 'utf8');
-          if (raw.trim()) galleryMeta = JSON.parse(raw);
-        } catch (e) { galleryMeta = []; }
-      }
       const now = new Date().toISOString();
+      const videoThumbnails = {};
+      const videoExts = ['mp4', 'mov', 'avi', 'wmv', 'flv', 'mkv', 'webm'];
+      const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'svg', 'webp'];
       for (const file of files) {
+        // Determine subfolder for each file based on extension
+        let subfolder = 'Others';
+        const ext = file.originalname.split('.').pop().toLowerCase();
+        if (videoExts.includes(ext)) subfolder = 'Videos';
+        else if (imageExts.includes(ext)) subfolder = 'Pictures';
+
+        // Track metadata
         galleryMeta.push({
           action: 'upload',
           fileName: file.originalname,
@@ -78,24 +80,18 @@ router.post('/', upload, async function(req, res)
           role: metadata.data.role || (metadata.data.uploadedBy && metadata.data.uploadedBy.role) || null,
           timestamp: now
         });
-      }
-      fs.writeFileSync(metadataPath, JSON.stringify(galleryMeta, null, 2));
 
-      // Determine subfolder based on metadata.type
-      let subfolder = 'Others';
-      if (metadata.data.type === 'pictures') subfolder = 'Pictures';
-      else if (metadata.data.type === 'videos') subfolder = 'Videos';
-
-      const destDir = path.join(galleryDir, subfolder);
-
-      // Move each uploaded file to the correct subfolder, log destination
-      const videoThumbnails = {};
-      for (const file of files) {
+        const destDir = path.join(galleryDir, subfolder);
         const destPath = path.join(destDir, file.originalname);
         // Double-check parent directory exists for each file
         const parentDir = path.dirname(destPath);
         if (!fs.existsSync(parentDir)) {
           fs.mkdirSync(parentDir, { recursive: true });
+        }
+        // Check if file already exists
+        if (fs.existsSync(destPath)) {
+          console.warn(`[Gallery Upload] File already exists, skipping: ${destPath}`);
+          continue;
         }
         try {
           fs.renameSync(file.path, destPath);
@@ -109,7 +105,6 @@ router.post('/', upload, async function(req, res)
               if (fs.existsSync(thumbPath)) {
                 const thumbBuffer = fs.readFileSync(thumbPath);
                 videoThumbnails[file.originalname] = 'data:image/jpeg;base64,' + thumbBuffer.toString('base64');
-                // Optionally delete the temp thumbnail file
                 fs.unlinkSync(thumbPath);
               }
             } catch (ffErr) {
@@ -117,8 +112,11 @@ router.post('/', upload, async function(req, res)
             }
           }
         } catch (moveErr) {
+          console.error(`[Gallery Upload] Error moving file ${file.originalname}:`, moveErr);
         }
       }
+      fs.writeFileSync(metadataPath, JSON.stringify(galleryMeta, null, 2));
+
       // Save videoThumbnails to a temp file for retrieval (or DB if needed)
       if (Object.keys(videoThumbnails).length > 0) {
         const thumbMetaPath = path.join(destDir, 'videoThumbnails.json');
@@ -408,7 +406,21 @@ router.post('/', upload, async function(req, res)
       if (!fileId) {
         return res.status(400).json({ error: 'Missing fileId in decrypted data.' });
       }
+
+      
   
+      // --- PHYSICAL FILE DELETION LOGIC ---
+      const subfolders = ['Pictures', 'Videos'];
+      let deleted = false;
+      for (const sub of subfolders) {
+        const filePath = path.join(galleryDir, sub, fileId);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          deleted = true;
+          break;
+        }
+      }
+
       // --- METADATA TRACKING LOGIC ---
       const metadataPath = path.resolve(__dirname, '../Gallery/gallery_metadata.json');
       let galleryMeta = [];
@@ -418,24 +430,15 @@ router.post('/', upload, async function(req, res)
           if (raw.trim()) galleryMeta = JSON.parse(raw);
         } catch (e) { galleryMeta = []; }
       }
-      const now = new Date().toISOString();
-      // Find the latest upload entry for this file and update it
-      let found = false;
-      for (let i = galleryMeta.length - 1; i >= 0; i--) {
-        if (galleryMeta[i].action === 'upload' && galleryMeta[i].fileName === fileId && galleryMeta[i].role === 'WWF-Volunteer') {
-          galleryMeta[i].action = 'reject';
-          found = true;
-          break;
-        }
-      }
-      console.log(`Reject gallery file: ${fileId}, found: ${found}`);
-      // Optionally, if not found, do nothing or log
+      // Remove all entries for this fileId from metadata (same as delete logic)
+      galleryMeta = galleryMeta.filter(entry => entry.fileName !== fileId);
       fs.writeFileSync(metadataPath, JSON.stringify(galleryMeta, null, 2));
-  
+
       if (io) {
         io.emit('survey-updated', { message: 'Gallery file rejected', fileId });
       }
-      return res.json({ result: { success: true, message: `Rejected file: ${fileId}` } });
+      let msg = deleted ? `Rejected and deleted file: ${fileId}` : `Rejected file: ${fileId} (file not found)`;
+      return res.json({ result: { success: true, message: msg } });
     } catch (error) {
       console.error('Error handling gallery reject:', error);
       return res.status(500).json({ error: 'Failed to reject gallery file.' });
