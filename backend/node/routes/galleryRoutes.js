@@ -10,7 +10,7 @@ const galleryController = require('../Controller/Gallery/galleryController');
 const tokenEncryption = require('../middleware/tokenEncryption');
 
 // Initialize gallery on startup
-galleryController.initializeGallery();
+//galleryController.initializeGallery();
 
 // Ensure Gallery directory exists
 const galleryDir = path.resolve(__dirname, '../Gallery');
@@ -419,37 +419,23 @@ router.post('/', upload, async function(req, res)
         } catch (e) { galleryMeta = []; }
       }
       const now = new Date().toISOString();
-      // Find the latest upload entry for this file and update it, then remove all entries and delete the file
+      // Find the latest upload entry for this file and update it
       let found = false;
-      let fileRole = null;
       for (let i = galleryMeta.length - 1; i >= 0; i--) {
         if (galleryMeta[i].action === 'upload' && galleryMeta[i].fileName === fileId && galleryMeta[i].role === 'WWF-Volunteer') {
-          fileRole = galleryMeta[i].role;
+          galleryMeta[i].action = 'reject';
           found = true;
           break;
         }
       }
-      // Remove all entries for this fileId from metadata
-      galleryMeta = galleryMeta.filter(entry => entry.fileName !== fileId);
+      console.log(`Reject gallery file: ${fileId}, found: ${found}`);
+      // Optionally, if not found, do nothing or log
       fs.writeFileSync(metadataPath, JSON.stringify(galleryMeta, null, 2));
-
-      // Try to find and delete the file in Pictures or Videos
-      const subfolders = ['Pictures', 'Videos'];
-      let deleted = false;
-      for (const sub of subfolders) {
-        const filePath = path.join(galleryDir, sub, fileId);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-          deleted = true;
-          break;
-        }
-      }
-      console.log(`Reject gallery file: ${fileId}, found: ${found}, file deleted: ${deleted}`);
-
+  
       if (io) {
-        io.emit('survey-updated', { message: 'Gallery file rejected and deleted', fileId });
+        io.emit('survey-updated', { message: 'Gallery file rejected', fileId });
       }
-      return res.json({ result: { success: true, message: `Rejected and deleted file: ${fileId}` } });
+      return res.json({ result: { success: true, message: `Rejected file: ${fileId}` } });
     } catch (error) {
       console.error('Error handling gallery reject:', error);
       return res.status(500).json({ error: 'Failed to reject gallery file.' });

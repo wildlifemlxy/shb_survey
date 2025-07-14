@@ -4,7 +4,7 @@ const fs = require('fs');
 class GalleryController {
     constructor() {
         this.uploadsPath = path.join(__dirname, '../../Gallery');
-        this.metadataPath = path.join(this.uploadsPath, 'metadata.json');
+        this.metadataPath = path.join(this.uploadsPath, 'gallerymetadata.json');
     }
 
     // Initialize gallery directories and manifest
@@ -29,425 +29,293 @@ class GalleryController {
         }
     }
 
-    // Load metadata from file
+
+    // Helper to load metadata (array)
     loadMetadata() {
+        if (!fs.existsSync(this.metadataPath)) return [];
         try {
-            if (fs.existsSync(this.metadataPath)) {
-                const data = fs.readFileSync(this.metadataPath, 'utf8');
-                return JSON.parse(data);
+            const raw = fs.readFileSync(this.metadataPath, 'utf8');
+            if (raw.trim()) return JSON.parse(raw);
+        } catch {}
+        return [];
+    }
+
+    // Helper to save metadata (array)
+    saveMetadata(metaArr) {
+        fs.writeFileSync(this.metadataPath, JSON.stringify(metaArr, null, 2));
+    }
+
+    // --- HANDLERS ---
+    async handleUpload(req, res, io) {
+        const tokenEncryption = require('../../middleware/tokenEncryption');
+        try {
+            if (!req.body.encryptedData) {
+                return res.status(400).json({ error: 'Missing encryptedData in request.' });
             }
-            return {};
-        } catch (error) {
-            console.error('Error loading metadata:', error);
-            return {};
-        }
-    }
-
-    // Save metadata to file
-    saveMetadata(metadata) {
-        try {
-            fs.writeFileSync(this.metadataPath, JSON.stringify(metadata, null, 2));
-        } catch (error) {
-            console.error('Error saving metadata:', error);
-        }
-    }
-
-    // Retrieve all gallery items
-    async retrieveGalleryItems() {
-        try {
-            const metadata = this.loadMetadata();
-            
-            // Since no manifest is used, scan the actual directories
-            const pictures = [];
-            const videos = [];
-            
-            const picturesPath = path.join(this.uploadsPath, 'Pictures');
-            const videosPath = path.join(this.uploadsPath, 'Videos');
-            
-            // Read pictures directory
-            if (fs.existsSync(picturesPath)) {
-                const pictureFiles = fs.readdirSync(picturesPath);
-                pictureFiles.forEach(file => {
-                    const filePath = path.join(picturesPath, file);
-                    const stats = fs.statSync(filePath);
-                    
-                    // For existing files without metadata, assume they are approved (legacy files)
-                    const fileMetadata = metadata[file] || { 
-                        approved: true, 
-                        approvalStatus: 'approved',
-                        uploadedBy: { role: 'Legacy' } 
-                    };
-                    
-                    pictures.push({
-                        id: file,
-                        name: file,
-                        filename: file,
-                        url: `/Pictures/${file}`,
-                        uploadDate: stats.birthtime.toISOString(),
-                        size: stats.size,
-                        type: 'image/' + path.extname(file).substring(1),
-                        approved: fileMetadata.approved,
-                        approvalStatus: fileMetadata.approvalStatus,
-                        uploadedBy: fileMetadata.uploadedBy || { role: 'Legacy' },
-                        rejectionReason: fileMetadata.rejectionReason
-                    });
+            let encryptedData = req.body.encryptedData;
+            if (typeof encryptedData === 'string') {
+                try { encryptedData = JSON.parse(encryptedData); } catch (e) { return res.status(400).json({ error: 'Invalid encryptedData format' }); }
+            }
+            let decryptedMeta = null;
+            try { decryptedMeta = tokenEncryption.decryptRequestData(encryptedData); } catch (e) { return res.status(400).json({ error: 'Failed to decrypt metadata.' }); }
+            if (!decryptedMeta || !decryptedMeta.success) {
+                return res.status(400).json({ error: 'Invalid encrypted metadata.' });
+            }
+            const metadata = decryptedMeta.data;
+            const files = req.files || [];
+            let galleryMeta = this.loadMetadata();
+            const now = new Date().toISOString();
+            for (const file of files) {
+                galleryMeta.push({
+                    action: 'upload',
+                    fileName: file.originalname,
+                    memberId: metadata.data.memberId || (metadata.data.uploadedBy && metadata.data.uploadedBy.id) || null,
+                    role: metadata.data.role || (metadata.data.uploadedBy && metadata.data.uploadedBy.role) || null,
+                    timestamp: now
                 });
             }
-            
-            // Read videos directory
-            if (fs.existsSync(videosPath)) {
-                const videoFiles = fs.readdirSync(videosPath);
-                videoFiles.forEach(file => {
-                    const filePath = path.join(videosPath, file);
-                    const stats = fs.statSync(filePath);
-                    
-                    // For existing files without metadata, assume they are approved (legacy files)
-                    const fileMetadata = metadata[file] || { 
-                        approved: true, 
-                        approvalStatus: 'approved',
-                        uploadedBy: { role: 'Legacy' } 
-                    };
-                    
-                    videos.push({
-                        id: file,
-                        name: file,
-                        filename: file,
-                        url: `/Videos/${file}`,
-                        uploadDate: stats.birthtime.toISOString(),
-                        size: stats.size,
-                        type: 'video/' + path.extname(file).substring(1),
-                        approved: fileMetadata.approved,
-                        approvalStatus: fileMetadata.approvalStatus,
-                        uploadedBy: fileMetadata.uploadedBy || { role: 'Legacy' },
-                        rejectionReason: fileMetadata.rejectionReason
-                    });
-                });
+            this.saveMetadata(galleryMeta);
+            // Move files to correct subfolder
+            let subfolder = 'Others';
+            if (metadata.data.type === 'pictures') subfolder = 'Pictures';
+            else if (metadata.data.type === 'videos') subfolder = 'Videos';
+            const destDir = path.join(this.uploadsPath, subfolder);
+            const videoThumbnails = {};
+            for (const file of files) {
+                const destPath = path.join(destDir, file.originalname);
+                const parentDir = path.dirname(destPath);
+                if (!fs.existsSync(parentDir)) fs.mkdirSync(parentDir, { recursive: true });
+                try {
+                    fs.renameSync(file.path, destPath);
+                    if (file.originalname.toLowerCase().endsWith('.mov')) {
+                        const thumbPath = destPath + '.thumb.jpg';
+                        const ffmpeg = require('child_process');
+                        try {
+                            ffmpeg.execSync(`ffmpeg -y -i "${destPath}" -frames:v 1 -q:v 2 "${thumbPath}"`);
+                            if (fs.existsSync(thumbPath)) {
+                                const thumbBuffer = fs.readFileSync(thumbPath);
+                                videoThumbnails[file.originalname] = 'data:image/jpeg;base64,' + thumbBuffer.toString('base64');
+                                fs.unlinkSync(thumbPath);
+                            }
+                        } catch (ffErr) { console.error(`[Gallery Upload] ffmpeg thumbnail error for ${file.originalname}:`, ffErr); }
+                    }
+                } catch {}
             }
-            
-            return { pictures, videos };
-            
-        } catch (error) {
-            console.error('Error retrieving gallery items:', error);
-            throw new Error('Failed to retrieve gallery items');
-        }
-    }
-
-    // Process uploaded files
-    async processUploadedFiles(files, type, uploadedBy = null) {
-        try {
-            const metadata = this.loadMetadata();
-            
-            // Process uploaded files
-            const uploadedFiles = files.map(file => {
-                const relativePath = `/${type === 'pictures' ? 'Pictures' : 'Videos'}/${file.filename}`;
-                
-                // Determine approval status based on user role
-                const isWWFVolunteer = uploadedBy && uploadedBy.role === 'WWF-Volunteer';
-                const approved = !isWWFVolunteer; // Non-WWF volunteers get auto-approved
-                const approvalStatus = isWWFVolunteer ? 'pending' : 'approved';
-                
-                // Store metadata for the uploaded file
-                metadata[file.filename] = {
-                    approved: approved,
-                    approvalStatus: approvalStatus,
-                    uploadedAt: new Date().toISOString(),
-                    uploadedBy: uploadedBy || { role: 'Unknown' },
-                    originalName: file.originalname
-                };
-                
-                return {
-                    id: file.filename,
-                    name: file.originalname,
-                    filename: file.filename,
-                    path: relativePath,
-                    url: relativePath,
-                    uploadDate: new Date().toISOString(),
-                    size: file.size,
-                    type: file.mimetype,
-                    approved: approved,
-                    approvalStatus: approvalStatus,
-                    uploadedBy: uploadedBy || { role: 'Unknown' }
-                };
-            });
-
-            // Save updated metadata
-            this.saveMetadata(metadata);
-
-            console.log('Files processed successfully:', uploadedFiles);
-            return {
-                success: true,
-                message: `${files.length} file(s) uploaded successfully`,
-                files: uploadedFiles
-            };
-
-        } catch (error) {
-            console.error('Upload processing error:', error);
-            throw new Error('Failed to process uploaded files');
-        }
-    }
-
-    // Get gallery statistics
-    async getGalleryStats() {
-        try {
-            const galleryItems = await this.retrieveGalleryItems();
-            
-            const stats = {
-                totalFiles: (galleryItems.pictures?.length || 0) + (galleryItems.videos?.length || 0),
-                totalPictures: galleryItems.pictures?.length || 0,
-                totalVideos: galleryItems.videos?.length || 0,
-                totalSize: 0
-            };
-
-            // Calculate total size
-            ['pictures', 'videos'].forEach(type => {
-                const actualType = type === 'pictures' ? 'pictures' : 'videos';
-                if (galleryItems[actualType]) {
-                    galleryItems[actualType].forEach(file => {
-                        stats.totalSize += file.size || 0;
-                    });
+            if (Object.keys(videoThumbnails).length > 0) {
+                const thumbMetaPath = path.join(destDir, 'videoThumbnails.json');
+                let existingThumbs = {};
+                if (fs.existsSync(thumbMetaPath)) {
+                    try { existingThumbs = JSON.parse(fs.readFileSync(thumbMetaPath)); } catch {}
                 }
-            });
-
-            return stats;
+                Object.assign(existingThumbs, videoThumbnails);
+                fs.writeFileSync(thumbMetaPath, JSON.stringify(existingThumbs));
+            }
+            if (io) io.emit('survey-updated', { message: 'Survey updated successfully' });
+            return res.json({ result: { success: true, message: `Saved ${files.length} file(s) to ${subfolder}` } });
         } catch (error) {
-            console.error('Error getting gallery stats:', error);
-            throw new Error('Failed to get gallery statistics');
+            console.error('Error handling gallery upload:', error);
+            return res.status(500).json({ error: 'Failed to handle gallery upload.' });
         }
     }
 
-    // Approve media - Mark media as approved and store in metadata
-    async approveMedia(mediaId) {
+    async handleRetrieve(req, res) {
         try {
-            console.log('Approving media:', mediaId);
-            
-            const metadata = this.loadMetadata();
-            metadata[mediaId] = {
-                ...metadata[mediaId],
-                approved: true,
-                approvalStatus: 'approved',
-                approvedAt: new Date().toISOString()
-            };
-            
-            this.saveMetadata(metadata);
-            
-            return {
-                success: true,
-                mediaId: mediaId,
-                approvedAt: new Date().toISOString(),
-                status: 'approved'
-            };
-        } catch (error) {
-            console.error('Error approving media:', error);
-            throw new Error('Failed to approve media');
-        }
-    }
-
-    // Reject media - Delete media file from filesystem and metadata (reject = delete)
-    async rejectMedia(mediaId, reason) {
-        try {
-            console.log('Rejecting and deleting media:', mediaId, 'Reason:', reason);
-            
-            // Find the media file in Pictures or Videos directory
-            const picturesPath = path.join(this.uploadsPath, 'Pictures');
-            const videosPath = path.join(this.uploadsPath, 'Videos');
-            
-            let filePath = null;
-            let mediaType = null;
-            
-            // Try to find the file using mediaId as filename
-            if (fs.existsSync(path.join(picturesPath, mediaId))) {
-                filePath = path.join(picturesPath, mediaId);
-                mediaType = 'Pictures';
-            } else if (fs.existsSync(path.join(videosPath, mediaId))) {
-                filePath = path.join(videosPath, mediaId);
-                mediaType = 'Videos';
+            const allowed = ['Pictures', 'Videos'];
+            const subfolders = allowed;
+            let allFiles = [];
+            let galleryMeta = this.loadMetadata();
+            const fileMetaMap = {};
+            for (const entry of galleryMeta) {
+                if (entry.action === 'upload') fileMetaMap[entry.fileName] = { memberId: entry.memberId, role: entry.role, approved: entry.approved };
+                if (entry.action === 'approve') { if (fileMetaMap[entry.fileName]) fileMetaMap[entry.fileName].approved = true; }
+                if (entry.action === 'reject') { if (fileMetaMap[entry.fileName]) fileMetaMap[entry.fileName].approved = false; }
+                if (entry.action === 'delete') { if (fileMetaMap[entry.fileName]) delete fileMetaMap[entry.fileName]; }
             }
-            
-            if (!filePath) {
-                console.log('Media file not found for rejection:', mediaId);
-                throw new Error('Media file not found');
-            }
-            
-            console.log('About to delete rejected file:', filePath);
-            
-            // Verify file exists before deletion
-            if (!fs.existsSync(filePath)) {
-                console.log('File does not exist, cannot delete:', filePath);
-                throw new Error('File does not exist on filesystem');
-            }
-            
-            // Delete the file permanently (reject = delete)
-            fs.unlinkSync(filePath);
-            
-            // Verify the file was actually deleted
-            if (fs.existsSync(filePath)) {
-                console.error('File still exists after deletion attempt:', filePath);
-                throw new Error('File deletion failed - file still exists');
-            }
-            
-            console.log('Rejected media file successfully deleted from filesystem:', filePath);
-            
-            // Remove from metadata completely (no need to keep rejected file metadata)
-            const metadata = this.loadMetadata();
-            if (metadata[mediaId]) {
-                delete metadata[mediaId];
-                this.saveMetadata(metadata);
-                console.log('Removed metadata for rejected file:', mediaId);
-            }
-            
-            console.log('Media rejection and deletion completed successfully');
-            
-            return {
-                success: true,
-                mediaId: mediaId,
-                rejectedAt: new Date().toISOString(),
-                deletedAt: new Date().toISOString(),
-                status: 'rejected_and_deleted',
-                reason: reason || 'No reason provided',
-                type: mediaType,
-                filePath: filePath
-            };
-        } catch (error) {
-            console.error('Error rejecting media:', error);
-            throw new Error('Failed to reject media: ' + error.message);
-        }
-    }
-
-    // Delete media - Remove media file from filesystem and metadata
-    async deleteMedia(mediaInfo) {
-        try {
-            console.log('Deleting media:', mediaInfo);
-            
-            // Handle both old format (just mediaId) and new format (full media object)
-            let mediaId, filename, url, type;
-            
-            if (typeof mediaInfo === 'string') {
-                // Old format - mediaInfo is just the mediaId/filename
-                mediaId = filename = mediaInfo;
-            } else {
-                // New format - mediaInfo is an object with full details
-                mediaId = mediaInfo.mediaId;
-                filename = mediaInfo.filename || mediaInfo.mediaId;
-                url = mediaInfo.url;
-                type = mediaInfo.type;
-            }
-            
-            // Find the media file in Pictures or Videos directory
-            const picturesPath = path.join(this.uploadsPath, 'Pictures');
-            const videosPath = path.join(this.uploadsPath, 'Videos');
-            
-            let filePath = null;
-            let mediaType = null;
-            
-            // Try to find the file using different methods
-            const possibleFilenames = [filename, mediaId];
-            
-            // Check Pictures directory
-            for (const name of possibleFilenames) {
-                if (name && fs.existsSync(path.join(picturesPath, name))) {
-                    filePath = path.join(picturesPath, name);
-                    mediaType = 'Pictures';
-                    break;
+            let userRole = null, userId = null;
+            if (req.headers['x-user-role']) userRole = req.headers['x-user-role'];
+            if (req.headers['x-user-id']) userId = req.headers['x-user-id'];
+            for (const sub of subfolders) {
+                const dir = path.join(this.uploadsPath, sub);
+                let videoThumbnails = {};
+                const thumbMetaPath = path.join(dir, 'videoThumbnails.json');
+                if (fs.existsSync(thumbMetaPath)) {
+                    try { videoThumbnails = JSON.parse(fs.readFileSync(thumbMetaPath)); } catch {}
                 }
-            }
-            
-            // Check Videos directory if not found in Pictures
-            if (!filePath) {
-                for (const name of possibleFilenames) {
-                    if (name && fs.existsSync(path.join(videosPath, name))) {
-                        filePath = path.join(videosPath, name);
-                        mediaType = 'Videos';
-                        break;
+                if (fs.existsSync(dir)) {
+                    const subFiles = fs.readdirSync(dir).filter(filename => !filename.startsWith('.') && filename !== '.gitkeep' && !filename.endsWith('.thumb.jpg') && filename !== 'videoThumbnails.json');
+                    for (const filename of subFiles) {
+                        const filePath = path.join(dir, filename);
+                        const fileBuffer = fs.readFileSync(filePath);
+                        const base64Data = fileBuffer.toString('base64');
+                        let thumbnailUrl = undefined;
+                        if (filename.toLowerCase().endsWith('.mov')) {
+                            if (videoThumbnails[filename]) thumbnailUrl = videoThumbnails[filename];
+                        }
+                        const meta = fileMetaMap[filename] || {};
+                        if (userRole === 'WWF-Volunteer') {
+                            if (meta.approved === true || (userId && meta.memberId === userId)) {
+                                allFiles.push({
+                                    name: filename,
+                                    type: sub.toLowerCase(),
+                                    data: base64Data,
+                                    thumbnailUrl,
+                                    memberId: meta.memberId || null,
+                                    role: meta.role || null,
+                                    approved: typeof meta.approved === 'boolean' ? meta.approved : null
+                                });
+                            }
+                        } else {
+                            allFiles.push({
+                                name: filename,
+                                type: sub.toLowerCase(),
+                                data: base64Data,
+                                thumbnailUrl,
+                                memberId: meta.memberId || null,
+                                role: meta.role || null,
+                                approved: typeof meta.approved === 'boolean' ? meta.approved : null
+                            });
+                        }
                     }
                 }
             }
-            
-            // If still not found, try to extract filename from URL
-            if (!filePath && url) {
-                const urlFilename = url.split('/').pop();
-                if (fs.existsSync(path.join(picturesPath, urlFilename))) {
-                    filePath = path.join(picturesPath, urlFilename);
-                    mediaType = 'Pictures';
-                } else if (fs.existsSync(path.join(videosPath, urlFilename))) {
-                    filePath = path.join(videosPath, urlFilename);
-                    mediaType = 'Videos';
-                }
-            }
-            
-            if (!filePath) {
-                console.log('Media file not found for:', { mediaId, filename, url });
-                throw new Error('Media file not found');
-            }
-            
-            console.log('About to delete file:', filePath);
-            
-            // Verify file exists before deletion
-            if (!fs.existsSync(filePath)) {
-                console.log('File does not exist, cannot delete:', filePath);
-                throw new Error('File does not exist on filesystem');
-            }
-            
-            // Delete the file permanently
-            fs.unlinkSync(filePath);
-            
-            // Verify the file was actually deleted
-            if (fs.existsSync(filePath)) {
-                console.error('File still exists after deletion attempt:', filePath);
-                throw new Error('File deletion failed - file still exists');
-            }
-            
-            console.log('Media file successfully deleted from filesystem:', filePath);
-            
-            // Remove from metadata (try all possible keys)
-            const metadata = this.loadMetadata();
-            let metadataUpdated = false;
-            
-            // Get the actual filename from the file path
-            const actualFilename = path.basename(filePath);
-            
-            // Try all possible keys to ensure complete cleanup
-            const keysToTry = [mediaId, filename, actualFilename];
-            
-            // Also try URL filename if available
-            if (url) {
-                const urlFilename = url.split('/').pop();
-                keysToTry.push(urlFilename);
-            }
-            
-            // Remove duplicates and try each key
-            const uniqueKeys = [...new Set(keysToTry.filter(key => key))];
-            
-            for (const key of uniqueKeys) {
-                if (metadata[key]) {
-                    delete metadata[key];
-                    metadataUpdated = true;
-                    console.log('Removed metadata for key:', key);
-                }
-            }
-            
-            if (metadataUpdated) {
-                this.saveMetadata(metadata);
-                console.log('Media metadata updated');
-            } else {
-                console.log('No metadata found to remove for keys:', uniqueKeys);
-            }
-            
-            console.log('Media deletion completed successfully');
-            
-            return {
-                success: true,
-                mediaId: mediaId,
-                filename: filename,
-                deletedAt: new Date().toISOString(),
-                status: 'deleted',
-                type: mediaType,
-                filePath: filePath
-            };
+            return res.json({ files: allFiles });
         } catch (error) {
-            console.error('Error deleting media:', error);
-            throw new Error('Failed to delete media: ' + error.message);
+            console.error('Error retrieving gallery files:', error);
+            return res.status(500).json({ error: 'Failed to retrieve gallery files.' });
         }
     }
+
+    async handleDelete(req, res, io) {
+        const tokenEncryption = require('../../middleware/tokenEncryption');
+        try {
+            if (!req.body.encryptedData) {
+                return res.status(400).json({ error: 'Missing encryptedData in request.' });
+            }
+            let encryptedData = req.body.encryptedData;
+            if (typeof encryptedData === 'string') {
+                try { encryptedData = JSON.parse(encryptedData); } catch (e) { return res.status(400).json({ error: 'Invalid encryptedData format' }); }
+            }
+            let decryptedMeta = null;
+            try { decryptedMeta = tokenEncryption.decryptRequestData(encryptedData); } catch (e) { return res.status(400).json({ error: 'Failed to decrypt metadata.' }); }
+            if (!decryptedMeta || !decryptedMeta.success) {
+                return res.status(400).json({ error: 'Invalid encrypted metadata.' });
+            }
+            const { fileId } = decryptedMeta.data.data;
+            if (!fileId) {
+                return res.status(400).json({ error: 'Missing fileId in decrypted data.' });
+            }
+            // Delete file
+            const subfolders = ['Pictures', 'Videos'];
+            let deleted = false;
+            for (const sub of subfolders) {
+                const filePath = path.join(this.uploadsPath, sub, fileId);
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                    deleted = true;
+                    break;
+                }
+            }
+            if (!deleted) {
+                return res.status(404).json({ error: 'File not found.' });
+            }
+            // Remove all entries for this fileId from metadata
+            let galleryMeta = this.loadMetadata();
+            galleryMeta = galleryMeta.filter(entry => entry.fileName !== fileId);
+            this.saveMetadata(galleryMeta);
+            if (io) io.emit('survey-updated', { message: 'Gallery file deleted', fileId });
+            return res.json({ result: { success: true, message: `Deleted file: ${fileId}` } });
+        } catch (error) {
+            console.error('Error handling gallery delete:', error);
+            return res.status(500).json({ error: 'Failed to delete gallery file.' });
+        }
+    }
+
+    async handleApprove(req, res, io) {
+        const tokenEncryption = require('../../middleware/tokenEncryption');
+        try {
+            if (!req.body.encryptedData) {
+                return res.status(400).json({ error: 'Missing encryptedData in request.' });
+            }
+            let encryptedData = req.body.encryptedData;
+            if (typeof encryptedData === 'string') {
+                try { encryptedData = JSON.parse(encryptedData); } catch (e) { return res.status(400).json({ error: 'Invalid encryptedData format' }); }
+            }
+            let decryptedMeta = null;
+            try { decryptedMeta = tokenEncryption.decryptRequestData(encryptedData); } catch (e) { return res.status(400).json({ error: 'Failed to decrypt metadata.' }); }
+            if (!decryptedMeta || !decryptedMeta.success) {
+                return res.status(400).json({ error: 'Invalid encrypted metadata.' });
+            }
+            const { fileId, memberId, role } = decryptedMeta.data.data;
+            if (!fileId) {
+                return res.status(400).json({ error: 'Missing fileId in decrypted data.' });
+            }
+            let galleryMeta = this.loadMetadata();
+            let found = false;
+            for (let i = galleryMeta.length - 1; i >= 0; i--) {
+                if (galleryMeta[i].action === 'upload' && galleryMeta[i].fileName === fileId && galleryMeta[i].role === 'WWF-Volunteer') {
+                    galleryMeta[i].action = 'approve';
+                    found = true;
+                    break;
+                }
+            }
+            this.saveMetadata(galleryMeta);
+            if (io) io.emit('survey-updated', { message: 'Gallery file approved', fileId });
+            return res.json({ result: { success: true, message: `Approved file: ${fileId}` } });
+        } catch (error) {
+            console.error('Error handling gallery approve:', error);
+            return res.status(500).json({ error: 'Failed to approve gallery file.' });
+        }
+    }
+
+    async handleReject(req, res, io) {
+        const tokenEncryption = require('../../middleware/tokenEncryption');
+        try {
+            if (!req.body.encryptedData) {
+                return res.status(400).json({ error: 'Missing encryptedData in request.' });
+            }
+            let encryptedData = req.body.encryptedData;
+            if (typeof encryptedData === 'string') {
+                try { encryptedData = JSON.parse(encryptedData); } catch (e) { return res.status(400).json({ error: 'Invalid encryptedData format' }); }
+            }
+            let decryptedMeta = null;
+            try { decryptedMeta = tokenEncryption.decryptRequestData(encryptedData); } catch (e) { return res.status(400).json({ error: 'Failed to decrypt metadata.' }); }
+            if (!decryptedMeta || !decryptedMeta.success) {
+                return res.status(400).json({ error: 'Invalid encrypted metadata.' });
+            }
+            const { fileId, memberId, role } = decryptedMeta.data.data;
+            if (!fileId) {
+                return res.status(400).json({ error: 'Missing fileId in decrypted data.' });
+            }
+            let galleryMeta = this.loadMetadata();
+            let found = false;
+            for (let i = galleryMeta.length - 1; i >= 0; i--) {
+                if (galleryMeta[i].action === 'upload' && galleryMeta[i].fileName === fileId && galleryMeta[i].role === 'WWF-Volunteer') {
+                    found = true;
+                    break;
+                }
+            }
+            // Remove all entries for this fileId from metadata
+            galleryMeta = galleryMeta.filter(entry => entry.fileName !== fileId);
+            this.saveMetadata(galleryMeta);
+            // Delete file
+            const subfolders = ['Pictures', 'Videos'];
+            let deleted = false;
+            for (const sub of subfolders) {
+                const filePath = path.join(this.uploadsPath, sub, fileId);
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                    deleted = true;
+                    break;
+                }
+            }
+            if (io) io.emit('survey-updated', { message: 'Gallery file rejected and deleted', fileId });
+            return res.json({ result: { success: true, message: `Rejected and deleted file: ${fileId}` } });
+        } catch (error) {
+            console.error('Error handling gallery reject:', error);
+            return res.status(500).json({ error: 'Failed to reject gallery file.' });
+        }
+    }
+
 }
 
 module.exports = new GalleryController();
