@@ -154,14 +154,40 @@ export async function approveGalleryFile(fileId) {
 }
 
 // Reject a gallery file (admin/mod only)
-export async function rejectGalleryFile(fileId, reason = '') {
+export async function rejectGalleryFile(fileId) {
   try {
     if (!tokenService.isTokenValid()) {
       return { success: false, error: 'Authentication required' };
     }
-    const response = await axios.post(`${BASE_URL}/gallery/reject`, { fileId, reason }, {
+    // Extract memberId and role from localStorage user JSON
+    let memberId = null, role = null;
+    const userDataString = localStorage.getItem('user');
+    if (userDataString) {
+      try {
+        const userData = JSON.parse(userDataString);
+        memberId = userData.memberId || userData.id || null;
+        role = userData.role || null;
+      } catch {}
+    }
+    // Encrypt the fileId and user info as metadata
+    const requestPayload = {
+      data: { fileId, memberId, role },
+      requiresEncryption: true,
+      publicKey: await tokenService.getPublicKey(),
+      sessionId: tokenService.getKeySessionId()
+    };
+    const encryptedData = await tokenService.encryptData(requestPayload);
+
+    // Prepare FormData
+    const formData = new FormData();
+    formData.append('purpose', 'reject');
+    formData.append('encryptedData', JSON.stringify(encryptedData));
+
+    // Send as multipart/form-data
+    const response = await axios.post(`${BASE_URL}/gallery`, formData, {
       headers: {
-        Authorization: `Bearer ${tokenService.getToken()}`
+        Authorization: `Bearer ${tokenService.getToken()}`,
+        'Content-Type': 'multipart/form-data'
       }
     });
     return response.data;

@@ -377,6 +377,84 @@ router.post('/', upload, async function(req, res)
       return res.status(500).json({ error: 'Failed to approve gallery file.' });
     }
   }
+  else if(purpose === 'reject') 
+  {
+    console.log('Handling gallery reject request:', req.body);
+    try {
+      // Decrypt the encryptedData to get fileId and user info
+      if (!req.body.encryptedData) {
+        return res.status(400).json({ error: 'Missing encryptedData in request.' });
+      }
+      let encryptedData = req.body.encryptedData;
+      if (typeof encryptedData === 'string') {
+        try {
+          encryptedData = JSON.parse(encryptedData);
+        } catch (e) {
+          return res.status(400).json({ error: 'Invalid encryptedData format' });
+        }
+      }
+      let decryptedMeta = null;
+      try {
+        decryptedMeta = tokenEncryption.decryptRequestData(encryptedData);
+        console.log('Decrypted approve metadata:', decryptedMeta.data);
+      } catch (e) {
+        console.error('Failed to decrypt approve metadata:', e);
+        return res.status(400).json({ error: 'Failed to decrypt metadata.' });
+      }
+      if (!decryptedMeta || !decryptedMeta.success) {
+        return res.status(400).json({ error: 'Invalid encrypted metadata.' });
+      }
+      const { fileId, memberId, role } = decryptedMeta.data.data;
+      if (!fileId) {
+        return res.status(400).json({ error: 'Missing fileId in decrypted data.' });
+      }
+  
+      // --- METADATA TRACKING LOGIC ---
+      const metadataPath = path.resolve(__dirname, '../Gallery/gallery_metadata.json');
+      let galleryMeta = [];
+      if (fs.existsSync(metadataPath)) {
+        try {
+          const raw = fs.readFileSync(metadataPath, 'utf8');
+          if (raw.trim()) galleryMeta = JSON.parse(raw);
+        } catch (e) { galleryMeta = []; }
+      }
+      const now = new Date().toISOString();
+      // Find the latest upload entry for this file and update it, then remove all entries and delete the file
+      let found = false;
+      let fileRole = null;
+      for (let i = galleryMeta.length - 1; i >= 0; i--) {
+        if (galleryMeta[i].action === 'upload' && galleryMeta[i].fileName === fileId && galleryMeta[i].role === 'WWF-Volunteer') {
+          fileRole = galleryMeta[i].role;
+          found = true;
+          break;
+        }
+      }
+      // Remove all entries for this fileId from metadata
+      galleryMeta = galleryMeta.filter(entry => entry.fileName !== fileId);
+      fs.writeFileSync(metadataPath, JSON.stringify(galleryMeta, null, 2));
+
+      // Try to find and delete the file in Pictures or Videos
+      const subfolders = ['Pictures', 'Videos'];
+      let deleted = false;
+      for (const sub of subfolders) {
+        const filePath = path.join(galleryDir, sub, fileId);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          deleted = true;
+          break;
+        }
+      }
+      console.log(`Reject gallery file: ${fileId}, found: ${found}, file deleted: ${deleted}`);
+
+      if (io) {
+        io.emit('survey-updated', { message: 'Gallery file rejected and deleted', fileId });
+      }
+      return res.json({ result: { success: true, message: `Rejected and deleted file: ${fileId}` } });
+    } catch (error) {
+      console.error('Error handling gallery reject:', error);
+      return res.status(500).json({ error: 'Failed to reject gallery file.' });
+    }
+  }
   else {
     // Default: not handled
     return res.status(400).json({ error: 'Invalid or missing purpose' });

@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 
-import { fetchGalleryFiles, deleteGalleryFile, approveGalleryFile } from '../../data/galleryData';
+import { fetchGalleryFiles, deleteGalleryFile, approveGalleryFile, rejectGalleryFile } from '../../data/galleryData';
 import './Gallery.css';
 
 // Ensure BASE_URL is defined before any usage
@@ -22,6 +22,16 @@ class Gallery extends Component {
       alert('Error approving file.');
     }
   };
+
+rejectMedia = async (item, index) => {
+  try {
+    console.log("Rejecting media item:", item);
+    const result = await rejectGalleryFile(item.name);
+      alert('File rejected and deleted.');
+  } catch (err) {
+    alert('Error rejecting file.');
+  }
+};
 
   constructor(props) {
     super(props);
