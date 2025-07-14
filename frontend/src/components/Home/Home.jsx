@@ -456,35 +456,18 @@ class Home extends React.Component {
   handleDrop = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    // Reset visual feedback
-    e.currentTarget.style.borderColor = '#d1d5db';
-    e.currentTarget.style.backgroundColor = '#f9fafb';
-    
-    const files = Array.from(e.dataTransfer.files);
-    const { type } = this.state.uploadForm;
-    
-    // Filter files based on selected type
-    let filteredFiles;
-    if (type === 'pictures') {
-      filteredFiles = files.filter(file => file.type.startsWith('image/'));
-    } else if (type === 'videos') {
-      filteredFiles = files.filter(file => file.type.startsWith('video/'));
-    } else {
-      filteredFiles = [];
-    }
-    
-    if (filteredFiles.length > 0) {
+    let files = Array.from(e.dataTransfer.files);
+    // Only allow image/* or video/* files
+    files = files.filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
+    if (files.length > 0) {
       this.setState(prevState => ({
         uploadForm: {
           ...prevState.uploadForm,
-          files: [...prevState.uploadForm.files, ...filteredFiles]
+          files: prevState.uploadForm.files.concat(files)
         }
       }));
-    } else {
-      const typeMsg = type === 'pictures' ? 'image' : 'video';
-      alert(`Please drop ${typeMsg} files only.`);
     }
+    this.setState({ isDragActive: false });
   };
 
   // Handle file selection from input
@@ -1224,28 +1207,28 @@ class Home extends React.Component {
                               width: '48px',
                               height: '48px',
                               borderRadius: '50%',
-                              backgroundColor: this.state.uploadForm.type === 'pictures' ? '#fef3f2' : '#f0f9ff',
+                              backgroundColor: '#f0f9ff',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              fontSize: '24px'
+                              fontSize: '24px',
+                              gap: '2px'
                             }}>
-                              {this.state.uploadForm.type === 'pictures' ? (
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="#ef4444">
-                                  <path d="M21,19V5C21,3.89 20.1,3 19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19M19,19H5V5H19M13.96,12.29L11.21,15.83L9.25,13.47L6.5,17H17.5L13.96,12.29Z"/>
-                                </svg>
-                              ) : (
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="#3b82f6">
-                                  <path d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z"/>
-                                </svg>
-                              )}
+                              {/* Photo Icon */}
+                              <svg width="22" height="22" viewBox="0 0 24 24" fill="#3b82f6" style={{marginRight: 2}}>
+                                <path d="M21,19V5C21,3.89 20.1,3 19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19M19,19H5V5H19M13.96,12.29L11.21,15.83L9.25,13.47L6.5,17H17.5L13.96,12.29Z"/>
+                              </svg>
+                              {/* Video Icon */}
+                              <svg width="22" height="22" viewBox="0 0 24 24" fill="#f59e42">
+                                <path d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z"/>
+                              </svg>
                             </div>
                             <div>
                               <p style={{ margin: 0, fontWeight: '600', color: '#374151' }}>
-                                Drop {this.state.uploadForm.type} here or click to browse
+                                Drop photos or videos here or click to browse
                               </p>
                               <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#6b7280' }}>
-                                Support for multiple {this.state.uploadForm.type === 'pictures' ? 'JPG, PNG, GIF' : 'MP4, MOV, AVI'} files
+                                Support for multiple JPG, PNG, GIF, MP4, MOV, AVI files
                               </p>
                             </div>
                           </div>
@@ -1254,7 +1237,13 @@ class Home extends React.Component {
                             id="file-input"
                             type="file"
                             multiple
-                            accept={this.state.uploadForm.type === 'pictures' ? 'image/*' : 'video/*'}
+                            accept={
+                              this.state.uploadForm.type === 'pictures'
+                                ? 'image/*'
+                                : this.state.uploadForm.type === 'videos'
+                                  ? 'video/*'
+                                  : 'image/*,video/*'
+                            }
                             onChange={this.handleFileSelection}
                             style={{ display: 'none' }}
                           />
@@ -1679,6 +1668,7 @@ class Home extends React.Component {
               justifyContent: 'center',
               background: 'rgba(30,41,59,0.12)',
             }}
+           
             onClick={this.closeFullscreen}
           >
             <div

@@ -8,6 +8,7 @@ var fs = require('fs');
 // Import Gallery Controller and Token Encryption
 const galleryController = require('../Controller/Gallery/galleryController');
 const tokenEncryption = require('../middleware/tokenEncryption');
+var metadataPath = path.resolve(__dirname, '../Gallery/gallery_metadata.json');
 
 // Initialize gallery on startup
 galleryController.initializeGallery();
@@ -52,6 +53,7 @@ router.post('/', upload, async function(req, res)
         return res.status(400).json({ error: 'Invalid encrypted metadata.' });
       }
       const metadata = decryptedMeta.data;
+      console.log('Decrypted metadata:', metadata);
       // Files are in req.files
       const files = req.files || [];
       console.log('Received gallery upload:', {
@@ -59,7 +61,7 @@ router.post('/', upload, async function(req, res)
         fileCount: files.length,
         fileNames: files.map(f => f.originalname)
       });
-
+      var galleryMeta = [];
       // --- METADATA TRACKING LOGIC ---
       const now = new Date().toISOString();
       const videoThumbnails = {};
@@ -81,6 +83,8 @@ router.post('/', upload, async function(req, res)
           timestamp: now
         });
 
+        console.log(`[Gallery Upload] Saving file: ${galleryMeta}`);
+
         const destDir = path.join(galleryDir, subfolder);
         const destPath = path.join(destDir, file.originalname);
         // Double-check parent directory exists for each file
@@ -95,47 +99,18 @@ router.post('/', upload, async function(req, res)
         }
         try {
           fs.renameSync(file.path, destPath);
-          // If MOV video, extract thumbnail using ffmpeg
-          if (file.originalname.toLowerCase().endsWith('.mov')) {
-            const thumbPath = destPath + '.thumb.jpg';
-            const ffmpeg = require('child_process');
-            // Extract first frame as JPEG thumbnail
-            try {
-              ffmpeg.execSync(`ffmpeg -y -i "${destPath}" -frames:v 1 -q:v 2 "${thumbPath}"`);
-              if (fs.existsSync(thumbPath)) {
-                const thumbBuffer = fs.readFileSync(thumbPath);
-                videoThumbnails[file.originalname] = 'data:image/jpeg;base64,' + thumbBuffer.toString('base64');
-                fs.unlinkSync(thumbPath);
-              }
-            } catch (ffErr) {
-              console.error(`[Gallery Upload] ffmpeg thumbnail error for ${file.originalname}:`, ffErr);
-            }
-          }
+          fs.writeFileSync(metadataPath, JSON.stringify(galleryMeta, null, 2));
+        if (io) {
+            io.emit('survey-updated', {
+                message: 'Survey updated successfully',
+            });
+        }
         } catch (moveErr) {
           console.error(`[Gallery Upload] Error moving file ${file.originalname}:`, moveErr);
         }
       }
-      fs.writeFileSync(metadataPath, JSON.stringify(galleryMeta, null, 2));
-
-      // Save videoThumbnails to a temp file for retrieval (or DB if needed)
-      if (Object.keys(videoThumbnails).length > 0) {
-        const thumbMetaPath = path.join(destDir, 'videoThumbnails.json');
-        let existingThumbs = {};
-        if (fs.existsSync(thumbMetaPath)) {
-          try {
-            existingThumbs = JSON.parse(fs.readFileSync(thumbMetaPath));
-          } catch {}
-        }
-        Object.assign(existingThumbs, videoThumbnails);
-        fs.writeFileSync(thumbMetaPath, JSON.stringify(existingThumbs));
-      }
-      if (io) {
-          io.emit('survey-updated', {
-              message: 'Survey updated successfully',
-          });
-      }
       // Metadata tracking handled above
-      return res.json({ result: { success: true, message: `Saved ${files.length} file(s) to ${subfolder}` } });
+      return res.json({ result: { success: true, message: `Saved ${files.length} file(s)` } });
     } catch (error) {
       console.error('Error handling gallery upload:', error);
       return res.status(500).json({ error: 'Failed to handle gallery upload.' });
@@ -407,8 +382,6 @@ router.post('/', upload, async function(req, res)
         return res.status(400).json({ error: 'Missing fileId in decrypted data.' });
       }
 
-      
-  
       // --- PHYSICAL FILE DELETION LOGIC ---
       const subfolders = ['Pictures', 'Videos'];
       let deleted = false;

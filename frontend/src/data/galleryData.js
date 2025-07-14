@@ -59,6 +59,8 @@ export async function uploadGalleryFiles(files, metadata) {
       }
     });
 
+    console.log('Upload response:', response.data);
+
     if (response.status === 200 && response.data.result && response.data.result.success) {
       return { success: true, message: response.data.result.message };
     } else {
