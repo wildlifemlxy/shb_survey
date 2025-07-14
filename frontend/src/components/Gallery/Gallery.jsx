@@ -1,14 +1,14 @@
 import React, { Component } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
-import { fetchGalleryDataPublic, deleteGalleryMedia, rejectGalleryMedia, approveGalleryMedia } from '../../data/shbData';
-import tokenService from '../../utils/tokenService';
 import './Gallery.css';
 
-const BASE_URL =
-  window.location.hostname === 'localhost'
+// Ensure BASE_URL is defined before any usage
+var BASE_URL =
+  typeof window !== 'undefined' && window.location.hostname === 'localhost'
     ? 'http://localhost:3001'
     : 'https://shb-backend.azurewebsites.net';
+
 
 class Gallery extends Component {
   constructor(props) {
@@ -44,8 +44,8 @@ class Gallery extends Component {
   loadGalleryData = async () => {
     try {
       this.setState({ isLoading: true });
-      const data = await fetchGalleryDataPublic();
-      console
+      const data = await fetchGalleryFiles();
+      console.log("Fetched gallery files:", data);
       this.setState({ 
         galleryData: data || [],
         isLoading: false 
@@ -89,66 +89,6 @@ class Gallery extends Component {
     }));
   };
 
-  approveMedia = async (media, index) => {
-    try {
-      console.log('Approving media:', media);
-      
-      const result = await approveGalleryMedia(media);
-      
-      if (result.success) {
-        alert(`Media "${media.name || media.filename || 'Untitled'}" has been approved and is now visible in the gallery!`);
-        
-        // Update local state to mark as approved
-        this.setState(prevState => ({
-          galleryData: prevState.galleryData.map((item, i) => 
-            i === index ? { ...item, approved: true, approvalStatus: 'approved' } : item
-          )
-        }));
-      } else {
-        throw new Error(result.message);
-      }
-    } catch (error) {
-      console.error('Error approving media:', error);
-      alert(`Failed to approve media: ${error.message}`);
-    }
-  };
-
-  deleteMedia = async (media, index) => {
-    try {
-      const confirmDelete = window.confirm(`Are you sure you want to delete "${media.name || media.filename || 'this media'}"?`);
-      if (!confirmDelete) return;
-      
-      console.log('=== DELETE MEDIA DEBUG ===');
-      console.log('Media object:', JSON.stringify(media, null, 2));
-      console.log('Index:', index);
-      console.log('========================');
-      
-      const result = await deleteGalleryMedia(media);
-      
-      if (result.success) {
-        alert(`Media "${media.name || media.filename || 'Untitled'}" has been deleted!`);
-        
-        // Remove from local state
-        this.setState(prevState => ({
-          galleryData: prevState.galleryData.filter((_, i) => i !== index)
-        }));
-      } else {
-        throw new Error(result.message);
-      }
-    } catch (error) {
-      console.error('Error deleting media:', error);
-      
-      // More specific error messages
-      if (error.message.includes('Failed to fetch')) {
-        alert('Network error: Could not connect to server. Please check your internet connection.');
-      } else if (error.message.includes('authenticate')) {
-        alert('Authentication error: Please log in again.');
-      } else {
-        alert(`Failed to delete media: ${error.message}`);
-      }
-    }
-  };
-
   toggleMediaVisibility = (media, index) => {
     // Toggle show/hide for the media item
     this.setState(prevState => ({
@@ -159,44 +99,6 @@ class Gallery extends Component {
     
     const action = media.isHidden ? 'shown' : 'hidden';
     alert(`Media "${media.name || 'Untitled'}" is now ${action}!`);
-  };
-
-  rejectMedia = async (media, index) => {
-    try {
-      console.log('=== REJECT MEDIA DEBUG ===');
-      console.log('Media object:', JSON.stringify(media, null, 2));
-      console.log('Media keys:', Object.keys(media));
-      console.log('Index:', index);
-      console.log('========================');
-      
-      const reason = prompt('Please provide a reason for rejection (optional):');
-      const confirmReject = window.confirm(`Are you sure you want to reject and delete "${media.name || media.filename || 'this media'}"? This action cannot be undone.`);
-      if (!confirmReject) return;
-      
-      const result = await rejectGalleryMedia(media, reason);
-      
-      if (result.success) {
-        alert(`Media "${media.name || media.filename || 'Untitled'}" has been rejected and deleted.`);
-        
-        // Remove from local state
-        this.setState(prevState => ({
-          galleryData: prevState.galleryData.filter((_, i) => i !== index)
-        }));
-      } else {
-        throw new Error(result.message);
-      }
-    } catch (error) {
-      console.error('Error rejecting media:', error);
-      
-      // More specific error messages
-      if (error.message.includes('Failed to fetch')) {
-        alert('Network error: Could not connect to server. Please check your internet connection.');
-      } else if (error.message.includes('authenticate')) {
-        alert('Authentication error: Please log in again.');
-      } else {
-        alert(`Failed to reject media: ${error.message}`);
-      }
-    }
   };
 
   render() {

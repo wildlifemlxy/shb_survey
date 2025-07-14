@@ -10,6 +10,7 @@ import { standardizeCoordinates } from '../../utils/coordinateStandardization';
 import { fetchSurveyDataForHomePage } from '../../data/shbData';
 import '../../css/components/Home/Home.css';
 import axios from 'axios';
+import { uploadGalleryFiles } from '../../data/galleryData';
 
 // Ensure BASE_URL is defined before any usage
 var BASE_URL =
@@ -41,6 +42,7 @@ class Home extends React.Component {
       hideMediaTemporarily: false // State to temporarily hide media content
     };
     this.timer = null;
+    // Backend connection removed
   }
 
   checkAuthenticationStatus = () => {
@@ -544,96 +546,26 @@ class Home extends React.Component {
   };
 
   processUpload = async (formData) => {
-    const { files } = formData;
-    
+    // Extract files and metadata from formData
+    const { files, ...metadata } = formData;
+    if (!files || files.length === 0) {
+      alert('No files to upload.');
+      return;
+    }
+    this.showUploadProgressMessage(files.length);
     try {
-      // Show uploading message
-      this.showUploadProgressMessage(files.length);
-      
-      // Get current user information
-      const currentUser = this.state.currentUser || 
-        (localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null);
-      
-      // Separate files by type for backend processing
-      const imageFiles = files.filter(file => file.type.startsWith('image/'));
-      const videoFiles = files.filter(file => file.type.startsWith('video/'));
-      
-      console.log(`Uploading ${files.length} files: ${imageFiles.length} images, ${videoFiles.length} videos`);
-
-      // Process uploads (can be done in parallel for better performance)
-      const uploadPromises = [];
-
-      // Upload images if any
-      if (imageFiles.length > 0) {
-        const imageFormData = new FormData();
-        imageFormData.append('purpose', 'upload');
-        imageFormData.append('type', 'pictures');
-        
-        // Add user information for approval tracking
-        if (currentUser) {
-          imageFormData.append('uploadedBy', JSON.stringify(currentUser));
-        }
-        
-        imageFiles.forEach((file, index) => {
-          imageFormData.append('files', file);
-          console.log(`Added image ${index + 1}/${imageFiles.length}: ${file.name}`);
-        });
-        uploadPromises.push(
-          axios.post(`${BASE_URL}/gallery`, imageFormData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-            timeout: 120000
-          })
-        );
-      }
-
-      // Upload videos if any
-      if (videoFiles.length > 0) {
-        const videoFormData = new FormData();
-        videoFormData.append('purpose', 'upload');
-        videoFormData.append('type', 'videos');
-        
-        // Add user information for approval tracking
-        if (currentUser) {
-          videoFormData.append('uploadedBy', JSON.stringify(currentUser));
-        }
-        
-        videoFiles.forEach((file, index) => {
-          videoFormData.append('files', file);
-          console.log(`Added video ${index + 1}/${videoFiles.length}: ${file.name}`);
-        });
-        uploadPromises.push(
-          axios.post(`${BASE_URL}/gallery`, videoFormData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-            timeout: 120000
-          })
-        );
-      }
-
-      // Wait for all uploads to complete
-      const responses = await Promise.all(uploadPromises);
-      console.log('Upload responses:', responses.map(r => r.data));
-
-      // Check if all uploads were successful
-      const allSuccessful = responses.every(response => response.data.success);
-      if (allSuccessful) {
-        // Calculate total uploaded files
-        const totalUploaded = responses.reduce((total, response) => 
-          total + (response.data.files?.length || 0), 0
-        );
-        
-        // Show success message
-        this.showUploadSuccessMessage(totalUploaded);
+      const result = await uploadGalleryFiles(files, metadata);
+      if (result.success) {
+        this.showUploadSuccessMessage(files.length);
       } else {
-        const errors = responses.filter(r => !r.data.success).map(r => r.data.error);
-        throw new Error(`Some uploads failed: ${errors.join(', ')}`);
+        alert(result.message || 'Upload failed.');
       }
-      
-    } catch (error) {
-      console.error('Error uploading files:', error);
-      const errorMessage = error.code === 'ECONNABORTED' 
-        ? 'Upload timeout - try uploading fewer files at once'
-        : error.response?.data?.error || error.message;
-      alert(`Error uploading files: ${errorMessage}`);
+    } catch (err) {
+      alert('Upload failed: ' + (err?.message || err));
+    } finally {
+      // Remove progress message
+      const progressDiv = document.querySelector('.upload-progress-message');
+      if (progressDiv) progressDiv.remove();
     }
   };
 
