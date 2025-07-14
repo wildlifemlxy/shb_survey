@@ -7,6 +7,15 @@ import botDetectionService from '../../services/botDetection';
 // We'll pass the login function as a prop from a parent component that uses the hook
 
 class LoginPopup extends Component {
+  componentDidUpdate(prevProps, prevState) {
+    // Auto-close the whole popup after reset password success
+    if (this.state.resetPasswordSuccess && !prevState.resetPasswordSuccess) {
+      setTimeout(() => {
+        this.clearForm();
+        if (this.props.onClose) this.props.onClose();
+      }, 3000); // 2 seconds
+    }
+  }
   constructor(props) {
     super(props);
     this.state = {
@@ -1117,7 +1126,8 @@ class LoginPopup extends Component {
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                   </svg>
-                  Password reset email sent successfully! Please check your inbox.
+                  Password reset email sent successfully! Please check your inbox.<br/>
+                  <span style={{ fontSize: '12px', color: '#888' }}>(This window will close automatically.)</span>
                 </div>
               ) : (
                 <>
@@ -1135,20 +1145,6 @@ class LoginPopup extends Component {
                   </div>
                   
                   <div className="login-button-group">
-                    <button 
-                      type="button" 
-                      className="login-button"
-                      style={{
-                        background: '#22c55e', // Green color
-                        color: 'white',
-                        boxShadow: '0 2px 8px rgba(34, 197, 94, 0.2)'
-                      }}
-                      onClick={this.handleBackToLogin}
-                      disabled={isResettingPassword}
-                    >
-                      Back to Login
-                    </button>
-                    
                     <button 
                       type="submit" 
                       className="login-button"

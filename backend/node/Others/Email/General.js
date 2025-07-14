@@ -1,6 +1,6 @@
 const nodemailer = require('nodemailer');
 
-class EmailService {
+/*class EmailService {
     constructor() {
         // Gmail OAuth2 configuration
         // Set these environment variables in your .env file or deployment environment:
@@ -91,6 +91,101 @@ class EmailService {
         } catch (error) {
             console.error('Email service connection failed:', error);
             return { success: false, error: error.message };
+        }
+    }
+}*/
+
+class EmailService {
+    constructor() {
+        // Create a transporter using Brevo SMTP
+        this.transporter = nodemailer.createTransport({
+            host: 'smtp-relay.brevo.com', // Brevo's SMTP server
+            port: 587, // TLS
+            secure: false, // Use false for TLS
+            auth: {
+                user: "92044d001@smtp-brevo.com", // Your email address
+                pass: "Qf18IPhmdSB5YaA9", // Your app password or normal password
+            },
+        });
+    }
+
+    async sendEmail(to, subject, htmlContent, textContent = '') {
+        try {
+            console.log('Sending email to:', to);
+            
+            const mailOptions = {
+                from: 'wildlifemlxy@gmail.com',
+                to: to,
+                subject: subject,
+                text: textContent,
+                html: htmlContent
+            };
+
+            const result = await this.transporter.sendMail(mailOptions);
+            console.log('Email sent successfully:', result.messageId);
+            
+            return {
+                success: true,
+                messageId: result.messageId,
+                message: 'Email sent successfully'
+            };
+        } catch (error) {
+            console.error('Error sending email:', error);
+            return {
+                success: false,
+                error: error.message,
+                message: 'Failed to send email'
+            };
+        }
+    }
+
+    async sendFirstLoginCongratulationsEmail(email, userInfo) {
+        try {
+            const ResetPasswordTemplate = require('./ChangePassword');
+            const template = new ResetPasswordTemplate();
+            
+            // Generate the congratulations email content
+            // Pass userInfo object containing email, password, and name if available
+            const emailContent = template.generateResetEmailContent(email, userInfo);
+            
+            // Send the email
+            const result = await this.sendEmail(
+                email,
+                emailContent.subject,
+                emailContent.html
+            );
+
+            return result;
+        } catch (error) {
+            console.error('Error sending first login congratulations email:', error);
+            return {
+                success: false,
+                error: error.message,
+                message: 'Failed to send first login congratulations email'
+            };
+        }
+    }
+
+    // Keep the old method name for backward compatibility, but now send a proper password reset email
+    async sendResetPasswordEmail(email, resetLink = null) {
+        try {
+            const ResetPasswordTemplate = require('./ResetPassword');
+            const template = new ResetPasswordTemplate();
+            const emailContent = template.generateResetEmailContent(email, resetLink);
+            const result = await this.sendEmail(
+                email,
+                emailContent.subject,
+                emailContent.html,
+                emailContent.text || ''
+            );
+            return result;
+        } catch (error) {
+            console.error('Error sending reset password email:', error);
+            return {
+                success: false,
+                error: error.message,
+                message: 'Failed to send reset password email'
+            };
         }
     }
 }

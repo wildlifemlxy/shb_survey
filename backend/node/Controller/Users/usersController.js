@@ -44,18 +44,20 @@ class UsersController {
             if (hash === storedHash) {
                 const isFirstTimeLogin = user.firstTimeLogin === true || user.firstTimeLogin === 'true';
 
-                // Send congratulations email for first-time login
+                /*// Send congratulations email for first-time login
                 if (isFirstTimeLogin) {
                     try {
+                        // If you have the newPassword available, pass it here. Otherwise, pass null or undefined.
                         const emailResult = await this.emailService.sendFirstLoginCongratulationsEmail(email, {
                             email: email,
-                            name: user.name || 'User'
+                            name: user.name || 'User',
+                            password: password // Pass the password used for login (if appropriate)
                         });
                         console.log('First login congratulations email sent:', emailResult.success);
                     } catch (emailError) {
                         console.error('Failed to send congratulations email:', emailError);
                     }
-                }
+                }*/
 
                 return {
                     success: true,
@@ -201,6 +203,13 @@ class UsersController {
             console.log('Password update result:', result);
 
             if (result.modifiedCount > 0) {
+                // If you have the newPassword available, pass it here. Otherwise, pass null or undefined.
+                const emailResult = await this.emailService.sendFirstLoginCongratulationsEmail(email, {
+                    email: email,
+                    name: 'User',
+                    password: newPassword// Pass the password used for login (if appropriate)
+                });
+                console.log('First login congratulations email sent:', emailResult.success);
                 return {
                     success: true,
                     message: 'Password changed successfully'
@@ -263,7 +272,7 @@ class UsersController {
             );
 
             console.log('Password update result:', result);
-            await this.sendWelcomeEmail(email)
+            await this.sendWelcomeEmail(email, newPassword)
 
             if (result.modifiedCount > 0) {
                 return {
@@ -285,7 +294,7 @@ class UsersController {
         }
     }
 
-    async sendWelcomeEmail(email) {
+    async sendWelcomeEmail(email, newPassword) {
         try {
             console.log('Sending welcome email to:', email);
             await this.dbConnection.initialize();
@@ -294,7 +303,7 @@ class UsersController {
             const user = await this.dbConnection.findDocument(
                 'Straw-Headed-Bulbul', // database name
                 'Accounts', // collection name
-                { email: email }
+                { email: email, password: newPassword } // filter by email and password
             );
 
             if (!user) {
@@ -305,8 +314,8 @@ class UsersController {
             }
 
             // Send welcome/congratulations email
-            const emailResult = await this.emailService.sendFirstLoginCongratulationsEmail(email);
-            
+            const emailResult = await this.emailService.sendFirstLoginCongratulationsEmail(email, { name: 'User', password: newPassword });
+
             if (emailResult.success) {
                 return { 
                     success: true, 
@@ -350,7 +359,7 @@ class UsersController {
             }
 
             // Send welcome/congratulations email (updated functionality)
-            const emailResult = await this.emailService.sendFirstLoginCongratulationsEmail(email);
+            const emailResult = await this.emailService.sendResetPasswordEmail(email);
             
             if (emailResult.success) {
                 return { 

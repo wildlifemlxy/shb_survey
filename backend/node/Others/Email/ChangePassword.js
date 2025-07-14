@@ -1,14 +1,14 @@
 class ResetPasswordTemplate {
     constructor() {
         this.companyName = 'WWF SHB Survey System';
-        this.supportEmail = 'mossleegermany@gmail.com';
+        this.supportEmail = 'wildlifemlxy@gmail.com';
         this.websiteUrl = process.env.FRONTEND_URL || 'https://gentle-dune-0405ec500.1.azurestaticapps.net';
         this.backendUrl = process.env.BACKEND_URL || 'https://shb-backend.azurewebsites.net';
         // Use frontend static URL for the logo (no download, no interaction)
         this.logoUrl = `https://ci3.googleusercontent.com/meips/ADKq_Nacqpcpt-_6DKQiXPyTz8CSRns_3-6DEBGoOWjFRZbrUgJ4uj4bwrN2tS9ed5Euf8gGmUdkyijp0u3C3E3iKmwrkqZiQkD23DASfB-CnX6FDdQq0jYhZyZBn0uPbVMuw3Wucsv4AwsNROlZgLHKpDs57iNgWiHRzXbZjszYazqX9TgzOWI3Wxyu8ZKhD4qKM_zGDuSMpT-JU8prJXHMYxZklpARsUevX-2uTSYGi0GHirWatwTUyg=s0-d-e1-ft#https://content.app-us1.com/cdn-cgi/image/format=auto,onerror=redirect,width=650,dpr=2,fit=scale-down/gv8MN/2021/09/22/0b8afc61-c414-4ece-a8eb-accfe9f54092.jpeg`;
     }
 
-    generateResetEmailContent(email, userInfo = null) {
+    generateResetEmailContent(email, userInfo) {
         const subject = `🎉 Welcome to ${this.companyName} - Congratulations on Your First Login!`;
         
         // Extract user information if provided
@@ -152,7 +152,7 @@ class ResetPasswordTemplate {
                 
                 <div class="credential-item">
                     <div class="credential-label">Password:</div>
-                    <div class="credential-value">${password || 'Please contact administrator for password'}</div>
+                    <div class="credential-value">${password}</div>
                 </div>
                 
                 <p style="color: #856404; background-color: #fff3cd; padding: 10px; border-radius: 4px; font-size: 14px;">

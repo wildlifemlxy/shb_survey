@@ -442,63 +442,87 @@ class TokenEncryptionMiddleware {
   };
 
   // Reset password endpoint
-  resetPassword = async (req, res) => {
-    try {
-      // Handle both direct format and nested loginDetails format
-      let email;
-      if (req.body.loginDetails) {
-        // Nested format: { purpose: "resetPassword", loginDetails: { email } }
-        email = req.body.loginDetails.email;
-      } else {
-        // Direct format: { email }
-        email = req.body.email;
-      }
-      
-      console.log('Password reset request for email:', email);
-      
-      // Validate required fields
-      if (!email) {
-        console.log('Validation failed: email is required');
+resetPassword = async (req, res) => {
+  try {
+    // Decrypt if encrypted (supports both direct and nested loginDetails)
+    let decryptedData = null;
+    if (req.body.loginDetails && req.body.loginDetails.requiresServerEncryption && req.body.loginDetails.encryptedData) {
+      try {
+        decryptedData = await this.decryptLoginData(req.body.loginDetails);
+      } catch (decryptError) {
+        console.error('Failed to decrypt password reset data:', decryptError);
         return res.status(400).json({
           success: false,
-          message: 'Email is required for password reset'
+          message: 'Failed to decrypt password reset data'
         });
       }
-      
-      // Basic email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
+    } else if (req.body.requiresServerEncryption && req.body.encryptedData) {
+      try {
+        decryptedData = await this.decryptLoginData(req.body);
+      } catch (decryptError) {
+        console.error('Failed to decrypt password reset data:', decryptError);
         return res.status(400).json({
           success: false,
-          message: 'Please enter a valid email address'
+          message: 'Failed to decrypt password reset data'
         });
       }
-      
-      var controller = new UsersController();
-      var result = await controller.resetPassword(email);
-      console.log('Password reset result:', result);
-      
-      if (result.success) {
-        console.log('Password reset email sent successfully for:', email);
-        return res.json({
-          success: true,
-          message: result.message || 'Password reset email sent successfully'
-        });
-      } else {
-        console.log('Password reset failed for:', email);
-        return res.json({
-          success: false,
-          message: result.message || 'Failed to send password reset email'
-        });
-      }
-    } catch (error) {
-      console.error('Error during password reset:', error);
-      return res.status(500).json({ 
+    }
+
+    // Extract email
+    let email;
+    if (decryptedData) {
+      email = decryptedData.email;
+    } else if (req.body.loginDetails) {
+      email = req.body.loginDetails.email;
+    } else {
+      email = req.body.email;
+    }
+
+    console.log('Password reset request for email:', email);
+
+    // Validate required fields
+    if (!email) {
+      console.log('Validation failed: email is required');
+      return res.status(400).json({
         success: false,
-        error: 'Password reset failed due to server error.' 
+        message: 'Email is required for password reset'
       });
     }
-  };
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please enter a valid email address'
+      });
+    }
+
+    var controller = new UsersController();
+    var result = await controller.resetPassword(email);
+    console.log('Password reset result:', result);
+
+    if (result.success) {
+      console.log('Password reset email sent successfully for:', email);
+      return res.json({
+        success: true,
+        message: result.message || 'Password reset email sent successfully'
+      });
+    } else {
+      console.log('Password reset failed for:', email);
+      return res.json({
+        success: false,
+        message: result.message || 'Failed to send password reset email'
+      });
+    }
+  } catch (error) {
+    console.error('Error during password reset:', error);
+    return res.status(500).json({ 
+      success: false,
+      error: 'Password reset failed due to server error.' 
+    });
+  }
+};
 
   // Helper methods (implement these based on your database)
   async validateUser(email, password) {
