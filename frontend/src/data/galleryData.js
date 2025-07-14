@@ -93,15 +93,25 @@ export async function fetchGalleryFiles() {
 
     const response = await axios.post(`${BASE_URL}/gallery`, formData, { headers });
     let files = response.data && response.data.files ? response.data.files : [];
-    // ...existing code for debug and return...
-    files.forEach(f => {
-      if (f.name && f.name.toLowerCase().endsWith('.mov')) {
-        const mime = 'video/quicktime';
-        const url = `data:${mime};base64,${f.data}`;
-        console.log('MOV video data URL (first 100 chars):', url.substring(0, 100));
-      }
-    });
-    console.log('Fetched real gallery files:', files);
+    // Only log upload files and non WWF-Volunteers before returning
+    let isWWFVolunteer = false;
+    if (userDataString) {
+      try {
+        const userData = JSON.parse(userDataString);
+        isWWFVolunteer = userData.role === 'WWF-Volunteer';
+      } catch {}
+    }
+    if (!isWWFVolunteer) {
+      const uploadFiles = files.filter(f => f.role !== 'WWF-Volunteer');
+      uploadFiles.forEach(f => {
+        if (f.name && f.name.toLowerCase().endsWith('.mov')) {
+          const mime = 'video/quicktime';
+          const url = `data:${mime};base64,${f.data}`;
+          console.log('MOV video data URL (first 100 chars):', url.substring(0, 100));
+        }
+      });
+      console.log('Fetched real gallery files (non-WWF-Volunteer uploads):', uploadFiles);
+    }
     return files;
   } catch (error) {
     console.error('Error fetching gallery files:', error);
