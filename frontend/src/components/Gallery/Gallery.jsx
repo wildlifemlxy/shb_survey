@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 
-import { fetchGalleryFiles, deleteGalleryFile } from '../../data/galleryData';
+import { fetchGalleryFiles, deleteGalleryFile, approveGalleryFile } from '../../data/galleryData';
 import './Gallery.css';
 
 // Ensure BASE_URL is defined before any usage
@@ -13,6 +13,15 @@ var BASE_URL =
 
 
 class Gallery extends Component {
+  // Approve media handler
+  approveMedia = async (item, index) => {
+    try {
+      console.log("Approving media item:", item);
+      const result = await approveGalleryFile(item.name);
+    } catch (err) {
+      alert('Error approving file.');
+    }
+  };
 
   constructor(props) {
     super(props);
@@ -202,23 +211,26 @@ class Gallery extends Component {
           return true;
         });
 
-    // Filter out unapproved WWF volunteer submissions from public view
-    // Only show approved content or content from non-WWF users
-    const publicGalleryData = filteredGalleryData.filter(item => {
-      // If user is in approval mode (non-WWF admin), only show WWF-Volunteer submissions for review
-      if (!isWWFVolunteer && approvalMode) {
-        return item.uploadedBy && item.uploadedBy.role === 'WWF-Volunteer';
-      }
-      // For public gallery view, only show:
-      // 1. Content that is explicitly approved (approved: true)
-      // 2. Content from non-WWF volunteers (no approval needed)
-      // 3. Hide content that is pending approval or rejected
-      if (item.uploadedBy && item.uploadedBy.role === 'WWF-Volunteer') {
-        return item.approved === true;
-      }
-      // Show all non-WWF volunteer content
-      return true;
-    });
+    // Gallery filter logic:
+    // - In approval mode (for non-WWF-Volunteers), show WWF-Volunteer submissions for review
+    // - Otherwise, exclude WWF-Volunteer uploads from public gallery
+    let publicGalleryData = filteredGalleryData;
+    if (!isWWFVolunteer && approvalMode) {
+      // Show only WWF-Volunteer submissions for review (action=upload, role=WWF-Volunteer)
+      publicGalleryData = filteredGalleryData.filter(item => {
+        // Support both legacy uploadedBy and new role property
+        if (item.role === 'WWF-Volunteer') return true;
+        if (item.uploadedBy && item.uploadedBy.role === 'WWF-Volunteer') return true;
+        return false;
+      });
+    } else {
+      // Exclude all WWF-Volunteer uploads from public gallery
+      publicGalleryData = filteredGalleryData.filter(item => {
+        if (item.role === 'WWF-Volunteer') return false;
+        if (item.uploadedBy && item.uploadedBy.role === 'WWF-Volunteer') return false;
+        return true;
+      });
+    }
 
     return (
       <div className="gallery-container">
@@ -495,7 +507,11 @@ class Gallery extends Component {
                   publicGalleryData.map((item, index) => (
                     <div
                       key={index}
-                      className="gallery-card"
+                      className={
+                        'gallery-card' +
+                        (!isWWFVolunteer && approvalMode && (item.role === 'WWF-Volunteer' || (item.uploadedBy && item.uploadedBy.role === 'WWF-Volunteer'))
+                          ? ' approval-hover-card' : '')
+                      }
                       style={{
                         background: '#ffffff',
                         borderRadius: '12px',
@@ -625,14 +641,17 @@ class Gallery extends Component {
                         </div>
                       )}
 
-                      {/* Approval Controls - Only show for Non-WWF Volunteers in approval mode and for WWF-Volunteer submissions */}
-                      {!isWWFVolunteer && approvalMode && item.uploadedBy && item.uploadedBy.role === 'WWF-Volunteer' && (
-                        <div style={{
+                      {/* Approval Controls - Only show for Non-WWF Volunteers in approval mode and for WWF-Volunteer submissions, on hover */}
+                      {!isWWFVolunteer && approvalMode && (item.role === 'WWF-Volunteer' || (item.uploadedBy && item.uploadedBy.role === 'WWF-Volunteer')) && (
+                        <div className="approval-controls-hover" style={{
                           position: 'absolute',
                           bottom: '8px',
                           right: '8px',
                           display: 'flex',
-                          gap: '4px'
+                          gap: '4px',
+                          opacity: 0,
+                          pointerEvents: 'none',
+                          transition: 'opacity 0.2s',
                         }}>
                           <button
                             onClick={(e) => {
@@ -873,6 +892,10 @@ class Gallery extends Component {
 
         {/* CSS Styles */}
         <style>{`
+          .approval-hover-card:hover .approval-controls-hover {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+          }
           @keyframes float {
             0%, 100% { transform: translateY(0px); }
             50% { transform: translateY(-20px); }

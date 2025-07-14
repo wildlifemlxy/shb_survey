@@ -158,7 +158,7 @@ router.post('/', async function(req, res, next) {
                         return await tokenEncryption.encryptResponseDataMiddleware(req, res, async () => {
                             const telegramController = new TelegramController();
                             const result = await telegramController.getAllBots();
-                            console.log('Retrieved bots for encrypted response:', result);
+                           // console.log('Retrieved bots for encrypted response:', result);
                             
                             if (result.success) {
                                 return {
@@ -182,7 +182,7 @@ router.post('/', async function(req, res, next) {
                 // Fallback for non-encrypted requests (backwards compatibility)
                 const telegramController = new TelegramController();
                 const result = await telegramController.getAllBots();
-                console.log('Retrieved bots:', result);
+                //console.log('Retrieved bots:', result);
                 if (result.success) {
                     return res.status(200).json({ message: result.message, data: result.data, success: result.success });
                 } else {

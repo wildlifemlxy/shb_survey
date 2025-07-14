@@ -13,15 +13,29 @@ const BASE_URL =
 // Insert new gallery data with encryption (requires authentication)
 export async function uploadGalleryFiles(files, metadata) {
   try {
-    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
     const tokenValid = tokenService.isTokenValid();
     if (!tokenValid) {
       return { success: false, message: 'Authentication required for gallery upload' };
     }
 
+    // Extract memberId and role from localStorage user JSON
+    let memberId = null, role = null;
+    const userDataString = localStorage.getItem('user');
+    if (userDataString) {
+      try {
+        const userData = JSON.parse(userDataString);
+        memberId = userData.memberId || userData.id || null;
+        role = userData.role || null;
+      } catch {}
+    }
+    const metadataWithUser = {
+      ...metadata,
+      memberId,
+      role
+    };
     // Encrypt only the metadata
     const requestPayload = {
-      data: metadata,
+      data: metadataWithUser,
       requiresEncryption: true,
       publicKey: await tokenService.getPublicKey(),
       sessionId: tokenService.getKeySessionId()
@@ -58,18 +72,28 @@ export async function uploadGalleryFiles(files, metadata) {
   }
 }
 
-// Retrieve gallery files (all or by filter)
 export async function fetchGalleryFiles() {
   try {
     const formData = new FormData();
     formData.append('purpose', 'retrieve');
-    const response = await axios.post(`${BASE_URL}/gallery`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-    const files = response.data && response.data.files ? response.data.files : [];
-    // Debug: log first 100 chars of video data URL for .mov files
+    // Get current user info
+    let currentUserId = null, currentUserRole = null;
+    const userDataString = localStorage.getItem('user');
+    if (userDataString) {
+      try {
+        const userData = JSON.parse(userDataString);
+        currentUserId = userData.memberId || userData.id || null;
+        currentUserRole = userData.role || null;
+      } catch {}
+    }
+    // Set headers
+    const headers = { 'Content-Type': 'multipart/form-data' };
+    if (currentUserRole) headers['x-user-role'] = currentUserRole;
+    if (currentUserId) headers['x-user-id'] = currentUserId;
+
+    const response = await axios.post(`${BASE_URL}/gallery`, formData, { headers });
+    let files = response.data && response.data.files ? response.data.files : [];
+    // ...existing code for debug and return...
     files.forEach(f => {
       if (f.name && f.name.toLowerCase().endsWith('.mov')) {
         const mime = 'video/quicktime';
@@ -91,9 +115,35 @@ export async function approveGalleryFile(fileId) {
     if (!tokenService.isTokenValid()) {
       return { success: false, error: 'Authentication required' };
     }
-    const response = await axios.post(`${BASE_URL}/gallery/approve`, { fileId }, {
+    // Extract memberId and role from localStorage user JSON
+    let memberId = null, role = null;
+    const userDataString = localStorage.getItem('user');
+    if (userDataString) {
+      try {
+        const userData = JSON.parse(userDataString);
+        memberId = userData.memberId || userData.id || null;
+        role = userData.role || null;
+      } catch {}
+    }
+    // Encrypt the fileId and user info as metadata
+    const requestPayload = {
+      data: { fileId, memberId, role },
+      requiresEncryption: true,
+      publicKey: await tokenService.getPublicKey(),
+      sessionId: tokenService.getKeySessionId()
+    };
+    const encryptedData = await tokenService.encryptData(requestPayload);
+
+    // Prepare FormData
+    const formData = new FormData();
+    formData.append('purpose', 'approve');
+    formData.append('encryptedData', JSON.stringify(encryptedData));
+
+    // Send as multipart/form-data
+    const response = await axios.post(`${BASE_URL}/gallery`, formData, {
       headers: {
-        Authorization: `Bearer ${tokenService.getToken()}`
+        Authorization: `Bearer ${tokenService.getToken()}`,
+        'Content-Type': 'multipart/form-data'
       }
     });
     return response.data;
@@ -128,9 +178,19 @@ export async function deleteGalleryFile(fileId) {
       return { success: false, error: 'Authentication required' };
     }
 
-    // Encrypt the fileId as metadata
+    // Extract memberId and role from localStorage user JSON
+    let memberId = null, role = null;
+    const userDataString = localStorage.getItem('user');
+    if (userDataString) {
+      try {
+        const userData = JSON.parse(userDataString);
+        memberId = userData.memberId || userData.id || null;
+        role = userData.role || null;
+      } catch {}
+    }
+    // Encrypt the fileId and user info as metadata
     const requestPayload = {
-      data: { fileId },
+      data: { fileId, memberId, role },
       requiresEncryption: true,
       publicKey: await tokenService.getPublicKey(),
       sessionId: tokenService.getKeySessionId()

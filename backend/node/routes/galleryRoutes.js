@@ -60,6 +60,27 @@ router.post('/', upload, async function(req, res)
         fileNames: files.map(f => f.originalname)
       });
 
+      // --- METADATA TRACKING LOGIC ---
+      const metadataPath = path.resolve(__dirname, '../Gallery/gallery_metadata.json');
+      let galleryMeta = [];
+      if (fs.existsSync(metadataPath)) {
+        try {
+          const raw = fs.readFileSync(metadataPath, 'utf8');
+          if (raw.trim()) galleryMeta = JSON.parse(raw);
+        } catch (e) { galleryMeta = []; }
+      }
+      const now = new Date().toISOString();
+      for (const file of files) {
+        galleryMeta.push({
+          action: 'upload',
+          fileName: file.originalname,
+          memberId: metadata.data.memberId || (metadata.data.uploadedBy && metadata.data.uploadedBy.id) || null,
+          role: metadata.data.role || (metadata.data.uploadedBy && metadata.data.uploadedBy.role) || null,
+          timestamp: now
+        });
+      }
+      fs.writeFileSync(metadataPath, JSON.stringify(galleryMeta, null, 2));
+
       // Determine subfolder based on metadata.type
       let subfolder = 'Others';
       if (metadata.data.type === 'pictures') subfolder = 'Pictures';
@@ -115,7 +136,7 @@ router.post('/', upload, async function(req, res)
               message: 'Survey updated successfully',
           });
       }
-      // TODO: Save metadata to DB if needed
+      // Metadata tracking handled above
       return res.json({ result: { success: true, message: `Saved ${files.length} file(s) to ${subfolder}` } });
     } catch (error) {
       console.error('Error handling gallery upload:', error);
@@ -123,11 +144,40 @@ router.post('/', upload, async function(req, res)
     }
   } 
   else if (purpose === 'retrieve') {
-    // Always return all files as an array of { name, type, data (base64) }
+    // Always return all files as an array of { name, type, data (base64), memberId, role }
     try {
       const allowed = ['Pictures', 'Videos'];
       const subfolders = allowed;
       let allFiles = [];
+      // Load metadata for uploader info
+      const metadataPath = path.resolve(__dirname, '../Gallery/gallery_metadata.json');
+      let galleryMeta = [];
+      if (fs.existsSync(metadataPath)) {
+        try {
+          const raw = fs.readFileSync(metadataPath, 'utf8');
+          if (raw.trim()) galleryMeta = JSON.parse(raw);
+        } catch (e) { galleryMeta = []; }
+      }
+      // Build a lookup for latest upload info per file, including approval status
+      const fileMetaMap = {};
+      for (const entry of galleryMeta) {
+        if (entry.action === 'upload') {
+          fileMetaMap[entry.fileName] = { memberId: entry.memberId, role: entry.role, approved: entry.approved };
+        }
+        if (entry.action === 'approve') {
+          if (fileMetaMap[entry.fileName]) fileMetaMap[entry.fileName].approved = true;
+        }
+        if (entry.action === 'reject') {
+          if (fileMetaMap[entry.fileName]) fileMetaMap[entry.fileName].approved = false;
+        }
+        if (entry.action === 'delete') {
+          if (fileMetaMap[entry.fileName]) delete fileMetaMap[entry.fileName];
+        }
+      }
+      // Get user role and id from headers
+      let userRole = null, userId = null;
+      if (req.headers['x-user-role']) userRole = req.headers['x-user-role'];
+      if (req.headers['x-user-id']) userId = req.headers['x-user-id'];
       for (const sub of subfolders) {
         const dir = path.join(galleryDir, sub);
         // Load video thumbnails if present
@@ -152,15 +202,36 @@ router.post('/', upload, async function(req, res)
                 thumbnailUrl = videoThumbnails[filename];
               }
             }
-            allFiles.push({
-              name: filename,
-              type: sub.toLowerCase(),
-              data: base64Data,
-              thumbnailUrl
-            });
+            // Attach memberId, role, and approved if available
+            const meta = fileMetaMap[filename] || {};
+            // WWF-Volunteer: only see approved or own uploads, others see all
+            if (userRole === 'WWF-Volunteer') {
+              if (meta.approved === true || (userId && meta.memberId === userId)) {
+                allFiles.push({
+                  name: filename,
+                  type: sub.toLowerCase(),
+                  data: base64Data,
+                  thumbnailUrl,
+                  memberId: meta.memberId || null,
+                  role: meta.role || null,
+                  approved: typeof meta.approved === 'boolean' ? meta.approved : null
+                });
+              }
+            } else {
+              allFiles.push({
+                name: filename,
+                type: sub.toLowerCase(),
+                data: base64Data,
+                thumbnailUrl,
+                memberId: meta.memberId || null,
+                role: meta.role || null,
+                approved: typeof meta.approved === 'boolean' ? meta.approved : null
+              });
+            }
           }
         }
       }
+      console.log('Retrieved gallery files:', allFiles);
       return res.json({ files: allFiles });
     } catch (error) {
       console.error('Error retrieving gallery files:', error);
@@ -201,20 +272,36 @@ router.post('/', upload, async function(req, res)
         return res.status(400).json({ error: 'Missing fileId in decrypted data.' });
       }
 
+
       // Try to find and delete the file in Pictures or Videos
       const subfolders = ['Pictures', 'Videos'];
       let deleted = false;
+      let deletedSub = null;
       for (const sub of subfolders) {
         const filePath = path.join(galleryDir, sub, fileId);
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
           deleted = true;
+          deletedSub = sub;
           break;
         }
       }
       if (!deleted) {
         return res.status(404).json({ error: 'File not found.' });
       }
+
+      // --- METADATA TRACKING LOGIC ---
+      const metadataPath = path.resolve(__dirname, '../Gallery/gallery_metadata.json');
+      let galleryMeta = [];
+      if (fs.existsSync(metadataPath)) {
+        try {
+          const raw = fs.readFileSync(metadataPath, 'utf8');
+          if (raw.trim()) galleryMeta = JSON.parse(raw);
+        } catch (e) { galleryMeta = []; }
+      }
+      // Remove all entries for this fileId from metadata
+      galleryMeta = galleryMeta.filter(entry => entry.fileName !== fileId);
+      fs.writeFileSync(metadataPath, JSON.stringify(galleryMeta, null, 2));
 
       // Optionally emit a socket event for gallery update
       if (io) {
@@ -224,6 +311,70 @@ router.post('/', upload, async function(req, res)
     } catch (error) {
       console.error('Error handling gallery delete:', error);
       return res.status(500).json({ error: 'Failed to delete gallery file.' });
+    }
+  }
+  else if(purpose === 'approve') 
+  {
+    console.log('Handling gallery approve request:', req.body);
+    try {
+      // Decrypt the encryptedData to get fileId and user info
+      if (!req.body.encryptedData) {
+        return res.status(400).json({ error: 'Missing encryptedData in request.' });
+      }
+      let encryptedData = req.body.encryptedData;
+      if (typeof encryptedData === 'string') {
+        try {
+          encryptedData = JSON.parse(encryptedData);
+        } catch (e) {
+          return res.status(400).json({ error: 'Invalid encryptedData format' });
+        }
+      }
+      let decryptedMeta = null;
+      try {
+        decryptedMeta = tokenEncryption.decryptRequestData(encryptedData);
+        console.log('Decrypted approve metadata:', decryptedMeta.data);
+      } catch (e) {
+        console.error('Failed to decrypt approve metadata:', e);
+        return res.status(400).json({ error: 'Failed to decrypt metadata.' });
+      }
+      if (!decryptedMeta || !decryptedMeta.success) {
+        return res.status(400).json({ error: 'Invalid encrypted metadata.' });
+      }
+      const { fileId, memberId, role } = decryptedMeta.data.data;
+      if (!fileId) {
+        return res.status(400).json({ error: 'Missing fileId in decrypted data.' });
+      }
+  
+      // --- METADATA TRACKING LOGIC ---
+      const metadataPath = path.resolve(__dirname, '../Gallery/gallery_metadata.json');
+      let galleryMeta = [];
+      if (fs.existsSync(metadataPath)) {
+        try {
+          const raw = fs.readFileSync(metadataPath, 'utf8');
+          if (raw.trim()) galleryMeta = JSON.parse(raw);
+        } catch (e) { galleryMeta = []; }
+      }
+      const now = new Date().toISOString();
+      // Find the latest upload entry for this file and update it
+      let found = false;
+      for (let i = galleryMeta.length - 1; i >= 0; i--) {
+        if (galleryMeta[i].action === 'upload' && galleryMeta[i].fileName === fileId && galleryMeta[i].role === 'WWF-Volunteer') {
+          galleryMeta[i].action = 'approve';
+          found = true;
+          break;
+        }
+      }
+      console.log(`Approving gallery file: ${fileId}, found: ${found}`);
+      // Optionally, if not found, do nothing or log
+      fs.writeFileSync(metadataPath, JSON.stringify(galleryMeta, null, 2));
+  
+      if (io) {
+        io.emit('survey-updated', { message: 'Gallery file approved', fileId });
+      }
+      return res.json({ result: { success: true, message: `Approved file: ${fileId}` } });
+    } catch (error) {
+      console.error('Error handling gallery approve:', error);
+      return res.status(500).json({ error: 'Failed to approve gallery file.' });
     }
   }
   else {
