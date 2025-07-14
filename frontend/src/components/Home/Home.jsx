@@ -594,7 +594,7 @@ class Home extends React.Component {
           console.log(`Added video ${index + 1}/${videoFiles.length}: ${file.name}`);
         });
         uploadPromises.push(
-          axios.post('http://localhost:3001/gallery', videoFormData, {
+          axios.post(`${BASE_URL}/gallery`, videoFormData, {
             headers: { 'Content-Type': 'multipart/form-data' },
             timeout: 120000
           })
