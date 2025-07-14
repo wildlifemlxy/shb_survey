@@ -5,9 +5,11 @@ var path = require('path');
 var fs = require('fs');
 
 // Determine base URL based on environment
-const BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://shb-backend.azurewebsites.net'
-  : 'http://localhost:3001';
+//const BASE_URL = process.env.NODE_ENV === 'production' 
+//  ? 'https://shb-backend.azurewebsites.net'
+//  : 'http://localhost:3001';
+
+const BASE_URL = 'https://shb-backend.azurewebsites.net';
 
 // Import Gallery Controller and Token Encryption
 const galleryController = require('../Controller/Gallery/galleryController');

@@ -203,10 +203,22 @@ class Gallery extends Component {
     const { galleryData, galleryFilter, fullscreenMedia, isLoading, approvalMode, manageMode } = this.state;
     const { isAuthenticated, isWWFVolunteer } = this.props;
 
-    // Filter gallery data based on current filter
-    const filteredGalleryData = galleryFilter === 'all' 
-      ? galleryData 
+    // Only allow image and video file extensions
+    const allowedImageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    const allowedVideoExts = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'];
+    const isGitFile = (filename) => filename && filename.toLowerCase().endsWith('.gitkeep');
+    const isAllowedMedia = (item) => {
+      if (!item.filename) return false;
+      const ext = item.filename.split('.').pop().toLowerCase();
+      if (isGitFile(item.filename)) return false;
+      return allowedImageExts.includes(ext) || allowedVideoExts.includes(ext);
+    };
+
+    // Filter gallery data based on current filter and allowed media
+    const filteredGalleryData = galleryFilter === 'all'
+      ? galleryData.filter(isAllowedMedia)
       : galleryData.filter(item => {
+          if (!isAllowedMedia(item)) return false;
           if (galleryFilter === 'pictures') {
             return item.type && item.type.startsWith('image/');
           } else if (galleryFilter === 'videos') {
@@ -222,7 +234,6 @@ class Gallery extends Component {
       if (!isWWFVolunteer && approvalMode) {
         return item.uploadedBy && item.uploadedBy.role === 'WWF-Volunteer';
       }
-      
       // For public gallery view, only show:
       // 1. Content that is explicitly approved (approved: true)
       // 2. Content from non-WWF volunteers (no approval needed)
@@ -230,7 +241,6 @@ class Gallery extends Component {
       if (item.uploadedBy && item.uploadedBy.role === 'WWF-Volunteer') {
         return item.approved === true;
       }
-      
       // Show all non-WWF volunteer content
       return true;
     });
