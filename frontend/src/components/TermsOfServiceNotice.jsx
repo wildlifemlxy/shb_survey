@@ -43,7 +43,7 @@ class TermsOfServiceNotice extends Component {
             </Link>
           </div>
         </div>
-        <div style={{ maxWidth: 800, margin: '40px auto', padding: '2rem', background: '#fff', borderRadius: 12, boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
+        <div>
           <h2 style={{ fontSize: '2.2rem', fontWeight: 700, marginBottom: 24 }}>Terms of Service</h2>
           <p>Last updated: July 14, 2025</p>
           <p>
