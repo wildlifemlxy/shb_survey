@@ -12,7 +12,7 @@ import '../../css/components/Home/Home.css';
 import axios from 'axios';
 
 // Ensure BASE_URL is defined before any usage
-const BASE_URL =
+var BASE_URL =
   typeof window !== 'undefined' && window.location.hostname === 'localhost'
     ? 'http://localhost:3001'
     : 'https://shb-backend.azurewebsites.net';
@@ -602,7 +602,7 @@ class Home extends React.Component {
           console.log(`Added video ${index + 1}/${videoFiles.length}: ${file.name}`);
         });
         uploadPromises.push(
-          axios.post(`${BASE_URL}/gallery`  , videoFormData, {
+          axios.post(`${BASE_URL}/gallery`, videoFormData, {
             headers: { 'Content-Type': 'multipart/form-data' },
             timeout: 120000
           })

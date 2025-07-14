@@ -572,11 +572,19 @@ class Gallery extends Component {
                             style={{
                               width: '100%',
                               height: '100%',
-                              objectFit: 'cover'
+                              objectFit: 'cover',
+                              background: '#000'
                             }}
-                            muted
+                            controls
                             preload="metadata"
-                          />
+                            poster={item.thumbnailUrl || undefined}
+                            onError={e => {
+                              e.target.poster = '/WWF Logo/WWF Logo Large.jpg';
+                              e.target.controls = false;
+                            }}
+                          >
+                            Sorry, your browser does not support embedded videos.
+                          </video>
                         )
                       ) : (
                         <img
