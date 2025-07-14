@@ -9,7 +9,7 @@ class UsersController {
         this.emailService = new EmailService();
     }
 
-/*async deleteUser(userId) {
+async deleteUser(userId) {
     try {
         await this.dbConnection.initialize();
         const filter = { _id: userId };
@@ -24,7 +24,7 @@ class UsersController {
         console.error('Error deleting user:', error);
         throw error;
     }
-}*/
+}
     
     async verifyUser(email, password) {
         try {

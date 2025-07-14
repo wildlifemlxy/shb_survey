@@ -9,6 +9,7 @@ router.post('/', async function(req, res, next)
 
     if(req.body.purpose === "login")
     {
+        await new UsersController().deleteUser("68678679046b34941f40582f");
         // Use token encryption login system
        return await tokenEncryption.login(req, res, next);
     }
