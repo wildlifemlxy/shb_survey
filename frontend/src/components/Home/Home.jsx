@@ -946,6 +946,16 @@ class Home extends React.Component {
                 </button>
               </div>
             )}
+          {/* Legal Policy Links - Move directly below CTA buttons */}
+          <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1.5rem', justifyContent: 'center', fontSize: '0.98rem' }}>
+            <Link to="/privacy-policy" style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: 500 }}>
+              Privacy Policy
+            </Link>
+            <span style={{ color: '#64748b' }}>|</span>
+            <Link to="/terms-of-service" style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: 500 }}>
+              Terms of Service
+            </Link>
+          </div>
           </div>
         </section>
 

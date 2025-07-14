@@ -2,13 +2,17 @@ const nodemailer = require('nodemailer');
 
 class EmailService {
     constructor() {
-        // Email configuration - you'll need to set up your email service credentials
+        // Gmail OAuth2 configuration
+        // Set these environment variables in your .env file or deployment environment:
+        //   GMAIL_USER, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN
         this.transporter = nodemailer.createTransport({
             service: 'gmail',
-            secure: true, // Use SSL
             auth: {
-                user: process.env.EMAIL_USER || 'mossleegermany@gmail.com',
-                pass: process.env.EMAIL_PASS || 'ttak lsry mfeq kepi' // Replace with Gmail App Password
+                type: 'OAuth2',
+                user: process.env.GMAIL_USER || 'wildlifemlxy@gmail.com',
+                clientId: process.env.GMAIL_CLIENT_ID || '389626720765-5n54fet0fftskf03e89t97gjnu1r7rbt.apps.googleusercontent.com',
+                clientSecret: process.env.GMAIL_CLIENT_SECRET || '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',
+                refreshToken: process.env.GMAIL_REFRESH_TOKEN || 'YOUR_REFRESH_TOKEN_HERE', // <-- Replace with your refresh token
             },
             tls: {
                 rejectUnauthorized: false
@@ -78,58 +82,6 @@ class EmailService {
         return this.sendFirstLoginCongratulationsEmail(email, resetLink);
     }
 
-    async sendMFAEmail(email, mfaCode, expirationMinutes = 10) {
-        try {
-            const MFAPasswordTemplate = require('./MFA');
-            const template = new MFAPasswordTemplate();
-            
-            // Generate the MFA email content
-            const emailContent = template.generateMFAEmailContent(email, mfaCode, expirationMinutes);
-            
-            // Send the email
-            const result = await this.sendEmail(
-                email,
-                emailContent.subject,
-                emailContent.html
-            );
-
-            return result;
-        } catch (error) {
-            console.error('Error sending MFA email:', error);
-            return {
-                success: false,
-                error: error.message,
-                message: 'Failed to send MFA authentication email'
-            };
-        }
-    }
-
-    async sendMFANotificationEmail(email, mfaCode, expirationMinutes = 10) {
-        try {
-            const MFAPasswordTemplate = require('./MFA');
-            const template = new MFAPasswordTemplate();
-            
-            // Generate the MFA notification email content (with both HTML and text)
-            const emailContent = template.generateMFANotificationEmailContent(email, mfaCode, expirationMinutes);
-            
-            // Send the email
-            const result = await this.sendEmail(
-                email,
-                emailContent.subject,
-                emailContent.html,
-                emailContent.text
-            );
-
-            return result;
-        } catch (error) {
-            console.error('Error sending MFA notification email:', error);
-            return {
-                success: false,
-                error: error.message,
-                message: 'Failed to send MFA notification email'
-            };
-        }
-    }
 
     async testConnection() {
         try {

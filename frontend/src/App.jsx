@@ -13,6 +13,8 @@ import ProtectedRoute from './components/Auth/ProtectedRoute';
 import RoleProtectedRoute from './components/Auth/RoleProtectedRoute';
 import NotFound from './components/NotFound/NotFound';
 import ObservationPopup from './components/Map/ObservationPopup';
+import TermsOfServiceNotice from './components/TermsOfServiceNotice';
+import PrivacyPolicyNotice from './components/PrivacyPolicyNotice';
 import { io } from 'socket.io-client';
 import { AuthProvider } from './components/Auth/AuthContext.jsx';
 import tokenService from './utils/tokenService';
@@ -974,6 +976,9 @@ class App extends Component {
                     } 
                   />
                 </Route>
+
+                <Route path="/terms-of-service" element={<TermsOfServiceNotice />} />
+                <Route path="/privacy-policy" element={<PrivacyPolicyNotice />} />
 
                 {/* 404 Route - Must be last */}
                 <Route path="*" element={<NotFound />} />

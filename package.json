@@ -1,5 +1,7 @@
 {
   "dependencies": {
+    "bcrypt": "^6.0.0",
+    "mongodb": "^6.17.0",
     "react-leaflet-cluster": "^2.1.0"
   }
 }

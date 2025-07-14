@@ -169,8 +169,8 @@ class TokenEncryptionMiddleware {
         // Decrypt the data
         let decrypted = decipher.update(Buffer.from(encryptedContent), null, 'utf8');
         decrypted += decipher.final('utf8');
-        
-        console.log('Successfully decrypted login data');
+
+        console.log('Successfully decrypted login data', decrypted);
         return JSON.parse(decrypted);
       }
 
@@ -219,9 +219,9 @@ class TokenEncryptionMiddleware {
   // Login endpoint
   login = async (req, res) => {
     try {
-      
+      console.log('[LOGIN] Backend login endpoint hit');
       // Handle both encrypted and direct format
-      let email, password;
+      let email, password, newPassword, userId;
       if (req.body.loginDetails) {
         // Check if loginDetails is encrypted data
         if (req.body.loginDetails.requiresServerEncryption && req.body.loginDetails.encryptedData) {
@@ -229,7 +229,10 @@ class TokenEncryptionMiddleware {
             // Decrypt the loginDetails
             const decryptedData = await this.decryptLoginData(req.body.loginDetails);
             email = decryptedData.email;
-            password = decryptedData.password;
+            // Always use lowercase 'password' property
+            password = typeof decryptedData.password === 'string' ? decryptedData.password : (typeof decryptedData.Password === 'string' ? decryptedData.Password : '');
+            newPassword = decryptedData.newPassword;
+            userId = decryptedData.userId;
             console.log('Successfully decrypted login credentials');
           } catch (decryptError) {
             console.error('Failed to decrypt login data:', decryptError);
@@ -239,18 +242,25 @@ class TokenEncryptionMiddleware {
             });
           }
         } else {
-          // Direct loginDetails format: { email, password }
+          // Direct loginDetails format: { email, password, newPassword, userId }
           email = req.body.loginDetails.email;
           password = req.body.loginDetails.password;
+          newPassword = req.body.loginDetails.newPassword;
+          userId = req.body.loginDetails.userId;
         }
       } else {
-        // Direct format: { email, password }
+        // Direct format: { email, password, newPassword, userId }
         email = req.body.email;
         password = req.body.password;
+        newPassword = req.body.newPassword;
+        userId = req.body.userId;
       }
-      
-      console.log('Extracted credentials - email:', email, 'password:', password ? '[REDACTED]' : 'undefined');
-      
+
+      // Ensure password is a string
+      if (typeof password !== 'string') password = '';
+
+      console.log('Extracted credentials - email:', email, 'password:', password ? '[REDACTED]' : 'undefined', 'newPassword:', newPassword ? '[REDACTED]' : 'undefined', 'userId:', userId);
+
       // Validate user credentials (implement your user validation logic)
       const user = await this.validateUser(email, password);
       if (!user) {
@@ -259,6 +269,9 @@ class TokenEncryptionMiddleware {
           message: 'Invalid email or password'
         });
       }
+
+      // If firstTimeLogin, allow login with provided email and password, and return firstTimeLogin flag
+      // The frontend should prompt for new password after login
 
       // Generate token
       const token = this.generateToken(user);
@@ -335,24 +348,50 @@ class TokenEncryptionMiddleware {
 
   // Change password endpoint
   changePassword = async (req, res) => {
+    console.log('Change password request body:', req.body);
     try {
-      // Handle both direct format and nested loginDetails format
+      // Decrypt if encrypted (supports both direct and nested loginDetails)
+      let decryptedData = null;
+      if (req.body.loginDetails && req.body.loginDetails.requiresServerEncryption && req.body.loginDetails.encryptedData) {
+        try {
+          decryptedData = await this.decryptLoginData(req.body.loginDetails);
+        } catch (decryptError) {
+          console.error('Failed to decrypt password change data:', decryptError);
+          return res.status(400).json({
+            success: false,
+            message: 'Failed to decrypt password change data'
+          });
+        }
+      } else if (req.body.requiresServerEncryption && req.body.encryptedData) {
+        try {
+          decryptedData = await this.decryptLoginData(req.body);
+        } catch (decryptError) {
+          console.error('Failed to decrypt password change data:', decryptError);
+          return res.status(400).json({
+            success: false,
+            message: 'Failed to decrypt password change data'
+          });
+        }
+      }
+
+      // Extract values
       let email, newPassword, userId;
-      if (req.body.loginDetails) {
-        // Nested format: { purpose: "changePassword", loginDetails: { email, newPassword, userId } }
+      if (decryptedData) {
+        email = decryptedData.email;
+        newPassword = decryptedData.newPassword;
+        userId = decryptedData.userId;
+      } else if (req.body.loginDetails) {
         email = req.body.loginDetails.email;
         newPassword = req.body.loginDetails.newPassword;
         userId = req.body.loginDetails.userId;
       } else {
-        // Direct format: { email, newPassword, userId }
         email = req.body.email;
         newPassword = req.body.newPassword;
         userId = req.body.userId;
       }
-      
-      console.log('Password change request body:', req.body);
+
       console.log('Extracted values - email:', email, 'newPassword length:', newPassword?.length);
-      
+
       // Validate required fields
       if (!email || !newPassword) {
         console.log('Validation failed:', {
@@ -364,7 +403,7 @@ class TokenEncryptionMiddleware {
           message: 'Missing required fields: email and newPassword are required'
         });
       }
-      
+
       // Validate password length
       if (newPassword.length < 8) {
         return res.status(400).json({
@@ -372,11 +411,11 @@ class TokenEncryptionMiddleware {
           message: 'Password must be at least 8 characters long'
         });
       }
-      
+
       var controller = new UsersController();
       var result = await controller.changePasswordByEmail(email, newPassword);
       console.log('Password change result:', result);
-      
+
       if (result.success) {
         console.log('Password changed successfully for:', email);
         return res.json({

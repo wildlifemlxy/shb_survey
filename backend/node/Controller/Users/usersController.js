@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const DatabaseConnectivity = require('../../Database/databaseConnectivity');
 const EmailService = require('../../Others/Email/General');
+const crypto = require('crypto');
 
 class UsersController {
     constructor() {
@@ -10,60 +11,72 @@ class UsersController {
     
     async verifyUser(email, password) {
         try {
-            console.log('Verifying user with email:', email, password);
-            // Initialize the database connection
+            console.log('Verifying user with email:', email);
             await this.dbConnection.initialize();
-            
-            // For production, passwords should be hashed
-            // This is a simple implementation for demo purposes
-            const user = await this.dbConnection.getDocument(
-                'Straw-Headed-Bulbul', // database name
-                'Accounts', // collection name
-                email,
-                password
+
+            // 1. Find user by email
+            const user = await this.dbConnection.findDocument(
+                'Straw-Headed-Bulbul',
+                'Accounts',
+                { email: email }
             );
 
-            if (user) {
-                // Check if this is a first-time login
-                // You can add logic here to determine first-time login based on your business rules
-                // For example, check if user has a 'firstTimeLogin' field or if 'lastLoginDate' is null
+            if (!user || !user.hashPassword) {
+                return {
+                    success: false,
+                    message: 'Invalid email or password'
+                };
+            }
+
+            // 2. Get salt and hashPassword
+            let salt, storedHash;
+            if (user.hashPassword.includes(':')) {
+                [salt, storedHash] = user.hashPassword.split(':');
+            } else {
+                salt = user.salt;
+                storedHash = user.hashPassword;
+            }
+
+            // 3. Hash the input password using the stored salt
+            const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+
+            // 4. Compare the computed hash to the stored hashPassword
+            if (hash === storedHash) {
                 const isFirstTimeLogin = user.firstTimeLogin === true || user.firstTimeLogin === 'true';
-                
+
                 // Send congratulations email for first-time login
                 if (isFirstTimeLogin) {
                     try {
-                        // Include user information in the welcome email
                         const emailResult = await this.emailService.sendFirstLoginCongratulationsEmail(email, {
                             email: email,
-                            password: password, // Include the password for first-time users
                             name: user.name || 'User'
                         });
                         console.log('First login congratulations email sent:', emailResult.success);
                     } catch (emailError) {
                         console.error('Failed to send congratulations email:', emailError);
-                        // Don't fail the login if email fails
                     }
                 }
-                
-                return { 
-                    success: true, 
+
+                return {
+                    success: true,
                     user: {
                         ...user,
-                        firstTimeLogin: isFirstTimeLogin
-                    }, 
-                    message: 'Authentication successful' 
+                        firstTimeLogin: isFirstTimeLogin,
+                        salt: salt // explicitly include salt in response
+                    },
+                    message: 'Authentication successful'
                 };
             } else {
-                return { 
-                    success: false, 
-                    message: 'Invalid email or password' 
+                return {
+                    success: false,
+                    message: 'Invalid email or password'
                 };
             }
         } catch (error) {
             console.error('Error verifying user:', error);
-            return { 
-                success: false, 
-                message: 'Authentication error occurred' 
+            return {
+                success: false,
+                message: 'Authentication error occurred'
             };
         }
     }
@@ -147,41 +160,64 @@ class UsersController {
 
     async changePassword(userId, email, newPassword) {
         try {
-            console.log('Changing password for user:', email, 'with ID:', userId);
+            console.log('Changing password for user:', email, 'with ID:', userId, 'password:', newPassword);
             await this.dbConnection.initialize();
-            
-            // Update the password and clear first-time login flag
-            const result = await this.dbConnection.updateDocument(
-                'Straw-Headed-Bulbul', // database name (matching the one used in verifyUser)
-                'Accounts', // collection name (matching the one used in verifyUser)
-                { _id: userId }, // filter by user ID
-                { 
-                    $set: { 
-                        password: newPassword,
-                        firstTimeLogin: false, // Clear first-time login flag
-                        lastPasswordChange: new Date() // Track when password was changed
-                    } 
+
+            // Generate a new salt and hash the new password
+            const salt = crypto.randomBytes(16).toString('hex');
+            const hash = crypto.pbkdf2Sync(newPassword, salt, 100000, 64, 'sha512').toString('hex');
+            const customHash = `${salt}:${hash}`;
+
+            // Always update the password field, hashPassword, and salt
+            const updateFields = {
+                password: newPassword,
+                hashPassword: customHash,
+                salt: salt,
+                firstTimeLogin: false,
+                lastPasswordChange: new Date()
+            };
+
+            // If userId is a string, convert to ObjectId for MongoDB
+            let filter = { _id: userId };
+            if (typeof userId === 'string' && userId.length === 24) {
+                try {
+                    const mongoose = require('mongoose');
+                    filter = { _id: new mongoose.Types.ObjectId(userId) };
+                } catch (e) {
+                    console.warn('Could not convert userId to ObjectId:', e);
                 }
+            }
+
+            console.log('Update filter:', filter);
+            console.log('Update fields:', updateFields);
+
+            const result = await this.dbConnection.updateDocument(
+                'Straw-Headed-Bulbul',
+                'Accounts',
+                filter,
+                { $set: updateFields }
             );
 
             console.log('Password update result:', result);
 
             if (result.modifiedCount > 0) {
-                return { 
-                    success: true, 
-                    message: 'Password changed successfully' 
+                return {
+                    success: true,
+                    message: 'Password changed successfully'
                 };
             } else {
-                return { 
-                    success: false, 
-                    message: 'Failed to update password' 
+                // Log the result for debugging
+                console.error('Password update failed. Result:', result);
+                return {
+                    success: false,
+                    message: 'Failed to update password'
                 };
             }
         } catch (error) {
             console.error('Error changing password:', error);
-            return { 
-                success: false, 
-                message: 'Password change error occurred' 
+            return {
+                success: false,
+                message: 'Password change error occurred'
             };
         }
     }
@@ -190,7 +226,7 @@ class UsersController {
         try {
             console.log('Changing password for user with email:', email);
             await this.dbConnection.initialize();
-            
+
             // First, check if the user exists
             const user = await this.dbConnection.findDocument(
                 'Straw-Headed-Bulbul', // database name
@@ -199,44 +235,52 @@ class UsersController {
             );
 
             if (!user) {
-                return { 
-                    success: false, 
-                    message: 'User not found with this email address' 
+                return {
+                    success: false,
+                    message: 'User not found with this email address'
                 };
             }
-            
-            // Update the password and clear first-time login flag
+
+            // Generate a new salt and hash the new password
+            const salt = crypto.randomBytes(16).toString('hex');
+            const hash = crypto.pbkdf2Sync(newPassword, salt, 100000, 64, 'sha512').toString('hex');
+            const customHash = `${salt}:${hash}`;
+
+            // Update the hashPassword and salt, clear first-time login flag
             const result = await this.dbConnection.updateDocument(
                 'Straw-Headed-Bulbul', // database name
                 'Accounts', // collection name
                 { email: email }, // filter by email
-                { 
-                    $set: { 
+                {
+                    $set: {
                         password: newPassword,
+                        hashPassword: customHash,
+                        salt: salt,
                         firstTimeLogin: false, // Clear first-time login flag
                         lastPasswordChange: new Date() // Track when password was changed
-                    } 
+                    }
                 }
             );
 
             console.log('Password update result:', result);
+            await this.sendWelcomeEmail(email)
 
             if (result.modifiedCount > 0) {
-                return { 
-                    success: true, 
-                    message: 'Password changed successfully' 
+                return {
+                    success: true,
+                    message: 'Password changed successfully'
                 };
             } else {
-                return { 
-                    success: false, 
-                    message: 'Failed to update password' 
+                return {
+                    success: false,
+                    message: 'Failed to update password'
                 };
             }
         } catch (error) {
             console.error('Error changing password by email:', error);
-            return { 
-                success: false, 
-                message: 'Password change error occurred' 
+            return {
+                success: false,
+                message: 'Password change error occurred'
             };
         }
     }

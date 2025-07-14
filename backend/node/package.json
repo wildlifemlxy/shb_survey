@@ -9,6 +9,7 @@
     "stop": "pm2 delete all"
   },
   "dependencies": {
+    "argon2": "^0.43.0",
     "axios": "^1.10.0",
     "body-parser": "^1.20.2",
     "cookie-parser": "^1.4.7",
@@ -17,6 +18,7 @@
     "express": "^4.21.2",
     "forever": "^4.0.3",
     "fs": "^0.0.1-security",
+    "googleapis": "^152.0.0",
     "http-errors": "^2.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.17.0",
