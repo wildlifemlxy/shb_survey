@@ -10,7 +10,7 @@ const galleryController = require('../Controller/Gallery/galleryController');
 const tokenEncryption = require('../middleware/tokenEncryption');
 
 // Initialize gallery on startup
-//galleryController.initializeGallery();
+galleryController.initializeGallery();
 
 // Ensure Gallery directory exists
 const galleryDir = path.resolve(__dirname, '../Gallery');
