@@ -74,7 +74,7 @@ class TokenEncryptionMiddleware {
       exp: Math.floor(Date.now() / 1000) + (5 * 60) // 5 minutes
     };
 
-    console.log('G:', process.env.JWT_SECRET);
+    console.log('G1234456:', process.env.JWT_SECRET);
 
     /*return jwt.sign(payload, process.env.JWT_SECRET, {
       algorithm: 'HS256'
