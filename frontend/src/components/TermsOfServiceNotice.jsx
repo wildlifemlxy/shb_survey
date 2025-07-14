@@ -44,8 +44,6 @@ class TermsOfServiceNotice extends Component {
           </div>
         </div>
         <div>
-          <h2 style={{ fontSize: '2.2rem', fontWeight: 700, marginBottom: 24 }}>Terms of Service</h2>
-          <p>Last updated: July 14, 2025</p>
           <p>
             Welcome to the WWF Straw-headed Bulbul Survey Platform. By accessing or using our platform, you agree to comply with and be bound by the following terms and conditions. Please read them carefully.
           </p>
