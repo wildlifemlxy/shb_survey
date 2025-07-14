@@ -4,14 +4,16 @@ import LoginPopup from '../Auth/LoginPopup';
 import Gallery from '../Gallery';
 import tokenService from '../../utils/tokenService';
 
+
 import { getUniqueLocations } from '../../utils/dataProcessing';
 import { standardizeCoordinates } from '../../utils/coordinateStandardization';
 import { fetchSurveyDataForHomePage } from '../../data/shbData';
 import '../../css/components/Home/Home.css';
 import axios from 'axios';
 
+// Ensure BASE_URL is defined before any usage
 const BASE_URL =
-  window.location.hostname === 'localhost'
+  typeof window !== 'undefined' && window.location.hostname === 'localhost'
     ? 'http://localhost:3001'
     : 'https://shb-backend.azurewebsites.net';
 
@@ -577,7 +579,7 @@ class Home extends React.Component {
           console.log(`Added image ${index + 1}/${imageFiles.length}: ${file.name}`);
         });
         uploadPromises.push(
-          axios.post('http://localhost:3001/gallery', imageFormData, {
+          axios.post(`${BASE_URL}/gallery`, imageFormData, {
             headers: { 'Content-Type': 'multipart/form-data' },
             timeout: 120000
           })
