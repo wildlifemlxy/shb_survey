@@ -74,15 +74,20 @@ class TokenEncryptionMiddleware {
       exp: Math.floor(Date.now() / 1000) + (5 * 60) // 5 minutes
     };
 
-    return jwt.sign(payload, process.env.JWT_SECRET, {
+    console.log('G:', process.env.JWT_SECRET);
+
+    /*return jwt.sign(payload, process.env.JWT_SECRET, {
       algorithm: 'HS256'
-    });
+    });*/
+    return jwt.sign(payload, 'your-super-secret-jwt-key-change-this-in-production-min-32-chars',
+      { algorithm: 'HS256' });
   }
 
   // Verify JWT token
   verifyToken(token) {
     try {
-      return jwt.verify(token, process.env.JWT_SECRET);
+      //return jwt.verify(token, process.env.JWT_SECRET);
+      return jwt.verify(token, 'your-super-secret-jwt-key-change-this-in-production-min-32-chars');
     } catch (error) {
       throw new Error('Invalid or expired token');
     }
