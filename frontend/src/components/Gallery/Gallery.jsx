@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 
-import { fetchGalleryFiles } from '../../data/galleryData';
+import { fetchGalleryFiles, deleteGalleryFile } from '../../data/galleryData';
 import './Gallery.css';
 
 // Ensure BASE_URL is defined before any usage
@@ -13,6 +13,7 @@ var BASE_URL =
 
 
 class Gallery extends Component {
+
   constructor(props) {
     super(props);
     this.state = {
@@ -30,9 +31,10 @@ class Gallery extends Component {
     
     // Initialize socket connection
     this.socket = io(BASE_URL);
+    // Add another event handler for gallery updates
     this.socket.on('survey-updated', (data) => {
       this.loadGalleryData();
-      console.log("Socket event received", data);
+      console.log("Gallery socket event received", data);
     });
   }
 
@@ -134,6 +136,27 @@ class Gallery extends Component {
     this.setState(prevState => ({
       manageMode: !prevState.manageMode
     }));
+  };
+
+    // Delete media handler
+  deleteMedia = async (item, index) => {
+    if (!window.confirm(`Are you sure you want to delete "${item.name}"? This cannot be undone.`)) return;
+    try {
+      const result = await deleteGalleryFile(item.name);
+      if (result && result.result && result.result.success) {
+        // Remove from local state immediately for responsiveness
+        this.setState(prevState => {
+          const galleryData = prevState.galleryData.filter((_, i) => i !== index);
+          return { galleryData };
+        });
+        // Optionally reload from server for consistency
+        this.loadGalleryData();
+      } else {
+        alert(result && result.error ? result.error : 'Failed to delete file.');
+      }
+    } catch (err) {
+      alert('Error deleting file.');
+    }
   };
 
   toggleMediaVisibility = (media, index) => {
@@ -814,15 +837,15 @@ class Gallery extends Component {
                       height: '56vh',
                       objectFit: 'contain',
                       borderRadius: 0,
-                      background: '#fff',
+                      background: '#000',
                       boxShadow: 'none',
                       margin: 0,
                       padding: 0,
-                      display: 'block',
-                      paddingBottom: '20px',
+                      display: 'block'
                     }}
                     autoPlay
                     controls
+                    controlsList="nodownload"
                     id="gallery-popup-video"
                   />
                 ) : (

@@ -167,6 +167,65 @@ router.post('/', upload, async function(req, res)
       return res.status(500).json({ error: 'Failed to retrieve gallery files.' });
     }
   }
+  else if(purpose === "delete")
+  {
+    try {
+      console.log('Handling gallery delete request:', req.body);
+      // Decrypt the encryptedData to get fileId
+      if (!req.body.encryptedData) {
+        return res.status(400).json({ error: 'Missing encryptedData in request.' });
+      }
+      let encryptedData = req.body.encryptedData;
+      if (typeof encryptedData === 'string') {
+        try {
+          encryptedData = JSON.parse(encryptedData);
+        } catch (e) {
+          return res.status(400).json({ error: 'Invalid encryptedData format' });
+        }
+      }
+      let decryptedMeta = null;
+      try {
+        decryptedMeta = tokenEncryption.decryptRequestData(encryptedData);
+        console.log('Decrypted metadata:', decryptedMeta.data);
+      } catch (e) {
+        console.error('Failed to decrypt delete metadata:', e);
+        return res.status(400).json({ error: 'Failed to decrypt metadata.' });
+      }
+      if (!decryptedMeta || !decryptedMeta.success) {
+        return res.status(400).json({ error: 'Invalid encrypted metadata.' });
+      }
+      const {fileId} = decryptedMeta.data.data;
+      console.log(`Deleting gallery file: ${fileId}`);
+
+      if (!fileId) {
+        return res.status(400).json({ error: 'Missing fileId in decrypted data.' });
+      }
+
+      // Try to find and delete the file in Pictures or Videos
+      const subfolders = ['Pictures', 'Videos'];
+      let deleted = false;
+      for (const sub of subfolders) {
+        const filePath = path.join(galleryDir, sub, fileId);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          deleted = true;
+          break;
+        }
+      }
+      if (!deleted) {
+        return res.status(404).json({ error: 'File not found.' });
+      }
+
+      // Optionally emit a socket event for gallery update
+      if (io) {
+        io.emit('survey-updated', { message: 'Gallery file deleted', fileId });
+      }
+      return res.json({ result: { success: true, message: `Deleted file: ${fileId}` } });
+    } catch (error) {
+      console.error('Error handling gallery delete:', error);
+      return res.status(500).json({ error: 'Failed to delete gallery file.' });
+    }
+  }
   else {
     // Default: not handled
     return res.status(400).json({ error: 'Invalid or missing purpose' });

@@ -127,9 +127,26 @@ export async function deleteGalleryFile(fileId) {
     if (!tokenService.isTokenValid()) {
       return { success: false, error: 'Authentication required' };
     }
-    const response = await axios.delete(`${BASE_URL}/gallery/${fileId}`, {
+
+    // Encrypt the fileId as metadata
+    const requestPayload = {
+      data: { fileId },
+      requiresEncryption: true,
+      publicKey: await tokenService.getPublicKey(),
+      sessionId: tokenService.getKeySessionId()
+    };
+    const encryptedData = await tokenService.encryptData(requestPayload);
+
+    // Prepare FormData
+    const formData = new FormData();
+    formData.append('purpose', 'delete');
+    formData.append('encryptedData', JSON.stringify(encryptedData));
+
+    // Send as multipart/form-data
+    const response = await axios.post(`${BASE_URL}/gallery`, formData, {
       headers: {
-        Authorization: `Bearer ${tokenService.getToken()}`
+        Authorization: `Bearer ${tokenService.getToken()}`,
+        'Content-Type': 'multipart/form-data'
       }
     });
     return response.data;
