@@ -17,6 +17,7 @@
 
 /* Ensure modal content doesn't get cut off */
 .modal-overlay1 .modal-content {
+  margin-top: 50px;
   max-height: 85vh !important;
   min-height: auto !important;
   overflow-y: auto !important;
