@@ -1,6 +1,8 @@
 import React, { Component } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
+
+import { fetchGalleryFiles } from '../../data/galleryData';
 import './Gallery.css';
 
 // Ensure BASE_URL is defined before any usage
@@ -44,10 +46,55 @@ class Gallery extends Component {
   loadGalleryData = async () => {
     try {
       this.setState({ isLoading: true });
-      const data = await fetchGalleryFiles();
-      console.log("Fetched gallery files:", data);
+      const response = await fetchGalleryFiles();
+      console.log("Gallery data response:", response);
+      let galleryData = [];
+      if (Array.isArray(response)) {
+        galleryData = response;
+      } else if (response && Array.isArray(response.files)) {
+        galleryData = response.files;
+      } else if (response && Array.isArray(response.data)) {
+        galleryData = response.data;
+      }
+
+      // Use direct URLs for videos, data URLs for images
+      galleryData = galleryData.map(item => {
+        if (item.data && item.name) {
+          const ext = item.name.split('.').pop().toLowerCase();
+          let mime = 'image/jpeg';
+          let type = 'image';
+          let url = '';
+          if (["png"].includes(ext)) mime = "image/png";
+          if (["gif"].includes(ext)) mime = "image/gif";
+          if (["webp"].includes(ext)) mime = "image/webp";
+          if (["mp4", "avi", "mov", "wmv", "flv", "webm", "mkv"].includes(ext)) {
+            // Use data URL for videos
+            type = 'video';
+            // Set correct video MIME type
+            let videoMime = 'video/mp4';
+            if (ext === 'mov') videoMime = 'video/mp4';
+            else if (ext === 'avi') videoMime = 'video/x-msvideo';
+            else if (ext === 'wmv') videoMime = 'video/x-ms-wmv';
+            else if (ext === 'flv') videoMime = 'video/x-flv';
+            else if (ext === 'webm') videoMime = 'video/webm';
+            else if (ext === 'mkv') videoMime = 'video/x-matroska';
+            url = `data:${videoMime};base64,${item.data}`;
+          } else {
+            // Use data URL for images
+            url = `data:${mime};base64,${item.data}`;
+          }
+          return {
+            ...item,
+            url,
+            type
+          };
+        }
+        return item;
+      });
+
+      console.log("Fetched gallery files:", galleryData);
       this.setState({ 
-        galleryData: data || [],
+        galleryData,
         isLoading: false 
       });
     } catch (error) {
@@ -107,12 +154,12 @@ class Gallery extends Component {
 
     // Only allow image and video file extensions
     const allowedImageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-    const allowedVideoExts = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'];
+    const allowedVideoExts = ['mp4', 'mov'];
     const isGitFile = (filename) => filename && filename.toLowerCase().endsWith('.gitkeep');
     const isAllowedMedia = (item) => {
-      if (!item.filename) return false;
-      const ext = item.filename.split('.').pop().toLowerCase();
-      if (isGitFile(item.filename)) return false;
+      if (!item.name) return false;
+      const ext = item.name.split('.').pop().toLowerCase();
+      if (isGitFile(item.name)) return false;
       return allowedImageExts.includes(ext) || allowedVideoExts.includes(ext);
     };
 
@@ -122,9 +169,12 @@ class Gallery extends Component {
       : galleryData.filter(item => {
           if (!isAllowedMedia(item)) return false;
           if (galleryFilter === 'pictures') {
-            return item.type && item.type.startsWith('image/');
+            // Use file extension to determine type
+            const ext = item.name.split('.').pop().toLowerCase();
+            return allowedImageExts.includes(ext);
           } else if (galleryFilter === 'videos') {
-            return item.type && item.type.startsWith('video/');
+            const ext = item.name.split('.').pop().toLowerCase();
+            return allowedVideoExts.includes(ext);
           }
           return true;
         });
@@ -434,17 +484,8 @@ class Gallery extends Component {
                         height: '280px'
                       }}
                       onClick={() => this.openFullscreen(item)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-4px)';
-                        e.currentTarget.style.boxShadow = '0 10px 25px -3px rgba(0, 0, 0, 0.1)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
-                      }}
                     >
-                      {item.type && item.type.startsWith('video/') ? (
-                        // Hide video content for non-WWF volunteers in approval mode viewing WWF-Volunteer submissions
+                      {item.type === 'video' ? (
                         (!isWWFVolunteer && approvalMode && item.uploadedBy && item.uploadedBy.role === 'WWF-Volunteer') ? (
                           <div style={{
                             width: '100%',
@@ -471,22 +512,15 @@ class Gallery extends Component {
                         ) : (
                           <video
                             src={item.url}
+                            poster={item.thumbnailUrl}
                             style={{
                               width: '100%',
                               height: '100%',
                               objectFit: 'cover',
                               background: '#000'
                             }}
-                            controls
-                            preload="metadata"
-                            poster={item.thumbnailUrl || undefined}
-                            onError={e => {
-                              e.target.poster = '/WWF Logo/WWF Logo Large.jpg';
-                              e.target.controls = false;
-                            }}
-                          >
-                            Sorry, your browser does not support embedded videos.
-                          </video>
+                            loading="lazy"
+                          />
                         )
                       ) : (
                         <img
@@ -495,8 +529,10 @@ class Gallery extends Component {
                           style={{
                             width: '100%',
                             height: '100%',
-                            objectFit: 'cover'
+                            objectFit: 'cover',
+                            background: '#f3f4f6'
                           }}
+                          loading="lazy"
                         />
                       )}
                       
@@ -769,22 +805,24 @@ class Gallery extends Component {
                 boxShadow: 'none',
                 padding: 0,
               }}>
-                {fullscreenMedia.type && fullscreenMedia.type.startsWith('video/') ? (
+                {fullscreenMedia.type === 'video' ? (
                   <video
                     src={fullscreenMedia.url}
-                    controls
-                    autoPlay
+                    poster={fullscreenMedia.thumbnailUrl}
                     style={{
                       width: '100%',
                       height: '56vh',
                       objectFit: 'contain',
                       borderRadius: 0,
-                      background: '#000',
+                      background: '#fff',
                       boxShadow: 'none',
                       margin: 0,
                       padding: 0,
                       display: 'block',
+                      paddingBottom: '20px',
                     }}
+                    autoPlay
+                    controls
                     id="gallery-popup-video"
                   />
                 ) : (

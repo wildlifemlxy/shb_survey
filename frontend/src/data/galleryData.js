@@ -7,6 +7,8 @@ const BASE_URL =
     ? 'http://localhost:3001'
     : 'https://shb-backend.azurewebsites.net';
 
+//const BASE_URL = 'https://shb-backend.azurewebsites.net';
+
 // Upload gallery files (images/videos)
 // Insert new gallery data with encryption (requires authentication)
 export async function uploadGalleryFiles(files, metadata) {
@@ -57,13 +59,29 @@ export async function uploadGalleryFiles(files, metadata) {
 }
 
 // Retrieve gallery files (all or by filter)
-export async function fetchGalleryFiles(params = {}) {
+export async function fetchGalleryFiles() {
   try {
-    const response = await axios.get(`${BASE_URL}/gallery`, { params });
-    return response.data;
+    const formData = new FormData();
+    formData.append('purpose', 'retrieve');
+    const response = await axios.post(`${BASE_URL}/gallery`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    const files = response.data && response.data.files ? response.data.files : [];
+    // Debug: log first 100 chars of video data URL for .mov files
+    files.forEach(f => {
+      if (f.name && f.name.toLowerCase().endsWith('.mov')) {
+        const mime = 'video/quicktime';
+        const url = `data:${mime};base64,${f.data}`;
+        console.log('MOV video data URL (first 100 chars):', url.substring(0, 100));
+      }
+    });
+    console.log('Fetched real gallery files:', files);
+    return files;
   } catch (error) {
     console.error('Error fetching gallery files:', error);
-    return { success: false, error: error.response?.data?.error || error.message };
+    return [];
   }
 }
 
