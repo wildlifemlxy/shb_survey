@@ -6,10 +6,11 @@ var tokenEncryption = require('../middleware/tokenEncryption'); // Import token 
 router.post('/', async function(req, res, next) 
 {
     console.log('Login request received:', req.body);
+
     if(req.body.purpose === "login")
     {
         // Use token encryption login system
-        return await tokenEncryption.login(req, res, next);
+       return await tokenEncryption.login(req, res, next);
     }
     else if(req.body.purpose === "changePassword")
     {

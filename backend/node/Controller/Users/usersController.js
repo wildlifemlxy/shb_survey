@@ -8,6 +8,23 @@ class UsersController {
         this.dbConnection = new DatabaseConnectivity();
         this.emailService = new EmailService();
     }
+
+/*async deleteUser(userId) {
+    try {
+        await this.dbConnection.initialize();
+        const filter = { _id: userId };
+        const result = await this.dbConnection.deleteDocument(
+            'Straw-Headed-Bulbul',
+            'Accounts',
+            filter
+        );
+        console.log('User deletion result:', result);
+        return result;
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        throw error;
+    }
+}*/
     
     async verifyUser(email, password) {
         try {
@@ -20,6 +37,7 @@ class UsersController {
                 'Accounts',
                 { email: email }
             );
+            console.log('User found:', user);
 
             if (!user || !user.hashPassword) {
                 return {
@@ -37,11 +55,13 @@ class UsersController {
                 storedHash = user.hashPassword;
             }
 
+
             // 3. Hash the input password using the stored salt
             const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
 
             // 4. Compare the computed hash to the stored hashPassword
             if (hash === storedHash) {
+                //user.firstTimeLogin = true;
                 const isFirstTimeLogin = user.firstTimeLogin === true || user.firstTimeLogin === 'true';
 
                 /*// Send congratulations email for first-time login
@@ -146,20 +166,6 @@ class UsersController {
             throw error;
         }
     }
-
-    async deleteUser(userId) {
-        try {
-            await this.dbConnection.initialize();
-            // This would need to be implemented in databaseConnectivity.js
-            // For now, we'll leave this as a placeholder
-            console.error('deleteUser not implemented');
-            return { success: false, message: 'Method not implemented' };
-        } catch (error) {
-            console.error('Error deleting user:', error);
-            throw error;
-        }
-    }
-
     async changePassword(userId, email, newPassword) {
         try {
             console.log('Changing password for user:', email, 'with ID:', userId, 'password:', newPassword);

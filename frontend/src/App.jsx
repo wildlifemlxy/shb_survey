@@ -79,6 +79,9 @@ class App extends Component {
   }
 
   componentDidMount() {
+    //localStorage.clear();
+    //sessionStorage.clear()
+    //console.log("LocalStorage:", localStorage);
     // CRITICAL: Ensure authentication is properly checked before loading data
     console.log('=== ComponentDidMount - checking authentication ===');
     
@@ -195,10 +198,18 @@ class App extends Component {
           if (this.state.isAuthenticated) {
             this.startIdleDetection();
           }
+          console.log('Authentication restored from token:', { userInfo });
+          return true;
         });
         
-        console.log('Authentication restored from token:', { currentUser });
-        return true;
+      // If token is invalid, clear all auth data
+      localStorage.removeItem('user');
+      localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('token');
+      localStorage.removeItem('userRole');
+      localStorage.clear();
+      this.setState({ isAuthenticated: false, currentUser: null });
+      return false;
       }
     }
 
@@ -294,6 +305,7 @@ class App extends Component {
 
   handleLogout = () => {
     // Clear token service first
+    console.log('Logging out user and clearing session...', localStorage);
     tokenService.clearSession();
     
     // Clear all authentication data from localStorage

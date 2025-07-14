@@ -828,6 +828,10 @@ class Home extends React.Component {
                 <button
                   onClick={() => {
                     // Clear all localStorage items
+                    console.log('Logging out user:', localStorage);
+                    localStorage.removeItem('shb-survey-theme-preference');
+                    localStorage.removeItem('rsaKeyTimestamp');
+                    localStorage.removeItem('rsaKeySessionId')
                     localStorage.clear();
                     
                     // Clear tokenService data using the imported service

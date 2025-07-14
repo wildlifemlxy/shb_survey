@@ -277,7 +277,10 @@ class TokenService {
     localStorage.removeItem('publicKey');
     localStorage.removeItem('sessionId');
     localStorage.removeItem('tokenTimestamp');
-    
+    localStorage.removeItem('shb-survey-theme-preference');
+    localStorage.removeItem('rsaKeyTimestamp');
+    localStorage.removeItem('rsaKeySessionId');
+
     console.log('Session cleared');
   }
 

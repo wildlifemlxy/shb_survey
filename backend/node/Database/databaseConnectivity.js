@@ -123,7 +123,7 @@ class DatabaseConnectivity {
       const collection = db.collection(collectionName);
       
       const document = await collection.findOne(query);
-      console.log("Found document:", document ? "Found" : "Not found");
+      console.log("Found document:", document ? "Found" : "Not found", document);
       
       // Convert ObjectId to string if document exists
       if (document && document._id) {

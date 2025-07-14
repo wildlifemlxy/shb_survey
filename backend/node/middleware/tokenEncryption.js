@@ -223,20 +223,19 @@ class TokenEncryptionMiddleware {
   login = async (req, res) => {
     try {
       console.log('[LOGIN] Backend login endpoint hit');
+      // Only email and password are required for login
+      let email, password;
+
       // Handle both encrypted and direct format
-      let email, password, newPassword, userId;
       if (req.body.loginDetails) {
-        // Check if loginDetails is encrypted data
+        console.log('Login details provided in request body:', req.body);
         if (req.body.loginDetails.requiresServerEncryption && req.body.loginDetails.encryptedData) {
           try {
             // Decrypt the loginDetails
             const decryptedData = await this.decryptLoginData(req.body.loginDetails);
             email = decryptedData.email;
-            // Always use lowercase 'password' property
             password = typeof decryptedData.password === 'string' ? decryptedData.password : (typeof decryptedData.Password === 'string' ? decryptedData.Password : '');
-            newPassword = decryptedData.newPassword;
-            userId = decryptedData.userId;
-            console.log('Successfully decrypted login credentials');
+            console.log('Successfully decrypted login credentials:', { email, password });
           } catch (decryptError) {
             console.error('Failed to decrypt login data:', decryptError);
             return res.status(400).json({
@@ -245,36 +244,30 @@ class TokenEncryptionMiddleware {
             });
           }
         } else {
-          // Direct loginDetails format: { email, password, newPassword, userId }
+          // Direct loginDetails format: { email, password }
           email = req.body.loginDetails.email;
           password = req.body.loginDetails.password;
-          newPassword = req.body.loginDetails.newPassword;
-          userId = req.body.loginDetails.userId;
         }
       } else {
-        // Direct format: { email, password, newPassword, userId }
+        // Direct format: { email, password }
         email = req.body.email;
         password = req.body.password;
-        newPassword = req.body.newPassword;
-        userId = req.body.userId;
       }
 
       // Ensure password is a string
       if (typeof password !== 'string') password = '';
 
-      console.log('Extracted credentials - email:', email, 'password:', password ? '[REDACTED]' : 'undefined', 'newPassword:', newPassword ? '[REDACTED]' : 'undefined', 'userId:', userId);
+      console.log('Extracted credentials - email:', email, 'password:', password);
 
-      // Validate user credentials (implement your user validation logic)
+      // Validate user credentials
       const user = await this.validateUser(email, password);
+      console.log('User validation result:', user);
       if (!user) {
         return res.json({
           success: false,
           message: 'Invalid email or password'
         });
       }
-
-      // If firstTimeLogin, allow login with provided email and password, and return firstTimeLogin flag
-      // The frontend should prompt for new password after login
 
       // Generate token
       const token = this.generateToken(user);
@@ -288,7 +281,6 @@ class TokenEncryptionMiddleware {
         success: true,
         data: user,
         message: 'Login successful',
-        // Additional token-based auth data
         token,
         publicKey: this.publicKey,
         sessionId
