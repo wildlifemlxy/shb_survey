@@ -775,32 +775,9 @@ class UpcomingEvents extends Component {
                       {/* Event Details */}
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                          {isEditing ? (
-                            <input
-                              type="text"
-                              value={event.Event || ''}
-                              onChange={(e) => {
-                                const updatedEvents = this.state.selectedDateEvents.map(ev => 
-                                  ev._id === event._id ? { ...ev, Event: e.target.value } : ev
-                                );
-                                this.setState({ selectedDateEvents: updatedEvents });
-                              }}
-                              style={{
-                                flex: 1,
-                                fontSize: 16,
-                                fontWeight: 600,
-                                padding: '4px 8px',
-                                border: '1px solid #e5e7eb',
-                                borderRadius: 4,
-                                color: '#111'
-                              }}
-                              placeholder="Event name"
-                            />
-                          ) : (
-                            <h4 style={{ margin: 0, color: '#111', fontSize: 16, fontWeight: 600, flex: 1 }}>
-                              {event.Event || 'Event'}
-                            </h4>
-                          )}
+                          <h4 style={{ margin: 0, color: '#111', fontSize: 16, fontWeight: 600, flex: 1 }}>
+                            {event.Event || 'Event'}
+                          </h4>
                           
                           {/* Action Buttons */}
                           <div style={{ display: 'flex', gap: 6, marginLeft: 12 }}>
@@ -874,31 +851,43 @@ class UpcomingEvents extends Component {
                               </>
                             ) : (
                               <>
-                                <button
-                                  onClick={() => this.handleEditEvent(event)}
-                                  style={{
-                                    background: 'transparent',
-                                    color: '#3b82f6',
-                                    border: 'none',
-                                    borderRadius: 4,
-                                    padding: '4px 8px',
-                                    fontSize: 11,
-                                    cursor: 'pointer',
-                                    fontWeight: 600,
-                                    transition: 'all 0.15s'
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.target.style.backgroundColor = '#eff6ff';
-                                    e.target.style.color = '#2563eb';
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.target.style.backgroundColor = 'transparent';
-                                    e.target.style.color = '#3b82f6';
-                                  }}
-                                  title="Edit Event"
-                                >
-                                  ✏️ Edit
-                                </button>
+                                {(() => {
+                                  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                                  const isWWFVolunteer = currentUser.role === 'WWF-Volunteer' || currentUser.Role === 'WWF-Volunteer';
+                                  const isWWFLed = event.Organizer === 'WWF-led';
+                                  // WWF-Volunteers cannot edit WWF-led events (hide button)
+                                  if (isWWFVolunteer && isWWFLed) {
+                                    return null;
+                                  } else {
+                                    return (
+                                      <button
+                                        onClick={() => this.handleEditEvent(event)}
+                                        style={{
+                                          background: 'transparent',
+                                          color: '#3b82f6',
+                                          border: 'none',
+                                          borderRadius: 4,
+                                          padding: '4px 8px',
+                                          fontSize: 11,
+                                          cursor: 'pointer',
+                                          fontWeight: 600,
+                                          transition: 'all 0.15s'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          e.target.style.backgroundColor = '#eff6ff';
+                                          e.target.style.color = '#2563eb';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.target.style.backgroundColor = 'transparent';
+                                          e.target.style.color = '#3b82f6';
+                                        }}
+                                        title="Edit Event"
+                                      >
+                                        ✏️ Edit
+                                      </button>
+                                    );
+                                  }
+                                })()}
                                 <button
                                   onClick={() => this.handleDeleteEvent(event)}
                                   style={{
@@ -977,27 +966,55 @@ class UpcomingEvents extends Component {
                             </div>
                             <div>
                               <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' }}>Organizer:</label>
-                              <select
-                                value={event.Organizer || ''}
-                                onChange={(e) => {
-                                  const updatedEvents = this.state.selectedDateEvents.map(ev => 
-                                    ev._id === event._id ? { ...ev, Organizer: e.target.value } : ev
+                              {(() => {
+                                const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                                const isWWFVolunteer = currentUser.role === 'WWF-Volunteer' || currentUser.Role === 'WWF-Volunteer';
+                                if (isWWFVolunteer) {
+                                  // WWF-Volunteers: show disabled textbox, default to Volunteer-led
+                                  return (
+                                    <input
+                                      type="text"
+                                      value={event.Organizer || 'Volunteer-led'}
+                                      disabled
+                                      style={{
+                                        width: '100%',
+                                        padding: '4px 8px',
+                                        border: '1px solid #e5e7eb',
+                                        borderRadius: 4,
+                                        fontSize: 14,
+                                        backgroundColor: '#f3f4f6',
+                                        color: '#9ca3af',
+                                        cursor: 'not-allowed'
+                                      }}
+                                      placeholder="Organizer"
+                                    />
                                   );
-                                  this.setState({ selectedDateEvents: updatedEvents });
-                                }}
-                                style={{
-                                  width: '100%',
-                                  padding: '4px 8px',
-                                  border: '1px solid #e5e7eb',
-                                  borderRadius: 4,
-                                  fontSize: 14
-                                }}
-                              >
-                                <option value="">Select organizer</option>
-                                <option value="WWF-led">WWF-led</option>
-                                <option value="Volunteer-led">Volunteer-led</option>
-                                <option value="Other">Other</option>
-                              </select>
+                                } else {
+                                  // Non-WWF: show combo box with only Volunteer-led and WWF-led
+                                  return (
+                                    <select
+                                      value={event.Organizer || ''}
+                                      onChange={(e) => {
+                                        const updatedEvents = this.state.selectedDateEvents.map(ev => 
+                                          ev._id === event._id ? { ...ev, Organizer: e.target.value } : ev
+                                        );
+                                        this.setState({ selectedDateEvents: updatedEvents });
+                                      }}
+                                      style={{
+                                        width: '100%',
+                                        padding: '4px 8px',
+                                        border: '1px solid #e5e7eb',
+                                        borderRadius: 4,
+                                        fontSize: 14
+                                      }}
+                                    >
+                                      <option value="">Select organizer</option>
+                                      <option value="WWF-led">WWF-led</option>
+                                      <option value="Volunteer-led">Volunteer-led</option>
+                                    </select>
+                                  );
+                                }
+                              })()}
                             </div>
                           </div>
                         ) : (

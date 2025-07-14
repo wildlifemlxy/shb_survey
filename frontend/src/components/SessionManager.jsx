@@ -77,29 +77,30 @@ class SessionManager extends Component {
 
   handleSessionExpire = () => {
     this.cleanup();
-    
-    // Clear user data
+    // Clear all user/session/token data
     localStorage.removeItem('user');
     localStorage.removeItem('isAuthenticated');
     localStorage.removeItem('token');
-    
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('publicKey');
+    localStorage.removeItem('sessionId');
     // Call custom expiry handler if provided
     if (this.props.onSessionExpire) {
       this.props.onSessionExpire();
     } else {
-      // Default behavior: reload page to login
       alert('Your session has expired. Please log in again.');
       window.location.reload();
     }
   };
 
   handleExtendSession = () => {
-    // Reset activity time to extend session
+    // Always extend session to 30 minutes from now
+    const now = Date.now();
     this.setState({ 
-      lastActivity: Date.now(),
+      lastActivity: now,
+      sessionStartTime: now,
       showCountdown: false 
     });
-    
     // Call custom extend handler if provided
     if (this.props.onExtendSession) {
       this.props.onExtendSession();
