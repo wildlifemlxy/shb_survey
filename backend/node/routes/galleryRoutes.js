@@ -153,7 +153,8 @@ router.get('/file/:type/:filename', function(req, res) {
 router.post('/', function(req, res, next) 
 {
     const io = req.app.get('io'); // Get the Socket.IO instance
-    
+    console.log("Node Environment:", process.env.NODE_ENV);
+
     // First, try to parse the request to see if it's a file upload
     upload.array('files')(req, res, async function(err) {
         // Check if this is a file upload request (has files)
