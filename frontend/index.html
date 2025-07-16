@@ -10,9 +10,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <title>Straw-Headed Bulbul</title>
     <!--<script src="https://apis.google.com/js/api.js"></script>-->
-  </head>
-  <body>
-    <div id="root" style="width: 100%;"></div>
     <script type="module" src="/src/main.jsx"></script>
 
     <!-- OneSignal SDK -->
@@ -39,6 +36,7 @@
 
           // Force the prompt if not already subscribed
           const permission = await OneSignal.Notification.permission;
+          console.log("OneSignal permission status:", permission);
           if (permission !== "granted") {
            if (OneSignal.User && OneSignal.User.PushSubscription && OneSignal.User.PushSubscription.optIn) {
               await OneSignal.User.PushSubscription.optIn();
@@ -67,5 +65,16 @@
         };
       });
     </script>
+    <style>
+      .onesignal-bell-container {
+        z-index: 99999 !important;
+        bottom: 24px !important;
+        right: 24px !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" style="width: 100%;"></div>
+    
   </body>
 </html>
