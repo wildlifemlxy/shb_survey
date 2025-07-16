@@ -58,7 +58,6 @@ async deleteUser(userId) {
 
             // 3. Hash the input password using the stored salt
             const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
-            //console.log('Computed hash:', hash);
 
             // 4. Compare the computed hash to the stored hashPassword
             if (hash === storedHash) {
