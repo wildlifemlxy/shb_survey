@@ -40,7 +40,13 @@
           // Force the prompt if not already subscribed
           const permission = await OneSignal.Notification.permission;
           if (permission !== "granted") {
-            await OneSignal.User.PushSubscription.optIn();
+           if (OneSignal.User && OneSignal.User.PushSubscription && OneSignal.User.PushSubscription.optIn) {
+              await OneSignal.User.PushSubscription.optIn();
+            }
+            // Fallback: show slidedown prompt (works on most browsers, including Safari)
+            if (OneSignal.showSlidedownPrompt) {
+              OneSignal.showSlidedownPrompt();
+            }
           }
         } catch (error) {
           console.error("OneSignal init error:", error);
