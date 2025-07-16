@@ -1312,6 +1312,7 @@ import {updateSurveyData, deleteSurveyData} from '../../data/shbData';
               <button
                 onMouseDown={(e) => {
                   e.preventDefault();
+                  e.stopPropagation();
 
                   // Completely self-contained delete function - no dependencies on component state
                   const performDelete = async () => {
