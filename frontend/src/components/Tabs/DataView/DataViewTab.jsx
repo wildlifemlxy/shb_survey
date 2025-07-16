@@ -27,45 +27,6 @@ class DataViewTab extends Component {
     }
   }
 
-  // Handle data deletion (when rows are deleted)
-  handleDataDelete = async (recordId) => {
-    try {
-      // Check if user is authenticated
-      if (!tokenService.isTokenValid()) {
-        console.error('Authentication required for data deletion');
-        return;
-      }
-
-      // Encrypt the request data
-      const requestData = await tokenService.encryptData({ 
-        purpose: 'delete', 
-        recordId 
-      });
-      
-      // Make authenticated request using axios through tokenService
-      const response = await tokenService.makeAuthenticatedRequest(`${BASE_URL}/surveys`, {
-        method: 'POST',
-        data: requestData
-      });
-      
-      if (response.status === 200 && response.data.success) {
-        console.log('Record deleted successfully:', response.data);
-        
-        // Trigger data refresh to update the UI
-        if (this.props.onDataRefresh) {
-          this.props.onDataRefresh();
-        }
-        
-        return response.data;
-      } else {
-        throw new Error(response.data.message || 'Failed to delete record');
-      }
-    } catch (error) {
-      console.error('Error deleting record:', error);
-      // You might want to show a user-friendly error message here
-      throw error;
-    }
-  }
 
   render() {
     const { data, onOpenNewSurveyModal } = this.props;
@@ -93,9 +54,7 @@ class DataViewTab extends Component {
           <div className="table-container">
             {currentView === 'table' ? (
               <ObservationTable 
-                data={data} 
-                onDataUpdate={this.handleDataUpdate}
-                onDataDelete={this.handleDataDelete}
+                data={data} handleDataDelete
               />
             ) : (
               <PivotTable data={data} />

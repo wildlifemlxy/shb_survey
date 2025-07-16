@@ -102,7 +102,7 @@ class App extends Component {
     
     this.socket = io(API_BASE_URL);
     this.socket.on('survey-updated', (data) => {
-      this.loadData(); // Use current state for socket events
+      this.loadData(this.state.isAuthenticated); // Use current state for socket events
       console.log("Socket event received", data);
     });
 
@@ -291,7 +291,7 @@ class App extends Component {
       
       // Reload data after login to fetch authenticated content with correct purpose
       console.log('Reloading data after successful login with authenticated purpose...');
-      this.loadData(true); // Explicitly pass true to ensure 'retrieve' purpose is used
+      this.loadData(this.state.isAuthenticated); // Explicitly pass true to ensure 'retrieve' purpose is used
     });
     
     // Store in localStorage for persistence (backwards compatibility)
@@ -483,7 +483,7 @@ class App extends Component {
     window.location.href = '/';
   };
 
-  loadData = async (authenticationOverride = null) => {
+  loadData = async (authenticationOverride) => {
     console.log('=== loadData called ===');
     
     initializeMapUtils();
