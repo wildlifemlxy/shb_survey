@@ -781,7 +781,7 @@ class UpcomingEvents extends Component {
                           
                           {/* Action Buttons */}
                           <div style={{ display: 'flex', gap: 6, marginLeft: 12 }}>
-                            {!isEditing && !this.isUserParticipating(event) && (
+                            {!isEditing && !this.isUserParticipating(event) &&  JSON.parse(localStorage.getItem('user')).role === "WWF-Volunteer" && (
                               <button
                                 onClick={() => this.handleJoinEvent(event)}
                                 style={{
