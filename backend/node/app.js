@@ -52,7 +52,6 @@ app.use('/users', userRoutes); // Register MongoDB user routes
 app.use('/gallery', galleryRoutes); // Register MongoDB gallery routes
 app.use('/secure', secureRoutes); // Register secure encrypted routes
 
-//again
 // Increase payload limits for Azure App Service
 app.use(express.json({ 
   limit: '10mb',
