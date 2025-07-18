@@ -446,6 +446,21 @@ router.post('/', async function(req, res, next)
             return res.status(500).json({ error: 'Failed to retrieve statistics.' });
         }
     } 
+    else if(req.body.purpose === "retrieveAndriod") {
+        try {
+            // Fallback for non-encrypted requests
+            var surveyController = new SurveyController();
+            var usersController = new UsersController();
+            var surveyResult = await surveyController.getAllSurveys();
+            var userResult = await usersController.getAllUsers();
+            return res.json({
+                "result": surveyResult,
+            });
+        } catch (error) {
+            console.error('Error retrieving surveys:', error);
+            return res.status(500).json({ error: 'Failed to retrieve surveys.' });
+        }
+    }
     else {
         return res.status(400).json({ error: 'Invalid purpose.' });
     }
