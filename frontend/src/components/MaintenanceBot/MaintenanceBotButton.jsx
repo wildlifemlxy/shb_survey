@@ -1253,18 +1253,16 @@ class MaintenanceBotButton extends Component {
   exportTableFromDOM = async () => {
     // Try multiple selectors to find table data - prioritize observation data table
     const tableSelectors = [
-      // Specific selectors for observation data table
+      // Add more robust selectors for your dashboard table
+      '.MuiTable-root',
+      '.dashboard-table table',
       '.observation-data table',
       '.observation-table table',
       'table[class*="observation"]',
       'table[id*="observation"]',
-      // Generic table selectors
       '.data-table table',
       '.table-container table',
-      '.dashboard-table table',
       'table',
-      '.ant-table table',
-      '.MuiTable-root',
       '[role="table"]',
       '.table',
       '.data-grid table',
@@ -1279,9 +1277,15 @@ class MaintenanceBotButton extends Component {
         break;
       }
     }
-    
+
+    // If no table found, fallback to props data if available
     if (!dataElement) {
-      // If no table found, show error message
+      console.warn('No table found in DOM, trying to export from props...');
+      if (this.props.shbData && Array.isArray(this.props.shbData) && this.props.shbData.length > 0) {
+        // Use the same logic as exportExcel to export from props
+        return this.exportExcel();
+      }
+      // If no props data, show error message
       console.error('No table data found to export');
       alert('No table data found to export. Please ensure you are on a page with data table.');
       return;
