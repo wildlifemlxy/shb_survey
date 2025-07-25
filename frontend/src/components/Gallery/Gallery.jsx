@@ -856,6 +856,9 @@ rejectMedia = async (item, index) => {
                 borderRadius: 0,
                 boxShadow: 'none',
                 padding: 0,
+                overflow: 'auto', // Enable both horizontal and vertical scrolling
+                maxHeight: '56vh',
+                maxWidth: '100%'
               }}>
                 {fullscreenMedia.type === 'video' ? (
                   <video
