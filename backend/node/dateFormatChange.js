@@ -10,7 +10,7 @@ const months = {
   Sep: "09", Oct: "10", Nov: "11", Dec: "12"
 };
 
-//ok
+//
 async function run() {
   const client = new MongoClient(uri);
   try {
