@@ -23,6 +23,7 @@ import { fetchSurveyDataForHomePage, fetchSurveyData } from './data/shbData';
 import { fetchEventsData } from './data/surveyData';
 import { fetchBotData } from './data/botData';
 
+//ok
 const API_BASE_URL =
   window.location.hostname === 'localhost'
     ? 'http://localhost:3001'
@@ -117,39 +118,37 @@ class App extends Component {
     // Set up token refresh interval (check every second for real-time countdown)
     this.tokenRefreshInterval = setInterval(() => {
       if (this.state.isAuthenticated) {
-        // Get time left from token service
+        // Always recalculate time left from tokenService and lastActivity
         const serverTimeLeft = tokenService.getTimeUntilExpiry();
-        
-        // Calculate client-side session time left based on last activity
         const clientSessionAge = Date.now() - this.lastActivity;
         const clientTimeLeft = Math.max(0, Math.floor((this.idleTimeout - clientSessionAge) / 1000));
-        
-        // Use the minimum of server time and client session time
         const timeLeft = Math.min(serverTimeLeft, clientTimeLeft);
-        
-        console.log('Session times - Server:', serverTimeLeft, 'Client:', clientTimeLeft, 'Using:', timeLeft);
-        
-        this.setState({ tokenTimeLeft: timeLeft });
-        
+
+        // Only update state if value actually changed, to avoid unnecessary rerenders
+        if (this.state.tokenTimeLeft !== timeLeft) {
+          this.setState({ tokenTimeLeft: timeLeft });
+        }
+
         // Show warning if session expires in 5 minutes (300 seconds) or less
         if (timeLeft <= 300 && timeLeft > 0) {
-          this.setState({ tokenExpiryWarning: true });
+          if (!this.state.tokenExpiryWarning) {
+            this.setState({ tokenExpiryWarning: true });
+          }
         } else {
-          this.setState({ tokenExpiryWarning: false });
+          if (this.state.tokenExpiryWarning) {
+            this.setState({ tokenExpiryWarning: false });
+          }
         }
-        
+
         // Try to refresh token if server token is expiring soon but client session is still valid
         if (serverTimeLeft <= 60 && clientTimeLeft > 300) {
-          console.log('Attempting to refresh token - server expiring soon but client session valid');
           tokenService.refreshTokenIfNeeded().catch(error => {
             console.error('Token refresh failed:', error);
-            // Don't logout immediately, let client session handle it
           });
         }
-        
+
         // Only logout if both server token is invalid AND client session is expired
         if (!tokenService.isTokenValid() && clientTimeLeft <= 0) {
-          console.log('Both token and client session invalid, logging out');
           this.handleLogout();
         }
       }
@@ -746,8 +745,16 @@ class App extends Component {
   };
 
   render() {
-    const { shbData, isLoading, showDetailedAnalysis, detailedAnalysisData, showNewSurveyModal, eventData, botData, isAuthenticated, currentUser, showObservationPopup, observationPopupData, observationPopupPosition, idleCountdown, showWarningModal, warningCountdown, tokenExpiryWarning, tokenTimeLeft, shbDataForPublic } = this.state;
+    const { shbData, isLoading, showDetailedAnalysis, detailedAnalysisData, showNewSurveyModal, eventData, botData, isAuthenticated, currentUser, showObservationPopup, observationPopupData, observationPopupPosition, idleCountdown, showWarningModal, warningCountdown, tokenExpiryWarning, tokenTimeLeft, shbDataForPublic, authLoading } = this.state;
     
+    if (authLoading) {
+      return (
+        <div className="spinner-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          <ClipLoader color="#3498db" size={60} />
+        </div>
+      );
+    }
+
     return (
       <AuthProvider>
         <div className="App">
@@ -803,17 +810,26 @@ class App extends Component {
               {/* Action buttons */}
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     // Extend session by refreshing token AND resetting client activity
                     this.resetIdleTimer(); // Reset client-side activity timer
-                    tokenService.refreshTokenIfNeeded().then(() => {
+                    try {
+                      await tokenService.refreshTokenIfNeeded();
                       console.log('Session extended successfully');
-                      this.setState({ tokenExpiryWarning: false });
-                    }).catch(error => {
+                      // Immediately recalculate time left and warning
+                      const serverTimeLeft = tokenService.getTimeUntilExpiry();
+                      const clientSessionAge = Date.now() - this.lastActivity;
+                      const clientTimeLeft = Math.max(0, Math.floor((this.idleTimeout - clientSessionAge) / 1000));
+                      const timeLeft = Math.min(serverTimeLeft, clientTimeLeft);
+                      this.setState({
+                        tokenTimeLeft: timeLeft,
+                        tokenExpiryWarning: timeLeft <= 300 && timeLeft > 0
+                      });
+                    } catch (error) {
                       console.error('Token refresh failed:', error);
                       // Don't logout immediately, client session might still be valid
                       console.log('Token refresh failed but continuing with client session');
-                    });
+                    }
                   }}
                   style={{
                     backgroundColor: '#fff',
