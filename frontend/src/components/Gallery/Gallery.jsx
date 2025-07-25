@@ -844,7 +844,7 @@ rejectMedia = async (item, index) => {
                   }}
                 />
               </div>
-
+        
               {/* Media area */}
               <div style={{
                 width: '100%',
