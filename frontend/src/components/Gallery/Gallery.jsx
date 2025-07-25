@@ -168,8 +168,7 @@ rejectMedia = async (item, index) => {
           const galleryData = prevState.galleryData.filter((_, i) => i !== index);
           return { galleryData };
         });
-        // Optionally reload from server for consistency
-        this.loadGalleryData();
+        // No reload needed; UI updates instantly
       } else {
         alert(result && result.error ? result.error : 'Failed to delete file.');
       }
