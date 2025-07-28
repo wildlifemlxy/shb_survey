@@ -23,7 +23,7 @@ import { fetchSurveyDataForHomePage, fetchSurveyData } from './data/shbData';
 import { fetchEventsData } from './data/surveyData';
 import { fetchBotData } from './data/botData';
 
-//ok
+//
 const API_BASE_URL =
   window.location.hostname === 'localhost'
     ? 'http://localhost:3001'
