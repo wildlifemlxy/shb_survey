@@ -331,32 +331,60 @@ class UpcomingEvents extends Component {
 
   render() {
     const { events, highlightFirstGreen } = this.props;
-    if (!events.length) return <div className="no-events">No upcoming events.</div>;
-
-    const grouped = groupByOrganizer(events);
+    
+    const grouped = groupByOrganizer(events || []);
     // Always show both sections, even if empty
     if (!grouped["WWF-led"]) grouped["WWF-led"] = [];
     if (!grouped["Volunteer-led"]) grouped["Volunteer-led"] = [];
     const organizerTypes = ["WWF-led", "Volunteer-led"];
     
+    const hasEvents = events && events.length > 0;
+    
     return (
       <div className="upcoming-organizer-sections" style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 24, width: '100%' }}>
-        {/* Add Event Button - Top Right */}
-        <button
-          className="themed-btn themed-btn-green"
-          onClick={() => this.setState({ showAddEventModal: true })}
-          style={{
-            position: 'absolute',
-            top: 0,
-            right: 16,
-            zIndex: 10,
-            marginRight: "0px"
-          }}
-        >
-          Add New Event(s)
-        </button>
+        {/* Add Event Button - Always visible */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          paddingLeft: 16,
+          paddingRight: 16,
+          marginBottom: 10,
+          width: '100%'
+        }}>
+          <button
+            className="themed-btn themed-btn-green"
+            onClick={() => this.setState({ showAddEventModal: true })}
+            style={{
+              padding: '12px 20px',
+              backgroundColor: '#22c55e',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              boxShadow: '0 4px 8px rgba(0,0,0,0.15)',
+              transition: 'all 0.2s',
+              minWidth: '140px',
+              zIndex: 10
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = '#16a34a';
+              e.target.style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = '#22c55e';
+              e.target.style.transform = 'translateY(0)';
+            }}
+          >
+            Add New Event(s)
+          </button>
+        </div>
 
-        {/* Header with View Toggle buttons */}
+        {/* Only show view toggles and content if there are events */}
+        {hasEvents && (
+          <>
+            {/* Header with View Toggle buttons */}
         <div style={{
           display: 'flex',
           justifyContent: 'flex-start',
@@ -666,6 +694,10 @@ class UpcomingEvents extends Component {
               );
             })()}
           </div>
+        )}
+        
+        {/* End of conditional content */}
+        </>
         )}
 
         {/* Add Event Modal */}
