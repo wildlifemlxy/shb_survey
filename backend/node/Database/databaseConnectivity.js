@@ -2,7 +2,7 @@ const { MongoClient, ObjectId } = require('mongodb');
 
 class DatabaseConnectivity {
   constructor() {
-    this.uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=majority&appName=StrawHeadedBulbul&maxPoolSize=30&connectTimeoutMS=2000&serverSelectionTimeoutMS=2000&compressors=zlib&readPreference=primaryPreferred';
+    this.uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=1&appName=StrawHeadedBulbul&maxPoolSize=20&connectTimeoutMS=1500&serverSelectionTimeoutMS=1500&compressors=zlib&readPreference=primaryPreferred';
     this.client = null;
     this.connected = false;
     this.connectionPromise = null;
@@ -20,19 +20,19 @@ class DatabaseConnectivity {
     return DatabaseConnectivity.instance;
   }
 
-  // Ultra-fast client configuration for maximum performance
+  // Ultra-fast client configuration with aggressive timeouts
   getClient() {
     if (!this.client) {
       this.client = new MongoClient(this.uri, {
-        maxPoolSize: 30,
-        minPoolSize: 10,
-        maxIdleTimeMS: 60000,
-        serverSelectionTimeoutMS: 2000,
-        socketTimeoutMS: 5000,
-        connectTimeoutMS: 2000,
+        maxPoolSize: 20,
+        minPoolSize: 3,
+        maxIdleTimeMS: 30000,
+        serverSelectionTimeoutMS: 1500,
+        socketTimeoutMS: 3000,
+        connectTimeoutMS: 1500,
         retryWrites: true,
         retryReads: true,
-        maxConnecting: 10,
+        maxConnecting: 5,
         family: 4,
         useUnifiedTopology: true,
         directConnection: false,
@@ -45,19 +45,19 @@ class DatabaseConnectivity {
     return this.client;
   }
 
-    // Connect to the database with optimized retry logic
-    async initialize(retries = 2) {
+    // Fast connection retry logic
+    async initialize(retries = 1) {
         // If already connecting, wait for existing connection
         if (this.connectionPromise) {
             return this.connectionPromise;
         }
 
         // If already connected, return immediately
-        if (this.connected) {
+        if (this.connected && this.connectionReady) {
             return "Already connected to MongoDB Atlas!";
         }
 
-        // Create connection promise with optimized retry logic
+        // Create connection promise with fast retry
         this.connectionPromise = this._connectWithRetry(retries);
         return this.connectionPromise;
     }
@@ -81,14 +81,12 @@ class DatabaseConnectivity {
                     break;
                 }
                 
-                // Faster retry with shorter delays
-                const delay = Math.min(200 * Math.pow(2, attempt), 1000);
-                console.log(`Retrying connection in ${delay}ms...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
+                // Very fast retry
+                await new Promise(resolve => setTimeout(resolve, 100));
             }
         }
         
-        console.error("All connection attempts failed");
+        console.error("All connection attempts failed:", lastError.message);
         throw lastError;
     }
 
@@ -97,15 +95,22 @@ class DatabaseConnectivity {
             console.log("Attempting to connect to MongoDB Atlas...");
             const client = this.getClient();
             
-            // Ultra-fast connection with minimal timeout
+            // Ultra-aggressive connection timeout
             await Promise.race([
                 client.connect(),
                 new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Connection timeout')), 3000)
+                    setTimeout(() => reject(new Error('Connection timeout after 2s')), 2000)
                 )
             ]);
             
-            // Skip ping for faster connection
+            // Test connection with ping
+            await Promise.race([
+                client.db("admin").command({ ping: 1 }),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Ping timeout after 1s')), 1000)
+                )
+            ]);
+            
             this.connected = true;
             this.connectionReady = true;
             this.lastUsed = Date.now();
@@ -113,7 +118,7 @@ class DatabaseConnectivity {
             return "Connected to MongoDB Atlas!";
             
         } catch (error) {
-            console.error("Error connecting to MongoDB Atlas:", error);
+            console.error("Connection failed:", error.message);
             this.connected = false;
             this.connectionReady = false;
             this.connectionPromise = null;
@@ -123,7 +128,7 @@ class DatabaseConnectivity {
                 try {
                     await this.client.close();
                 } catch (closeError) {
-                    console.error("Error closing client after connection failure:", closeError);
+                    console.error("Error closing client:", closeError.message);
                 }
                 this.client = null;
             }
@@ -131,39 +136,47 @@ class DatabaseConnectivity {
         }
     }
 
-  // Ultra-fast operation wrapper with minimal overhead
-  async executeOperation(operation, retries = 1) {
+  // Ultra-fast operation wrapper with aggressive error handling
+  async executeOperation(operation, retries = 2) {
     const operationId = Date.now().toString(36);
     
     try {
       this.activeOperations.add(operationId);
+      console.log(`[${operationId}] Starting operation (${this.activeOperations.size} active)`);
       
-      // Ensure connection without blocking
-      if (!this.connectionReady) {
+      // Always ensure fresh connection for reliability
+      if (!this.connectionReady || !this.connected) {
+        console.log(`[${operationId}] Initializing connection`);
         await this.initialize();
       }
       
       this.lastUsed = Date.now();
       
-      // Execute with shorter timeout for speed
+      // Execute with aggressive timeout for fast failure
       const result = await Promise.race([
         operation(this.getClient()),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Operation timeout')), 8000)
+          setTimeout(() => reject(new Error('Operation timeout after 5s')), 5000)
         )
       ]);
       
+      console.log(`[${operationId}] Operation completed successfully`);
       return result;
       
     } catch (error) {
-      // Fast retry only for connection errors
-      if (this.isConnectionError(error) && retries > 0) {
+      console.error(`[${operationId}] Operation failed:`, error.message);
+      
+      // Always retry for any error to ensure reliability
+      if (retries > 0) {
+        console.log(`[${operationId}] Retrying (${retries} retries left)`);
         this.connectionReady = false;
         await this.close();
+        await new Promise(resolve => setTimeout(resolve, 100));
         return this.executeOperation(operation, retries - 1);
       }
       
-      throw error;
+      // Throw with more context
+      throw new Error(`Database operation failed: ${error.message}`);
       
     } finally {
       this.activeOperations.delete(operationId);
@@ -225,41 +238,51 @@ class DatabaseConnectivity {
     return results;
   }
 
-  // Ultra-fast document retrieval
+  // Ultra-fast document retrieval with better error handling
   async getAllDocuments(databaseName, collectionName, projection = {}) {
-    return this.executeOperation(async (client) => {
-      const db = client.db(databaseName);
-      const collection = db.collection(collectionName);
-      
-      const findOptions = {};
-      if (Object.keys(projection).length > 0) {
-        findOptions.projection = projection;
-      }
-      
-      const documents = await collection.find({}, findOptions).toArray();
-      
-      // Fast ObjectId conversion
-      return documents.map(doc => {
-        doc._id = doc._id.toString();
-        return doc;
+    try {
+      return await this.executeOperation(async (client) => {
+        const db = client.db(databaseName);
+        const collection = db.collection(collectionName);
+        
+        const findOptions = {};
+        if (Object.keys(projection).length > 0) {
+          findOptions.projection = projection;
+        }
+        
+        const documents = await collection.find({}, findOptions).toArray();
+        
+        // Fast ObjectId conversion
+        return documents.map(doc => {
+          doc._id = doc._id.toString();
+          return doc;
+        });
       });
-    });
+    } catch (error) {
+      console.error(`getAllDocuments failed for ${collectionName}:`, error.message);
+      throw new Error(`Failed to retrieve documents from ${collectionName}: ${error.message}`);
+    }
   }
 
-  // Ultra-fast insert
+  // Ultra-fast insert with better error handling
   async insertDocument(databaseName, collectionName, document) {
-    return this.executeOperation(async (client) => {
-      const db = client.db(databaseName);
-      const collection = db.collection(collectionName);
-      const result = await collection.insertOne(document, { 
-        writeConcern: { w: 1, j: false } 
+    try {
+      return await this.executeOperation(async (client) => {
+        const db = client.db(databaseName);
+        const collection = db.collection(collectionName);
+        const result = await collection.insertOne(document, { 
+          writeConcern: { w: 1, j: false } 
+        });
+        
+        if (result.insertedId) {
+          result.insertedId = result.insertedId.toString();
+        }
+        return result;
       });
-      
-      if (result.insertedId) {
-        result.insertedId = result.insertedId.toString();
-      }
-      return result;
-    });
+    } catch (error) {
+      console.error(`insertDocument failed for ${collectionName}:`, error.message);
+      throw new Error(`Failed to insert document into ${collectionName}: ${error.message}`);
+    }
   }
 
   async insertDocuments(databaseName, collectionName, documents) {
