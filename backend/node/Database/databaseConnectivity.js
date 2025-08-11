@@ -20,7 +20,7 @@ class DatabaseConnectivity {
     return DatabaseConnectivity.instance;
   }
 
-  // Ultra-fast client configuration with aggressive timeouts
+  // Ultra-fast client configuration with aggressive timeoutsok
   getClient() {
     if (!this.client) {
       this.client = new MongoClient(this.uri, {
