@@ -2,7 +2,7 @@ const { MongoClient, ObjectId } = require('mongodb');
 
 class DatabaseConnectivity {
   constructor() {
-    this.uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=majority&appName=StrawHeadedBulbul';
+    this.uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=majority&appName=StrawHeadedBulbul&maxPoolSize=5&connectTimeoutMS=5000&serverSelectionTimeoutMS=5000';
     this.client = null;
     this.connected = false;
     this.connectionPromise = null;
@@ -20,22 +20,26 @@ class DatabaseConnectivity {
   getClient() {
     if (!this.client) {
       this.client = new MongoClient(this.uri, {
-        maxPoolSize: 10,
-        minPoolSize: 1,
-        maxIdleTimeMS: 30000,
-        serverSelectionTimeoutMS: 10000,
-        socketTimeoutMS: 45000,
-        connectTimeoutMS: 10000,
+        maxPoolSize: 5,
+        minPoolSize: 0,
+        maxIdleTimeMS: 10000,
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 20000,
+        connectTimeoutMS: 5000,
         retryWrites: true,
         retryReads: true,
-        maxConnecting: 2
+        maxConnecting: 1,
+        family: 4, // Force IPv4
+        bufferMaxEntries: 0,
+        useUnifiedTopology: true,
+        directConnection: false
       });
     }
     return this.client;
   }
 
-    // Connect to the database with connection reuse
-    async initialize() {
+    // Connect to the database with retry logic for DNS issues
+    async initialize(retries = 3) {
         // If already connecting, wait for existing connection
         if (this.connectionPromise) {
             return this.connectionPromise;
@@ -46,9 +50,39 @@ class DatabaseConnectivity {
             return "Already connected to MongoDB Atlas!";
         }
 
-        // Create connection promise to prevent multiple simultaneous connections
-        this.connectionPromise = this._connect();
+        // Create connection promise with retry logic
+        this.connectionPromise = this._connectWithRetry(retries);
         return this.connectionPromise;
+    }
+
+    async _connectWithRetry(retries) {
+        let lastError;
+        
+        for (let attempt = 0; attempt <= retries; attempt++) {
+            try {
+                console.log(`Connection attempt ${attempt + 1}/${retries + 1}`);
+                return await this._connect();
+            } catch (error) {
+                lastError = error;
+                console.error(`Connection attempt ${attempt + 1} failed:`, error.message);
+                
+                // Reset connection promise on failure
+                this.connectionPromise = null;
+                
+                // Don't retry on the last attempt
+                if (attempt === retries) {
+                    break;
+                }
+                
+                // Wait before retry with exponential backoff
+                const delay = Math.min(1000 * Math.pow(2, attempt), 3000);
+                console.log(`Retrying connection in ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+        
+        console.error("All connection attempts failed");
+        throw lastError;
     }
 
     async _connect() {
@@ -56,13 +90,19 @@ class DatabaseConnectivity {
             console.log("Attempting to connect to MongoDB Atlas...");
             const client = this.getClient();
             
-            await client.connect();
+            // Connect with timeout
+            await Promise.race([
+                client.connect(),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Connection timeout')), 8000)
+                )
+            ]);
             
             // Test the connection with shorter timeout
             await Promise.race([
                 client.db("admin").command({ ping: 1 }),
                 new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Ping timeout')), 5000)
+                    setTimeout(() => reject(new Error('Ping timeout')), 3000)
                 )
             ]);
             
@@ -75,7 +115,7 @@ class DatabaseConnectivity {
             this.connected = false;
             this.connectionPromise = null;
             
-            // Close client on connection error
+            // Force close and recreate client on any connection error
             if (this.client) {
                 try {
                     await this.client.close();
@@ -88,37 +128,51 @@ class DatabaseConnectivity {
         }
     }
 
-    // Ensure connection before operations
-    async ensureConnection() {
-        if (!this.connected) {
-            await this.initialize();
-        }
-        return this.connected;
-    }
-
-  // Generic operation wrapper with connection management
-  async executeOperation(operation) {
-    let connectionCreated = false;
-    try {
-      if (!this.connected) {
+  // Generic operation wrapper with connection management and retry logic
+  async executeOperation(operation, retries = 2) {
+    let lastError;
+    
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        // Always start fresh for each operation
+        await this.close();
+        
+        console.log(`Database operation attempt ${attempt + 1}/${retries + 1}`);
+        
+        // Create new connection for this operation
         await this.initialize();
-        connectionCreated = true;
-      }
-      
-      const result = await operation(this.getClient());
-      return result;
-      
-    } catch (error) {
-      console.error("Database operation failed:", error);
-      this.connected = false;
-      this.connectionPromise = null;
-      throw error;
-    } finally {
-      // Close connection after operation for better resource management
-      if (connectionCreated || error) {
+        
+        const result = await Promise.race([
+          operation(this.getClient()),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Operation timeout')), 15000)
+          )
+        ]);
+        
+        console.log("Database operation completed successfully");
+        return result;
+        
+      } catch (error) {
+        lastError = error;
+        console.error(`Database operation attempt ${attempt + 1} failed:`, error.message);
+        
+        // Don't retry on the last attempt
+        if (attempt === retries) {
+          break;
+        }
+        
+        // Wait before retry with exponential backoff
+        const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } finally {
+        // Always close connection after each attempt
         await this.close();
       }
     }
+    
+    console.error("All database operation attempts failed");
+    throw lastError;
   }
 
   async getAllDocuments(databaseName, collectionName) {
@@ -240,14 +294,18 @@ class DatabaseConnectivity {
     try {
       if (this.client) {
         console.log("Closing MongoDB connection...");
-        await this.client.close();
-        this.client = null;
-        this.connected = false;
-        this.connectionPromise = null;
+        await Promise.race([
+          this.client.close(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Close timeout')), 3000)
+          )
+        ]);
         console.log("MongoDB connection closed successfully");
       }
     } catch (error) {
       console.error("Error closing MongoDB connection:", error);
+    } finally {
+      // Always reset state regardless of close success/failure
       this.client = null;
       this.connected = false;
       this.connectionPromise = null;
