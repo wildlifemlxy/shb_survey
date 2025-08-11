@@ -32,6 +32,7 @@ class DatabaseConnectivity {
         retryReads: true,
         maxConnecting: 2,
         family: 4, // Force IPv4
+        bufferMaxEntries: 0,
         useUnifiedTopology: true,
         directConnection: false,
         compressors: ['zlib'],
