@@ -2,11 +2,14 @@ const { MongoClient, ObjectId } = require('mongodb');
 
 class DatabaseConnectivity {
   constructor() {
-    this.uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=majority&appName=StrawHeadedBulbul&maxPoolSize=10&connectTimeoutMS=3000&serverSelectionTimeoutMS=3000&compressors=zlib';
+    this.uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=majority&appName=StrawHeadedBulbul&maxPoolSize=20&connectTimeoutMS=3000&serverSelectionTimeoutMS=3000&compressors=zlib';
     this.client = null;
     this.connected = false;
     this.connectionPromise = null;
     this.lastUsed = Date.now();
+    this.activeOperations = new Set();
+    this.operationQueue = [];
+    this.processingQueue = false;
   }
 
   // Singleton pattern to ensure only one connection instance
@@ -18,21 +21,20 @@ class DatabaseConnectivity {
     return DatabaseConnectivity.instance;
   }
 
-  // Get or create client with optimal connection options
+  // Get or create client with optimal connection options for concurrent processes
   getClient() {
     if (!this.client) {
       this.client = new MongoClient(this.uri, {
-        maxPoolSize: 10,
-        minPoolSize: 2,
+        maxPoolSize: 20,
+        minPoolSize: 5,
         maxIdleTimeMS: 30000,
         serverSelectionTimeoutMS: 3000,
         socketTimeoutMS: 10000,
         connectTimeoutMS: 3000,
         retryWrites: true,
         retryReads: true,
-        maxConnecting: 2,
+        maxConnecting: ,
         family: 4, // Force IPv4
-        bufferMaxEntries: 0,
         useUnifiedTopology: true,
         directConnection: false,
         compressors: ['zlib'],
@@ -133,60 +135,106 @@ class DatabaseConnectivity {
         }
     }
 
-  // Optimized operation wrapper with connection reuse
-  async executeOperation(operation, retries = 2) {
-    let lastError;
-    const CONNECTION_REUSE_THRESHOLD = 30000; // 30 seconds
+  // Optimized operation wrapper for concurrent processes
+  async executeOperation(operation, retries = 2, priority = 'normal') {
+    const operationId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        console.log(`Database operation attempt ${attempt + 1}/${retries + 1}`);
+    try {
+      this.activeOperations.add(operationId);
+      console.log(`[${operationId}] Starting operation (${this.activeOperations.size} concurrent)`);
+      
+      // Ensure we have a connection but don't close it for concurrent operations
+      if (!this.connected) {
+        await this.initialize();
+      }
+      
+      // Update last used time
+      this.lastUsed = Date.now();
+      
+      const result = await Promise.race([
+        operation(this.getClient()),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Operation timeout')), 15000)
+        )
+      ]);
+      
+      console.log(`[${operationId}] Operation completed successfully`);
+      return result;
+      
+    } catch (error) {
+      console.error(`[${operationId}] Operation failed:`, error.message);
+      
+      // Only retry if it's a connection-related error
+      if (this.isConnectionError(error) && retries > 0) {
+        console.log(`[${operationId}] Retrying due to connection error (${retries} retries left)`);
         
-        // Check if we can reuse existing connection (within 30 seconds)
-        const canReuseConnection = this.connected && 
-          (Date.now() - this.lastUsed) < CONNECTION_REUSE_THRESHOLD;
-        
-        if (!canReuseConnection) {
-          console.log("Creating fresh connection for operation");
-          await this.close();
-          await this.initialize();
-        } else {
-          console.log("Reusing existing connection");
-          this.lastUsed = Date.now();
-        }
-        
-        const result = await Promise.race([
-          operation(this.getClient()),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Operation timeout')), 12000)
-          )
-        ]);
-        
-        console.log("Database operation completed successfully");
-        this.lastUsed = Date.now();
-        return result;
-        
-      } catch (error) {
-        lastError = error;
-        console.error(`Database operation attempt ${attempt + 1} failed:`, error.message);
-        
-        // Force close on error to ensure clean state
+        // Force reconnection for connection errors
         await this.close();
+        await new Promise(resolve => setTimeout(resolve, 500));
         
-        // Don't retry on the last attempt
-        if (attempt === retries) {
-          break;
-        }
-        
-        // Shorter delay for faster retries
-        const delay = Math.min(500 * Math.pow(2, attempt), 2000);
-        console.log(`Retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.executeOperation(operation, retries - 1, priority);
+      }
+      
+      throw error;
+      
+    } finally {
+      this.activeOperations.delete(operationId);
+      this.lastUsed = Date.now();
+    }
+  }
+
+  // Check if error is connection-related
+  isConnectionError(error) {
+    const connectionErrorKeywords = [
+      'ENOTFOUND', 'ECONNREFUSED', 'ETIMEDOUT', 'EAI_AGAIN',
+      'MongoNetworkError', 'MongoServerSelectionError', 'Connection timeout'
+    ];
+    
+    return connectionErrorKeywords.some(keyword => 
+      error.message.includes(keyword) || error.name.includes(keyword)
+    );
+  }
+
+  // Get connection statistics
+  getConnectionStats() {
+    return {
+      connected: this.connected,
+      activeOperations: this.activeOperations.size,
+      lastUsed: new Date(this.lastUsed).toISOString(),
+      idleTime: Date.now() - this.lastUsed
+    };
+  }
+
+  // Batch operations for concurrent processing
+  async executeBatchOperations(operations, maxConcurrency = 5) {
+    console.log(`Executing ${operations.length} operations with max concurrency: ${maxConcurrency}`);
+    
+    const results = [];
+    const executing = [];
+    
+    for (let i = 0; i < operations.length; i++) {
+      const operation = operations[i];
+      
+      // Create promise for this operation
+      const operationPromise = this.executeOperation(operation.fn, operation.retries || 2, operation.priority || 'normal')
+        .then(result => ({ index: i, success: true, result }))
+        .catch(error => ({ index: i, success: false, error: error.message }));
+      
+      executing.push(operationPromise);
+      
+      // If we've reached max concurrency or this is the last operation
+      if (executing.length >= maxConcurrency || i === operations.length - 1) {
+        const batchResults = await Promise.all(executing);
+        results.push(...batchResults);
+        executing.length = 0; // Clear the array
       }
     }
     
-    console.error("All database operation attempts failed");
-    throw lastError;
+    // Sort results by original index
+    results.sort((a, b) => a.index - b.index);
+    
+    console.log(`Batch completed: ${results.filter(r => r.success).length} success, ${results.filter(r => !r.success).length} failed`);
+    return results;
   }
 
   // Optimized document retrieval with projections
@@ -333,17 +381,22 @@ class DatabaseConnectivity {
     }
   }
 
-  // Auto-cleanup idle connections
+  // Smart auto-cleanup for concurrent processes
   startConnectionCleanup() {
     if (this.cleanupInterval) return;
     
     this.cleanupInterval = setInterval(() => {
-      const IDLE_THRESHOLD = 60000; // 1 minute
-      if (this.connected && (Date.now() - this.lastUsed) > IDLE_THRESHOLD) {
-        console.log("Closing idle connection");
+      const IDLE_THRESHOLD = 120000; // 2 minutes for concurrent processes
+      const hasActiveOperations = this.activeOperations.size > 0;
+      const isIdle = (Date.now() - this.lastUsed) > IDLE_THRESHOLD;
+      
+      if (this.connected && !hasActiveOperations && isIdle) {
+        console.log(`Closing idle connection (idle for ${Math.round((Date.now() - this.lastUsed) / 1000)}s)`);
         this.close();
+      } else if (this.connected) {
+        console.log(`Connection active: ${this.activeOperations.size} operations, idle: ${Math.round((Date.now() - this.lastUsed) / 1000)}s`);
       }
-    }, 30000); // Check every 30 seconds
+    }, 60000); // Check every minute for concurrent processes
   }
 
   stopConnectionCleanup() {
@@ -353,10 +406,29 @@ class DatabaseConnectivity {
     }
   }
 
-  // Graceful shutdown method
-  async gracefulShutdown() {
+  // Graceful shutdown for concurrent processes
+  async gracefulShutdown(maxWaitTime = 30000) {
     console.log("Initiating graceful shutdown of MongoDB connection...");
+    
+    // Stop accepting new operations
+    this.stopConnectionCleanup();
+    
+    // Wait for active operations to complete
+    if (this.activeOperations.size > 0) {
+      console.log(`Waiting for ${this.activeOperations.size} active operations to complete...`);
+      
+      const startTime = Date.now();
+      while (this.activeOperations.size > 0 && (Date.now() - startTime) < maxWaitTime) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      if (this.activeOperations.size > 0) {
+        console.warn(`Force closing with ${this.activeOperations.size} operations still active`);
+      }
+    }
+    
     await this.close();
+    console.log("Graceful shutdown completed");
   }
 }
 
