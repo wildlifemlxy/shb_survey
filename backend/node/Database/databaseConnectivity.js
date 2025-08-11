@@ -2,43 +2,88 @@ const { MongoClient, ObjectId } = require('mongodb');
 
 class DatabaseConnectivity {
   constructor() {
-    this.uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/?retryWrites=true&w=majority&appName=StrawHeadedBulbul&connectTimeoutMS=60000&socketTimeoutMS=60000&serverSelectionTimeoutMS=60000&maxPoolSize=10&minPoolSize=2';
-    this.client = new MongoClient(this.uri, {
-      maxPoolSize: 10,
-      minPoolSize: 2,
-      maxIdleTimeMS: 30000,
-      serverSelectionTimeoutMS: 60000,
-      socketTimeoutMS: 60000,
-      connectTimeoutMS: 60000,
-      retryWrites: true,
-      retryReads: true
-    });
+    this.uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=majority&appName=StrawHeadedBulbul';
+    this.client = null;
     this.connected = false;
+    this.connectionPromise = null;
   }
 
-    // Connect to the database
-    async initialize()
-    {
-        try 
-        {
-            if (!this.connected) 
-            {
-                console.log("Attempting to connect to MongoDB Atlas...");
-                await this.client.connect();
-                
-                // Test the connection
-                await this.client.db("admin").command({ ping: 1 });
-                
-                this.connected = true;
-                console.log("Successfully connected to MongoDB Atlas!");
-                return "Connected to MongoDB Atlas!";
-            } else {
-                console.log("Already connected to MongoDB Atlas");
-                return "Already connected to MongoDB Atlas!";
-            }  
+  // Singleton pattern to ensure only one connection instance
+  static getInstance() {
+    if (!DatabaseConnectivity.instance) {
+      DatabaseConnectivity.instance = new DatabaseConnectivity();
+    }
+    return DatabaseConnectivity.instance;
+  }
+
+  // Get or create client with proper connection options
+  getClient() {
+    if (!this.client) {
+      this.client = new MongoClient(this.uri, {
+        maxPoolSize: 10,
+        minPoolSize: 1,
+        maxIdleTimeMS: 30000,
+        serverSelectionTimeoutMS: 10000,
+        socketTimeoutMS: 45000,
+        connectTimeoutMS: 10000,
+        retryWrites: true,
+        retryReads: true,
+        maxConnecting: 2
+      });
+    }
+    return this.client;
+  }
+
+    // Connect to the database with connection reuse
+    async initialize() {
+        // If already connecting, wait for existing connection
+        if (this.connectionPromise) {
+            return this.connectionPromise;
+        }
+
+        // If already connected, return immediately
+        if (this.connected) {
+            return "Already connected to MongoDB Atlas!";
+        }
+
+        // Create connection promise to prevent multiple simultaneous connections
+        this.connectionPromise = this._connect();
+        return this.connectionPromise;
+    }
+
+    async _connect() {
+        try {
+            console.log("Attempting to connect to MongoDB Atlas...");
+            const client = this.getClient();
+            
+            await client.connect();
+            
+            // Test the connection with shorter timeout
+            await Promise.race([
+                client.db("admin").command({ ping: 1 }),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Ping timeout')), 5000)
+                )
+            ]);
+            
+            this.connected = true;
+            console.log("Successfully connected to MongoDB Atlas!");
+            return "Connected to MongoDB Atlas!";
+            
         } catch (error) {
             console.error("Error connecting to MongoDB Atlas:", error);
             this.connected = false;
+            this.connectionPromise = null;
+            
+            // Close client on connection error
+            if (this.client) {
+                try {
+                    await this.client.close();
+                } catch (closeError) {
+                    console.error("Error closing client after connection failure:", closeError);
+                }
+                this.client = null;
+            }
             throw error;
         }
     }
@@ -51,10 +96,34 @@ class DatabaseConnectivity {
         return this.connected;
     }
 
-  async getAllDocuments(databaseName, collectionName) {
+  // Generic operation wrapper with connection management
+  async executeOperation(operation) {
+    let connectionCreated = false;
     try {
-      await this.ensureConnection();
-      const db = this.client.db(databaseName);
+      if (!this.connected) {
+        await this.initialize();
+        connectionCreated = true;
+      }
+      
+      const result = await operation(this.getClient());
+      return result;
+      
+    } catch (error) {
+      console.error("Database operation failed:", error);
+      this.connected = false;
+      this.connectionPromise = null;
+      throw error;
+    } finally {
+      // Close connection after operation for better resource management
+      if (connectionCreated || error) {
+        await this.close();
+      }
+    }
+  }
+
+  async getAllDocuments(databaseName, collectionName) {
+    return this.executeOperation(async (client) => {
+      const db = client.db(databaseName);
       const collection = db.collection(collectionName);
       const documents = await collection.find({}).toArray();
       
@@ -63,18 +132,12 @@ class DatabaseConnectivity {
         ...doc,
         _id: doc._id.toString()
       }));
-    } catch (error) {
-      console.error("Error getting all documents:", error);
-      this.connected = false; // Reset connection flag on error
-      throw error;
-    }
-    // Note: Removed finally block to keep connection alive
+    });
   }
 
   async insertDocument(databaseName, collectionName, document) {
-    try {
-      await this.ensureConnection();
-      const db = this.client.db(databaseName);
+    return this.executeOperation(async (client) => {
+      const db = client.db(databaseName);
       const collection = db.collection(collectionName);
       const result = await collection.insertOne(document);
       
@@ -86,18 +149,12 @@ class DatabaseConnectivity {
         };
       }
       return result;
-    } catch (error) {
-      console.error("Error inserting document:", error);
-      this.connected = false; // Reset connection flag on error
-      throw error;
-    }
-    // Note: Removed finally block to keep connection alive
+    });
   }
 
   async insertDocuments(databaseName, collectionName, documents) {
-    try {
-      await this.ensureConnection();
-      const db = this.client.db(databaseName);
+    return this.executeOperation(async (client) => {
+      const db = client.db(databaseName);
       const collection = db.collection(collectionName);
       const result = await collection.insertMany(documents);
       
@@ -113,55 +170,37 @@ class DatabaseConnectivity {
         };
       }
       return result;
-    } catch (error) {
-      console.error("Error inserting documents:", error);
-      this.connected = false; // Reset connection flag on error
-      throw error;
-    }
-    // Note: Removed finally block to keep connection alive
+    });
   }
 
   async updateDocument(databaseName, collectionName, filter, update) {
-    try {
-      await this.ensureConnection();
-      const db = this.client.db(databaseName);
+    return this.executeOperation(async (client) => {
+      const db = client.db(databaseName);
       const collection = db.collection(collectionName);
       // Convert string _id to ObjectId if present
       if (filter._id && typeof filter._id === 'string') {
         filter._id = new ObjectId(filter._id);
       }
       return await collection.updateOne(filter, update);
-    } catch (error) {
-      console.error("Error updating document:", error);
-      this.connected = false; // Reset connection flag on error
-      throw error;
-    }
-    // Note: Removed finally block to keep connection alive
+    });
   }
 
   async deleteDocument(databaseName, collectionName, filter) {
-    try {
-      await this.ensureConnection();
-      const db = this.client.db(databaseName);
+    return this.executeOperation(async (client) => {
+      const db = client.db(databaseName);
       const collection = db.collection(collectionName);
       // Convert string _id to ObjectId if present
       if (filter._id && typeof filter._id === 'string') {
         filter._id = new ObjectId(filter._id);
       }
       return await collection.deleteOne(filter);
-    } catch (error) {
-      console.error("Error deleting document:", error);
-      this.connected = false; // Reset connection flag on error
-      throw error;
-    }
-    // Note: Removed finally block to keep connection alive
+    });
   }
 
   async getDocument(databaseName, collectionName, email, password) {
-    try {
-      await this.ensureConnection();
+    return this.executeOperation(async (client) => {
       console.log("Retrieving document with email:", email, "and password:", password, "from collection:", collectionName);
-      const db = this.client.db(databaseName);
+      const db = client.db(databaseName);
       const collection = db.collection(collectionName);
       
       // Create query object with email and password
@@ -176,19 +215,13 @@ class DatabaseConnectivity {
       }
       
       return document;
-    } catch (error) {
-      console.error("Error retrieving document:", error);
-      this.connected = false; // Reset connection flag on error
-      throw error;
-    }
-    // Note: Removed finally block to keep connection alive
+    });
   }
 
   async findDocument(databaseName, collectionName, query) {
-    try {
-      await this.ensureConnection();
+    return this.executeOperation(async (client) => {
       console.log("Finding document with query:", query, "from collection:", collectionName);
-      const db = this.client.db(databaseName);
+      const db = client.db(databaseName);
       const collection = db.collection(collectionName);
       
       const document = await collection.findOne(query);
@@ -200,25 +233,24 @@ class DatabaseConnectivity {
       }
       
       return document;
-    } catch (error) {
-      console.error("Error finding document:", error);
-      this.connected = false; // Reset connection flag on error
-      throw error;
-    }
-    // Note: Removed finally block to keep connection alive
+    });
   }
 
   async close() {
     try {
-      if (this.connected && this.client) {
+      if (this.client) {
         console.log("Closing MongoDB connection...");
         await this.client.close();
+        this.client = null;
         this.connected = false;
+        this.connectionPromise = null;
         console.log("MongoDB connection closed successfully");
       }
     } catch (error) {
       console.error("Error closing MongoDB connection:", error);
-      this.connected = false; // Reset flag even if close fails
+      this.client = null;
+      this.connected = false;
+      this.connectionPromise = null;
     }
   }
 
@@ -229,4 +261,5 @@ class DatabaseConnectivity {
   }
 }
 
+// Export singleton instance
 module.exports = DatabaseConnectivity;
