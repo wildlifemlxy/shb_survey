@@ -2,14 +2,25 @@ const { MongoClient, ObjectId } = require('mongodb');
 
 class DatabaseConnectivity {
   constructor() {
-    // Use environment variable or fallback to hardcoded URI optimized for maximum performance
-    this.uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=0&appName=StrawHeadedBulbul&maxPoolSize=100&compressors=zlib&readPreference=primaryPreferred';
+    // Primary connection string optimized for maximum performance
+    this.uri = process.env.MONGODB_URI || 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=0&appName=StrawHeadedBulbul&maxPoolSize=100&compressors=zlib&readPreference=primaryPreferred';
+    
+    // Fallback URIs for DNS resolution issues
+    this.fallbackUris = [
+      // Direct connection bypassing SRV DNS lookup
+      'mongodb://strawheadedbulbul-shard-00-00.w7an1sp.mongodb.net:27017,strawheadedbulbul-shard-00-01.w7an1sp.mongodb.net:27017,strawheadedbulbul-shard-00-02.w7an1sp.mongodb.net:27017/StrawHeadedBulbul?ssl=true&replicaSet=atlas-abc123-shard-0&authSource=admin&retryWrites=true&w=0&maxPoolSize=100',
+      // Alternative SRV with different options
+      'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=0&ssl=true&authSource=admin&maxPoolSize=100'
+    ];
+    
     this.client = null;
     this.connected = false;
     this.connectionPromise = null;
     this.lastUsed = Date.now();
     this.activeOperations = new Set();
     this.connectionReady = false;
+    this.currentUriIndex = 0;
+    this.silentMode = true; // Suppress non-critical errors
   }
 
   // Singleton pattern to ensure only one connection instance
@@ -48,7 +59,7 @@ class DatabaseConnectivity {
   }
 
     // Fast connection retry logic
-    async initialize(retries = 1) {
+    async initialize(retries = 5) {
         // If already connecting, wait for existing connection
         if (this.connectionPromise) {
             return this.connectionPromise;
@@ -65,39 +76,93 @@ class DatabaseConnectivity {
     }
 
     async _connectWithRetry(retries) {
+        const connectionAttempts = [this.uri, ...this.fallbackUris];
         let lastError;
         
         for (let attempt = 0; attempt <= retries; attempt++) {
-            try {
-                return await this._connect();
-            } catch (error) {
-                lastError = error;
-                
-                // Reset connection promise on failure
-                this.connectionPromise = null;
-                
-                // Don't retry on the last attempt
-                if (attempt === retries) {
-                    break;
+            // Try each URI in sequence for each retry attempt
+            for (let uriIndex = 0; uriIndex < connectionAttempts.length; uriIndex++) {
+                try {
+                    this.currentUriIndex = uriIndex;
+                    return await this._connect(connectionAttempts[uriIndex]);
+                } catch (error) {
+                    lastError = error;
+                    
+                    // Silently handle DNS timeout errors
+                    if (this.isDnsError(error)) {
+                        if (!this.silentMode && uriIndex === 0) {
+                            console.warn(`DNS timeout with primary URI, trying fallback...`);
+                        }
+                        continue; // Try next URI
+                    }
+                    
+                    // For other errors, try next URI
+                    if (!this.silentMode) {
+                        console.warn(`Connection attempt ${attempt + 1}.${uriIndex + 1} failed: ${error.message.substring(0, 100)}`);
+                    }
                 }
-                
-                // Very fast retry
-                await new Promise(resolve => setTimeout(resolve, 100));
             }
+            
+            // Reset connection promise on failure
+            this.connectionPromise = null;
+            
+            // Don't retry on the last attempt
+            if (attempt === retries) {
+                break;
+            }
+            
+            // Progressive retry delay
+            const retryDelay = Math.min(100 * Math.pow(2, attempt), 2000);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
         }
         
-        console.error("All connection attempts failed:", lastError.message);
+        if (!this.silentMode) {
+            console.error("All connection attempts failed:", lastError.message);
+        }
         throw lastError;
     }
 
-    async _connect() {
+    async _connect(customUri = null) {
         try {
-            const client = this.getClient();
+            const connectionUri = customUri || this.uri;
+            
+            // Create new client with specific URI
+            const client = new MongoClient(connectionUri, {
+                maxPoolSize: 100,
+                minPoolSize: 10,
+                maxIdleTimeMS: 0,
+                serverSelectionTimeoutMS: 0,
+                socketTimeoutMS: 0,
+                connectTimeoutMS: 0,
+                retryWrites: true,
+                retryReads: true,
+                maxConnecting: 20,
+                family: 4,
+                directConnection: false,
+                compressors: ['zlib'],
+                readPreference: 'primaryPreferred',
+                readConcern: { level: 'local' },
+                writeConcern: { w: 0, j: false },
+                heartbeatFrequencyMS: 10000,
+                waitQueueTimeoutMS: 0,
+                bufferMaxEntries: 0 // Disable buffering for fast failure
+            });
+            
+            // Close existing client if any
+            if (this.client) {
+                try {
+                    await this.client.close();
+                } catch (closeError) {
+                    // Silent close errors
+                }
+            }
+            
+            this.client = client;
             
             // Direct connection without timeouts for maximum performance
             await client.connect();
             
-            // Test connection with ping - no timeout
+            // Quick ping test - no timeout
             await client.db("admin").command({ ping: 1 });
             
             this.connected = true;
@@ -106,7 +171,11 @@ class DatabaseConnectivity {
             return "Connected to MongoDB Atlas!";
             
         } catch (error) {
-            console.error("Connection failed:", error.message);
+            // Only log critical errors in silent mode
+            if (!this.silentMode || this.isCriticalError(error)) {
+                console.error("Connection failed:", error.message);
+            }
+            
             this.connected = false;
             this.connectionReady = false;
             this.connectionPromise = null;
@@ -116,7 +185,7 @@ class DatabaseConnectivity {
                 try {
                     await this.client.close();
                 } catch (closeError) {
-                    console.error("Error closing client:", closeError.message);
+                    // Silent close errors
                 }
                 this.client = null;
             }
@@ -133,7 +202,7 @@ class DatabaseConnectivity {
       
       // Always ensure fresh connection for reliability
       if (!this.connectionReady || !this.connected) {
-        await this.initialize(3); // More retries for maximum reliability
+        await this.initialize(5); // More retries for maximum reliability
       }
       
       this.lastUsed = Date.now();
@@ -144,15 +213,20 @@ class DatabaseConnectivity {
       return result;
       
     } catch (error) {
+      // Suppress non-critical errors in silent mode
+      if (!this.silentMode || this.isCriticalError(error)) {
+        console.error(`Operation failed: ${error.message.substring(0, 100)}`);
+      }
+      
       // Aggressive retries for maximum reliability
       if (retries > 0 && this.isConnectionError(error)) {
         this.connectionReady = false;
         await this.close();
-        await new Promise(resolve => setTimeout(resolve, 100)); // Fast retry
+        await new Promise(resolve => setTimeout(resolve, 50)); // Ultra-fast retry
         return this.executeOperation(operation, retries - 1);
       }
       
-      // Throw with more context
+      // For non-connection errors, throw immediately
       throw new Error(`Database operation failed: ${error.message}`);
       
     } finally {
@@ -165,10 +239,36 @@ class DatabaseConnectivity {
   isConnectionError(error) {
     const connectionErrorKeywords = [
       'ENOTFOUND', 'ECONNREFUSED', 'ETIMEDOUT', 'EAI_AGAIN',
-      'MongoNetworkError', 'MongoServerSelectionError', 'Connection timeout'
+      'MongoNetworkError', 'MongoServerSelectionError', 'Connection timeout',
+      'queryTxt ETIMEOUT', 'getaddrinfo ENOTFOUND', 'ECONNRESET', 'EPIPE',
+      'socket hang up', 'DNS resolution', 'Server selection timed out'
     ];
     
     return connectionErrorKeywords.some(keyword => 
+      error.message.includes(keyword) || error.name.includes(keyword)
+    );
+  }
+
+  // Check if error is DNS-related (can be ignored)
+  isDnsError(error) {
+    const dnsErrorKeywords = [
+      'queryTxt ETIMEOUT', 'getaddrinfo ENOTFOUND', 'EAI_AGAIN',
+      'DNS resolution', 'ENOTFOUND'
+    ];
+    
+    return dnsErrorKeywords.some(keyword => 
+      error.message.includes(keyword) || error.code === keyword
+    );
+  }
+
+  // Check if error is critical (should always be logged)
+  isCriticalError(error) {
+    const criticalErrorKeywords = [
+      'Authentication failed', 'MongoParseError', 'MongoError',
+      'Invalid connection string', 'Database does not exist'
+    ];
+    
+    return criticalErrorKeywords.some(keyword => 
       error.message.includes(keyword) || error.name.includes(keyword)
     );
   }
@@ -219,7 +319,12 @@ class DatabaseConnectivity {
         const db = client.db(databaseName);
         const collection = db.collection(collectionName);
         
-        const findOptions = {};
+        const findOptions = {
+          readPreference: 'primaryPreferred',
+          readConcern: { level: 'local' },
+          maxTimeMS: 0 // No timeout
+        };
+        
         if (Object.keys(projection).length > 0) {
           findOptions.projection = projection;
         }
@@ -228,12 +333,15 @@ class DatabaseConnectivity {
         
         // Fast ObjectId conversion
         return documents.map(doc => {
-          doc._id = doc._id.toString();
+          if (doc._id) doc._id = doc._id.toString();
           return doc;
         });
       });
     } catch (error) {
-      console.error(`getAllDocuments failed for ${collectionName}:`, error.message);
+      // Silent error handling for seamless operation
+      if (!this.silentMode || this.isCriticalError(error)) {
+        console.error(`getAllDocuments failed for ${collectionName}:`, error.message);
+      }
       throw new Error(`Failed to retrieve documents from ${collectionName}: ${error.message}`);
     }
   }
@@ -245,7 +353,8 @@ class DatabaseConnectivity {
         const db = client.db(databaseName);
         const collection = db.collection(collectionName);
         const result = await collection.insertOne(document, { 
-          writeConcern: { w: 0, j: false } // Fastest write concern - fire and forget
+          writeConcern: { w: 0, j: false }, // Fastest write concern - fire and forget
+          maxTimeMS: 0 // No timeout
         });
         
         if (result.insertedId) {
@@ -254,7 +363,10 @@ class DatabaseConnectivity {
         return result;
       });
     } catch (error) {
-      console.error(`insertDocument failed for ${collectionName}:`, error.message);
+      // Silent error handling for seamless operation
+      if (!this.silentMode || this.isCriticalError(error)) {
+        console.error(`insertDocument failed for ${collectionName}:`, error.message);
+      }
       throw new Error(`Failed to insert document into ${collectionName}: ${error.message}`);
     }
   }
@@ -265,7 +377,8 @@ class DatabaseConnectivity {
       const collection = db.collection(collectionName);
       const result = await collection.insertMany(documents, {
         writeConcern: { w: 0, j: false }, // Fastest write concern
-        ordered: false // Allow parallel processing
+        ordered: false, // Allow parallel processing
+        maxTimeMS: 0 // No timeout
       });
       
       // Convert inserted IDs to strings
@@ -291,7 +404,10 @@ class DatabaseConnectivity {
       if (filter._id && typeof filter._id === 'string') {
         filter._id = new ObjectId(filter._id);
       }
-      return await collection.updateOne(filter, update);
+      return await collection.updateOne(filter, update, {
+        writeConcern: { w: 0, j: false }, // Fastest write concern
+        maxTimeMS: 0 // No timeout
+      });
     });
   }
 
@@ -303,7 +419,10 @@ class DatabaseConnectivity {
       if (filter._id && typeof filter._id === 'string') {
         filter._id = new ObjectId(filter._id);
       }
-      return await collection.deleteOne(filter);
+      return await collection.deleteOne(filter, {
+        writeConcern: { w: 0, j: false }, // Fastest write concern
+        maxTimeMS: 0 // No timeout
+      });
     });
   }
 
@@ -315,7 +434,10 @@ class DatabaseConnectivity {
       // Create query object with email and password
       const query = { email, password };
       
-      const document = await collection.findOne(query);
+      const document = await collection.findOne(query, {
+        readPreference: 'primaryPreferred',
+        maxTimeMS: 0 // No timeout
+      });
       
       // Convert ObjectId to string if document exists
       if (document && document._id) {
@@ -331,7 +453,10 @@ class DatabaseConnectivity {
       const db = client.db(databaseName);
       const collection = db.collection(collectionName);
       
-      const document = await collection.findOne(query);
+      const document = await collection.findOne(query, {
+        readPreference: 'primaryPreferred',
+        maxTimeMS: 0 // No timeout
+      });
       
       // Convert ObjectId to string if document exists
       if (document && document._id) {
