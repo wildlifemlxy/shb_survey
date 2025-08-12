@@ -2,6 +2,7 @@ const { MongoClient, ObjectId } = require('mongodb');
 
 class DatabaseConnectivity {
   constructor() {
+    //ok
     // Use environment variable or fallback to hardcoded URI
     this.uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=1&appName=StrawHeadedBulbul&maxPoolSize=100&connectTimeoutMS=10000&serverSelectionTimeoutMS=10000&compressors=zlib&readPreference=primaryPreferred';
     this.client = null;
