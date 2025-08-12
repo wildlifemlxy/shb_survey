@@ -2,7 +2,8 @@ const { MongoClient, ObjectId } = require('mongodb');
 
 class DatabaseConnectivity {
   constructor() {
-    this.uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=1&appName=StrawHeadedBulbul&maxPoolSize=5&connectTimeoutMS=5000&serverSelectionTimeoutMS=5000&compressors=zlib&readPreference=primaryPreferred';
+    // Use environment variable or fallback to hardcoded URI
+    this.uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=1&appName=StrawHeadedBulbul&maxPoolSize=100&connectTimeoutMS=10000&serverSelectionTimeoutMS=10000&compressors=zlib&readPreference=primaryPreferred';
     this.client = null;
     this.connected = false;
     this.connectionPromise = null;
@@ -20,23 +21,23 @@ class DatabaseConnectivity {
     return DatabaseConnectivity.instance;
   }
 
-  // Azure-optimized client configuration for free tier
+  // Azure-optimized client configuration for MongoDB Atlas connectivity
   getClient() {
     if (!this.client) {
       this.client = new MongoClient(this.uri, {
-        maxPoolSize: 5,
-        minPoolSize: 1,
-        maxIdleTimeMS: 10000,
-        serverSelectionTimeoutMS: 3000,
-        socketTimeoutMS: 5000,
-        connectTimeoutMS: 3000,
+        maxPoolSize: 100,
+        minPoolSize: 10,
+        maxIdleTimeMS: 30000,
+        serverSelectionTimeoutMS: 10000,
+        socketTimeoutMS: 10000,
+        connectTimeoutMS: 10000,
         retryWrites: true,
         retryReads: false,
-        maxConnecting: 2,
+        maxConnecting: 15,
         family: 4,
         directConnection: false,
         compressors: ['zlib'],
-        readPreference: 'primaryPreferred',
+        readPreference: 'primary',
         readConcern: { level: 'local' },
         writeConcern: { w: 1, j: false }
       });
@@ -94,11 +95,11 @@ class DatabaseConnectivity {
             console.log("Attempting to connect to MongoDB Atlas...");
             const client = this.getClient();
             
-            // Azure-friendly connection timeout (longer for free tier)
+            // Longer timeouts for Azure-to-MongoDB Atlas connectivity
             await Promise.race([
                 client.connect(),
                 new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Connection timeout after 5s')), 5000)
+                    setTimeout(() => reject(new Error('Connection timeout after 15s')), 15000)
                 )
             ]);
             
@@ -106,7 +107,7 @@ class DatabaseConnectivity {
             await Promise.race([
                 client.db("admin").command({ ping: 1 }),
                 new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Ping timeout after 3s')), 3000)
+                    setTimeout(() => reject(new Error('Ping timeout after 10s')), 10000)
                 )
             ]);
             
