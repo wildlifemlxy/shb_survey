@@ -2,8 +2,8 @@ const { MongoClient, ObjectId } = require('mongodb');
 
 class DatabaseConnectivity {
   constructor() {
-    // Use environment variable or fallback to hardcoded URI optimized for high concurrency
-    this.uri = process.env.MONGODB_URI || 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=1&appName=StrawHeadedBulbul&maxPoolSize=60&connectTimeoutMS=60000&serverSelectionTimeoutMS=60000&compressors=zlib&readPreference=primaryPreferred&heartbeatFrequencyMS=60000&maxIdleTimeMS=120000';
+    // Use environment variable or fallback to hardcoded URI optimized for maximum performance
+    this.uri = process.env.MONGODB_URI || 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=0&appName=StrawHeadedBulbul&maxPoolSize=100&compressors=zlib&readPreference=primaryPreferred';
     this.client = null;
     this.connected = false;
     this.connectionPromise = null;
@@ -21,27 +21,27 @@ class DatabaseConnectivity {
     return DatabaseConnectivity.instance;
   }
 
-  // High-concurrency client configuration for 45+ concurrent connections
+  // Maximum performance client configuration - no timeouts
   getClient() {
     if (!this.client) {
       this.client = new MongoClient(this.uri, {
-        maxPoolSize: 60,              // Increased to handle 45+ connections
-        minPoolSize: 5,               // Keep some connections warm
-        maxIdleTimeMS: 120000,        // 2 minutes idle time
-        serverSelectionTimeoutMS: 60000,  // 60 seconds for server selection
-        socketTimeoutMS: 60000,       // 60 seconds for socket operations
-        connectTimeoutMS: 60000,      // 60 seconds for initial connection
+        maxPoolSize: 100,             // Maximum connections for optimal performance
+        minPoolSize: 10,              // Keep more connections warm
+        maxIdleTimeMS: 0,             // Never close idle connections
+        serverSelectionTimeoutMS: 0,  // No timeout for server selection
+        socketTimeoutMS: 0,           // No socket timeout
+        connectTimeoutMS: 0,          // No connection timeout
         retryWrites: true,
-        retryReads: true,             // Enable retry reads for better reliability
-        maxConnecting: 10,            // Allow more concurrent connections
+        retryReads: true,
+        maxConnecting: 20,            // Allow many concurrent connections
         family: 4,
         directConnection: false,
         compressors: ['zlib'],
         readPreference: 'primaryPreferred',
         readConcern: { level: 'local' },
-        writeConcern: { w: 1, j: false },
-        heartbeatFrequencyMS: 60000,
-        waitQueueTimeoutMS: 30000     // Wait up to 30s for connection from pool
+        writeConcern: { w: 0, j: false }, // Fastest write concern
+        heartbeatFrequencyMS: 10000,  // More frequent heartbeats for responsiveness
+        waitQueueTimeoutMS: 0         // No wait timeout
       });
     }
     return this.client;
@@ -69,11 +69,9 @@ class DatabaseConnectivity {
         
         for (let attempt = 0; attempt <= retries; attempt++) {
             try {
-                console.log(`Connection attempt ${attempt + 1}/${retries + 1}`);
                 return await this._connect();
             } catch (error) {
                 lastError = error;
-                console.error(`Connection attempt ${attempt + 1} failed:`, error.message);
                 
                 // Reset connection promise on failure
                 this.connectionPromise = null;
@@ -94,29 +92,17 @@ class DatabaseConnectivity {
 
     async _connect() {
         try {
-            console.log("Attempting to connect to MongoDB Atlas...");
             const client = this.getClient();
             
-            // Extended timeout for high-concurrency scenarios (30 seconds)
-            await Promise.race([
-                client.connect(),
-                new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Connection timeout after 30s')), 30000)
-                )
-            ]);
+            // Direct connection without timeouts for maximum performance
+            await client.connect();
             
-            // Test connection with ping (extended timeout)
-            await Promise.race([
-                client.db("admin").command({ ping: 1 }),
-                new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Ping timeout after 15s')), 15000)
-                )
-            ]);
+            // Test connection with ping - no timeout
+            await client.db("admin").command({ ping: 1 });
             
             this.connected = true;
             this.connectionReady = true;
             this.lastUsed = Date.now();
-            console.log("Successfully connected to MongoDB Atlas!");
             return "Connected to MongoDB Atlas!";
             
         } catch (error) {
@@ -138,42 +124,31 @@ class DatabaseConnectivity {
         }
     }
 
-  // High-concurrency operation wrapper with extended timeouts
-  async executeOperation(operation, retries = 2) {
+  // Maximum performance operation wrapper - no timeouts
+  async executeOperation(operation, retries = 3) {
     const operationId = Date.now().toString(36);
     
     try {
       this.activeOperations.add(operationId);
-      console.log(`[${operationId}] Starting operation (${this.activeOperations.size} active)`);
       
       // Always ensure fresh connection for reliability
       if (!this.connectionReady || !this.connected) {
-        console.log(`[${operationId}] Initializing connection`);
-        await this.initialize(2); // More retries for initial connection
+        await this.initialize(3); // More retries for maximum reliability
       }
       
       this.lastUsed = Date.now();
       
-      // Execute with extended timeout for high-concurrency scenarios
-      const result = await Promise.race([
-        operation(this.getClient()),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Operation timeout after 30s')), 30000)
-        )
-      ]);
+      // Execute operation without timeout for maximum performance
+      const result = await operation(this.getClient());
       
-      console.log(`[${operationId}] Operation completed successfully`);
       return result;
       
     } catch (error) {
-      console.error(`[${operationId}] Operation failed:`, error.message);
-      
-      // More aggressive retries for high-concurrency scenarios
+      // Aggressive retries for maximum reliability
       if (retries > 0 && this.isConnectionError(error)) {
-        console.log(`[${operationId}] Retrying (${retries} retries left)`);
         this.connectionReady = false;
         await this.close();
-        await new Promise(resolve => setTimeout(resolve, 500)); // Slightly longer delay
+        await new Promise(resolve => setTimeout(resolve, 100)); // Fast retry
         return this.executeOperation(operation, retries - 1);
       }
       
@@ -208,10 +183,8 @@ class DatabaseConnectivity {
     };
   }
 
-  // Batch operations optimized for high concurrency
-  async executeBatchOperations(operations, maxConcurrency = 15) {
-    console.log(`Executing ${operations.length} operations with max concurrency: ${maxConcurrency}`);
-    
+  // Maximum performance batch operations
+  async executeBatchOperations(operations, maxConcurrency = 25) {
     const results = [];
     const executing = [];
     
@@ -219,7 +192,7 @@ class DatabaseConnectivity {
       const operation = operations[i];
       
       // Create promise for this operation
-      const operationPromise = this.executeOperation(operation.fn, operation.retries || 2, operation.priority || 'normal')
+      const operationPromise = this.executeOperation(operation.fn, operation.retries || 3)
         .then(result => ({ index: i, success: true, result }))
         .catch(error => ({ index: i, success: false, error: error.message }));
       
@@ -236,7 +209,6 @@ class DatabaseConnectivity {
     // Sort results by original index
     results.sort((a, b) => a.index - b.index);
     
-    console.log(`Batch completed: ${results.filter(r => r.success).length} success, ${results.filter(r => !r.success).length} failed`);
     return results;
   }
 
@@ -266,14 +238,14 @@ class DatabaseConnectivity {
     }
   }
 
-  // Ultra-fast insert with better error handling
+  // Ultra-fast insert with maximum performance
   async insertDocument(databaseName, collectionName, document) {
     try {
       return await this.executeOperation(async (client) => {
         const db = client.db(databaseName);
         const collection = db.collection(collectionName);
         const result = await collection.insertOne(document, { 
-          writeConcern: { w: 1, j: false } 
+          writeConcern: { w: 0, j: false } // Fastest write concern - fire and forget
         });
         
         if (result.insertedId) {
@@ -291,7 +263,10 @@ class DatabaseConnectivity {
     return this.executeOperation(async (client) => {
       const db = client.db(databaseName);
       const collection = db.collection(collectionName);
-      const result = await collection.insertMany(documents);
+      const result = await collection.insertMany(documents, {
+        writeConcern: { w: 0, j: false }, // Fastest write concern
+        ordered: false // Allow parallel processing
+      });
       
       // Convert inserted IDs to strings
       if (result.insertedIds) {
@@ -334,7 +309,6 @@ class DatabaseConnectivity {
 
   async getDocument(databaseName, collectionName, email, password) {
     return this.executeOperation(async (client) => {
-      console.log("Retrieving document with email:", email, "and password:", password, "from collection:", collectionName);
       const db = client.db(databaseName);
       const collection = db.collection(collectionName);
       
@@ -342,7 +316,6 @@ class DatabaseConnectivity {
       const query = { email, password };
       
       const document = await collection.findOne(query);
-      console.log("Retrieved document:", document);
       
       // Convert ObjectId to string if document exists
       if (document && document._id) {
@@ -355,12 +328,10 @@ class DatabaseConnectivity {
 
   async findDocument(databaseName, collectionName, query) {
     return this.executeOperation(async (client) => {
-      console.log("Finding document with query:", query, "from collection:", collectionName);
       const db = client.db(databaseName);
       const collection = db.collection(collectionName);
       
       const document = await collection.findOne(query);
-      console.log("Found document:", document ? "Found" : "Not found", document);
       
       // Convert ObjectId to string if document exists
       if (document && document._id) {
@@ -374,12 +345,7 @@ class DatabaseConnectivity {
   async close() {
     try {
       if (this.client) {
-        await Promise.race([
-          this.client.close(),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Close timeout')), 1000)
-          )
-        ]);
+        await this.client.close();
       }
     } catch (error) {
       // Silent close errors for speed
@@ -391,20 +357,19 @@ class DatabaseConnectivity {
     }
   }
 
-  // Connection cleanup optimized for high-concurrency scenarios
+  // Minimal connection cleanup for maximum performance
   startConnectionCleanup() {
     if (this.cleanupInterval) return;
     
     this.cleanupInterval = setInterval(() => {
-      const IDLE_THRESHOLD = 300000; // 5 minutes (longer for high-concurrency)
+      const IDLE_THRESHOLD = 600000; // 10 minutes (longer for maximum performance)
       const hasActiveOperations = this.activeOperations.size > 0;
       const isIdle = (Date.now() - this.lastUsed) > IDLE_THRESHOLD;
       
       if (this.connected && !hasActiveOperations && isIdle) {
-        console.log("Closing idle connection to conserve resources");
         this.close();
       }
-    }, 120000); // Check every 2 minutes
+    }, 300000); // Check every 5 minutes
   }
 
   stopConnectionCleanup() {
@@ -416,15 +381,11 @@ class DatabaseConnectivity {
 
   // Graceful shutdown for concurrent processes
   async gracefulShutdown(maxWaitTime = 30000) {
-    console.log("Initiating graceful shutdown of MongoDB connection...");
-    
     // Stop accepting new operations
     this.stopConnectionCleanup();
     
     // Wait for active operations to complete
     if (this.activeOperations.size > 0) {
-      console.log(`Waiting for ${this.activeOperations.size} active operations to complete...`);
-      
       const startTime = Date.now();
       while (this.activeOperations.size > 0 && (Date.now() - startTime) < maxWaitTime) {
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -436,7 +397,6 @@ class DatabaseConnectivity {
     }
     
     await this.close();
-    console.log("Graceful shutdown completed");
   }
 }
 
