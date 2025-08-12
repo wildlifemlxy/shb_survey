@@ -1,4 +1,7 @@
-name:  WWF Straw Headed Bulbul (Backend) - Node + Express App 
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy Node.js app to Azure Web App - shb-backend
 
 on:
   push:
@@ -10,7 +13,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: read #This is required for actions/checkout
 
     steps:
       - uses: actions/checkout@v4
@@ -21,48 +24,42 @@ jobs:
           node-version: '22.x'
 
       - name: npm install, build, and test
-        working-directory: ./backend/node
         run: |
           npm install
           npm run build --if-present
-
-      - name: Zip artifact for deployment
-        working-directory: ./backend/node
-        run: zip release.zip ./* -r
+          npm run test --if-present
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: ./backend/node/release.zip
+          path: .
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
     permissions:
-      id-token: write
-      contents: read
+      id-token: write #This is required for requesting the JWT
+      contents: read #This is required for actions/checkout
 
     steps:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
           name: node-app
-
-      - name: Unzip artifact for deployment
-        run: unzip release.zip
-
+      
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_CBF5CE2220E749C48EDA6A7E538C6952 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_353E2606CCF945BFA6AD505BD1977D84 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_617C045DC6DF46259A2B49F2EC864E62 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_2BBC11C30423458495D2B9BC0E6A13A5 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_3CCFE7F988624D2EBA2AC840D4F532CC }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_2EBCCC9CDA82437C8E2EB41FCEB0F529 }}
 
-      - name: Deploy to Azure Web App
+      - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'shb-backend'
           slot-name: 'Production'
           package: .
+          
