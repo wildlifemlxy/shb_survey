@@ -38,8 +38,6 @@ class DataViewTab extends Component {
   }
 
 
-<<<<<<< Updated upstream
-=======
   // Handle data deletion (when rows are deleted)
   handleDataDelete = async (recordId) => {
     try {
@@ -72,7 +70,7 @@ class DataViewTab extends Component {
     this.setState({ data: updatedData });
     await tokenService.refreshTokenIfNeeded();
   }
->>>>>>> Stashed changes
+
   render() {
     const { onOpenNewSurveyModal } = this.props;
     const { currentView, data } = this.state;
@@ -102,23 +100,10 @@ class DataViewTab extends Component {
               onDataUpdate={this.handleDataUpdate}
               onDataDelete={this.handleDataDelete}
             />
-<<<<<<< Updated upstream
-          </div>
-          <div className="table-container">
-            {currentView === 'table' ? (
-              <ObservationTable 
-                data={data} handleDataDelete
-              />
-            ) : (
-              <PivotTable data={data} />
-            )}
-          </div>
-=======
           ) : (
             <PivotTable data={data} />
           )}
         </div>
->>>>>>> Stashed changes
       </div>
     );
   }

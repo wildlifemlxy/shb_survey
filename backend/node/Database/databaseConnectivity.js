@@ -22,23 +22,23 @@ class DatabaseConnectivity {
     return DatabaseConnectivity.instance;
   }
 
-  // Azure-optimized client configuration for MongoDB Atlas connectivity
+  // Azure-optimized client configuration for free tier
   getClient() {
     if (!this.client) {
       this.client = new MongoClient(this.uri, {
-        maxPoolSize: 100,
-        minPoolSize: 10,
-        maxIdleTimeMS: 30000,
-        serverSelectionTimeoutMS: 10000,
-        socketTimeoutMS: 10000,
-        connectTimeoutMS: 10000,
+        maxPoolSize: 5,
+        minPoolSize: 1,
+        maxIdleTimeMS: 10000,
+        serverSelectionTimeoutMS: 3000,
+        socketTimeoutMS: 5000,
+        connectTimeoutMS: 3000,
         retryWrites: true,
         retryReads: false,
-        maxConnecting: 15,
+        maxConnecting: 2,
         family: 4,
         directConnection: false,
         compressors: ['zlib'],
-        readPreference: 'primary',
+        readPreference: 'primaryPreferred',
         readConcern: { level: 'local' },
         writeConcern: { w: 1, j: false }
       });
@@ -96,11 +96,11 @@ class DatabaseConnectivity {
             console.log("Attempting to connect to MongoDB Atlas...");
             const client = this.getClient();
             
-            // Longer timeouts for Azure-to-MongoDB Atlas connectivity
+            // Azure-friendly connection timeout (longer for free tier)
             await Promise.race([
                 client.connect(),
                 new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Connection timeout after 15s')), 15000)
+                    setTimeout(() => reject(new Error('Connection timeout after 5s')), 5000)
                 )
             ]);
             
@@ -108,7 +108,7 @@ class DatabaseConnectivity {
             await Promise.race([
                 client.db("admin").command({ ping: 1 }),
                 new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Ping timeout after 10s')), 10000)
+                    setTimeout(() => reject(new Error('Ping timeout after 3s')), 3000)
                 )
             ]);
             

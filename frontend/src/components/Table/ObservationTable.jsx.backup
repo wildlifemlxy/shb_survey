@@ -977,53 +977,51 @@ constructor(props) {
 
       const serialNumber = currentPage * cardsPerPage + (i + 1);
 
-      return (
-        <div
-          key={i}
-          style={{
-            border: '1px solid #ccc',
-            borderRadius: '0.5rem',
-            padding: '0.75rem 1rem',
-            marginBottom: '1rem',
-            backgroundColor: cardBackgroundColor,
-            fontSize: '0.9rem',
-            lineHeight: '1.4',
-            height: 'auto',
-            maxHeight: '300px',
-            overflowY: 'auto',
-          }}
-        >
-          <div
-            onClick={() => this.toggleCard(i)}
-            style={{
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              paddingBottom: '0.5rem',
-            }}
-          >
-            <strong>S/N:</strong> {serialNumber}
-            <br />
-            <strong>Location:</strong> {obs.Location}
-            <br />
-            <strong>Date:</strong> {obs.Date}
-          </div>
+=======
+import ErrorBoundary from '../ErrorBoundary/ErrorBoundary';
+import {updateSurveyData, deleteSurveyData} from '../../data/shbData';
 
-          {isOpen && (
-            <div className="card-body">
-              <p><strong>Observer:</strong> {obs['Observer name'] || ''}</p>
-              <p><strong>Bird ID:</strong> {obs['SHB individual ID'] || ''}</p>
-              <p><strong>Activity:</strong> {obs["Activity (foraging, preening, calling, perching, others)"] || ''}</p>
-              <p><strong>Time:</strong> {this.convertExcelTime(obs.Time) || ''}</p>
-              <p><strong>Height of Tree:</strong> {obs["Height of tree/m"] != null && !isNaN(obs["Height of tree/m"]) ? `${obs["Height of tree/m"]}m` : ''}</p>
-              <p><strong>Height of Bird:</strong> {obs["Height of bird/m"] != null && !isNaN(obs["Height of bird/m"]) ? `${obs["Height of bird/m"]}m` : ''}</p>
-              <p><strong>Number of Bird(s):</strong> {obs["Number of Birds"] != null ? obs["Number of Birds"] : ''}</p>
-              <p><strong>Seen/Heard:</strong> {obs["Seen/Heard"] || ''}</p>
-            </div>
-          )}
-        </div>
-      );
-    });
-  }
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+class ObservationTable extends Component {
+constructor(props) {
+  super(props);
+  this.state = {
+    currentPage: 0,
+    cardsPerPage: 6,
+    searchQuery: '',
+    selectedLocation: 'All',
+    selectedSeenHeard: 'All',
+    filteredData: [],
+    openCardIndex: null,
+    sortField: 'Date', // Default sort field
+    sortDirection: 'default', // Three modes: 'asc', 'desc', 'default'
+    originalOrder: [] // To store original order for 'default' mode
+  };
+  
+  // Flag to prevent infinite update loops
+  this.isUpdating = false;
+  
+  // Location options for dropdown
+  this.locationOptions = [
+    'Bidadari Park',
+    'Bukit Timah Nature Park',
+    'Bukit Batok Nature Park',
+    'Gillman Barracks',
+    'Hindhede Nature Park',
+    'Mandai Boardwalk',
+    'Pulau Ubin',
+    'Rifle Range Nature Park',
+    'Rail Corridor (Kranji)',
+    'Rail Corridor (Hillview)',
+    'Rail Corridor (Bukit Timah)',
+    'Singapore Botanic Gardens',
+    'Springleaf Nature Park',
+    'Sungei Buloh Wetland Reserve',
+    'Windsor Nature Park',
+    'Others'
+  ];
+}
 
   // Custom Date Cell Editor Component
   DateCellEditor = React.forwardRef((props, ref) => {
@@ -1883,6 +1881,7 @@ constructor(props) {
 
       const serialNumber = currentPage * cardsPerPage + (i + 1);
 
+>>>>>>> Stashed changes
       return (
         <div
           key={i}
@@ -2075,6 +2074,8 @@ constructor(props) {
         </button>
       </div>
     );
+<<<<<<< Updated upstream
+=======
   }
 
   render() {
@@ -2463,7 +2464,445 @@ constructor(props) {
         </div>
       );
     }
+>>>>>>> Stashed changes
   }
 }
 
-export default ObservationTable;
+<<<<<<< Updated upstream
+  render() {
+    try {
+      const { data } = this.props;
+      const { searchQuery, selectedSeenHeard, filteredData, sortField, sortDirection } = this.state;
+      
+      // Safety check for data
+      const safeData = data || [];
+      const seenHeards = getUniqueSeenHeards(safeData);
+      const transformedData = this.getStableTransformedData();
+
+      // Check if user is not WWF-Volunteer to enable editing
+      const userRole = localStorage.getItem('userRole'); // Assuming user role is stored in localStorage
+      const isEditable = userRole !== 'WWF-Volunteer' && userRole !== null;
+      console.log('User role:', userRole, 'Editable:', isEditable);
+
+    const columns = [
+      { 
+        headerName: "S/N", 
+        field: "serialNumber",
+        width: 70,
+        sortable: false,
+        editable: false, // Serial number should never be editable
+      },
+      { 
+        headerName: "Observer", 
+        field: "Observer name", 
+        width: 300,
+        editable: isEditable
+      },
+      { 
+        headerName: "Bird ID", 
+        field: "SHB individual ID", 
+        width: 200,
+        editable: isEditable,
+        cellRenderer: (params) => {
+          if (!params.value || params.value === '') return '';
+          // Format bird IDs to ensure they follow SHBx format
+          return this.formatBirdId(params.value);
+        }
+      },
+      {
+        headerName: "Location",
+        field: "Location",
+        cellRenderer: (params) =>
+          params.value ? `${params.value}` : '',
+        width: 300,
+        editable: isEditable,
+        cellEditor: 'LocationCellEditor',
+        cellEditorParams: {
+          values: this.locationOptions
+        }
+      },
+      { 
+        headerName: "Number of Bird(s)", 
+        field: "Number of Birds",
+        cellRenderer: (params) => 
+          params.value != null && params.value !== '' ? params.value : '',
+        editable: isEditable,
+        cellEditor: 'agNumberCellEditor'
+      },
+      {
+        headerName: "Height of Tree",
+        field: "Height of tree/m",
+        cellRenderer: (params) => 
+          params.value != null && params.value !== '' && !isNaN(params.value) ? `${params.value}m` : '',
+        editable: isEditable,
+        cellEditor: 'agNumberCellEditor'
+      },
+      {
+        headerName: "Height of Bird",
+        field: "Height of bird/m",
+        cellRenderer: (params) => 
+          params.value != null && params.value !== '' && !isNaN(params.value) ? `${params.value}m` : '',
+        editable: isEditable,
+        cellEditor: 'agNumberCellEditor'
+      },
+      { 
+        headerName: "Date", 
+        field: "Date", 
+        cellRenderer: (params) => params.value ? this.formatDate(params.value) : '',
+        editable: isEditable,
+        cellEditor: this.DateCellEditor,
+        width: 120
+      },
+      {
+        headerName: "Time",
+        field: "Time",
+        cellRenderer: (params) => {
+          if (params.value == null || params.value === '') return '';
+          console.log('Time value:', params.value, 'Type:', typeof params.value);
+          const formattedTime = this.convertExcelTime(params.value);
+          console.log('Formatted time:', formattedTime);
+          return formattedTime;
+        },
+        width: 100,
+        editable: isEditable
+      },
+      {
+        headerName: "Activity",
+        field: "Activity",
+        cellRenderer: (params) => params.value || '',
+        width: 300,
+        editable: isEditable,
+        cellEditor: 'agSelectCellEditor',
+        cellEditorParams: {
+          values: ['Calling', 'Feeding', 'Perching', 'Preening', 'Others']
+        }
+      },
+      {
+        headerName: "Seen/Heard",
+        field: "Seen/Heard",
+        cellRenderer: (params) => params.value || '',
+        width: 300,
+        editable: isEditable,
+        cellEditor: 'agSelectCellEditor',
+        cellEditorParams: {
+          values: ['Seen', 'Heard', 'Not found']
+        }
+      },
+      // Add delete button column as the LAST column for non-WWF-Volunteer users
+      ...(isEditable ? [{
+        headerName: "Actions",
+        field: "actions",
+        width: 100,
+        sortable: false,
+        suppressHeaderMenuButton: true,
+        editable: false, // Actions column should never be editable
+        suppressKeyboardEvent: () => true, // Prevent keyboard events
+        suppressNavigable: true, // Make cell non-navigable
+        pinned: 'right',
+        cellRenderer: (params) => {
+          return (
+            <button
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Completely self-contained delete function - no dependencies on component state
+                const performDelete = async () => {
+                  try {
+                    alert('🔴 Delete button clicked for row:', params.data);
+                    console.log('🔴 Row ID:', params.data._id || params.data._rowId);
+                    
+                    // Extract and process record ID (convert buffer to string if needed)
+                    let recordId = params.data._id || params.data._rowId;
+                    if (!recordId) {
+                      alert('Cannot delete: No record ID found');
+                    }
+                    
+                    // Process record ID if it's a MongoDB ObjectId buffer
+                    if (recordId && typeof recordId === 'object' && recordId.buffer) {
+                      const buffer = recordId.buffer;
+                      recordId = Array.from(new Uint8Array(Object.values(buffer)))
+                        .map(b => b.toString(16).padStart(2, '0'))
+                        .join('');
+                      console.log('🔴 Converted ObjectId buffer to string:', recordId);
+                    }
+
+                    
+                    console.log('🔴 User confirmed deletion, proceeding...');
+                    console.log('🗑️ Calling deleteSurveyData with ID:', recordId);
+                    
+                    // Call the delete function directly - imported at top of file
+                    const deleteResult = await deleteSurveyData(recordId);
+                    
+                    console.log('🗑️ Delete result:', deleteResult);
+                    
+                    if (deleteResult && deleteResult.success) {
+                      console.log('✅ Row deleted successfully:', deleteResult.message);
+                      alert('Record deleted successfully!');
+                    } else {
+                      const errorMsg = deleteResult?.message || 'Unknown error occurred';
+                      console.error('❌ Failed to delete row:', errorMsg);
+                      alert(`Failed to delete record: ${errorMsg}`);
+                    }
+                    
+                  } catch (error) {
+                    console.error('💥 Error in delete operation:', error);
+                    alert(`Error deleting record: ${error.message}`);
+                  }
+                };
+                
+                // Execute the delete function
+                performDelete();
+              }}
+              style={{
+                backgroundColor: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '4px 8px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                marginTop: '2px',
+              }}
+              title="Delete this row"
+            >
+              Delete
+            </button>
+          );
+        }
+      }] : [])
+    ];
+
+    return (
+      <>
+        <div className="ag-theme-alpine" style={{ height: '50vh', width: '100%' }}>
+          <ErrorBoundary>
+            <AgGridReact
+              columnDefs={columns}
+              rowData={transformedData}
+              components={{
+                LocationCellEditor: this.LocationCellEditor
+              }}
+              domLayout="normal"
+              pagination={true}
+              defaultColDef={{
+                sortable: true,
+                resizable: true,
+            }}
+            paginationPageSize={(() => {
+              try {
+                const dataLength = transformedData?.length || 0;
+                const allowedSizes = [20, 50, 100, 200, 500];
+                
+                // If no data, default to smallest size
+                if (dataLength === 0) {
+                  return allowedSizes[0]; // 20
+                }
+                
+                // Find the smallest allowed size that can accommodate all data
+                const appropriateSize = allowedSizes.find(size => size >= dataLength);
+                
+                // If no size is large enough (more than 500 items), use the largest size
+                return appropriateSize || allowedSizes[allowedSizes.length - 1]; // 500
+              } catch (error) {
+                console.error('Error calculating pagination size:', error);
+                return 50; // Safe fallback
+              }
+            })()}
+            paginationPageSizeSelector={[20, 50, 100, 200, 500]}
+            suppressScrollOnNewData={true}
+            suppressMaintainUnsortedOrder={true}
+            suppressCellFocus={!isEditable} // Allow cell focus if editable
+            suppressRowHoverHighlight={false}
+            maintainColumnOrder={true}
+            suppressAnimationFrame={true}
+            singleClickEdit={isEditable}
+            stopEditingWhenCellsLoseFocus={true}
+            getRowId={(params) => {
+              // Ensure we return a string ID, not an object
+              if (params.data._id) {
+                if (typeof params.data._id === 'string') {
+                  return params.data._id;
+                } else if (params.data._id && params.data._id.buffer) {
+                  // Handle MongoDB ObjectId buffer format
+                  return JSON.stringify(params.data._id);
+                } else {
+                  return String(params.data._id);
+                }
+              }
+              if (params.data._rowId) {
+                return String(params.data._rowId);
+              }
+              return String(params.node.rowIndex);
+            }}
+            onCellValueChanged={async (event) => {
+              // Handle cell value changes when editing
+              let recordId = event.data._id || event.data._rowId;
+              
+              // Convert MongoDB ObjectId buffer to string if needed
+              if (recordId && typeof recordId === 'object' && recordId.buffer) {
+                // This is a MongoDB ObjectId buffer, convert to hex string
+                const buffer = recordId.buffer;
+                recordId = Array.from(new Uint8Array(Object.values(buffer)))
+                  .map(b => b.toString(16).padStart(2, '0'))
+                  .join('');
+                console.log('🔧 Converted ObjectId buffer to string:', recordId);
+              } else if (recordId && typeof recordId === 'object') {
+                // Try to stringify if it's still an object
+                recordId = JSON.stringify(recordId);
+                console.log('🔧 Stringified object ID:', recordId);
+              }
+              
+              console.log('Cell value changed:', {
+                recordId: recordId,
+                originalId: event.data._id,
+                field: event.colDef.field,
+                oldValue: event.oldValue,
+                newValue: event.newValue,
+                rowIndex: event.node.rowIndex
+              });
+              
+              // Auto-update logic for Bird ID and Number of Birds synchronization
+              let updatedRowData = { 
+                ...event.data,
+                [event.colDef.field]: event.newValue 
+              };
+              
+              // If Bird ID field was changed, automatically update Number of Birds
+              if (event.colDef.field === 'SHB individual ID') {
+                const birdIdValue = event.newValue || '';
+                if (birdIdValue.trim() !== '') {
+                  // Count unique bird IDs from the formatted value
+                  const formattedBirdIds = this.formatBirdId(birdIdValue);
+                  const uniqueBirdIds = formattedBirdIds
+                    .split(',')
+                    .map(id => id.trim())
+                    .filter(id => id !== '')
+                    .filter((id, index, array) => array.indexOf(id) === index); // Remove duplicates
+                  
+                  const birdCount = uniqueBirdIds.length;
+                  console.log('🔄 Auto-updating Number of Birds:', { 
+                    originalBirdId: birdIdValue, 
+                    formattedBirdIds, 
+                    uniqueBirdIds, 
+                    count: birdCount 
+                  });
+                  
+                  // Update both the Bird ID and Number of Birds
+                  updatedRowData['SHB individual ID'] = formattedBirdIds;
+                  updatedRowData['Number of Birds'] = birdCount;
+                  
+                  // Update the grid cell visually for Number of Birds
+                  setTimeout(() => {
+                    const gridApi = event.api;
+                    const rowNode = event.node;
+                    rowNode.setDataValue('Number of Birds', birdCount);
+                  }, 50);
+                } else {
+                  // If Bird ID is empty, set Number of Birds to empty/null
+                  updatedRowData['Number of Birds'] = null;
+                  setTimeout(() => {
+                    const gridApi = event.api;
+                    const rowNode = event.node;
+                    rowNode.setDataValue('Number of Birds', null);
+                  }, 50);
+                }
+              }
+              
+              // If Number of Birds was manually changed, validate it against Bird ID count
+              if (event.colDef.field === 'Number of Birds') {
+                const birdIdValue = event.data['SHB individual ID'] || '';
+                if (birdIdValue.trim() !== '') {
+                  const formattedBirdIds = this.formatBirdId(birdIdValue);
+                  const uniqueBirdIds = formattedBirdIds
+                    .split(',')
+                    .map(id => id.trim())
+                    .filter(id => id !== '')
+                    .filter((id, index, array) => array.indexOf(id) === index);
+                  
+                  const actualBirdCount = uniqueBirdIds.length;
+                  const enteredCount = parseInt(event.newValue) || 0;
+                  
+                  if (enteredCount !== actualBirdCount) {
+                    console.log('⚠️ Warning: Number of Birds (' + enteredCount + ') does not match unique Bird IDs count (' + actualBirdCount + ')');
+                    // You could show a warning to the user here
+                    // For now, we'll let the user's manual entry take precedence
+                  }
+                }
+              }
+              
+              try {
+                console.log('🔄 Attempting to update survey data:', { recordId, updatedRowData });
+                const result = await updateSurveyData(recordId, updatedRowData);
+                console.log('🔄 Update result:', result);
+                
+                if (result.success) {
+                  console.log('✅ Survey updated successfully:', result.message);
+                } else {
+                  console.error('❌ Survey update failed:', result.message);
+                  // You might want to revert the change or show an error message
+                }
+              } catch (updateError) {
+                console.error('💥 Error updating survey:', updateError);
+                // You might want to revert the change or show an error message
+              }
+            }}
+            getRowStyle={params => {
+              let backgroundColor = '#f9f9f9';  // Default light gray
+
+              // Adjust row background based on "Seen/Heard"
+              switch (params.data["Seen/Heard"]) {
+                case "Seen":
+                  backgroundColor = '#A8E6CF';  // Soft pastel green
+                  break;
+                case "Heard":
+                  backgroundColor = '#FFE0B2';  // Soft pastel orange
+                  break;
+                case "Not found":
+                  backgroundColor = '#E0E0E0';  // Soft pastel grey
+                  break;
+              }
+
+              return { backgroundColor };  // Apply background color to the row
+            }}
+            />
+          </ErrorBoundary>
+        </div>
+        {/* Legend below the table */}
+        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', marginTop: '1rem', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ display: 'inline-block', width: 18, height: 18, background: '#A8E6CF', borderRadius: 3, border: '1px solid #ccc' }}></span>
+            <span>Seen</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ display: 'inline-block', width: 18, height: 18, background: '#FFE0B2', borderRadius: 3, border: '1px solid #ccc' }}></span>
+            <span>Heard</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ display: 'inline-block', width: 18, height: 18, background: '#E0E0E0', borderRadius: 3, border: '1px solid #ccc' }}></span>
+            <span>Not found</span>
+          </div>
+        </div>
+      </>
+    );
+    } catch (error) {
+      console.error('Error in ObservationTable render:', error);
+      return (
+        <div style={{ padding: '20px', textAlign: 'center', color: 'red' }}>
+          <h3>Error loading table</h3>
+          <p>There was an error loading the observation table. Please try refreshing the page.</p>
+          <details style={{ marginTop: '10px', textAlign: 'left' }}>
+            <summary>Error Details</summary>
+            <pre style={{ background: '#f8f8f8', padding: '10px', borderRadius: '4px', fontSize: '12px' }}>
+              {error.toString()}
+            </pre>
+          </details>
+        </div>
+      );
+    }
+  }
+}
+=======
+>>>>>>> Stashed changes
+
+export default ObservationTable;                
