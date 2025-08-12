@@ -3,7 +3,7 @@ const { MongoClient, ObjectId } = require('mongodb');
 class DatabaseConnectivity {
   constructor() {
     // Use environment variable or fallback to hardcoded URI optimized for maximum performance
-    this.uri = process.env.MONGODB_URI || 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=0&appName=StrawHeadedBulbul&maxPoolSize=100&compressors=zlib&readPreference=primaryPreferred';
+    this.uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=0&appName=StrawHeadedBulbul&maxPoolSize=100&compressors=zlib&readPreference=primaryPreferred';
     this.client = null;
     this.connected = false;
     this.connectionPromise = null;
