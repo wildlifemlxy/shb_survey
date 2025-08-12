@@ -47,14 +47,26 @@
 @media (max-width: 768px) {
   .maintenance-panel {
     width: 280px !important;
-    right: 90px !important; /* Adjusted for no overlap */
+    right: 110px !important; /* Adjusted for no overlap with chat */
   }
   
   .maintenance-bot-button {
     width: 50px !important;
     height: 50px !important;
     bottom: 15px !important;
-    right: 90px !important; /* Moved left to avoid export button */
+    right: 110px !important; /* Moved further left to avoid chat bot */
     font-size: 20px !important;
+  }
+}
+
+/* Chat Window Animations */
+@keyframes typing {
+  0%, 80%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
   }
 }

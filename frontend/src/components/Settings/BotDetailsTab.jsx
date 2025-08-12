@@ -1,5 +1,7 @@
 import React from 'react';
 import axios from 'axios';
+import tokenService from '../../utils/tokenService';
+import { getBotGroups } from '../../data/botData';
 import BotChatTabs from './BotChatTabs'; // Adjust the import path as necessary
 
 const BASE_URL =
@@ -29,14 +31,19 @@ class BotDetailsTab extends React.Component {
     }
     const token = bot.token;
     this.setState({ selectedBot, shownBot: selectedBot, groupData: null, groupLoading: true, groupError: null });
+    
     try {
-      const res = await axios.post(`${BASE_URL}/telegram`, {
-        purpose: 'getBotGroups',
-        token
-      });
-      console.log('Response from Bots:', res.data.groups);
-      this.setState({ groupData: res.data.groups, groupLoading: false, selectedBot: '' });
+      // Use the centralized getBotGroups function
+      const result = await getBotGroups(token);
+      
+      console.log('Response from getBotGroups:', result);
+      if (result.success && result.groups) {
+        this.setState({ groupData: result.groups, groupLoading: false, selectedBot: '' });
+      } else {
+        throw new Error(result.error || 'Failed to fetch bot groups');
+      }
     } catch (err) {
+      console.error('Error in handleSelect:', err);
       this.setState({ groupError: err.message || 'Failed to fetch group info.', groupLoading: false });
     }
   };
@@ -45,13 +52,40 @@ class BotDetailsTab extends React.Component {
   fetchChatHistory = async (token, chatId) => {
     this.setState({ chatHistoryLoading: true, chatHistory: null, chatHistoryError: null });
     try {
-      const res = await axios.post(`${BASE_URL}/telegram`, {
+      // Check if user is authenticated
+      if (!tokenService.isTokenValid()) {
+        this.setState({ chatHistoryError: 'Authentication required', chatHistoryLoading: false });
+        return;
+      }
+
+      // Generate client RSA key pair for encryption
+      const keyPair = await tokenService.generateRSAKeyPair();
+      const clientPublicKey = await tokenService.exportPublicKey(keyPair.publicKey);
+      
+      // Make authenticated request with client-side public key encryption
+      const response = await tokenService.axiosPost(`${BASE_URL}/telegram`, {
         purpose: 'getChatHistory',
         token,
-        chatId
+        chatId,
+        clientPublicKey
       });
-      this.setState({ chatHistory: res.data.data, chatHistoryLoading: false });
+      
+      // Decrypt the response if it's encrypted
+      let responseData;
+      if (response.data && response.data.encryptedData) {
+        responseData = await tokenService.decryptBotResponse(response.data, keyPair.privateKey);
+      } else {
+        responseData = response.data;
+      }
+      
+      console.log('Response from getChatHistory:', responseData);
+      if (responseData.success && responseData.data) {
+        this.setState({ chatHistory: responseData.data, chatHistoryLoading: false });
+      } else {
+        throw new Error('Failed to fetch chat history');
+      }
     } catch (err) {
+      console.error('Error in fetchChatHistory:', err);
       this.setState({ chatHistoryError: err.message || 'Failed to fetch chat history.', chatHistoryLoading: false });
     }
   };

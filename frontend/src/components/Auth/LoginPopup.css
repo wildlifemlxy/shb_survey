@@ -1,0 +1,238 @@
+/* Updated LoginPopup styles */
+.login-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.3s ease-out;
+  padding: 20px; /* Add padding to prevent content from touching edges */
+  overflow-y: auto; /* Allow scrolling if content is too tall */
+}
+
+.login-card {
+  background: white !important;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 420px;
+  max-height: calc(100vh - 40px); /* Ensure it fits within viewport with padding */
+  padding: 2.5rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  position: relative;
+  animation: slideInUp 0.4s ease-out;
+  text-align: center;
+  margin: auto; /* Center the card */
+  overflow-y: auto; /* Allow scrolling within the card if needed */
+  display: flex;
+  flex-direction: column;
+}
+
+.login-close-button {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  border: none;
+  color: #6b7280 !important;
+  background-color: transparent;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+  font-size: 1rem;
+}
+
+.login-close-button:hover {
+    background-color: transparent !important;
+    color: #ff0000 !important;
+}
+
+.login-close-button:active {
+    border: none
+}
+
+.login-button-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  align-self: center;
+}
+
+.login-clear-button {
+  background: #f3f4f6;
+  color: #4b5563;
+  border: none;
+  border-radius: 8px;
+  padding: 0.875rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.login-clear-button:hover:not(:disabled) {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+/* Login button styles */
+.login-button {
+  border: none;
+  border-radius: 8px;
+  padding: 0.875rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: white;
+}
+
+.login-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+}
+
+.login-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Form Group styles */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px; /* Decreased from the default (likely around 8px or 0.5rem) */
+  margin-bottom: 10px; /* Add a small margin between form groups */
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem; /* Decreased from the default (likely 1.5rem) */
+}
+
+.login-logo {
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+  border-radius: 12px;
+  border: none;
+  box-shadow: none; /* Explicitly remove box shadow */
+}
+
+.form-group label {
+  font-size: 0.9rem;
+  color: #374151; /* Gray-700 */
+  font-weight: 500;
+}
+
+.form-group input {
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    color: #374151; /* Gray-700 */
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid green;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-bottom: 2px solid green;
+}
+
+/* PIN input box specific overrides */
+.pin-input-box {
+    color: #000000 !important;
+    border: 2px solid #e9ecef !important; /* Ensure border is visible */
+    border-radius: 6px !important;
+    padding: 0 !important;
+    margin: 2px !important; /* Add small margin to prevent border cutting */
+    box-sizing: border-box !important;
+    background-color: white !important;
+}
+
+.pin-input-box:focus {
+    color: #000000 !important;
+    border: 2px solid #00B8EA !important; /* Blue border on focus */
+    background-color: #f0f9ff !important;
+}
+
+/* Loading spinner styles */
+.loading-spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.spinner {
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Bot detection challenge styles */
+.bot-challenge {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.bot-challenge h4 {
+    color: #856404;
+    margin-bottom: 0.5rem;
+    font-size: 14px;
+}
+
+.bot-challenge p {
+    color: #856404;
+    font-size: 13px;
+    margin-bottom: 0.5rem;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Slide in up animation */
+@keyframes slideInUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}

@@ -11,6 +11,8 @@ import MapViewTab from '../Tabs/MapView/MapViewTab';
 import DataViewTab from '../Tabs/DataView/DataViewTab';
 import ChartsViewTab from '../Tabs/ChartsView/ChartsViewTab';
 
+// Import modal components
+import AddEventModal from '../Events/Type/AddEventModal';
 
 // Import filter component
 import FilterSection from '../Filters/FilterSection';
@@ -37,8 +39,10 @@ class DashboardContainer extends Component {
       validCoordinates: [],
       filteredData: props.shbData || [],
       currentDateTime: this.getFormattedDateTime(),
+      showAddEventModal: false,
     };
     this.timer = null;
+    this.isUpdating = false; // Flag to prevent infinite loops
   }
 
   getFormattedDateTime = () => {
@@ -53,24 +57,51 @@ class DashboardContainer extends Component {
   }
 
   componentDidMount() {
-    this.updateDataFromProps();
+    // Initialize data from props
+    if (this.props.shbData && this.props.shbData.length > 0) {
+      this.updateDataFromProps();
+    }
+    
+    // Start the timer for date/time updates
     this.timer = setInterval(() => {
       this.setState({ currentDateTime: this.getFormattedDateTime() });
     }, 1000);
   }
 
   componentWillUnmount() {
-    if (this.timer) clearInterval(this.timer);
+    // Clear the timer
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+    
+    // Reset the updating flag
+    this.isUpdating = false;
   }
 
   componentDidUpdate(prevProps) {
-    if (prevProps.shbData !== this.props.shbData) {
-      this.updateDataFromProps();
+    // Only update if shbData actually changed and is different
+    if (prevProps.shbData !== this.props.shbData && this.props.shbData) {
+      // Use a flag to prevent infinite loops
+      if (!this.isUpdating) {
+        this.isUpdating = true;
+        this.updateDataFromProps();
+        // Reset the flag after state update is complete
+        setTimeout(() => {
+          this.isUpdating = false;
+        }, 0);
+      }
     }
   }
 
   updateDataFromProps = () => {
     const { shbData } = this.props;
+    
+    // Early return if no data
+    if (!shbData || shbData.length === 0) {
+      return;
+    }
+    
     const uniqueLocations = getUniqueLocations(shbData);
     const uniqueActivities = getUniqueActivity(shbData);
     const validCoordinates = getValidCoordinates(shbData);
@@ -78,12 +109,18 @@ class DashboardContainer extends Component {
     const locationsWithAll = ["All Locations", ...uniqueLocations];
     const activitiesWithAll = ["All Activities", ...uniqueActivities];
 
-    this.setState({
+    // Only update state if data has actually changed
+    const stateUpdate = {
       filteredData: shbData,
       locations: locationsWithAll,
       activities: activitiesWithAll,
       validCoordinates: validCoordinates,
-    }, this.applyFilters);
+    };
+    
+    this.setState(stateUpdate, () => {
+      // Apply filters after state update is complete
+      this.applyFilters();
+    });
   };
 
   // Filter methods
@@ -101,6 +138,12 @@ class DashboardContainer extends Component {
 
   applyFilters = () => {
     const { shbData } = this.props;
+    
+    // Early return if no data or currently updating
+    if (!shbData || shbData.length === 0 || this.isUpdating) {
+      return;
+    }
+    
     const filters = {
       filterLocation: this.state.filterLocation,
       filterActivity: this.state.filterActivity,
@@ -119,7 +162,10 @@ class DashboardContainer extends Component {
       });
     }
     
-    this.setState({ filteredData: filtered });
+    // Only update state if filtered data has actually changed
+    if (JSON.stringify(filtered) !== JSON.stringify(this.state.filteredData)) {
+      this.setState({ filteredData: filtered });
+    }
   };
 
   // Tab navigation
@@ -129,11 +175,12 @@ class DashboardContainer extends Component {
     handleTabChange(tab);
   };
 
-
-
-
-
-
+  // Handle after save for AddEventModal
+  handleAfterSave = () => {
+    // Close the modal after saving
+    this.setState({ showAddEventModal: false });
+    // Could add additional logic here if needed
+  };
 
   exportExcel = async () => {
     const { filteredData } = this.state;
@@ -304,6 +351,7 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
       validCoordinates,
       showPopup,
       isDownloading,
+      showAddEventModal,
     } = this.state;
 
     const standardizedFilteredData = standardizeCoordinates(filteredData);
@@ -334,11 +382,11 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
         </header>
         {/* Filters Section */}
         <FilterSection
-          locations={locations}
-          activities={activities}
+          locations={locations || []}
+          activities={activities || []}
           initialLocation={filterLocation}
           initialActivity={filterActivity}
-          data={filteredData}
+          data={filteredData || []}
           onFilterChange={this.handleFilterChange}
           onSearchChange={this.handleSearchChange}
         />
@@ -346,6 +394,7 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
         <section className="dashboard-tabs">
           <div className="tabs-container">
             <button 
+              key="overview-tab"
               className={`tab-button ${activeTab === 'overview' ? 'active' : ''}`}
               onClick={() => this.setActiveTab('overview')}
             >
@@ -353,6 +402,7 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
               <span style={{ marginLeft: 8 }}>Overview</span>
             </button>
             <button 
+              key="charts-tab"
               className={`tab-button ${activeTab === 'charts' ? 'active' : ''}`}
               onClick={() => this.setActiveTab('charts')}
             >
@@ -360,6 +410,7 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
               <span style={{ marginLeft: 8 }}>Data Visualizations</span>
             </button>
             <button 
+              key="map-tab"
               className={`tab-button ${activeTab === 'map' ? 'active' : ''}`}
               onClick={() => this.setActiveTab('map')}
             >
@@ -367,6 +418,7 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
               <span style={{ marginLeft: 8 }}>Map View</span>
             </button>
             <button 
+              key="data-tab"
               className={`tab-button ${activeTab === 'data' ? 'active' : ''}`}
               onClick={() => this.setActiveTab('data')}
             >
@@ -394,6 +446,8 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
           {activeTab === 'map' && (
             <MapViewTab 
               data={standardizedValidCoordinates}
+              openObservationPopup={this.props.openObservationPopup}
+              closeObservationPopup={this.props.closeObservationPopup}
             />
           )}
           
@@ -470,6 +524,14 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
               </button>
             </div>
           </div>
+        )}
+
+        {/* Add Event Modal */}
+        {showAddEventModal && (
+          <AddEventModal
+            onClose={() => this.setState({ showAddEventModal: false })}
+            onSave={this.handleAfterSave}
+          />
         )}
       </div>
     );

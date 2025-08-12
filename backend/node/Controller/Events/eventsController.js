@@ -106,6 +106,31 @@ class EventsController {
       }
     }
 
+    async deleteEvent(eventId) {
+      const db = new DatabaseConnectivity();
+      try {
+        await db.initialize();
+        const databaseName = "Straw-Headed-Bulbul";
+        const collectionName = "Survey Events";
+        const filter = { _id: eventId };
+        const result = await db.deleteDocument(databaseName, collectionName, filter);
+        return {
+          success: true,
+          result,
+          message: 'Event deleted successfully'
+        };
+      } catch (err) {
+        console.error('Error deleting event:', err);
+        return {
+          success: false,
+          message: 'Error deleting event',
+          error: err.message
+        };
+      } finally {
+        await db.close();
+      }
+    }
+
   // Save the Telegram messageId and chatId for an event
   async saveTelegramMessageId(eventId, chatId, messageId) {
     const db = new DatabaseConnectivity();

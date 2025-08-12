@@ -9,6 +9,7 @@ import SystemHealthStatus from './SystemHealthStatus';
 import QuickActionsPanel from './QuickActionsPanel';
 import StatusMessages from './StatusMessages';
 import LastMaintenanceInfo from './LastMaintenanceInfo';
+import SHBSurveyAssistant from './SHBSurveyAssistant';
 
 const BASE_URL =
   window.location.hostname === 'localhost'
@@ -34,7 +35,12 @@ class MaintenanceBotButton extends Component {
       showExportActions: false,
       exportStatus: 'idle', // idle, exporting, completed, error
       currentPage: null,
-      activeDashboardTab: 'overview' // Track active dashboard tab
+      activeDashboardTab: 'overview', // Track active dashboard tab
+      // Chat functionality
+      showChat: false,
+      messages: [
+        { id: 1, text: "🤖 Hello! I'm the SHB Survey Assistant. How can I help you today?", sender: 'bot', timestamp: new Date() }
+      ]
     };
   }
 
@@ -356,61 +362,18 @@ class MaintenanceBotButton extends Component {
     });
   };
 
-  exportCurrentPage = async (format) => {
-    console.log(`Starting export with format: ${format}`);
-    console.log(`Current state:`, {
-      currentPage: this.state.currentPage,
-      activeDashboardTab: this.state.activeDashboardTab,
-      exportStatus: this.state.exportStatus
-    });
-    
-    this.setState({ exportStatus: 'exporting' });
-    
+  exportCurrentPage = async (format) => {    
     try {
-      if (format === 'excel') {
-        console.log('Starting Excel export...');
-        await this.exportExcel();
-      } else if (format === 'pdf') {
-        console.log('Starting PDF export...');
-        await this.exportPDF();
-      } else if (format === 'backup') {
-        console.log('Starting backup export...');
-        // For backup on dashboard, determine export type based on active tab
-        if (this.state.currentPage === 'dashboard') {
-          const activeTab = this.state.activeDashboardTab; // Use state instead of detecting again
-          console.log(`Backup export with active tab: ${activeTab}`); // Debug log
-          
-          if (activeTab === 'dataTable') {
-            // Data Table tab → Export as Excel
-            console.log('Backup: Exporting Data Table as Excel...');
-            await this.exportExcel();
-          } else {
-            // Overview, Visualization, Map View tabs → Export complete dashboard as PDF
-            console.log('Backup: Exporting dashboard as PDF...');
-            await this.exportPDF();
-          }
-        } else {
-          // Non-dashboard pages → Export as PDF
-          console.log('Backup: Exporting non-dashboard page as PDF...');
-          await this.exportPDF();
-        }
-        
-        // Always run backup task regardless of export type
-        console.log('Running backend backup task...');
-        try {
-          await this.runBackupTask();
-          console.log('Backup task completed successfully');
-        } catch (backupError) {
-          console.warn('Backend backup failed, but continuing with export:', backupError);
-          // Don't throw the error - allow export to complete even if backup fails
-        }
+      await this.exportExcel();
+      // Always run backup task regardless of export type
+      console.log('Running backend backup task...');
+      try {
+        await this.runBackupTask();
+        console.log('Backup task completed successfully');
+      } catch (backupError) {
+        console.warn('Backend backup failed, but continuing with export:', backupError);
+        // Don't throw the error - allow export to complete even if backup fails
       }
-      
-      console.log('Export completed successfully');
-      this.setState({ exportStatus: 'completed' });
-      setTimeout(() => {
-        this.setState({ exportStatus: 'idle' });
-      }, 3000);
     } catch (error) {
       console.error('Export failed:', error);
       console.error('Error details:', {
@@ -991,27 +954,26 @@ class MaintenanceBotButton extends Component {
   };
 
   exportExcel = async () => {
+    console.log('Preparing to export data to Excel...');
     // Only works for dashboard with data
     if (this.state.currentPage !== 'dashboard') {
       throw new Error('Excel export only available on Dashboard');
     }
-    
+
+    console.log('Starting Excel export...', this.state.currentPage);
+
     // Try to get data from props first (preferred method)
-    let observationData = null;
-    if (this.props.shbData && Array.isArray(this.props.shbData)) {
-      observationData = this.props.shbData;
-      console.log(`Using shbData prop with ${observationData.length} records`);
+    let observationData = [];
+    if (this.props.shbData) {
+      observationData = this.props.shbData.surveys;
+    } else {
+      observationData = [];
+      console.warn('No valid observation data found for export. Export will be empty.');
     }
-    
-    // If no props data, try to scrape from DOM as fallback
-    if (!observationData || observationData.length === 0) {
-      console.log('No shbData prop found, trying to scrape table from DOM');
-      return this.exportTableFromDOM();
-    }
-    
+
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Observation Data');
-    
+
     // Dynamically extract all unique keys from the observation data
     const allKeys = new Set();
     observationData.forEach(record => {
@@ -1243,217 +1205,6 @@ class MaintenanceBotButton extends Component {
     saveAs(new Blob([buffer]), fileName);
   };
 
-  // Fallback method to scrape table from DOM
-  exportTableFromDOM = async () => {
-    // Try multiple selectors to find table data - prioritize observation data table
-    const tableSelectors = [
-      // Specific selectors for observation data table
-      '.observation-data table',
-      '.observation-table table',
-      'table[class*="observation"]',
-      'table[id*="observation"]',
-      // Generic table selectors
-      '.data-table table',
-      '.table-container table',
-      '.dashboard-table table',
-      'table',
-      '.ant-table table',
-      '.MuiTable-root',
-      '[role="table"]',
-      '.table',
-      '.data-grid table',
-      '.survey-table table'
-    ];
-    
-    let dataElement = null;
-    for (const selector of tableSelectors) {
-      dataElement = document.querySelector(selector);
-      if (dataElement && dataElement.querySelectorAll('tr').length > 0) {
-        console.log(`Found table using selector: ${selector}`);
-        break;
-      }
-    }
-    
-    if (!dataElement) {
-      // If no table found, show error message
-      console.error('No table data found to export');
-      alert('No table data found to export. Please ensure you are on a page with data table.');
-      return;
-    }
-    
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Observation Data');
-    
-    const startRowIndex = 1; // Data starts at row 1 (no legend)
-    
-    // Extract table data with better error handling
-    let rows;
-    try {
-      rows = Array.from(dataElement.querySelectorAll('tr'));
-      console.log(`Found ${rows.length} table rows`);
-    } catch (error) {
-      console.error('Error extracting table rows:', error);
-      throw new Error('Failed to extract table data');
-    }
-    
-    // Process data with improved handling for observation data
-    const data = rows.map((row, rowIndex) => {
-      const cells = Array.from(row.querySelectorAll('th, td'));
-      console.log(`Row ${rowIndex}: ${cells.length} cells`);
-      return cells.map(cell => {
-        // Get text content and clean it up
-        let text = cell.textContent || cell.innerText || '';
-        text = text.trim().replace(/\s+/g, ' '); // Normalize whitespace
-        
-        // Handle special cases for observation data
-        if (text.includes('m') && /^\d+m$/.test(text)) {
-          // Keep height measurements as is (e.g., "20m", "12m")
-          return text;
-        }
-        
-        return text;
-      });
-    }).filter(row => row.length > 0 && row.some(cell => cell.length > 0)); // Filter out empty rows
-    
-    console.log(`Processed ${data.length} data rows`);
-    
-    // Extract headers from the first row (since there are 2 header rows)
-    let headers = [];
-    if (data.length > 0 && data[0].length > 0) {
-      headers = data[0]; // Use first row as headers
-      console.log('Extracted headers from DOM:', headers);
-    } else {
-      // Fallback to predefined headers if extraction fails
-      headers = [
-        'Observer', 
-        'Bird ID',
-        'Location',
-        'Number of Bird(s)',
-        'Height of Tree',
-        'Height of Bird',
-        'Date',
-        'Time',
-        'Activity',
-        'Seen/Heard'
-      ];
-      console.log('Using fallback headers');
-    }
-    
-    // Remove the first 2 rows from the data (both header rows)
-    const processedData = data.slice(2);
-    
-    // Set up columns with appropriate headers for observation data
-    if (processedData.length > 0) {
-      worksheet.columns = headers.map((header, index) => {
-        let width = 20; // default width
-        
-        // Adjust column widths based on header content
-        if (header.toLowerCase().includes('observer')) {
-          width = 25;
-        } else if (header.toLowerCase().includes('location')) {
-          width = 30;
-        } else if (header.toLowerCase().includes('date')) {
-          width = 15;
-        } else if (header.toLowerCase().includes('bird id')) {
-          width = 12;
-        } else if (header.toLowerCase().includes('s/n')) {
-          width = 8;
-        }
-        
-        return {
-          header: header,
-          key: `col${index}`,
-          width: width
-        };
-      });
-      
-      // Add header row first at the designated start row
-      const headerRow = worksheet.getRow(startRowIndex);
-      headers.forEach((header, index) => {
-        headerRow.getCell(index + 1).value = header;
-      });
-      
-      // Add data rows with styling (using processedData which already has first 2 rows removed)
-      processedData.forEach((row, index) => {
-        const dataRow = worksheet.getRow(startRowIndex + 1 + index);
-        row.forEach((cell, cellIndex) => {
-          dataRow.getCell(cellIndex + 1).value = cell;
-        });
-        
-        // Check if this row contains Seen/Heard data for special styling
-        const seenHeardValue = row.find(cell => 
-          cell?.toString().toLowerCase() === 'seen' || 
-          cell?.toString().toLowerCase() === 'heard' || 
-          cell?.toString().toLowerCase() === 'not found' ||
-          cell?.toString().toLowerCase() === 'notfound'
-        )?.toString().toLowerCase();
-        
-        // Determine row styling based on Seen/Heard value
-        let rowFillColor = { argb: 'FFFFFFFF' }; // Default white
-        let rowFontColor = { argb: 'FF000000' }; // Black font
-        
-        if (seenHeardValue === 'seen') {
-          rowFillColor = { argb: 'FFA8E6CF' }; // Light green for "Seen" - matches UI
-        } else if (seenHeardValue === 'heard') {
-          rowFillColor = { argb: 'FFFFE0B2' }; // Light orange for "Heard" - matches UI
-        } else if (seenHeardValue === 'not found' || seenHeardValue === 'notfound') {
-          rowFillColor = { argb: 'FFE0E0E0' }; // Light gray for "Not found" - matches UI
-        } else {
-          // Apply alternating row colors for other values
-          if (index % 2 === 0) {
-            rowFillColor = { argb: 'FFFFFFFF' }; // Even rows - white background
-          } else {
-            rowFillColor = { argb: 'FFE6F3FF' }; // Odd rows - light blue background
-          }
-        }
-        
-        // Apply styling to entire row
-        dataRow.eachCell(cell => {
-          cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: rowFillColor
-          };
-          cell.font = { color: rowFontColor };
-          cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-          };
-        });
-      });
-    }
-    
-    // Style header row
-    const domHeaderRow = worksheet.getRow(startRowIndex);
-    domHeaderRow.eachCell(cell => {
-      cell.font = { bold: true, color: { argb: 'FF333333' } };
-      cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FFB3B3B3' }
-      };
-      cell.alignment = { vertical: 'middle', horizontal: 'center' };
-      cell.border = {
-        top: { style: 'thin' },
-        left: { style: 'thin' },
-        bottom: { style: 'thin' },
-        right: { style: 'thin' }
-      };
-    });
-    
-    // Generate filename with timestamp
-    const now = new Date();
-    const timestamp = `${String(now.getDate()).padStart(2, '0')}${String(now.getMonth() + 1).padStart(2, '0')}${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-    const fileName = `Observation Data ${timestamp}.xlsx`;
-    
-    const buffer = await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer]), fileName);
-  };
-
-
-  
   // Helper method to extract text content from an element
   extractTextFromElement = (element) => {
     const texts = [];
@@ -1539,7 +1290,7 @@ class MaintenanceBotButton extends Component {
     if (systemHealth.performance === 'slow') {
       return '#f59e0b'; // yellow
     }
-    return '#10b981'; // green
+    return '#ffffff'; // green
   };
 
   // Force refresh tab detection (useful for ensuring UI updates)
@@ -1763,8 +1514,43 @@ class MaintenanceBotButton extends Component {
     }
   }
 
+  // Chat functionality methods
+  handleChatToggle = () => {
+    this.setState(prevState => ({ 
+      showChat: !prevState.showChat,
+      isOpen: false // Close the maintenance bot popup when chat opens
+    }));
+  }
+
+  handleSendMessage = (message) => {
+    const { messages } = this.state;
+    const newUserMessage = {
+      id: Date.now(),
+      text: message,
+      sender: 'user',
+      timestamp: new Date()
+    };
+
+    this.setState({
+      messages: [...messages, newUserMessage]
+    });
+  }
+
+  handleBotResponse = (response) => {
+    const newBotMessage = {
+      id: Date.now() + 1,
+      text: response,
+      sender: 'bot',
+      timestamp: new Date()
+    };
+
+    this.setState(prevState => ({
+      messages: [...prevState.messages, newBotMessage]
+    }));
+  }
+
   render() {
-    const { isOpen, maintenanceStatus, lastMaintenance, activeTasks, systemHealth, showQuickActions, isHidden, showExportActions, exportStatus, currentPage, activeDashboardTab } = this.state;
+    const { isOpen, maintenanceStatus, lastMaintenance, activeTasks, systemHealth, showQuickActions, isHidden, showExportActions, exportStatus, currentPage, activeDashboardTab, showChat, messages } = this.state;
     const statusColor = this.getStatusColor();
     const exportType = currentPage === 'dashboard' && activeDashboardTab === 'dataTable' ? 'Excel' : 'PDF';
     const isDataTableTab = currentPage === 'dashboard' && activeDashboardTab === 'dataTable';
@@ -1776,6 +1562,16 @@ class MaintenanceBotButton extends Component {
     if (isHidden) return null;
     return (
       <>
+        {/* SHB Survey Assistant Chat Component */}
+        <SHBSurveyAssistant 
+          showChat={showChat}
+          onChatToggle={this.handleChatToggle}
+          messages={messages}
+          onSendMessage={this.handleSendMessage}
+          onBotResponse={this.handleBotResponse}
+          currentPage={currentPage}
+        />
+
         {/* Floating Button with image icon */}
         <div className={`maintenance-bot-container ${isHidden ? 'hidden' : ''}`}>
           <button
@@ -1785,7 +1581,7 @@ class MaintenanceBotButton extends Component {
             style={{
               position: 'fixed',
               bottom: 20,
-              right: 100,
+              right: 110, /* Moved further right to avoid chat bot */
               width: 60,
               height: 60,
               borderRadius: '50%',
@@ -1818,7 +1614,7 @@ class MaintenanceBotButton extends Component {
               style={{
                 position: 'fixed',
                 bottom: 90,
-                right: 100,
+                right: 110, /* Moved to align with button */
                 width: 320,
                 background: 'white',
                 borderRadius: 12,
@@ -1864,7 +1660,7 @@ class MaintenanceBotButton extends Component {
                   currentUser={this.props.currentUser}
                   onToggleQuickActions={() => this.setState(prev => ({ showQuickActions: !prev.showQuickActions }))}
                   onBackup={() => this.exportCurrentPage('backup')}
-                  onChatbot={() => alert('Chatbot feature coming soon!')}
+                  onChatbot={this.handleChatToggle}
                   backupDisabled={
                     currentPage !== 'dashboard' ||
                     !isDataTableTab ||
@@ -1878,6 +1674,7 @@ class MaintenanceBotButton extends Component {
                       : (currentPage === 'dashboard' && isDataTableTab && window.dataViewCurrentView === 'pivot')
                         ? 'Export is not supported for Pivot View.'
                         : backupTooltip
+                 
                   }
                 />
                 {/* Status Messages */}

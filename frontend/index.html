@@ -2,15 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/bird-logo.png" />
+    <link rel="icon" type="image/jpeg" href="WWF Logo/WWF Logo Small.jpg" />
     <!-- Set viewport for 1.0 scale, ensuring it's responsive -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <!--<meta http-equiv="Content-Security-Policy" content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval'; style-src 'self' 'unsafe-inline'; media-src *;**script-src 'self' http://onlineerp.solution.quebec 'unsafe-inline' 'unsafe-eval';** ">-->
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <title>Straw-Headed Bulbul</title>
     <!--<script src="https://apis.google.com/js/api.js"></script>-->
-  </head>
-  <body>
-    <div id="root" style="width: 100%;"></div>
     <script type="module" src="/src/main.jsx"></script>
 
     <!-- OneSignal SDK -->
@@ -37,8 +36,15 @@
 
           // Force the prompt if not already subscribed
           const permission = await OneSignal.Notification.permission;
+          console.log("OneSignal permission status:", permission);
           if (permission !== "granted") {
-            await OneSignal.User.PushSubscription.optIn();
+           if (OneSignal.User && OneSignal.User.PushSubscription && OneSignal.User.PushSubscription.optIn) {
+              await OneSignal.User.PushSubscription.optIn();
+            }
+            // Fallback: show slidedown prompt (works on most browsers, including Safari)
+            if (OneSignal.showSlidedownPrompt) {
+              OneSignal.showSlidedownPrompt();
+            }
           }
         } catch (error) {
           console.error("OneSignal init error:", error);
@@ -59,5 +65,16 @@
         };
       });
     </script>
+    <style>
+      .onesignal-bell-container {
+        z-index: 99999 !important;
+        bottom: 24px !important;
+        right: 24px !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" style="width: 100%;"></div>
+    
   </body>
 </html>

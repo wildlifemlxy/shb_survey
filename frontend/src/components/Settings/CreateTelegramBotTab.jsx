@@ -1,5 +1,7 @@
 import React from 'react';
 import axios from 'axios';
+import tokenService from '../../utils/tokenService';
+import { getBotInfo, createBot } from '../../data/botData';
 import PopupModal from './PopupModal';
 
 const BASE_URL =
@@ -26,33 +28,23 @@ class CreateTelegramBotTab extends React.Component {
   handleTokenBlur = async () => {
     const { token } = this.state;
     if (!token) return;
+    
     this.setState({ status: 'loading' });
-    try {
-      const result = await axios.post(`${BASE_URL}/telegram`, {
-        purpose: 'getBotInfo',
-        token
+    
+    const result = await getBotInfo(token);
+    console.log('Bot info result:', result);
+    
+    if (result.success) {
+      this.setState({
+        name: result.data.name,
+        desc: result.data.desc,
+        status: null
       });
-      console.log('Telegram bot info:', result.data);
-      if (result.data && result.data.ok) {
-        let { username, first_name } = result.data.result;
-        // Format username: replace _ with space and capitalize each word
-        if (username) {
-          username = username.replace(/_/g, ' ')
-            .replace(/\b\w/g, c => c.toUpperCase());
-          username = username.charAt(0).toUpperCase() + username.slice(1);
-          // Replace 'Shb' with 'SHB' if present at the start or as a word
-          username = username.replace(/\bShb\b/g, 'SHB');
-        }
-        this.setState({
-          name: username || '',
-          desc: first_name || '',
-          status: null
-        });
-      } else {
-        this.setState({ status: 'error' });
-      }
-    } catch {
-      this.setState({ status: 'error' });
+    } else {
+      this.setState({ 
+        status: 'error', 
+        error: result.error 
+      });
     }
   };
 
@@ -68,17 +60,13 @@ class CreateTelegramBotTab extends React.Component {
       return;
     }
     this.setState({ status: 'loading', validation: {} });
-    try {
-      const result = await axios.post(`${BASE_URL}/telegram`, {
-        purpose: 'createBot',
-        name,
-        description: desc,
-        token
-      });
-      if (result.status === 200 || result.status === 201) this.setState({ status: 'success' });
-      else this.setState({ status: 'error' });
-    } catch {
-      this.setState({ status: 'error' });
+    
+    const result = await createBot(name, desc, token);
+    
+    if (result.success) {
+      this.setState({ status: 'success' });
+    } else {
+      this.setState({ status: 'error', error: result.error });
     }
   };
 

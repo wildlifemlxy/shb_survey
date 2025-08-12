@@ -58,6 +58,7 @@ class DateLineChart extends Component {
   };
 
   componentDidMount() {
+    const data = this.props.data;
     // Initialize TensorFlow if ML panel is shown
     if (this.state.showMLPanel) {
       this.initTensorFlow();
@@ -571,7 +572,8 @@ class DateLineChart extends Component {
         
         {isLoadingML ? (
           <div className="ml-loading">
-            <div className="ml-loading-text">Analyzing data with AI...</div>            <div className="ml-progress-bar">
+            <div className="ml-loading-text">Analyzing data with AI...</div>            
+              <div className="ml-progress-bar">
               <div
                 className="ml-progress-fill"
                 style={{ width: `${trainingProgress}%` }}
@@ -790,6 +792,7 @@ class DateLineChart extends Component {
     const { data } = this.props;
     const { showMLPanel, predictions, anomalies, showReportPanel } = this.state;
     let dateData = countByMonthYear(data);
+    console.log("Date Data:", dateData);
     
     // If we have predictions, append them to the chart data
     if(showMLPanel === true)
@@ -812,21 +815,19 @@ class DateLineChart extends Component {
         dateData = combinedData;
       }
     }
-
-    // Prepare monthly summary data for the report
-    const monthlyRaw = countByMonthYear(data);
     const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    const monthlyData = monthlyRaw.map(row => ({
+    const monthlyData = dateData.map(row => ({
       month: monthNames[parseInt(row.monthYear.split('-')[0], 10) - 1] + ' ' + row.monthYear.split('-')[1],
       total: row.Total,
       seen: row.Seen,
       heard: row.Heard,
       notFound: row.NotFound
     }));
-    const total = monthlyRaw.reduce((sum, r) => sum + r.Total, 0);
-    const seen = monthlyRaw.reduce((sum, r) => sum + r.Seen, 0);
-    const heard = monthlyRaw.reduce((sum, r) => sum + r.Heard, 0);
-    const notFound = monthlyRaw.reduce((sum, r) => sum + r.NotFound, 0);
+    console.log("Monthly Data:", monthlyData);
+    const total = dateData.reduce((sum, r) => sum + r.Total, 0);
+    const seen = dateData.reduce((sum, r) => sum + r.Seen, 0);
+    const heard = dateData.reduce((sum, r) => sum + r.Heard, 0);
+    const notFound = dateData.reduce((sum, r) => sum + r.NotFound, 0);
     const seenPercent = total ? Math.round((seen / total) * 100) : 0;
     const heardPercent = total ? Math.round((heard / total) * 100) : 0;
     const notFoundPercent = total ? Math.round((notFound / total) * 100) : 0;
@@ -860,8 +861,8 @@ class DateLineChart extends Component {
         </div>
 
         <div className="line-chart-container">
-          <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={dateData}>
+          <ResponsiveContainer width="100%" height={450}>
+          <LineChart data={dateData} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis
               dataKey="monthYear"
@@ -870,34 +871,52 @@ class DateLineChart extends Component {
                 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
                 return `${monthNames[parseInt(month) - 1]} ${year}`; // "MMM YYYY"
               }}
+              angle={-45}
+              textAnchor="end"
+              height={80}
+              interval={0}
               tick={({ x, y, payload, index }) => {
-                const monthYear = payload.value; // Get the value of the tick (MM-YYYY)
-                const [month, year] = monthYear.split('-'); // Split the month and year
-            
-                // Generate a color palette using Chroma.js
-                const colorPalette = chroma.scale('Set1')
-                                    .mode('hsl')
-                                    .colors(dateData.length);
-                                    
-                // Find if this is a prediction point
+                const monthYear = payload.value;
+                const [month, year] = monthYear.split('-');
+                
+                // Color palette for different months
+                const colors = [
+                  '#FF6B6B', // Red
+                  '#4ECDC4', // Teal
+                  '#45B7D1', // Blue
+                  '#96CEB4', // Green
+                  '#FFEAA7', // Yellow
+                  '#DDA0DD', // Plum
+                  '#98D8C8', // Mint
+                  '#F7DC6F', // Light Yellow
+                  '#BB8FCE', // Light Purple
+                  '#85C1E9', // Light Blue
+                  '#F8C471', // Orange
+                  '#82E0AA'  // Light Green
+                ];
+                
+                const monthIndex = parseInt(month) - 1;
+                const color = colors[monthIndex % colors.length];
+                
+                const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                const monthLabel = `${monthNames[monthIndex]} ${year}`;
+                
+                // Check if this is a prediction point
                 const dataPoint = dateData.find(item => item.monthYear === monthYear);
                 const isPrediction = dataPoint && dataPoint.isPrediction;
                 
-                const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                const month1 = `${monthNames[parseInt(month) - 1]} ${year}`; // "MMM YYYY"
-                const labelColor = isPrediction ? '#6366F1' : colorPalette[index % colorPalette.length];
-
                 return (
                   <text
                     x={x}
                     y={y + 10}
-                    textAnchor="middle"
-                    fill={labelColor}
-                    fontSize="13"
+                    textAnchor="end"
+                    fill={color}
+                    fontSize="12"
                     fontWeight={isPrediction ? 'bold' : 'normal'}
                     fontStyle={isPrediction ? 'italic' : 'normal'}
+                    transform={`rotate(-45 ${x} ${y + 10})`}
                   >
-                    {month1}{isPrediction ? '*' : ''}
+                    {monthLabel}{isPrediction ? ' *' : ''}
                   </text>
                 );
               }}

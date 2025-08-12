@@ -4,6 +4,13 @@ import PivotTable from '../../Table/PivotTable';
 import ViewToggle from '../../Table/ViewToggle';
 import '../../../css/components/Tabs/DataViewTab.css';
 import NewSurveyButton from './NewSurveyButton';
+import axios from 'axios';
+import tokenService from '../../../utils/tokenService';
+
+const BASE_URL =
+  window.location.hostname === 'localhost'
+    ? 'http://localhost:3001'
+    : 'https://shb-backend.azurewebsites.net';
 
 class DataViewTab extends Component {
   constructor(props) {
@@ -29,6 +36,7 @@ class DataViewTab extends Component {
       window.dataViewCurrentView = viewType;
     }
   }
+
 
 <<<<<<< Updated upstream
 =======
@@ -98,7 +106,9 @@ class DataViewTab extends Component {
           </div>
           <div className="table-container">
             {currentView === 'table' ? (
-              <ObservationTable data={data} />
+              <ObservationTable 
+                data={data} handleDataDelete
+              />
             ) : (
               <PivotTable data={data} />
             )}

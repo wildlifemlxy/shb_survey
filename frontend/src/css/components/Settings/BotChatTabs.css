@@ -62,7 +62,8 @@
   margin-top: 0;
   width: 100%;
   height: auto;
-  max-height: calc(100vh - 140px);
+  min-height: 750px; /* Increased to accommodate larger chat */
+  max-height: none; /* Removed height restriction */
   box-sizing: border-box;
   overflow: visible;
   display: flex;
@@ -72,9 +73,11 @@
 /* Telegram Chat Container */
 .telegram-chat-container {
   width: 100%;
-  max-width: 800px;
-  min-height: 300px;
-  max-height: calc(100vh - 240px);
+  max-width: 1200px; /* Increased from 800px to 1200px */
+  min-width: 900px; /* Added minimum width to ensure it stays wide */
+  min-height: 600px; /* Increased from 300px to 600px */
+  height: 700px; /* Fixed height to ensure consistency */
+  max-height: 700px; /* Fixed max height */
   background: #ffffff;
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);

@@ -1,0 +1,236 @@
+/* ObserverInfoSection.css */
+
+.observer-info-section {
+  margin-bottom: 30px;
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.observer-form-group {
+  margin-bottom: 20px;
+}
+
+.observer-form-label {
+  display: block;
+  font-weight: 500;
+  font-size: 0.95rem;
+  margin-bottom: 5px;
+  color: #333;
+}
+
+.observer-form-label.has-error {
+  color: #dc3545;
+}
+
+.observer-form-control {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #495057;
+  background-color: #fff;
+  background-clip: padding-box;
+  border: 1px solid #ced4da;
+  border-radius: 0.25rem;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.observer-form-control:focus {
+  color: #495057;
+  background-color: #fff;
+  border-color: #80bdff;
+  outline: 0;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.observer-form-control.has-error {
+  border-color: #dc3545;
+  background-color: rgba(220, 53, 69, 0.05);
+}
+
+.observer-form-control.has-error:focus {
+  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+/* Basic calendar picker styling */
+input::-webkit-calendar-picker-indicator {
+  opacity: 1;
+  width: 18px;
+  height: 18px;
+}
+
+/* Basic calendar picker styling */
+input::-webkit-calendar-picker-indicator {
+  opacity: 1;
+  width: 18px;
+  height: 18px;
+}
+
+/* Observer name row styling */
+.observer-name-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  gap: 10px;
+}
+
+.observer-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid #ced4da;
+  background-color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s;
+}
+
+.add-btn {
+  background-color: #28a745;
+  color: white;
+  border: none;
+}
+
+.add-btn:hover {
+  background-color: #218838;
+}
+
+.remove-btn {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+}
+
+.remove-btn:hover {
+  background-color: #c82333;
+}
+
+/* Error message styling */
+.observer-error-message {
+  color: #dc3545;
+  font-size: 0.85rem;
+  margin-top: 5px;
+  display: block;
+}
+
+/* Observer name entries */
+.observer-names-container {
+  margin-bottom: 15px;
+}
+
+.observer-name-entry {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.observer-name-input {
+  flex: 1;
+}
+
+.observer-name-actions {
+  margin-left: 10px;
+  display: flex;
+  gap: 5px;
+}
+
+.btn-add-observer,
+.btn-remove-observer {
+  padding: 5px 10px !important;
+  border-radius: 4px !important;
+  border: none !important;
+  cursor: pointer !important;
+  font-size: 21px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background-color 0.2s !important;
+  background: none !important; /* Reset background */
+}
+
+.btn-add-observer {
+  color: #28a745 !important;
+}
+
+.btn-remove-observer {
+  color: #dc3545 !important;
+}
+
+/* Location selector */
+.location-select-container {
+  position: relative;
+}
+
+.location-select {
+  width: 100%;
+  padding-right: 30px; /* Space for the dropdown icon */
+}
+
+/* Date picker */
+.date-picker-container {
+  position: relative;
+}
+
+.date-picker {
+  width: 100%;
+}
+
+/* Number of observations */
+.number-input-container {
+  display: flex;
+  align-items: center;
+}
+
+.number-controls {
+  display: flex;
+  margin-left: 10px;
+}
+
+.btn-number-control {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  cursor: pointer;
+  font-size: 16px;
+  margin: 0 2px;
+  transition: background-color 0.2s;
+}
+
+.btn-number-control:hover {
+  background: #e0e0e0;
+}
+
+/* Error message display */
+.error-message {
+  color: #dc3545;
+  font-size: 0.85rem;
+  margin-top: 5px;
+  display: block;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .observer-form-group {
+    margin-bottom: 12px;
+  }
+  
+  .observer-form-label {
+    font-size: 0.9rem;
+  }
+  
+  .observer-form-control {
+    font-size: 0.9rem;
+    padding: 7px 10px;
+  }
+}

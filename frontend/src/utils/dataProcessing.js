@@ -1,3 +1,17 @@
+// Function to convert Excel serial date to JavaScript Date
+const convertExcelSerialDate = (serialDate) => {
+  // Excel's epoch is January 1, 1900, but it incorrectly considers 1900 as a leap year
+  // JavaScript Date epoch is January 1, 1970
+  // Excel serial date 1 = January 1, 1900
+  // There are 25569 days between January 1, 1900 and January 1, 1970
+  const excelEpoch = new Date(1900, 0, 1);
+  const jsEpoch = new Date(1970, 0, 1);
+  const daysBetween = Math.floor((jsEpoch - excelEpoch) / (24 * 60 * 60 * 1000));
+  
+  // Convert serial date to JavaScript Date
+  return new Date((serialDate - daysBetween) * 24 * 60 * 60 * 1000);
+};
+
 // Function to get a unique set of location names
 export const getUniqueLocations = (data) => {
 const locations = new Set(); // Set automatically ensures uniqueness
@@ -112,10 +126,14 @@ export const countByMonthYear = (data) => {
 
   data.forEach(observation => {
     let date;
+    console.log("Processing observation:", observation.Date);
 
     // Handle date conversion based on input format
     if (typeof observation.Date === 'number') {
       date = convertExcelSerialDate(observation.Date);
+    } else if (typeof observation.Date === 'string' && observation.Date.match(/\d{4}-\d{1,2}-\d{1,2}/)) {
+      // Handle 'YYYY-MM-DD' format
+      date = new Date(observation.Date);
     } else if (typeof observation.Date === 'string' && observation.Date.includes('/')) {
       const [day, month, year] = observation.Date.split('/');
       date = new Date(`${year}-${month}-${day}`);
@@ -157,27 +175,57 @@ export const countByMonthYear = (data) => {
   });
 
   // Merge seen, heard, and not found counts and calculate total
-  const result = [];
   const allMonthYears = new Set([
     ...Object.keys(seenCounts),
     ...Object.keys(heardCounts),
     ...Object.keys(notFoundCounts),
   ]);
 
-  allMonthYears.forEach(monthYear => {
-    const seen = seenCounts[monthYear]?.Seen || 0;
-    const heard = heardCounts[monthYear]?.Heard || 0;
-    const notFound = notFoundCounts[monthYear]?.NotFound || 0;
-    const total = seen + heard + notFound;
-
-    result.push({
+  // Convert monthYear strings to Date objects for sorting and fill gaps
+  const monthYearDates = Array.from(allMonthYears).map(monthYear => {
+    const [month, year] = monthYear.split('-').map(Number);
+    return {
       monthYear,
-      Seen: seen,
-      Heard: heard,
-      NotFound: notFound,
-      Total: total
-    });
+      date: new Date(year, month - 1, 1) // month is 0-indexed in Date constructor
+    };
   });
+
+  // Sort by date
+  monthYearDates.sort((a, b) => a.date - b.date);
+  
+  console.log("Original months with data:", monthYearDates.map(d => d.monthYear));
+
+  // Fill in missing months between earliest and latest dates
+  const result = [];
+  if (monthYearDates.length > 0) {
+    const startDate = monthYearDates[0].date;
+    const endDate = monthYearDates[monthYearDates.length - 1].date;
+    
+    console.log("Date range:", startDate.toISOString().slice(0, 7), "to", endDate.toISOString().slice(0, 7));
+    
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      const monthYear = `${currentDate.getMonth() + 1}-${currentDate.getFullYear()}`;
+      
+      const seen = seenCounts[monthYear]?.Seen || 0;
+      const heard = heardCounts[monthYear]?.Heard || 0;
+      const notFound = notFoundCounts[monthYear]?.NotFound || 0;
+      const total = seen + heard + notFound;
+
+      result.push({
+        monthYear,
+        Seen: seen,
+        Heard: heard,
+        NotFound: notFound,
+        Total: total
+      });
+
+      // Move to next month
+      currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+  }
+  
+  console.log("Final result with all months:", result.map(r => `${r.monthYear} (Total: ${r.Total})`));
 
   return result;
 };

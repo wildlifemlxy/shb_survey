@@ -869,12 +869,12 @@ class LocationStats extends Component {
               <span role="img" aria-label="AI">🧠</span>
               {showInsightsPanel ? 'Hide Insights' : 'AI Insights'}
             </button>*/}
-            <button
+            {/*<button
               onClick={this.toggleLegend}
               className={`chart-button ${showLegend ? 'active' : 'primary'}`}
             >
               {showLegend ? 'Hide Legend' : 'Show Legend'}
-            </button>
+            </button>*/}
           </div>
         </div>
 
@@ -933,7 +933,7 @@ class LocationStats extends Component {
                     activeIndex={activeIndex}
                     activeShape={this.renderActiveShape}
                     label={({ name, percent, x, y, index }) => {
-                      const label = `${name}: ${(percent * 100).toFixed(1)}%`;
+                      const label = `${name} (${(percent * 100).toFixed(1)}%)`;
                       const fontSize = 10;
                       const fontWeight = 'bold';
                       

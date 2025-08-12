@@ -1,9 +1,8 @@
 import React, { Component } from 'react';
 import MarkerClusterGroup from 'react-leaflet-markercluster';
-import { Marker, Popup } from 'react-leaflet';
+import { Marker } from 'react-leaflet';
 import L from 'leaflet';
 import './ObservationMarkerCluster.css';
-import ObservationPopup from '../../ObservationPopup';
 
 // Custom iconCreateFunction for gradient backgrounds by cluster size
 const iconCreateFunction = (cluster) => {
@@ -26,32 +25,59 @@ const iconCreateFunction = (cluster) => {
 };
 
 class ObservationMarkerCluster extends Component {
+  handleMarkerClick = (marker) => (e) => {
+    const { onMarkerClick } = this.props;
+    if (onMarkerClick) {
+      // Get the pixel position of the marker for popup positioning
+      const map = e.target._map;
+      const point = map.latLngToContainerPoint(e.latlng);
+      
+      // Get the map container's offset relative to the viewport
+      const mapContainer = map.getContainer();
+      const mapRect = mapContainer.getBoundingClientRect();
+      
+      const position = {
+        x: mapRect.left + point.x,
+        y: mapRect.top + point.y
+      };
+      
+      console.log('Cluster marker clicked - position:', position, 'point:', point, 'mapRect:', mapRect);
+      onMarkerClick(marker, position);
+    }
+  };
+
   render() {
-    const { markers, seenIcon, heardIcon, onMarkerClick, selectedObs } = this.props;
+    const { markers, seenIcon, heardIcon, notFoundIcon } = this.props;
     return (
       <MarkerClusterGroup iconCreateFunction={iconCreateFunction}>
-        {markers.map((obs, idx) => (
-          <Marker
-            key={idx}
-            position={[obs.Lat, obs.Long]}
-            icon={obs["Seen/Heard"] === 'Heard' ? heardIcon : seenIcon}
-            eventHandlers={{
-              click: () => {
-                if (onMarkerClick) onMarkerClick(obs);
-              }
-            }}
-          />
-        ))}
-        {/* Render popup for selected marker */}
-        {selectedObs && (
-          <Popup
-            position={[selectedObs.Lat, selectedObs.Long]}
-            onClose={() => onMarkerClick(null)}
-            className="observation-popup"
-          >
-            <ObservationPopup obs={selectedObs} />
-          </Popup>
-        )}
+        {markers.map((obs, idx) => {
+          // Normalize the seen/heard value for consistent icon selection
+          const seenHeardValue = (obs["Seen/Heard"] || '').toLowerCase().trim();
+          
+          let selectedIcon = seenIcon; // Default to seen icon
+          if (seenHeardValue === 'heard') {
+            selectedIcon = heardIcon;
+          } else if (seenHeardValue === 'not found') {
+            selectedIcon = notFoundIcon;
+          }
+          
+          // Create stable key using multiple fallbacks
+          const markerKey = obs._id || 
+                           obs.id || 
+                           `${obs.Location}-${obs.Lat}-${obs.Long}` ||
+                           `marker-${idx}-${obs.Lat}-${obs.Long}`;
+          
+          return (
+            <Marker
+              key={markerKey}
+              position={[obs.Lat, obs.Long]}
+              icon={selectedIcon}
+              eventHandlers={{
+                click: this.handleMarkerClick(obs)
+              }}
+            />
+          );
+        })}
       </MarkerClusterGroup>
     );
   }

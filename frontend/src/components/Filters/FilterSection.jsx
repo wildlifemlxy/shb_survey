@@ -20,6 +20,9 @@ class FilterSection extends Component {
       activityFocusedIndex: -1
     };
     
+    // Track mount time to reduce console spam during initial loading
+    this.mountTime = null;
+    
     // Refs for dropdown positioning
     this.locationInputRef = React.createRef();
     this.activityInputRef = React.createRef();
@@ -28,6 +31,9 @@ class FilterSection extends Component {
   }
 
   componentDidMount() {
+    // Set mount time for console spam prevention
+    this.mountTime = Date.now();
+    
     // Debug logging
     console.log('FilterSection mounted with props:', {
       locations: this.props.locations?.length || 0,
@@ -362,12 +368,19 @@ class FilterSection extends Component {
     const activities = Array.isArray(this.props.activities) ? this.props.activities : [];
     const className = this.props.className || '';
 
-    // Log for debugging
-    if (locations.length === 0) {
-      console.warn('FilterSection: No locations provided');
-    }
-    if (activities.length === 0) {
-      console.warn('FilterSection: No activities provided');
+    // Only log warnings if component has been mounted for a while and still no data
+    // AND if we have some data props but they're still empty (which indicates a real issue)
+    // This prevents spam during initial loading
+    if (this.mountTime && Date.now() - this.mountTime > 5000) { // Increased to 5 seconds
+      // Only warn if we have props.data but no processed locations/activities
+      const hasData = this.props.data && Array.isArray(this.props.data) && this.props.data.length > 0;
+      
+      if (hasData && locations.length === 0) {
+        console.warn('FilterSection: No locations provided after initial load, despite having data');
+      }
+      if (hasData && activities.length === 0) {
+        console.warn('FilterSection: No activities provided after initial load, despite having data');
+      }
     }
 
     const filteredLocations = this.getFilteredOptions(locations, locationSearchTerm);

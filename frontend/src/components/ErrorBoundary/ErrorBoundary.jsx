@@ -3,7 +3,7 @@ import React from 'react';
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null, errorInfo: null, resetKey: 0 };
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error) {
@@ -38,7 +38,7 @@ class ErrorBoundary extends React.Component {
             The data table encountered an error. This might be due to data formatting issues.
           </p>
           <button
-            onClick={() => this.setState({ hasError: false, error: null, errorInfo: null, resetKey: this.state.resetKey + 1 })}
+            onClick={() => this.setState({ hasError: false, error: null, errorInfo: null })}
             style={{
               background: '#007bff',
               color: 'white',
@@ -72,8 +72,7 @@ class ErrorBoundary extends React.Component {
       );
     }
 
-    // Use a key to force remount children after error recovery
-    return <React.Fragment key={this.state.resetKey}>{this.props.children}</React.Fragment>;
+    return this.props.children;
   }
 }
 
