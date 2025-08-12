@@ -2,7 +2,7 @@ const { MongoClient, ObjectId } = require('mongodb');
 
 class DatabaseConnectivity {
   constructor() {
-    this.uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=1&appName=StrawHeadedBulbul&maxPoolSize=20&connectTimeoutMS=1500&serverSelectionTimeoutMS=1500&compressors=zlib&readPreference=primaryPreferred';
+    this.uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=1&appName=StrawHeadedBulbul&maxPoolSize=5&connectTimeoutMS=5000&serverSelectionTimeoutMS=5000&compressors=zlib&readPreference=primaryPreferred';
     this.client = null;
     this.connected = false;
     this.connectionPromise = null;
@@ -20,21 +20,20 @@ class DatabaseConnectivity {
     return DatabaseConnectivity.instance;
   }
 
-  // Ultra-fast client configuration with aggressive timeoutsok
+  // Azure-optimized client configuration for free tier
   getClient() {
     if (!this.client) {
       this.client = new MongoClient(this.uri, {
-        maxPoolSize: 20,
-        minPoolSize: 3,
-        maxIdleTimeMS: 30000,
-        serverSelectionTimeoutMS: 1500,
-        socketTimeoutMS: 3000,
-        connectTimeoutMS: 1500,
+        maxPoolSize: 5,
+        minPoolSize: 1,
+        maxIdleTimeMS: 10000,
+        serverSelectionTimeoutMS: 3000,
+        socketTimeoutMS: 5000,
+        connectTimeoutMS: 3000,
         retryWrites: true,
-        retryReads: true,
-        maxConnecting: 5,
+        retryReads: false,
+        maxConnecting: 2,
         family: 4,
-        useUnifiedTopology: true,
         directConnection: false,
         compressors: ['zlib'],
         readPreference: 'primaryPreferred',
@@ -95,19 +94,19 @@ class DatabaseConnectivity {
             console.log("Attempting to connect to MongoDB Atlas...");
             const client = this.getClient();
             
-            // Ultra-aggressive connection timeout
+            // Azure-friendly connection timeout (longer for free tier)
             await Promise.race([
                 client.connect(),
                 new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Connection timeout after 2s')), 2000)
+                    setTimeout(() => reject(new Error('Connection timeout after 5s')), 5000)
                 )
             ]);
             
-            // Test connection with ping
+            // Test connection with ping (longer timeout for Azure)
             await Promise.race([
                 client.db("admin").command({ ping: 1 }),
                 new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Ping timeout after 1s')), 1000)
+                    setTimeout(() => reject(new Error('Ping timeout after 3s')), 3000)
                 )
             ]);
             
@@ -136,8 +135,8 @@ class DatabaseConnectivity {
         }
     }
 
-  // Ultra-fast operation wrapper with aggressive error handling
-  async executeOperation(operation, retries = 2) {
+  // Azure-optimized operation wrapper with reasonable timeouts
+  async executeOperation(operation, retries = 1) {
     const operationId = Date.now().toString(36);
     
     try {
@@ -152,11 +151,11 @@ class DatabaseConnectivity {
       
       this.lastUsed = Date.now();
       
-      // Execute with aggressive timeout for fast failure
+      // Execute with reasonable timeout for Azure free tier
       const result = await Promise.race([
         operation(this.getClient()),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Operation timeout after 5s')), 5000)
+          setTimeout(() => reject(new Error('Operation timeout after 10s')), 10000)
         )
       ]);
       
@@ -166,12 +165,12 @@ class DatabaseConnectivity {
     } catch (error) {
       console.error(`[${operationId}] Operation failed:`, error.message);
       
-      // Always retry for any error to ensure reliability
+      // Reduced retries for Azure free tier to conserve resources
       if (retries > 0) {
         console.log(`[${operationId}] Retrying (${retries} retries left)`);
         this.connectionReady = false;
         await this.close();
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
         return this.executeOperation(operation, retries - 1);
       }
       
@@ -389,19 +388,20 @@ class DatabaseConnectivity {
     }
   }
 
-  // Ultra-fast connection cleanup
+  // Resource-efficient connection cleanup for Azure free tier
   startConnectionCleanup() {
     if (this.cleanupInterval) return;
     
     this.cleanupInterval = setInterval(() => {
-      const IDLE_THRESHOLD = 300000; // 5 minutes
+      const IDLE_THRESHOLD = 120000; // 2 minutes (shorter for free tier)
       const hasActiveOperations = this.activeOperations.size > 0;
       const isIdle = (Date.now() - this.lastUsed) > IDLE_THRESHOLD;
       
       if (this.connected && !hasActiveOperations && isIdle) {
+        console.log("Closing idle connection to conserve resources");
         this.close();
       }
-    }, 120000); // Check every 2 minutes
+    }, 60000); // Check every minute for faster cleanup
   }
 
   stopConnectionCleanup() {
