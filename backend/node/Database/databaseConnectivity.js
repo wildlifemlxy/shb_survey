@@ -2,15 +2,15 @@ const { MongoClient, ObjectId } = require('mongodb');
 
 class DatabaseConnectivity {
   constructor() {
-    // Primary connection string optimized for maximum performance
-    this.uri = process.env.MONGODB_URI || 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=0&appName=StrawHeadedBulbul&maxPoolSize=100&compressors=zlib&readPreference=primaryPreferred';
+    // Primary connection string - simplified for maximum compatibility
+    this.uri = process.env.MONGODB_URI || 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=0&appName=StrawHeadedBulbul&maxPoolSize=100';
     
-    // Fallback URIs for DNS resolution issues
+    // Fallback URIs for DNS resolution issues - simplified
     this.fallbackUris = [
-      // Direct connection bypassing SRV DNS lookup
-      'mongodb://strawheadedbulbul-shard-00-00.w7an1sp.mongodb.net:27017,strawheadedbulbul-shard-00-01.w7an1sp.mongodb.net:27017,strawheadedbulbul-shard-00-02.w7an1sp.mongodb.net:27017/StrawHeadedBulbul?ssl=true&replicaSet=atlas-abc123-shard-0&authSource=admin&retryWrites=true&w=0&maxPoolSize=100',
-      // Alternative SRV with different options
-      'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=0&ssl=true&authSource=admin&maxPoolSize=100'
+      // Alternative with different parameters
+      'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=0&maxPoolSize=50',
+      // Backup connection
+      'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul'
     ];
     
     this.client = null;
@@ -126,26 +126,17 @@ class DatabaseConnectivity {
         try {
             const connectionUri = customUri || this.uri;
             
-            // Create new client with specific URI
+            // Create new client with simplified, compatible options
             const client = new MongoClient(connectionUri, {
                 maxPoolSize: 100,
                 minPoolSize: 10,
-                maxIdleTimeMS: 0,
-                serverSelectionTimeoutMS: 0,
-                socketTimeoutMS: 0,
-                connectTimeoutMS: 0,
                 retryWrites: true,
                 retryReads: true,
                 maxConnecting: 20,
-                family: 4,
-                directConnection: false,
                 compressors: ['zlib'],
                 readPreference: 'primaryPreferred',
                 readConcern: { level: 'local' },
-                writeConcern: { w: 0, j: false },
-                heartbeatFrequencyMS: 10000,
-                waitQueueTimeoutMS: 0,
-                bufferMaxEntries: 0 // Disable buffering for fast failure
+                writeConcern: { w: 0, j: false }
             });
             
             // Close existing client if any
