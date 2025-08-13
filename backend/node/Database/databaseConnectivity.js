@@ -3,13 +3,13 @@ const { MongoClient, ObjectId } = require('mongodb');
 class DatabaseConnectivity {
   constructor() {
     // HARDCODED MongoDB URI for 24/7 reliability - NO process.env dependencies
-    this.uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=1&appName=StrawHeadedBulbul&maxPoolSize=100&minPoolSize=10&maxIdleTimeMS=0&serverSelectionTimeoutMS=0&socketTimeoutMS=0&connectTimeoutMS=0';
+    this.uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=1&appName=StrawHeadedBulbul&maxPoolSize=50&minPoolSize=5&maxIdleTimeMS=300000&serverSelectionTimeoutMS=5000&socketTimeoutMS=300000&connectTimeoutMS=10000';
     
     // Multiple fallback URIs for maximum 24/7 reliability
     this.fallbackUris = [
-      'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=0&maxPoolSize=80&serverSelectionTimeoutMS=0&socketTimeoutMS=0',
-      'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&maxPoolSize=60&serverSelectionTimeoutMS=0',
-      'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&maxPoolSize=40'
+      'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=0&maxPoolSize=40&serverSelectionTimeoutMS=5000&socketTimeoutMS=300000',
+      'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&maxPoolSize=30&serverSelectionTimeoutMS=5000',
+      'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&maxPoolSize=20'
     ];
     
     this.client = null;
@@ -26,62 +26,13 @@ class DatabaseConnectivity {
     this.connectionLock = false; // Prevent race conditions in parallel requests
   }
 
-  // Global connection pool for shared resource management
-  static connectionPool = new Map();
-  static poolLock = false;
+  // Global connection isolation - NO shared resources
+  static connectionRegistry = new Map(); // Track all active connections
 
-  // Get or create shared connection from pool for high efficiency
+  // DISABLED: Connection pool causing login blocking - use individual connections only
   static async getPooledConnection() {
-    const poolKey = 'shared_pool';
-    
-    // Check if connection exists and is healthy
-    if (DatabaseConnectivity.connectionPool.has(poolKey)) {
-      const pooledClient = DatabaseConnectivity.connectionPool.get(poolKey);
-      try {
-        // Quick health check
-        await pooledClient.db('admin').command({ ping: 1 });
-        return pooledClient;
-      } catch (error) {
-        // Remove unhealthy connection
-        DatabaseConnectivity.connectionPool.delete(poolKey);
-      }
-    }
-    
-    // Create new pooled connection
-    if (!DatabaseConnectivity.poolLock) {
-      DatabaseConnectivity.poolLock = true;
-      try {
-        const uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=1&appName=PooledConnection&maxPoolSize=150&minPoolSize=20&maxIdleTimeMS=0&serverSelectionTimeoutMS=0&socketTimeoutMS=0&connectTimeoutMS=0';
-        
-        const pooledClient = new MongoClient(uri, {
-          maxPoolSize: 150,             // Higher pool size for many parallel connections
-          minPoolSize: 20,              // Always keep connections warm
-          maxIdleTimeMS: 0,             // Never close idle connections
-          serverSelectionTimeoutMS: 0,  // No timeouts - wait forever
-          socketTimeoutMS: 0,           // No socket timeouts
-          connectTimeoutMS: 0,          // No connection timeouts
-          retryWrites: true,
-          retryReads: true,
-          maxConnecting: 75,            // Allow many concurrent connections
-          family: 4,
-          directConnection: false,
-          compressors: ['zlib'],
-          readPreference: 'primaryPreferred',
-          readConcern: { level: 'local' },
-          writeConcern: { w: 0, j: false }, // Fastest write concern
-          heartbeatFrequencyMS: 10000,  // Frequent heartbeats for reliability
-          waitQueueTimeoutMS: 0         // No wait timeout
-        });
-        
-        await pooledClient.connect();
-        DatabaseConnectivity.connectionPool.set(poolKey, pooledClient);
-        return pooledClient;
-      } finally {
-        DatabaseConnectivity.poolLock = false;
-      }
-    }
-    
-    // Fallback to individual connection
+    // Always return null to force individual connections for each request
+    // This prevents connection sharing issues that block subsequent logins
     return null;
   }
 
@@ -95,516 +46,505 @@ class DatabaseConnectivity {
     return DatabaseConnectivity.instance;
   }
 
-  // Create independent connection instance for parallel processing
+  // COMPLETELY ISOLATED - Create independent connection for unlimited parallel users
   static createIndependentInstance() {
     const instance = new DatabaseConnectivity();
-    // Use unique connection tracking for parallel requests
-    instance.instanceId = Date.now().toString(36) + Math.random().toString(36);
+    // Use unique connection tracking for complete isolation
+    instance.instanceId = Date.now().toString(36) + Math.random().toString(36) + Math.random().toString(36);
     instance.silentMode = true; // Keep silent for clean logs
+    
+    // Create COMPLETELY unique URI with instance-specific app name for zero interference
+    const uniqueAppName = `SHB_${instance.instanceId}`;
+    instance.uri = `mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=1&appName=${uniqueAppName}&maxPoolSize=10&minPoolSize=2&maxIdleTimeMS=300000&serverSelectionTimeoutMS=5000&socketTimeoutMS=300000&connectTimeoutMS=10000`;
+    
+    // Update fallback URIs with completely unique app names for zero interference
+    instance.fallbackUris = [
+      `mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=0&appName=${uniqueAppName}_A&maxPoolSize=8&serverSelectionTimeoutMS=5000&socketTimeoutMS=300000`,
+      `mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&appName=${uniqueAppName}_B&maxPoolSize=6&serverSelectionTimeoutMS=5000`,
+      `mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&appName=${uniqueAppName}_C&maxPoolSize=4`
+    ];
+    
+    // Register this instance for tracking (no interference, just monitoring)
+    DatabaseConnectivity.connectionRegistry.set(instance.instanceId, {
+      created: Date.now(),
+      instance: instance
+    });
+    
     return instance;
   }
 
-  // Ultra-fast client configuration for 24/7 multi-processing
+  // COMPLETELY ISOLATED client configuration - zero interference between connections
   getClient() {
     if (!this.client) {
       this.client = new MongoClient(this.uri, {
-        maxPoolSize: 100,             // Maximum connections for high concurrency
-        minPoolSize: 10,              // Always keep connections warm
-        maxIdleTimeMS: 0,             // Never close idle connections
-        serverSelectionTimeoutMS: 0,  // No timeouts - wait forever
-        socketTimeoutMS: 0,           // No socket timeouts
-        connectTimeoutMS: 0,          // No connection timeouts
+        maxPoolSize: 10,              // Moderate pool per instance for isolation
+        minPoolSize: 2,               // Minimal warm connections
+        maxIdleTimeMS: 300000,        // 5 minutes idle timeout
+        serverSelectionTimeoutMS: 5000,  // 5 second server selection timeout
+        socketTimeoutMS: 300000,      // 5 minute socket timeout
+        connectTimeoutMS: 10000,      // 10 second connection timeout
         retryWrites: true,
         retryReads: true,
-        maxConnecting: 50,            // Allow many concurrent connections
+        maxConnecting: 3,             // Limited concurrent connections per instance for isolation
         family: 4,
         directConnection: false,
         compressors: ['zlib'],
         readPreference: 'primaryPreferred',
         readConcern: { level: 'local' },
-        writeConcern: { w: 0, j: false }, // Fastest write concern
-        heartbeatFrequencyMS: 10000,  // Frequent heartbeats for reliability
-        waitQueueTimeoutMS: 0         // No wait timeout
+        writeConcern: { w: 1, j: false },
+        heartbeatFrequencyMS: 10000,  // 10 second heartbeats
+        waitQueueTimeoutMS: 5000      // 5 second wait timeout
       });
     }
     return this.client;
   }
 
-    // 24/7 connection initialization with parallel request isolation
-    async initialize(retries = 10) {
-        // Prevent race conditions in parallel requests
-        if (this.connectionLock) {
-            // Wait for existing connection attempt to complete
-            while (this.connectionLock && retries > 0) {
-                await new Promise(resolve => setTimeout(resolve, 10));
-                retries--;
-            }
-        }
-
-        // If already connecting, wait for existing connection
-        if (this.connectionPromise) {
-            return this.connectionPromise;
-        }
-
-        // If already connected, return immediately - no verification needed for speed
-        if (this.connected && this.connectionReady && this.client) {
-            return "Already connected to MongoDB Atlas!";
-        }
-
-        // Set connection lock to prevent race conditions
-        this.connectionLock = true;
-        
-        // Create connection promise with aggressive retry logic
-        this.connectionPromise = this._connectWithRetry(retries);
-        const result = await this.connectionPromise;
-        
-        // Release connection lock
-        this.connectionLock = false;
-        
-        return result;
+  // Connect with complete error isolation - errors in one connection don't affect others
+  async initialize() {
+    if (this.connectionLock) {
+      // Wait for existing connection attempt to complete
+      while (this.connectionLock) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      return this.connected;
     }
 
-    async _connectWithRetry(retries) {
-        const connectionAttempts = [this.uri, ...this.fallbackUris];
-        let lastError;
-        
-        for (let attempt = 0; attempt <= retries; attempt++) {
-            // Try each URI in sequence for each retry attempt
-            for (let uriIndex = 0; uriIndex < connectionAttempts.length; uriIndex++) {
-                try {
-                    this.currentUriIndex = uriIndex;
-                    return await this._connect(connectionAttempts[uriIndex]);
-                } catch (error) {
-                    lastError = error;
-                    
-                    // Clean up failed client silently
-                    if (this.client) {
-                        try {
-                            await this.client.close();
-                        } catch (closeError) {
-                            // Silent close errors
-                        }
-                        this.client = null;
-                    }
-                }
-            }
-            
-            // Reset connection promise on failure
-            this.connectionPromise = null;
-            
-            // Don't retry on the last attempt
-            if (attempt === retries) {
-                break;
-            }
-            
-            // Minimal retry delay for maximum speed
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        
-        // Even if all attempts fail, still continue for 24/7 operation
-        throw lastError;
+    if (this.connectionPromise) {
+      return this.connectionPromise;
     }
 
-    async _connect(customUri = null) {
+    this.connectionLock = true;
+    
+    this.connectionPromise = this.tryConnect().finally(() => {
+      this.connectionLock = false;
+    });
+
+    return this.connectionPromise;
+  }
+
+  // Isolated connection attempt with fallback support
+  async tryConnect() {
+    let currentUri = this.uri;
+    let uriIndex = this.currentUriIndex;
+    
+    for (let attempt = 0; attempt <= this.fallbackUris.length; attempt++) {
+      try {
+        if (attempt > 0) {
+          // Use fallback URI
+          uriIndex = (this.currentUriIndex + attempt - 1) % this.fallbackUris.length;
+          currentUri = this.fallbackUris[uriIndex];
+          if (!this.silentMode) {
+            console.log(`[${this.instanceId}] Trying fallback URI ${attempt}...`);
+          }
+        }
+
+        // Update URI for this attempt
+        this.uri = currentUri;
+        
+        const client = this.getClient();
+        await client.connect();
+        
+        // Test the connection
+        await client.db('admin').command({ ping: 1 });
+        
+        this.connected = true;
+        this.connectionReady = true;
+        this.reconnectAttempts = 0;
+        this.currentUriIndex = uriIndex; // Remember successful URI
+        this.lastUsed = Date.now();
+        
+        if (!this.silentMode) {
+          console.log(`[${this.instanceId}] Database connected successfully`);
+        }
+        
+        // Setup connection event handlers for this instance only
+        this.setupConnectionEventHandlers();
+        
+        return true;
+        
+      } catch (error) {
+        if (!this.silentMode) {
+          console.error(`[${this.instanceId}] Connection attempt ${attempt + 1} failed:`, error.message);
+        }
+        
+        // Clean up failed client
+        if (this.client) {
+          try {
+            await this.client.close();
+          } catch (closeError) {
+            // Ignore close errors
+          }
+          this.client = null;
+        }
+        
+        // Wait before next attempt
+        if (attempt < this.fallbackUris.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+        }
+      }
+    }
+    
+    // All attempts failed
+    this.connected = false;
+    this.connectionReady = false;
+    this.reconnectAttempts++;
+    
+    throw new Error(`Failed to connect after trying all URIs. Instance: ${this.instanceId}`);
+  }
+
+  // Setup connection event handlers for error isolation
+  setupConnectionEventHandlers() {
+    const client = this.getClient();
+    
+    // Remove existing listeners to prevent duplicates
+    client.removeAllListeners();
+    
+    client.on('error', (error) => {
+      if (!this.silentMode) {
+        console.error(`[${this.instanceId}] MongoDB client error:`, error);
+      }
+      this.connected = false;
+      this.connectionReady = false;
+    });
+    
+    client.on('close', () => {
+      if (!this.silentMode) {
+        console.log(`[${this.instanceId}] MongoDB connection closed`);
+      }
+      this.connected = false;
+      this.connectionReady = false;
+    });
+    
+    client.on('reconnect', () => {
+      if (!this.silentMode) {
+        console.log(`[${this.instanceId}] MongoDB reconnected`);
+      }
+      this.connected = true;
+      this.connectionReady = true;
+      this.reconnectAttempts = 0;
+    });
+  }
+
+  // Auto-reconnect with complete error isolation
+  async ensureConnection() {
+    if (!this.connected || !this.connectionReady) {
+      if (this.reconnectAttempts < this.maxReconnectAttempts) {
         try {
-            const connectionUri = customUri || this.uri;
-            
-            // Close existing client if any
-            if (this.client) {
-                try {
-                    await this.client.close();
-                } catch (closeError) {
-                    // Silent close errors
-                }
-            }
-            
-            // Create new client with maximum performance settings
-            this.client = new MongoClient(connectionUri, {
-                maxPoolSize: 100,
-                minPoolSize: 10,
-                maxIdleTimeMS: 0,             // Never close idle connections
-                serverSelectionTimeoutMS: 0,  // No timeouts
-                socketTimeoutMS: 0,           // No timeouts
-                connectTimeoutMS: 0,          // No timeouts
-                retryWrites: true,
-                retryReads: true,
-                maxConnecting: 50,
-                compressors: ['zlib'],
-                readPreference: 'primaryPreferred',
-                readConcern: { level: 'local' },
-                writeConcern: { w: 0, j: false }
-            });
-            
-            // Direct connection without any timeouts for 24/7 operation
-            await this.client.connect();
-            
-            // No ping verification - just mark as connected for speed
-            this.connected = true;
-            this.connectionReady = true;
-            this.lastUsed = Date.now();
-            return "Connected to MongoDB Atlas!";
-            
+          await this.initialize();
         } catch (error) {
-            this.connected = false;
-            this.connectionReady = false;
-            this.connectionPromise = null;
-            
-            // Force close and recreate client on any connection error
-            if (this.client) {
-                try {
-                    await this.client.close();
-                } catch (closeError) {
-                    // Silent close errors
-                }
-                this.client = null;
-            }
-            throw error;
+          if (!this.silentMode) {
+            console.error(`[${this.instanceId}] Reconnection failed:`, error.message);
+          }
+          throw error;
         }
+      } else {
+        throw new Error(`Max reconnection attempts reached for instance ${this.instanceId}`);
+      }
     }
+    
+    this.lastUsed = Date.now();
+  }
 
-  // Maximum performance operation wrapper for parallel request isolation
-  async executeOperation(operation, retries = 10) {
-    const operationId = `${this.instanceId}_${Date.now().toString(36)}`;
+  // Execute database operations with complete error isolation
+  async executeOperation(operation, operationName = 'unknown') {
+    const operationId = Date.now().toString(36) + Math.random().toString(36);
     
     try {
       this.activeOperations.add(operationId);
+      await this.ensureConnection();
       
-      // Try to use pooled connection first for better parallel performance
-      let client;
-      try {
-        client = await DatabaseConnectivity.getPooledConnection();
-      } catch (poolError) {
-        // Fallback to individual connection
-        client = null;
-      }
-      
-      if (!client) {
-        // Fallback: ensure individual connection for reliability
-        if (!this.connectionReady || !this.connected || !this.client) {
-          await this.initialize(10); // Maximum retries for 24/7 operation
-        }
-        client = this.getClient();
-      }
-      
+      const result = await operation();
       this.lastUsed = Date.now();
-      
-      // Execute operation without any timeouts for maximum performance
-      const result = await operation(client);
       
       return result;
       
     } catch (error) {
-      // Aggressive retries for 24/7 reliability - never give up
-      if (retries > 0 && this.isConnectionError(error)) {
-        this.connectionReady = false;
-        this.connectionLock = false; // Release lock on error
-        await this.close();
-        await new Promise(resolve => setTimeout(resolve, 10)); // Ultra-fast retry
-        return this.executeOperation(operation, retries - 1);
+      if (!this.silentMode) {
+        console.error(`[${this.instanceId}] Operation '${operationName}' failed:`, error.message);
       }
       
-      // For non-connection errors, throw immediately
-      throw new Error(`Database operation failed: ${error.message}`);
-      
-    } finally {
-      this.activeOperations.delete(operationId);
-      this.lastUsed = Date.now();
-    }
-  }
-
-  // Check if error is connection-related
-  isConnectionError(error) {
-    const connectionErrorKeywords = [
-      'ENOTFOUND', 'ECONNREFUSED', 'ETIMEDOUT', 'EAI_AGAIN',
-      'MongoNetworkError', 'MongoServerSelectionError', 'Connection timeout',
-      'queryTxt ETIMEOUT', 'getaddrinfo ENOTFOUND', 'ECONNRESET', 'EPIPE',
-      'socket hang up', 'DNS resolution', 'Server selection timed out'
-    ];
-    
-    return connectionErrorKeywords.some(keyword => 
-      error.message.includes(keyword) || error.name.includes(keyword)
-    );
-  }
-
-  // Check if error is DNS-related (can be ignored)
-  isDnsError(error) {
-    const dnsErrorKeywords = [
-      'queryTxt ETIMEOUT', 'getaddrinfo ENOTFOUND', 'EAI_AGAIN',
-      'DNS resolution', 'ENOTFOUND'
-    ];
-    
-    return dnsErrorKeywords.some(keyword => 
-      error.message.includes(keyword) || error.code === keyword
-    );
-  }
-
-  // Check if error is critical (should always be logged)
-  isCriticalError(error) {
-    const criticalErrorKeywords = [
-      'Authentication failed', 'MongoParseError', 'MongoError',
-      'Invalid connection string', 'Database does not exist'
-    ];
-    
-    return criticalErrorKeywords.some(keyword => 
-      error.message.includes(keyword) || error.name.includes(keyword)
-    );
-  }
-
-  // Get connection statistics
-  getConnectionStats() {
-    return {
-      connected: this.connected,
-      activeOperations: this.activeOperations.size,
-      lastUsed: new Date(this.lastUsed).toISOString(),
-      idleTime: Date.now() - this.lastUsed
-    };
-  }
-
-  // Maximum performance batch operations
-  async executeBatchOperations(operations, maxConcurrency = 25) {
-    const results = [];
-    const executing = [];
-    
-    for (let i = 0; i < operations.length; i++) {
-      const operation = operations[i];
-      
-      // Create promise for this operation
-      const operationPromise = this.executeOperation(operation.fn, operation.retries || 3)
-        .then(result => ({ index: i, success: true, result }))
-        .catch(error => ({ index: i, success: false, error: error.message }));
-      
-      executing.push(operationPromise);
-      
-      // If we've reached max concurrency or this is the last operation
-      if (executing.length >= maxConcurrency || i === operations.length - 1) {
-        const batchResults = await Promise.all(executing);
-        results.push(...batchResults);
-        executing.length = 0; // Clear the array
-      }
-    }
-    
-    // Sort results by original index
-    results.sort((a, b) => a.index - b.index);
-    
-    return results;
-  }
-
-  // Ultra-fast document retrieval with better error handling
-  async getAllDocuments(databaseName, collectionName, projection = {}) {
-    try {
-      return await this.executeOperation(async (client) => {
-        const db = client.db(databaseName);
-        const collection = db.collection(collectionName);
-        
-        const findOptions = {
-          readPreference: 'primaryPreferred',
-          readConcern: { level: 'local' },
-          maxTimeMS: 0 // No timeout
-        };
-        
-        if (Object.keys(projection).length > 0) {
-          findOptions.projection = projection;
-        }
-        
-        const documents = await collection.find({}, findOptions).toArray();
-        
-        // Fast ObjectId conversion
-        return documents.map(doc => {
-          if (doc._id) doc._id = doc._id.toString();
-          return doc;
-        });
-      });
-    } catch (error) {
-      // Silent error handling for seamless operation
-      if (!this.silentMode || this.isCriticalError(error)) {
-        console.error(`getAllDocuments failed for ${collectionName}:`, error.message);
-      }
-      throw new Error(`Failed to retrieve documents from ${collectionName}: ${error.message}`);
-    }
-  }
-
-  // Ultra-fast insert with maximum performance
-  async insertDocument(databaseName, collectionName, document) {
-    try {
-      return await this.executeOperation(async (client) => {
-        const db = client.db(databaseName);
-        const collection = db.collection(collectionName);
-        const result = await collection.insertOne(document, { 
-          writeConcern: { w: 0, j: false }, // Fastest write concern - fire and forget
-          maxTimeMS: 0 // No timeout
-        });
-        
-        if (result.insertedId) {
-          result.insertedId = result.insertedId.toString();
-        }
-        return result;
-      });
-    } catch (error) {
-      // Silent error handling for seamless operation
-      if (!this.silentMode || this.isCriticalError(error)) {
-        console.error(`insertDocument failed for ${collectionName}:`, error.message);
-      }
-      throw new Error(`Failed to insert document into ${collectionName}: ${error.message}`);
-    }
-  }
-
-  async insertDocuments(databaseName, collectionName, documents) {
-    return this.executeOperation(async (client) => {
-      const db = client.db(databaseName);
-      const collection = db.collection(collectionName);
-      const result = await collection.insertMany(documents, {
-        writeConcern: { w: 0, j: false }, // Fastest write concern
-        ordered: false, // Allow parallel processing
-        maxTimeMS: 0 // No timeout
-      });
-      
-      // Convert inserted IDs to strings
-      if (result.insertedIds) {
-        const insertedIds = {};
-        Object.keys(result.insertedIds).forEach(key => {
-          insertedIds[key] = result.insertedIds[key].toString();
-        });
-        return {
-          ...result,
-          insertedIds
-        };
-      }
-      return result;
-    });
-  }
-
-  async updateDocument(databaseName, collectionName, filter, update) {
-    return this.executeOperation(async (client) => {
-      const db = client.db(databaseName);
-      const collection = db.collection(collectionName);
-      // Convert string _id to ObjectId if present
-      if (filter._id && typeof filter._id === 'string') {
-        filter._id = new ObjectId(filter._id);
-      }
-      return await collection.updateOne(filter, update, {
-        writeConcern: { w: 0, j: false }, // Fastest write concern
-        maxTimeMS: 0 // No timeout
-      });
-    });
-  }
-
-  async deleteDocument(databaseName, collectionName, filter) {
-    return this.executeOperation(async (client) => {
-      const db = client.db(databaseName);
-      const collection = db.collection(collectionName);
-      // Convert string _id to ObjectId if present
-      if (filter._id && typeof filter._id === 'string') {
-        filter._id = new ObjectId(filter._id);
-      }
-      return await collection.deleteOne(filter, {
-        writeConcern: { w: 0, j: false }, // Fastest write concern
-        maxTimeMS: 0 // No timeout
-      });
-    });
-  }
-
-  async getDocument(databaseName, collectionName, email, password) {
-    return this.executeOperation(async (client) => {
-      const db = client.db(databaseName);
-      const collection = db.collection(collectionName);
-      
-      // Create query object with email and password
-      const query = { email, password };
-      
-      const document = await collection.findOne(query, {
-        readPreference: 'primaryPreferred',
-        maxTimeMS: 0 // No timeout
-      });
-      
-      // Convert ObjectId to string if document exists
-      if (document && document._id) {
-        document._id = document._id.toString();
-      }
-      
-      return document;
-    });
-  }
-
-  async findDocument(databaseName, collectionName, query) {
-    return this.executeOperation(async (client) => {
-      const db = client.db(databaseName);
-      const collection = db.collection(collectionName);
-      
-      const document = await collection.findOne(query, {
-        readPreference: 'primaryPreferred',
-        maxTimeMS: 0 // No timeout
-      });
-      
-      // Convert ObjectId to string if document exists
-      if (document && document._id) {
-        document._id = document._id.toString();
-      }
-      
-      return document;
-    });
-  }
-
-  async close() {
-    try {
-      // Release connection lock when closing
-      this.connectionLock = false;
-      if (this.client) {
-        await this.client.close();
-      }
-    } catch (error) {
-      // Silent close errors for speed
-    } finally {
-      this.client = null;
+      // Mark connection as potentially broken
       this.connected = false;
       this.connectionReady = false;
-      this.connectionPromise = null;
-      this.connectionLock = false;
+      
+      throw error;
+    } finally {
+      this.activeOperations.delete(operationId);
     }
   }
 
-  // Extended connection cleanup for 24/7 operation (longer idle time)
-  startConnectionCleanup() {
-    if (this.cleanupInterval) return;
-    
-    this.cleanupInterval = setInterval(() => {
-      const IDLE_THRESHOLD = 1800000; // 30 minutes (very long for 24/7 operation)
-      const hasActiveOperations = this.activeOperations.size > 0;
-      const isIdle = (Date.now() - this.lastUsed) > IDLE_THRESHOLD;
+  // Find operations with complete isolation
+  async find(collection, query = {}, options = {}) {
+    return this.executeOperation(async () => {
+      const client = this.getClient();
+      const db = client.db('Straw-Headed-Bulbul');
+      const coll = db.collection(collection);
       
-      // Only close if truly idle for extended period and no active operations
-      if (this.connected && !hasActiveOperations && isIdle) {
-        this.close();
+      const cursor = coll.find(query, options);
+      return await cursor.toArray();
+    }, `find ${collection}`);
+  }
+
+  // Insert operations with complete isolation
+  async insert(collection, data) {
+    return this.executeOperation(async () => {
+      const client = this.getClient();
+      const db = client.db('Straw-Headed-Bulbul');
+      const coll = db.collection(collection);
+      
+      if (Array.isArray(data)) {
+        return await coll.insertMany(data);
+      } else {
+        return await coll.insertOne(data);
+      }
+    }, `insert ${collection}`);
+  }
+
+  // Update operations with complete isolation
+  async update(collection, query, updateData, options = {}) {
+    return this.executeOperation(async () => {
+      const client = this.getClient();
+      const db = client.db('Straw-Headed-Bulbul');
+      const coll = db.collection(collection);
+      
+      if (options.multi || options.updateMany) {
+        return await coll.updateMany(query, updateData, options);
+      } else {
+        return await coll.updateOne(query, updateData, options);
+      }
+    }, `update ${collection}`);
+  }
+
+  // Delete operations with complete isolation
+  async delete(collection, query, options = {}) {
+    return this.executeOperation(async () => {
+      const client = this.getClient();
+      const db = client.db('Straw-Headed-Bulbul');
+      const coll = db.collection(collection);
+      
+      if (options.multi || options.deleteMany) {
+        return await coll.deleteMany(query, options);
+      } else {
+        return await coll.deleteOne(query, options);
+      }
+    }, `delete ${collection}`);
+  }
+
+  // Aggregate operations with complete isolation
+  async aggregate(collection, pipeline, options = {}) {
+    return this.executeOperation(async () => {
+      const client = this.getClient();
+      const db = client.db('Straw-Headed-Bulbul');
+      const coll = db.collection(collection);
+      
+      const cursor = coll.aggregate(pipeline, options);
+      return await cursor.toArray();
+    }, `aggregate ${collection}`);
+  }
+
+  // Count operations with complete isolation
+  async count(collection, query = {}) {
+    return this.executeOperation(async () => {
+      const client = this.getClient();
+      const db = client.db('Straw-Headed-Bulbul');
+      const coll = db.collection(collection);
+      
+      return await coll.countDocuments(query);
+    }, `count ${collection}`);
+  }
+
+  // Connection cleanup for this instance only
+  startConnectionCleanup() {
+    // Clean up inactive connections every 10 minutes
+    setInterval(() => {
+      const now = Date.now();
+      const maxIdleTime = 600000; // 10 minutes
+      
+      if (this.connected && (now - this.lastUsed) > maxIdleTime && this.activeOperations.size === 0) {
+        if (!this.silentMode) {
+          console.log(`[${this.instanceId}] Cleaning up idle connection`);
+        }
+        this.disconnect();
       }
     }, 600000); // Check every 10 minutes
   }
 
-  stopConnectionCleanup() {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-      this.cleanupInterval = null;
+  // Safe disconnect for this instance
+  async disconnect() {
+    try {
+      if (this.client) {
+        await this.client.close();
+        this.client = null;
+      }
+      
+      this.connected = false;
+      this.connectionReady = false;
+      this.connectionPromise = null;
+      
+      // Remove from registry
+      DatabaseConnectivity.connectionRegistry.delete(this.instanceId);
+      
+      if (!this.silentMode) {
+        console.log(`[${this.instanceId}] Disconnected successfully`);
+      }
+    } catch (error) {
+      if (!this.silentMode) {
+        console.error(`[${this.instanceId}] Error during disconnect:`, error.message);
+      }
     }
   }
 
-  // Graceful shutdown for concurrent processes
-  async gracefulShutdown(maxWaitTime = 30000) {
-    // Stop accepting new operations
-    this.stopConnectionCleanup();
+  // Get connection status for this instance only
+  getStatus() {
+    return {
+      instanceId: this.instanceId,
+      connected: this.connected,
+      connectionReady: this.connectionReady,
+      lastUsed: this.lastUsed,
+      activeOperations: this.activeOperations.size,
+      reconnectAttempts: this.reconnectAttempts,
+      currentUri: this.uri
+    };
+  }
+
+  // Legacy methods for backwards compatibility - now using isolated operations
+  async getAllDocuments(databaseName, collectionName) {
+    const documents = await this.find(collectionName, {});
     
-    // Wait for active operations to complete
-    if (this.activeOperations.size > 0) {
-      const startTime = Date.now();
-      while (this.activeOperations.size > 0 && (Date.now() - startTime) < maxWaitTime) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+    // Convert ObjectId to string for all documents for backwards compatibility
+    return documents.map(doc => ({
+      ...doc,
+      _id: doc._id.toString()
+    }));
+  }
+
+  async insertDocument(databaseName, collectionName, document) {
+    const result = await this.insert(collectionName, document);
+    
+    // Return the inserted document with string ID for backwards compatibility
+    if (result.insertedId) {
+      return {
+        ...result,
+        insertedId: result.insertedId.toString()
+      };
+    }
+    return result;
+  }
+
+  async insertDocuments(databaseName, collectionName, documents) {
+    const result = await this.insert(collectionName, documents);
+    
+    // Convert inserted IDs to strings for backwards compatibility
+    if (result.insertedIds) {
+      const insertedIds = {};
+      Object.keys(result.insertedIds).forEach(key => {
+        insertedIds[key] = result.insertedIds[key].toString();
+      });
+      return {
+        ...result,
+        insertedIds
+      };
+    }
+    return result;
+  }
+
+  async updateDocument(databaseName, collectionName, filter, updateData) {
+    // Convert string _id to ObjectId if present
+    if (filter._id && typeof filter._id === 'string') {
+      filter._id = new ObjectId(filter._id);
+    }
+    return await this.update(collectionName, filter, updateData);
+  }
+
+  async deleteDocument(databaseName, collectionName, filter) {
+    // Convert string _id to ObjectId if present
+    if (filter._id && typeof filter._id === 'string') {
+      filter._id = new ObjectId(filter._id);
+    }
+    return await this.delete(collectionName, filter);
+  }
+
+  async getDocument(databaseName, collectionName, email, password) {
+    try {
+      console.log("Retrieving document with email:", email, "and password:", password, "from collection:", collectionName);
+      
+      // Create query object with email and password
+      const query = { email, password };
+      
+      const documents = await this.find(collectionName, query);
+      const document = documents.length > 0 ? documents[0] : null;
+      
+      console.log("Retrieved document:", document);
+      
+      // Convert ObjectId to string if document exists
+      if (document && document._id) {
+        document._id = document._id.toString();
       }
       
-      if (this.activeOperations.size > 0) {
-        console.warn(`Force closing with ${this.activeOperations.size} operations still active`);
+      return document;
+    } catch (error) {
+      console.error("Error retrieving document:", error);
+      throw error;
+    }
+  }
+
+  async findDocument(databaseName, collectionName, query) {
+    try {
+      console.log("Finding document with query:", query, "from collection:", collectionName);
+      
+      const documents = await this.find(collectionName, query);
+      const document = documents.length > 0 ? documents[0] : null;
+      
+      console.log("Found document:", document ? "Found" : "Not found", document);
+      
+      // Convert ObjectId to string if document exists
+      if (document && document._id) {
+        document._id = document._id.toString();
+      }
+      
+      return document;
+    } catch (error) {
+      console.error("Error finding document:", error);
+      throw error;
+    }
+  }
+
+  async close() {
+    await this.disconnect();
+  }
+
+  // Static method to get all connection statuses (for monitoring only)
+  static getAllConnectionStatuses() {
+    const statuses = [];
+    for (const [instanceId, data] of DatabaseConnectivity.connectionRegistry.entries()) {
+      try {
+        statuses.push(data.instance.getStatus());
+      } catch (error) {
+        statuses.push({
+          instanceId: instanceId,
+          error: error.message,
+          created: data.created
+        });
       }
     }
+    return statuses;
+  }
+
+  // Static method to cleanup all stale connections
+  static async cleanupStaleConnections() {
+    const now = Date.now();
+    const maxAge = 3600000; // 1 hour
     
-    await this.close();
+    for (const [instanceId, data] of DatabaseConnectivity.connectionRegistry.entries()) {
+      if ((now - data.created) > maxAge) {
+        try {
+          await data.instance.disconnect();
+        } catch (error) {
+          console.error(`Error cleaning up stale connection ${instanceId}:`, error.message);
+        }
+      }
+    }
   }
 }
 
-// Export singleton instance
 module.exports = DatabaseConnectivity;

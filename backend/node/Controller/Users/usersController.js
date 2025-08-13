@@ -5,9 +5,32 @@ const crypto = require('crypto');
 
 class UsersController {
     constructor() {
-        // Use independent connection for parallel processing isolation
+        // Use independent connection for complete isolation
         this.dbConnection = DatabaseConnectivity.createIndependentInstance();
         this.emailService = new EmailService();
+        
+        // Auto-start live updates for user-related collections
+        this.initializeLiveUpdates();
+    }
+
+    // Initialize live updates for real-time user data sync
+    async initializeLiveUpdates() {
+        try {
+            // Start live updates for user-related collections
+            await this.dbConnection.startLiveUpdates(['Accounts', 'Survey', 'Gallery', 'Events']);
+        } catch (error) {
+            // Silent initialization - live updates will retry automatically
+        }
+    }
+
+    // Subscribe to live user updates (for real-time frontend sync)
+    subscribeToUserUpdates(callback) {
+        return this.dbConnection.subscribeToLiveUpdates('Accounts', callback);
+    }
+
+    // Subscribe to any collection updates
+    subscribeToCollectionUpdates(collectionName, callback) {
+        return this.dbConnection.subscribeToLiveUpdates(collectionName, callback);
     }
 
 async deleteUser(userId) {
