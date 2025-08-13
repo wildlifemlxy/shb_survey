@@ -219,25 +219,26 @@ class TokenEncryptionMiddleware {
     }
   };
 
-  // Login endpoint
+  // Login endpoint - optimized for parallel processing
   login = async (req, res) => {
+    const requestId = Date.now().toString(36);
     try {
-      console.log('[LOGIN] Backend login endpoint hit');
+      console.log(`[LOGIN-${requestId}] Backend login endpoint hit`);
       // Only email and password are required for login
       let email, password;
 
       // Handle both encrypted and direct format
       if (req.body.loginDetails) {
-        console.log('Login details provided in request body:', req.body);
+        console.log(`[LOGIN-${requestId}] Login details provided in request body`);
         if (req.body.loginDetails.requiresServerEncryption && req.body.loginDetails.encryptedData) {
           try {
             // Decrypt the loginDetails
             const decryptedData = await this.decryptLoginData(req.body.loginDetails);
             email = decryptedData.email;
             password = typeof decryptedData.password === 'string' ? decryptedData.password : (typeof decryptedData.Password === 'string' ? decryptedData.Password : '');
-            console.log('Successfully decrypted login credentials:', { email, password });
+            console.log(`[LOGIN-${requestId}] Successfully decrypted login credentials for:`, email);
           } catch (decryptError) {
-            console.error('Failed to decrypt login data:', decryptError);
+            console.error(`[LOGIN-${requestId}] Failed to decrypt login data:`, decryptError);
             return res.status(400).json({
               success: false,
               message: 'Failed to decrypt login data'
@@ -257,11 +258,11 @@ class TokenEncryptionMiddleware {
       // Ensure password is a string
       if (typeof password !== 'string') password = '';
 
-      console.log('Extracted credentials - email:', email, 'password:', password);
+      console.log(`[LOGIN-${requestId}] Processing login for:`, email);
 
-      // Validate user credentials
+      // Validate user credentials - each request gets independent connection
       const user = await this.validateUser(email, password);
-      console.log('User validation result:', user);
+      console.log(`[LOGIN-${requestId}] User validation result:`, user ? 'SUCCESS' : 'FAILED');
       if (!user) {
         return res.json({
           success: false,
@@ -276,6 +277,7 @@ class TokenEncryptionMiddleware {
       // Store session info (use Redis or database in production)
       this.storeSesion(sessionId, user.id, token);
 
+      console.log(`[LOGIN-${requestId}] Login successful for:`, email);
       // Return response in format expected by your frontend
       res.json({
         success: true,
@@ -286,7 +288,7 @@ class TokenEncryptionMiddleware {
         sessionId
       });
     } catch (error) {
-      console.error('Login error:', error);
+      console.error(`[LOGIN-${requestId}] Login error:`, error);
       res.status(500).json({ error: 'Login failed' });
     }
   };
@@ -519,6 +521,7 @@ resetPassword = async (req, res) => {
   // Helper methods (implement these based on your database)
   async validateUser(email, password) {
     try {
+      // Use independent controller for each login request to prevent interference
       const controller = new UsersController();
       const result = await controller.verifyUser(email, password);
       

@@ -22,9 +22,70 @@ class DatabaseConnectivity {
     this.silentMode = true; // Silent mode for 24/7 operation
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 10;
+    this.instanceId = 'default'; // Unique identifier for tracking
+    this.connectionLock = false; // Prevent race conditions in parallel requests
   }
 
-  // Singleton pattern for multi-processing independence
+  // Global connection pool for shared resource management
+  static connectionPool = new Map();
+  static poolLock = false;
+
+  // Get or create shared connection from pool for high efficiency
+  static async getPooledConnection() {
+    const poolKey = 'shared_pool';
+    
+    // Check if connection exists and is healthy
+    if (DatabaseConnectivity.connectionPool.has(poolKey)) {
+      const pooledClient = DatabaseConnectivity.connectionPool.get(poolKey);
+      try {
+        // Quick health check
+        await pooledClient.db('admin').command({ ping: 1 });
+        return pooledClient;
+      } catch (error) {
+        // Remove unhealthy connection
+        DatabaseConnectivity.connectionPool.delete(poolKey);
+      }
+    }
+    
+    // Create new pooled connection
+    if (!DatabaseConnectivity.poolLock) {
+      DatabaseConnectivity.poolLock = true;
+      try {
+        const uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=1&appName=PooledConnection&maxPoolSize=150&minPoolSize=20&maxIdleTimeMS=0&serverSelectionTimeoutMS=0&socketTimeoutMS=0&connectTimeoutMS=0';
+        
+        const pooledClient = new MongoClient(uri, {
+          maxPoolSize: 150,             // Higher pool size for many parallel connections
+          minPoolSize: 20,              // Always keep connections warm
+          maxIdleTimeMS: 0,             // Never close idle connections
+          serverSelectionTimeoutMS: 0,  // No timeouts - wait forever
+          socketTimeoutMS: 0,           // No socket timeouts
+          connectTimeoutMS: 0,          // No connection timeouts
+          retryWrites: true,
+          retryReads: true,
+          maxConnecting: 75,            // Allow many concurrent connections
+          family: 4,
+          directConnection: false,
+          compressors: ['zlib'],
+          readPreference: 'primaryPreferred',
+          readConcern: { level: 'local' },
+          writeConcern: { w: 0, j: false }, // Fastest write concern
+          heartbeatFrequencyMS: 10000,  // Frequent heartbeats for reliability
+          waitQueueTimeoutMS: 0         // No wait timeout
+        });
+        
+        await pooledClient.connect();
+        DatabaseConnectivity.connectionPool.set(poolKey, pooledClient);
+        return pooledClient;
+      } finally {
+        DatabaseConnectivity.poolLock = false;
+      }
+    }
+    
+    // Fallback to individual connection
+    return null;
+  }
+
+  // Enhanced singleton pattern for parallel connection isolation
   static getInstance() {
     if (!DatabaseConnectivity.instance) {
       DatabaseConnectivity.instance = new DatabaseConnectivity();
@@ -32,6 +93,15 @@ class DatabaseConnectivity {
       DatabaseConnectivity.instance.startConnectionCleanup();
     }
     return DatabaseConnectivity.instance;
+  }
+
+  // Create independent connection instance for parallel processing
+  static createIndependentInstance() {
+    const instance = new DatabaseConnectivity();
+    // Use unique connection tracking for parallel requests
+    instance.instanceId = Date.now().toString(36) + Math.random().toString(36);
+    instance.silentMode = true; // Keep silent for clean logs
+    return instance;
   }
 
   // Ultra-fast client configuration for 24/7 multi-processing
@@ -60,21 +130,38 @@ class DatabaseConnectivity {
     return this.client;
   }
 
-    // 24/7 connection initialization - never fails
+    // 24/7 connection initialization with parallel request isolation
     async initialize(retries = 10) {
+        // Prevent race conditions in parallel requests
+        if (this.connectionLock) {
+            // Wait for existing connection attempt to complete
+            while (this.connectionLock && retries > 0) {
+                await new Promise(resolve => setTimeout(resolve, 10));
+                retries--;
+            }
+        }
+
         // If already connecting, wait for existing connection
         if (this.connectionPromise) {
             return this.connectionPromise;
         }
 
         // If already connected, return immediately - no verification needed for speed
-        if (this.connected && this.connectionReady) {
+        if (this.connected && this.connectionReady && this.client) {
             return "Already connected to MongoDB Atlas!";
         }
 
+        // Set connection lock to prevent race conditions
+        this.connectionLock = true;
+        
         // Create connection promise with aggressive retry logic
         this.connectionPromise = this._connectWithRetry(retries);
-        return this.connectionPromise;
+        const result = await this.connectionPromise;
+        
+        // Release connection lock
+        this.connectionLock = false;
+        
+        return result;
     }
 
     async _connectWithRetry(retries) {
@@ -175,22 +262,34 @@ class DatabaseConnectivity {
         }
     }
 
-  // Maximum performance operation wrapper for 24/7 multi-processing
+  // Maximum performance operation wrapper for parallel request isolation
   async executeOperation(operation, retries = 10) {
-    const operationId = Date.now().toString(36);
+    const operationId = `${this.instanceId}_${Date.now().toString(36)}`;
     
     try {
       this.activeOperations.add(operationId);
       
-      // Always ensure connection for reliability
-      if (!this.connectionReady || !this.connected) {
-        await this.initialize(10); // Maximum retries for 24/7 operation
+      // Try to use pooled connection first for better parallel performance
+      let client;
+      try {
+        client = await DatabaseConnectivity.getPooledConnection();
+      } catch (poolError) {
+        // Fallback to individual connection
+        client = null;
+      }
+      
+      if (!client) {
+        // Fallback: ensure individual connection for reliability
+        if (!this.connectionReady || !this.connected || !this.client) {
+          await this.initialize(10); // Maximum retries for 24/7 operation
+        }
+        client = this.getClient();
       }
       
       this.lastUsed = Date.now();
       
       // Execute operation without any timeouts for maximum performance
-      const result = await operation(this.getClient());
+      const result = await operation(client);
       
       return result;
       
@@ -198,6 +297,7 @@ class DatabaseConnectivity {
       // Aggressive retries for 24/7 reliability - never give up
       if (retries > 0 && this.isConnectionError(error)) {
         this.connectionReady = false;
+        this.connectionLock = false; // Release lock on error
         await this.close();
         await new Promise(resolve => setTimeout(resolve, 10)); // Ultra-fast retry
         return this.executeOperation(operation, retries - 1);
@@ -446,6 +546,8 @@ class DatabaseConnectivity {
 
   async close() {
     try {
+      // Release connection lock when closing
+      this.connectionLock = false;
       if (this.client) {
         await this.client.close();
       }
@@ -456,6 +558,7 @@ class DatabaseConnectivity {
       this.connected = false;
       this.connectionReady = false;
       this.connectionPromise = null;
+      this.connectionLock = false;
     }
   }
 

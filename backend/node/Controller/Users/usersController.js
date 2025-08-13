@@ -5,7 +5,8 @@ const crypto = require('crypto');
 
 class UsersController {
     constructor() {
-        this.dbConnection = new DatabaseConnectivity();
+        // Use independent connection for parallel processing isolation
+        this.dbConnection = DatabaseConnectivity.createIndependentInstance();
         this.emailService = new EmailService();
     }
 
@@ -28,16 +29,16 @@ async deleteUser(userId) {
     
     async verifyUser(email, password) {
         try {
-            console.log('Verifying user with email:', email);
+            console.log(`[${this.dbConnection.instanceId}] Verifying user with email:`, email);
             await this.dbConnection.initialize();
 
-            // 1. Find user by email
+            // 1. Find user by email - with independent connection
             const user = await this.dbConnection.findDocument(
                 'Straw-Headed-Bulbul',
                 'Accounts',
                 { email: email }
             );
-            console.log('User found:', user);
+            console.log(`[${this.dbConnection.instanceId}] User found:`, user ? 'Yes' : 'No');
 
             if (!user || !user.hashPassword) {
                 return {
@@ -79,6 +80,7 @@ async deleteUser(userId) {
                     }
                 }*/
 
+                console.log(`[${this.dbConnection.instanceId}] Authentication successful for:`, email);
                 return {
                     success: true,
                     user: {
@@ -89,13 +91,14 @@ async deleteUser(userId) {
                     message: 'Authentication successful'
                 };
             } else {
+                console.log(`[${this.dbConnection.instanceId}] Authentication failed for:`, email);
                 return {
                     success: false,
                     message: 'Invalid email or password'
                 };
             }
         } catch (error) {
-            console.error('Error verifying user:', error);
+            console.error(`[${this.dbConnection.instanceId}] Error verifying user:`, error);
             return {
                 success: false,
                 message: 'Authentication error occurred'
