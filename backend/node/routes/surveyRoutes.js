@@ -434,6 +434,8 @@ router.post('/', async function(req, res, next)
                 volunteers: numberOfVolunteers,
                 yearsActive: yearsActive
             };
+
+            console.log('Statistics calculated:', statistics);
             
             return res.json({
                 "result": { 
