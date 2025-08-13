@@ -3,7 +3,7 @@ const { MongoClient, ObjectId } = require('mongodb');
 class DatabaseConnectivity {
   constructor() {
     // Primary connection string - simplified for maximum compatibility
-    this.uri = process.env.MONGODB_URI || 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=0&appName=StrawHeadedBulbul&maxPoolSize=100';
+    this.uri = 'mongodb+srv://wildlifemlxy:Mlxy6695@strawheadedbulbul.w7an1sp.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=0&appName=StrawHeadedBulbul&maxPoolSize=100';
     
     // Fallback URIs for DNS resolution issues - simplified
     this.fallbackUris = [
