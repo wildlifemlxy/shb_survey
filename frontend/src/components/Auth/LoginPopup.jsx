@@ -3,6 +3,7 @@ import '../../css/components/Auth/LoginPopup.css'; // Import the updated styles
 import { fetchLoginData, changePassword, resetPassword } from '../../data/loginData';
 import QRCode from 'qrcode';
 import botDetectionService from '../../services/botDetection';
+import io from 'socket.io-client';
 // Note: Since we're using a class component, we can't directly use the useAuth hook
 // We'll pass the login function as a prop from a parent component that uses the hook
 
@@ -54,7 +55,18 @@ class LoginPopup extends Component {
       // Google reCAPTCHA states
       recaptchaWidgetId: null,
       recaptchaResponse: null,
-      isRecaptchaLoaded: false
+      isRecaptchaLoaded: false,
+      // Mobile authentication states
+      loginMethod: 'traditional', // Default to traditional login
+      showMobileVerification: false, // Show after successful email/password login
+      showQRLogin: false,
+      qrLoginCode: '',
+      showMobileApproval: false,
+      mobileApprovalSessionId: '',
+      mobileApprovalStatus: 'pending', // 'pending', 'approved', 'denied', 'timeout'
+      isWaitingForMobileApproval: false,
+      socket: null,
+      mobileApprovalTimeout: null
     };
   }
 
@@ -66,6 +78,9 @@ class LoginPopup extends Component {
     // Initialize bot detection
     botDetectionService.initialize();
     
+    // Initialize Socket.IO for real-time mobile approval
+    this.initializeSocket();
+    
     // Start with login form - QR code comes after successful login
   }
 
@@ -75,6 +90,14 @@ class LoginPopup extends Component {
     
     // Clean up bot detection
     botDetectionService.cleanup();
+    
+    // Clean up socket connection and timeouts
+    if (this.state.socket) {
+      this.state.socket.disconnect();
+    }
+    if (this.state.mobileApprovalTimeout) {
+      clearTimeout(this.state.mobileApprovalTimeout);
+    }
   }
 
   // Global keydown handler for auto-filling PIN inputs
@@ -148,8 +171,22 @@ class LoginPopup extends Component {
       // Reset reCAPTCHA states
       recaptchaWidgetId: null,
       recaptchaResponse: null,
-      isRecaptchaLoaded: false
+      isRecaptchaLoaded: false,
+      // Reset mobile auth states
+      loginMethod: 'traditional', // Reset to traditional login
+      showMobileVerification: false,
+      showQRLogin: false,
+      qrLoginCode: '',
+      showMobileApproval: false,
+      mobileApprovalSessionId: '',
+      mobileApprovalStatus: 'pending',
+      isWaitingForMobileApproval: false
     });
+    
+    // Clear timeouts
+    if (this.state.mobileApprovalTimeout) {
+      clearTimeout(this.state.mobileApprovalTimeout);
+    }
     
     // No session data to clear
     
@@ -175,17 +212,18 @@ class LoginPopup extends Component {
       console.log('Login result:', result);
       
       if (result.success) {
-        // Login credentials validated successfully - NOW show QR code for ALL users
-        console.log('Login successful - credentials validated, now showing QR code');
+        // Login credentials validated successfully - NOW show mobile verification options
+        console.log('Login successful - credentials validated, now showing mobile verification');
         
         this.setState({
           userData: result.data,
           isLoading: false,
-          error: '' // Clear any previous errors
+          error: '', // Clear any previous errors
+          showMobileVerification: true, // Show mobile verification options
+          loginMethod: 'qr-mobile' // Default to QR code for mobile verification
         });
         
-        // Generate QR code for ALL users after successful login validation
-        await this.generateMFAPinAndQR(email, result.data);
+        // Don't auto-generate QR - let user choose verification method
       } else {
         this.setState({ 
           error: result?.message || 'Invalid email or password. Please try again.' 
@@ -670,6 +708,261 @@ class LoginPopup extends Component {
     
     this.props.onLoginSuccess(enhancedUserData);
   };
+
+  // Initialize Socket.IO connection for real-time mobile communication
+  initializeSocket = () => {
+    const backendUrl = window.location.hostname === 'localhost' 
+      ? 'http://localhost:3001' 
+      : 'https://shb-backend.azurewebsites.net';
+    
+    const socket = io(backendUrl, {
+      transports: ['websocket', 'polling'],
+      cors: {
+        origin: '*',
+        methods: ['GET', 'POST']
+      }
+    });
+
+    socket.on('connect', () => {
+      console.log('Socket connected for mobile authentication');
+    });
+
+    socket.on('mobile-auth-response', (data) => {
+      this.handleMobileAuthResponse(data);
+    });
+
+    socket.on('qr-login-response', (data) => {
+      this.handleQRLoginResponse(data);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Socket disconnected');
+    });
+
+    this.setState({ socket });
+  };
+
+  // Handle mobile authentication response
+  handleMobileAuthResponse = (data) => {
+    const { sessionId, approved, userData } = data;
+    
+    if (sessionId === this.state.mobileApprovalSessionId) {
+      if (approved) {
+        this.setState({ 
+          mobileApprovalStatus: 'approved',
+          isWaitingForMobileApproval: false,
+          userData: userData
+        });
+        
+        // Clear timeout
+        if (this.state.mobileApprovalTimeout) {
+          clearTimeout(this.state.mobileApprovalTimeout);
+        }
+        
+        // For mobile approval, add a slight delay to show "approved" status before completing login
+        setTimeout(() => {
+          this.handleMFAComplete();
+        }, 1500); // 1.5 second delay to show approval confirmation
+      } else {
+        this.setState({ 
+          mobileApprovalStatus: 'denied',
+          isWaitingForMobileApproval: false,
+          error: 'Login denied on mobile device'
+        });
+      }
+    }
+  };
+
+  // Handle QR login response from mobile app
+  handleQRLoginResponse = (data) => {
+    const { sessionId, success, userData, error } = data;
+    
+    if (sessionId === this.state.qrLoginCode) {
+      if (success && userData) {
+        this.setState({ 
+          userData: userData,
+          showQRLogin: false,
+          isLoading: false
+        });
+        
+        // Complete login immediately for QR code - no additional steps needed
+        this.handleMFAComplete();
+      } else {
+        this.setState({ 
+          mfaError: error || 'QR login failed',
+          showQRLogin: false,
+          isLoading: false
+        });
+      }
+    }
+  };
+
+  // Generate QR code for mobile login
+  generateMobileLoginQR = async () => {
+    try {
+      this.setState({ isGeneratingMFA: true, mfaError: '' });
+      
+      // Generate unique session ID for this login attempt
+      const sessionId = this.generateSessionId();
+      const timestamp = Date.now();
+      
+      // Create QR code data with login session info
+      const qrData = {
+        type: 'mobile_login',
+        sessionId: sessionId,
+        timestamp: timestamp,
+        webAppUrl: window.location.origin,
+        expiresAt: timestamp + (5 * 60 * 1000) // 5 minutes
+      };
+      
+      // Generate QR code from session data
+      const qrCodeDataUrl = await QRCode.toDataURL(JSON.stringify(qrData), {
+        width: 256,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      
+      this.setState({
+        showQRLogin: true,
+        qrLoginCode: sessionId,
+        qrCodeDataUrl: qrCodeDataUrl,
+        isGeneratingMFA: false,
+        loginMethod: 'qr-mobile'
+      });
+      
+      // Set up socket listener for this session
+      if (this.state.socket) {
+        this.state.socket.emit('register-qr-session', { sessionId });
+      }
+      
+      // Set timeout for QR code expiration
+      setTimeout(() => {
+        if (this.state.qrLoginCode === sessionId && this.state.showQRLogin) {
+          this.setState({ 
+            mfaError: 'QR code expired. Please generate a new one.',
+            showQRLogin: false 
+          });
+        }
+      }, 5 * 60 * 1000); // 5 minutes
+      
+    } catch (error) {
+      console.error('Error generating mobile login QR code:', error);
+      this.setState({
+        mfaError: 'Failed to generate QR code for mobile login',
+        isGeneratingMFA: false
+      });
+    }
+  };
+
+  // Generate unique session ID
+  generateSessionId = () => {
+    return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  };
+
+  // Request mobile approval for login
+  requestMobileApproval = async () => {
+    const { email, password } = this.state;
+    
+    if (!email || !password) {
+      this.setState({ error: 'Please enter both email and password' });
+      return;
+    }
+    
+    try {
+      this.setState({ isLoading: true, error: '' });
+      
+      // First validate credentials
+      const result = await fetchLoginData(email, password);
+      
+      if (result.success) {
+        // Generate mobile approval session
+        const sessionId = this.generateSessionId();
+        
+        // Send mobile approval request to backend
+        const backendUrl = window.location.hostname === 'localhost' 
+          ? 'http://localhost:3001' 
+          : 'https://shb-backend.azurewebsites.net';
+          
+        const response = await fetch(`${backendUrl}/api/auth/mobile/request-approval`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            sessionId: sessionId,
+            email: email,
+            userData: result.data,
+            requestTimestamp: Date.now()
+          })
+        });
+        
+        if (response.ok) {
+          this.setState({
+            showMobileApproval: true,
+            mobileApprovalSessionId: sessionId,
+            mobileApprovalStatus: 'pending',
+            isWaitingForMobileApproval: true,
+            loginMethod: 'mobile-approval',
+            userData: result.data,
+            isLoading: false
+          });
+          
+          // Set timeout for mobile approval (2 minutes)
+          const timeout = setTimeout(() => {
+            this.setState({
+              mobileApprovalStatus: 'timeout',
+              isWaitingForMobileApproval: false,
+              error: 'Mobile approval request timed out. Please try again.'
+            });
+          }, 2 * 60 * 1000);
+          
+          this.setState({ mobileApprovalTimeout: timeout });
+          
+        } else {
+          this.setState({ 
+            error: 'Failed to send mobile approval request',
+            isLoading: false 
+          });
+        }
+      } else {
+        this.setState({ 
+          error: result?.message || 'Invalid email or password',
+          isLoading: false 
+        });
+      }
+    } catch (error) {
+      console.error('Mobile approval request error:', error);
+      this.setState({ 
+        error: 'An error occurred while requesting mobile approval',
+        isLoading: false 
+      });
+    }
+  };
+
+  // Switch between login methods
+  switchLoginMethod = (method) => {
+    this.setState({ 
+      loginMethod: method,
+      showQRLogin: false,
+      showMobileApproval: false,
+      showMFAPin: false,
+      qrLoginCode: '',
+      mobileApprovalSessionId: '',
+      mobileApprovalStatus: 'pending',
+      isWaitingForMobileApproval: false,
+      error: '',
+      mfaError: ''
+    });
+    
+    // Clear any existing timeouts
+    if (this.state.mobileApprovalTimeout) {
+      clearTimeout(this.state.mobileApprovalTimeout);
+    }
+  };
+
   handlePasswordChange = async (e) => {
     e.preventDefault();
     const { newPassword, confirmPassword, userData } = this.state;
@@ -834,7 +1127,9 @@ class LoginPopup extends Component {
       showNewPassword, showConfirmPassword, passwordChangeError, isChangingPassword, 
       showResetPassword, resetEmail, isResettingPassword, resetPasswordError, resetPasswordSuccess, 
       showMFAPin, mfaPin, qrCodeDataUrl, isGeneratingMFA, mfaError, userInputPin, userData,
-      showBotChallenge, botChallenge, challengeAnswer, isPerformingBotDetection
+      showBotChallenge, botChallenge, challengeAnswer, isPerformingBotDetection,
+      // Mobile authentication states
+      loginMethod, showQRLogin, showMobileApproval, mobileApprovalStatus, isWaitingForMobileApproval
     } = this.state;
     const { isOpen } = this.props;
 
@@ -1302,114 +1597,395 @@ class LoginPopup extends Component {
             <h1>WWF SHB Survey System</h1>
             <p>Please sign in to continue</p>
           </div>
-          
-          <form className="login-form" onSubmit={this.handleSubmit}>
-            {error && (
-              <div className="login-error">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                </svg>
-                {error}
-              </div>
-            )}
-            
-            <div className="form-group">
-              <label htmlFor="email">Email</label>
-              <input
-                type="text"
-                id="email"
-                name="email"
-                value={email}
-                onChange={this.handleInputChange}
-                placeholder="Enter your email"
-                disabled={isLoading}
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="password">Password</label>
-              <div className="password-input-container" style={{ position: 'relative' }}>
-                <input
-                  type={this.state.showPassword ? "text" : "password"}
-                  id="password"
-                  name="password"
-                  value={password}
-                  onChange={this.handleInputChange}
-                  placeholder="Enter your password"
-                  disabled={isLoading}
-                  style={{width: '100%'}}
-                />
+
+          {/* Login Method Selector - Only show after login attempt */}
+          {this.state.showMobileVerification && (
+            <div className="mobile-verification-selector" style={{
+              textAlign: 'center',
+              marginBottom: '20px',
+              padding: '20px',
+              background: '#f8fafc',
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0'
+            }}>
+              <h3 style={{ marginBottom: '15px', color: '#374151', fontSize: '18px' }}>
+                Choose Mobile Verification Method
+              </h3>
+              <p style={{ marginBottom: '20px', color: '#6b7280', fontSize: '14px' }}>
+                Complete your login using your mobile device
+              </p>
+              
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
-                  onClick={() => this.setState(prevState => ({ showPassword: !prevState.showPassword }))}
+                  onClick={() => this.switchLoginMethod('qr-mobile')}
                   style={{
-                    position: 'absolute',
-                    right: '10px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'transparent',
-                    border: 'none',
+                    padding: '12px 20px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    background: loginMethod === 'qr-mobile' ? '#22c55e' : 'white',
+                    color: loginMethod === 'qr-mobile' ? 'white' : '#374151',
                     cursor: 'pointer',
-                    fontSize: '16px',
-                    color: '#555',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    minWidth: '140px',
+                    boxShadow: loginMethod === 'qr-mobile' ? '0 4px 15px rgba(34, 197, 94, 0.3)' : '0 2px 4px rgba(0, 0, 0, 0.1)'
                   }}
                 >
-                  {this.state.showPassword ? (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-                    </svg>
-                  ) : (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>
-                    </svg>
-                  )}
+                  � Scan QR Code
+                </button>
+                <button
+                  type="button"
+                  onClick={() => this.switchLoginMethod('mobile-approval')}
+                  style={{
+                    padding: '12px 20px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    background: loginMethod === 'mobile-approval' ? '#22c55e' : 'white',
+                    color: loginMethod === 'mobile-approval' ? 'white' : '#374151',
+                    cursor: 'pointer',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    minWidth: '140px',
+                    boxShadow: loginMethod === 'mobile-approval' ? '0 4px 15px rgba(34, 197, 94, 0.3)' : '0 2px 4px rgba(0, 0, 0, 0.1)'
+                  }}
+                >
+                  ✓ App Notification
                 </button>
               </div>
             </div>
-            
-            {/* Reset Password Link */}
-            <div style={{ textAlign: 'right', marginBottom: '1rem' }}>
-              <button
-                type="button"
-                onClick={this.handleResetPasswordClick}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#22c55e',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  textDecoration: 'underline',
-                  padding: '0',
-                  fontWeight: '500'
-                }}
-                disabled={isLoading}
-              >
-                Forgot Password?
-              </button>
-            </div>
-            
-            <div className="login-button-group">
-              <button 
-                type="submit" 
-                className="login-button"
-                style={{
-                  background: 'linear-gradient(135deg, #00ECFA 0%, #00B8EA 100%)', // Blue gradient
-                  boxShadow: '0 4px 15px rgba(0, 184, 234, 0.3)',
-                  width: '100%'
-                }}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <div className="loading-spinner">
-                    <div className="spinner"></div>
-                    Signing In...
+          )}
+
+          {/* Traditional Login Form - Primary Method */}
+          {!this.state.showMobileVerification && (
+            <form className="login-form" onSubmit={this.handleSubmit}>
+              {error && (
+                <div className="login-error">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                  {error}
+                </div>
+              )}
+              
+              <div className="form-group">
+                <label htmlFor="email">Email</label>
+                <input
+                  type="text"
+                  id="email"
+                  name="email"
+                  value={email}
+                  onChange={this.handleInputChange}
+                  placeholder="Enter your email"
+                  disabled={isLoading}
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="password">Password</label>
+                <div className="password-input-container" style={{ position: 'relative' }}>
+                  <input
+                    type={this.state.showPassword ? "text" : "password"}
+                    id="password"
+                    name="password"
+                    value={password}
+                    onChange={this.handleInputChange}
+                    placeholder="Enter your password"
+                    disabled={isLoading}
+                    style={{width: '100%'}}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => this.setState(prevState => ({ showPassword: !prevState.showPassword }))}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '16px',
+                      color: '#555',
+                    }}
+                  >
+                    {this.state.showPassword ? (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                      </svg>
+                    ) : (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+              
+              {/* Reset Password Link */}
+              <div style={{ textAlign: 'right', marginBottom: '1rem' }}>
+                <button
+                  type="button"
+                  onClick={this.handleResetPasswordClick}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#22c55e',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    textDecoration: 'underline',
+                    padding: '0',
+                    fontWeight: '500'
+                  }}
+                  disabled={isLoading}
+                >
+                  Forgot Password?
+                </button>
+              </div>
+              
+              <div className="login-button-group">
+                <button 
+                  type="submit" 
+                  className="login-button"
+                  style={{
+                    background: 'linear-gradient(135deg, #00ECFA 0%, #00B8EA 100%)',
+                    boxShadow: '0 4px 15px rgba(0, 184, 234, 0.3)',
+                    width: '100%'
+                  }}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <div className="loading-spinner">
+                      <div className="spinner"></div>
+                      Signing In...
+                    </div>
+                  ) : (
+                    'Sign In'
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* QR Login Screen */}
+          {loginMethod === 'qr-mobile' && (
+            <div className="qr-login-section" style={{ textAlign: 'center', padding: '20px' }}>
+              {!showQRLogin ? (
+                <div>
+                  <h3 style={{ marginBottom: '15px', color: '#374151' }}>Login with Mobile App</h3>
+                  <p style={{ marginBottom: '20px', color: '#6b7280', fontSize: '14px' }}>
+                    Scan the QR code with your mobile app to login instantly
+                  </p>
+                  <button
+                    type="button"
+                    onClick={this.generateMobileLoginQR}
+                    disabled={isGeneratingMFA}
+                    style={{
+                      padding: '12px 24px',
+                      background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 15px rgba(34, 197, 94, 0.3)'
+                    }}
+                  >
+                    {isGeneratingMFA ? 'Generating QR Code...' : 'Generate QR Code'}
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <h3 style={{ marginBottom: '15px', color: '#374151' }}>Scan QR Code</h3>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    marginBottom: '15px'
+                  }}>
+                    <img 
+                      src={qrCodeDataUrl} 
+                      alt="Login QR Code" 
+                      style={{
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        padding: '10px',
+                        background: 'white'
+                      }}
+                    />
                   </div>
-                ) : (
-                  'Sign In'
-                )}
-              </button>
+                  <p style={{ color: '#6b7280', fontSize: '14px', marginBottom: '15px' }}>
+                    Open your mobile app and scan this QR code to login
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => this.setState({ showQRLogin: false })}
+                    style={{
+                      padding: '8px 16px',
+                      background: '#6b7280',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Generate New QR Code
+                  </button>
+                </div>
+              )}
+              
+              {mfaError && (
+                <div style={{
+                  marginTop: '15px',
+                  padding: '10px',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '6px',
+                  color: '#dc2626',
+                  fontSize: '14px'
+                }}>
+                  {mfaError}
+                </div>
+              )}
             </div>
-          </form>
+          )}
+
+          {/* Mobile Approval Screen */}
+          {loginMethod === 'mobile-approval' && (
+            <div className="mobile-approval-section">
+              {!showMobileApproval ? (
+                <form className="login-form" onSubmit={(e) => { e.preventDefault(); this.requestMobileApproval(); }}>
+                  {error && (
+                    <div className="login-error">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                      </svg>
+                      {error}
+                    </div>
+                  )}
+                  
+                  <div className="form-group">
+                    <label htmlFor="email">Email</label>
+                    <input
+                      type="text"
+                      id="email"
+                      name="email"
+                      value={email}
+                      onChange={this.handleInputChange}
+                      placeholder="Enter your email"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="password">Password</label>
+                    <div className="password-input-container" style={{ position: 'relative' }}>
+                      <input
+                        type={this.state.showPassword ? "text" : "password"}
+                        id="password"
+                        name="password"
+                        value={password}
+                        onChange={this.handleInputChange}
+                        placeholder="Enter your password"
+                        disabled={isLoading}
+                        style={{width: '100%'}}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => this.setState(prevState => ({ showPassword: !prevState.showPassword }))}
+                        style={{
+                          position: 'absolute',
+                          right: '10px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '16px',
+                          color: '#555',
+                        }}
+                      >
+                        {this.state.showPassword ? (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                          </svg>
+                        ) : (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="login-button-group">
+                    <button 
+                      type="submit" 
+                      className="login-button"
+                      style={{
+                        background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                        boxShadow: '0 4px 15px rgba(245, 158, 11, 0.3)',
+                        width: '100%'
+                      }}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <div className="loading-spinner">
+                          <div className="spinner"></div>
+                          Requesting Mobile Approval...
+                        </div>
+                      ) : (
+                        'Request Mobile Approval'
+                      )}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '20px' }}>
+                  <h3 style={{ marginBottom: '15px', color: '#374151' }}>Waiting for Mobile Approval</h3>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    marginBottom: '20px'
+                  }}>
+                    <div style={{
+                      width: '60px',
+                      height: '60px',
+                      border: '3px solid #f3f4f6',
+                      borderTop: '3px solid #22c55e',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }}></div>
+                  </div>
+                  
+                  <p style={{ color: '#6b7280', fontSize: '16px', marginBottom: '15px' }}>
+                    {mobileApprovalStatus === 'pending' && 'Check your mobile device for the approval request'}
+                    {mobileApprovalStatus === 'approved' && 'Approved! Logging you in...'}
+                    {mobileApprovalStatus === 'denied' && 'Login request was denied'}
+                    {mobileApprovalStatus === 'timeout' && 'Request timed out'}
+                  </p>
+                  
+                  <button
+                    type="button"
+                    onClick={() => this.setState({ showMobileApproval: false, mobileApprovalStatus: 'pending' })}
+                    style={{
+                      padding: '8px 16px',
+                      background: '#6b7280',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
       </div>
     );
