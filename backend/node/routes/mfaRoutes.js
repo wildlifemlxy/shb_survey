@@ -5,7 +5,8 @@ var router = express.Router();
 router.post('/', async (req, res) => {
   try {
     const { purpose, userId, email, deviceId, deviceType, code, approved } = req.body;
-    
+
+     const io = req.app.get('io'); // Get the Socket.IO instance
     console.log('MFA Request:', req.body);
     
     switch (purpose) {
@@ -84,8 +85,9 @@ async function handleVerify(req, res) {
   
   if (verificationResult) {
     // Emit success to web browser
-    if (global.io) {
-      global.io.emit('mobile-auth-response', {
+    const io = req.app.get('io'); // Get the Socket.IO instance
+    if (io) {
+      io.emit('mobile-auth-response', {
         approved: true,
         userData: { userId, email }
       });
@@ -116,8 +118,9 @@ async function handleQRScan(req, res) {
   console.log('QR Scan:', { userId, email, deviceId });
   
   // Emit QR scan success to web browser
-  if (global.io) {
-    global.io.emit('qr-login-response', {
+  const io = req.app.get('io'); // Get the Socket.IO instance
+  if (io) {
+    io.emit('qr-login-response', {
       success: true,
       userData: { userId, email }
     });
@@ -138,8 +141,9 @@ async function handleRequestApproval(req, res) {
   console.log('Requesting Mobile Approval:', { userId, email, sessionId });
   
   // Send approval request to Android app via Socket.IO
-  if (global.io) {
-    global.io.emit('mobile-approval-request', {
+  const io = req.app.get('io'); // Get the Socket.IO instance
+  if (io) {
+    io.emit('mobile-approval-request', {
       userId,
       email,
       sessionId,
@@ -165,8 +169,9 @@ async function handleApproval(req, res) {
   console.log('Mobile Approval:', { userId, email, approved });
   
   // Emit approval response to web browser
-  if (global.io) {
-    global.io.emit('mobile-auth-response', {
+  const io = req.app.get('io'); // Get the Socket.IO instance
+  if (io) {
+    io.emit('mobile-auth-response', {
       approved: approved,
       userData: approved ? { userId, email } : null
     });
