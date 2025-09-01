@@ -207,6 +207,22 @@ class SimpleApiService {
     }
   }
 
+  // MFA - Request mobile approval
+  async requestMobileApproval(userData) {
+    try {
+      const response = await axios.post(`${this.baseURL}/mfa`, {
+        purpose: 'request_approval',
+        userId: userData.id || userData.userId,
+        email: userData.email,
+        sessionId: userData.sessionId || Date.now().toString()
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Request mobile approval error:', error);
+      throw error;
+    }
+  }
+
 }
 
 const simpleApiService = new SimpleApiService();

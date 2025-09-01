@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import '../../css/components/Auth/LoginPopup.css'; // Import the updated styles
 import { fetchLoginData, changePassword, resetPassword } from '../../data/loginData';
+import simpleApiService from '../../utils/simpleApiService';
 import QRCode from 'qrcode';
 import botDetectionService from '../../services/botDetection';
 import io from 'socket.io-client';
@@ -860,6 +861,20 @@ class LoginPopup extends Component {
       if (result.success) {
         // Generate simple approval code
         const approvalCode = this.generateLocalMFAPin(8);
+        
+        // Send mobile approval request to backend (which will notify Android app)
+        try {
+          const notificationResult = await simpleApiService.requestMobileApproval({
+            id: result.data.id || result.data.userId,
+            email: email,
+            sessionId: approvalCode
+          });
+          
+          console.log('Mobile approval notification sent:', notificationResult);
+        } catch (notificationError) {
+          console.error('Failed to send mobile notification:', notificationError);
+          // Continue with the flow even if notification fails
+        }
         
         this.setState({
           showMobileVerification: false, // Hide choice modal

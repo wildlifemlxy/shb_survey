@@ -17,10 +17,12 @@ router.post('/', async (req, res) => {
         return await handleQRScan(req, res);
       case 'approval':
         return await handleApproval(req, res);
+      case 'request_approval':
+        return await handleRequestApproval(req, res);
       default:
         return res.status(400).json({
           success: false,
-          message: 'Invalid purpose. Use: setup, verify, qr_scan, or approval',
+          message: 'Invalid purpose. Use: setup, verify, qr_scan, approval, or request_approval',
           timestamp: Date.now()
         });
     }
@@ -125,6 +127,33 @@ async function handleQRScan(req, res) {
     success: true,
     message: 'QR scan successful - login completed',
     userData: { userId, email },
+    timestamp: Date.now()
+  });
+}
+
+// Handle Request for Mobile Approval - Send notification to Android app
+async function handleRequestApproval(req, res) {
+  const { userId, email, sessionId } = req.body;
+  
+  console.log('Requesting Mobile Approval:', { userId, email, sessionId });
+  
+  // Send approval request to Android app via Socket.IO
+  if (global.io) {
+    global.io.emit('mobile-approval-request', {
+      userId,
+      email,
+      sessionId,
+      message: 'Login approval required',
+      timestamp: Date.now()
+    });
+    
+    console.log('Mobile approval request sent to Android app via Socket.IO');
+  }
+  
+  return res.json({
+    success: true,
+    message: 'Mobile approval request sent to Android app',
+    sessionId: sessionId,
     timestamp: Date.now()
   });
 }
