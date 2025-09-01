@@ -4,6 +4,7 @@ import React, { Component } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faHome } from '@fortawesome/free-solid-svg-icons';
+import '../css/components/PrivacyPolicyNotice.css';
 
 class PrivacyPolicyNotice extends Component {
   constructor(props) {
@@ -30,20 +31,21 @@ class PrivacyPolicyNotice extends Component {
     const { currentDateTime } = this.state;
     return (
       <div className="privacy-policy-container">
-        <div className="privacy-policy-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <div className="header-title">
-            <h1 style={{ marginBottom: 0 }}>Privacy Policy</h1>
-            <div className="privacy-policy-datetime" style={{ fontSize: '0.9rem', color: '#888' }}>{currentDateTime}</div>
-            <p style={{ marginTop: '0.5rem' }}>Last updated: July 14, 2025</p>
-          </div>
-          <div className="header-actions">
-            <Link to="/" className="home-link" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: '#333' }}>
-              <FontAwesomeIcon icon={faHome} style={{ marginRight: '0.5rem' }} />
-              <span>Home</span>
-            </Link>
+        <div className="privacy-policy-header">
+          <div className="header-content">
+            <div className="header-title">
+              <h1>Privacy Policy</h1>
+            </div>
+            <div className="header-actions">
+              <Link to="/" className="home-link">
+                <FontAwesomeIcon icon={faHome} />
+                <span>Home</span>
+              </Link>
+            </div>
           </div>
         </div>
-        <div>
+        <div className="privacy-policy-content">
+          <h3 className="last-updated">Last updated: July 14, 2025</h3>
           <p>
             This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application (the "Service"). By using the Service, you consent to the practices described in this policy.
           </p>
