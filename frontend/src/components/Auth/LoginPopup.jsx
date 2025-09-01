@@ -1129,13 +1129,128 @@ class LoginPopup extends Component {
       showMFAPin, mfaPin, qrCodeDataUrl, isGeneratingMFA, mfaError, userInputPin, userData,
       showBotChallenge, botChallenge, challengeAnswer, isPerformingBotDetection,
       // Mobile authentication states
-      loginMethod, showQRLogin, showMobileApproval, mobileApprovalStatus, isWaitingForMobileApproval
+      loginMethod, showMobileVerification, showQRLogin, showMobileApproval, mobileApprovalStatus, isWaitingForMobileApproval
     } = this.state;
     const { isOpen } = this.props;
 
     if (!isOpen) return null;
 
-    // Show MFA PIN and QR Code dialog (after successful login)
+    // Show Mobile Verification Choice (after successful email/password login)
+    if (showMobileVerification) {
+      return (
+        <div className="login-popup-overlay">
+          <div className="login-card">
+            <button className="login-close-button" onClick={this.handleCloseButton}>
+              x
+            </button>
+            
+            <div className="login-header">
+              <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF Logo" className="login-logo" />
+              <h1>Choose Verification Method</h1>
+              <p>Complete your login using your mobile device</p>
+            </div>
+
+            {/* Mobile Verification Choice */}
+            <div style={{ textAlign: 'center', padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap', marginBottom: '30px' }}>
+                <button
+                  type="button"
+                  onClick={() => this.switchLoginMethod('qr-mobile')}
+                  style={{
+                    padding: '20px',
+                    border: '2px solid #d1d5db',
+                    borderRadius: '12px',
+                    background: loginMethod === 'qr-mobile' ? '#22c55e' : 'white',
+                    color: loginMethod === 'qr-mobile' ? 'white' : '#374151',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    minWidth: '160px',
+                    boxShadow: loginMethod === 'qr-mobile' ? '0 4px 15px rgba(34, 197, 94, 0.3)' : '0 2px 8px rgba(0, 0, 0, 0.1)',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <div style={{ fontSize: '32px', marginBottom: '10px' }}>📱</div>
+                  <div>Scan QR Code</div>
+                  <div style={{ fontSize: '12px', marginTop: '5px', opacity: 0.8 }}>Quick & Easy</div>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => this.switchLoginMethod('mobile-approval')}
+                  style={{
+                    padding: '20px',
+                    border: '2px solid #d1d5db',
+                    borderRadius: '12px',
+                    background: loginMethod === 'mobile-approval' ? '#22c55e' : 'white',
+                    color: loginMethod === 'mobile-approval' ? 'white' : '#374151',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    minWidth: '160px',
+                    boxShadow: loginMethod === 'mobile-approval' ? '0 4px 15px rgba(34, 197, 94, 0.3)' : '0 2px 8px rgba(0, 0, 0, 0.1)',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <div style={{ fontSize: '32px', marginBottom: '10px' }}>✅</div>
+                  <div>App Notification</div>
+                  <div style={{ fontSize: '12px', marginTop: '5px', opacity: 0.8 }}>Push Approval</div>
+                </button>
+              </div>
+
+              {/* Show selected method content */}
+              {loginMethod === 'qr-mobile' && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={this.generateMobileLoginQR}
+                    disabled={isGeneratingMFA}
+                    style={{
+                      padding: '12px 24px',
+                      background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 15px rgba(34, 197, 94, 0.3)'
+                    }}
+                  >
+                    {isGeneratingMFA ? 'Generating QR Code...' : 'Generate QR Code'}
+                  </button>
+                </div>
+              )}
+
+              {loginMethod === 'mobile-approval' && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={this.requestMobileApproval}
+                    disabled={isLoading}
+                    style={{
+                      padding: '12px 24px',
+                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 15px rgba(245, 158, 11, 0.3)'
+                    }}
+                  >
+                    {isLoading ? 'Sending Request...' : 'Send App Notification'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Show MFA PIN and QR Code dialog (old flow - keep for fallback)
     if (showMFAPin) {
       return (
         <div className="login-popup-overlay">
@@ -1657,8 +1772,7 @@ class LoginPopup extends Component {
           )}
 
           {/* Traditional Login Form - Primary Method */}
-          {!this.state.showMobileVerification && (
-            <form className="login-form" onSubmit={this.handleSubmit}>
+          <form className="login-form" onSubmit={this.handleSubmit}>
               {error && (
                 <div className="login-error">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -1765,7 +1879,6 @@ class LoginPopup extends Component {
                 </button>
               </div>
             </form>
-          )}
 
           {/* QR Login Screen */}
           {loginMethod === 'qr-mobile' && (
