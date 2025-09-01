@@ -237,7 +237,7 @@ class QuickActionsPanel extends Component {
                   disabled={backupDisabled}
                   style={{
                     padding: '10px 16px',
-                    background: backupDisabled ? '#9ca3af' : '#10b981',
+                    background: backupDisabled ? '#9ca3af' : '#0ea5e9',
                     color: 'white',
                     border: 'none',
                     borderRadius: 6,
