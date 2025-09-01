@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import '../../css/components/Location/Location.css'; // Import the new CSS file for location styling
 import '../../css/components/Form/FormControls.css'; // Import common form controls CSS
-import './ObserverInfoSection.css'; // Import component-specific styles
+import '../../css/components/Dashboard/ObserverInfoSection.css'; // Import component-specific styles
 
 class ObserverInfoSection extends Component {
   constructor(props) {

@@ -59,6 +59,7 @@ class DateLineChart extends Component {
 
   componentDidMount() {
     const data = this.props.data;
+    console.log("DateLineChart data:", data);
     // Initialize TensorFlow if ML panel is shown
     if (this.state.showMLPanel) {
       this.initTensorFlow();

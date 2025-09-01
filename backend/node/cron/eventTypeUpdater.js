@@ -22,7 +22,7 @@ function sgTimeToUTC(dateObj, timeStr) {
 function startEventTypeUpdater(io) {
   schedule.scheduleJob('* * * * *', async () => {
     try {
-      console.log('Running event type updater scheduler...');
+      //console.log('Running event type updater scheduler...');
       const controller = new EventsController();
       const result = await controller.getAllEvents();
       const events = result.events;

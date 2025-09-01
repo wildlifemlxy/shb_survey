@@ -8,39 +8,7 @@ import isEqual from 'lodash/isEqual';
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 class ObservationTable extends Component {
-  // Utility: Store token and session in localStorage
-  static saveAuthToLocalStorage(token, sessionData) {
-    if (token) localStorage.setItem('authToken', token);
-    if (sessionData) localStorage.setItem('sessionData', JSON.stringify(sessionData));
-  }
 
-  // Utility: Retrieve token and session from localStorage
-  static getAuthFromLocalStorage() {
-    const token = localStorage.getItem('authToken');
-    let sessionData = null;
-    try {
-      sessionData = JSON.parse(localStorage.getItem('sessionData'));
-    } catch (e) {
-      sessionData = null;
-    }
-    return { token, sessionData };
-  }
-
-  // Example: Use token/session on mount (customize as needed)
-  componentDidMount() {
-    // ...existing code...
-    // Restore token/session for API requests
-    const { token, sessionData } = ObservationTable.getAuthFromLocalStorage();
-    if (token) {
-      // Use token for API requests, e.g. set default header
-      // window.apiToken = token; // Example global usage
-      // Or set in axios/fetch headers
-    }
-    if (sessionData) {
-      // Use sessionData as needed
-    }
-    // ...existing code...
-  }
 constructor(props) {
   super(props);
   this.state = {
@@ -948,81 +916,6 @@ constructor(props) {
         console.error('Error in transformData:', error);
         return [];
       }
-  }
-
-  renderMobileCards() {
-    const { currentPage, cardsPerPage, filteredData } = this.state;
-    
-    // Apply pagination to the already filtered data
-    const paginatedData = filteredData.slice(
-      currentPage * cardsPerPage, 
-      (currentPage + 1) * cardsPerPage
-    );
-
-    return paginatedData.map((obs, i) => {
-      const isOpen = this.state.openCardIndex === i;
-      let cardBackgroundColor = '#f9f9f9';  // Default background color (light gray)
-      
-      switch (obs["Seen/Heard"]) {
-        case "Seen":
-          cardBackgroundColor = '#A8E6CF';  // Soft pastel green
-          break;
-        case "Heard":
-          cardBackgroundColor = '#FFE0B2';  // Soft pastel orange
-          break;
-        case "Not found":
-          cardBackgroundColor = '#E0E0E0';  // Soft pastel grey
-          break;
-      }
-
-      const serialNumber = currentPage * cardsPerPage + (i + 1);
-
-      return (
-        <div
-          key={i}
-          style={{
-            border: '1px solid #ccc',
-            borderRadius: '0.5rem',
-            padding: '0.75rem 1rem',
-            marginBottom: '1rem',
-            backgroundColor: cardBackgroundColor,
-            fontSize: '0.9rem',
-            lineHeight: '1.4',
-            height: 'auto',
-            maxHeight: '300px',
-            overflowY: 'auto',
-          }}
-        >
-          <div
-            onClick={() => this.toggleCard(i)}
-            style={{
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              paddingBottom: '0.5rem',
-            }}
-          >
-            <strong>S/N:</strong> {serialNumber}
-            <br />
-            <strong>Location:</strong> {obs.Location}
-            <br />
-            <strong>Date:</strong> {obs.Date}
-          </div>
-
-          {isOpen && (
-            <div className="card-body">
-              <p><strong>Observer:</strong> {obs['Observer name'] || ''}</p>
-              <p><strong>Bird ID:</strong> {obs['SHB individual ID'] || ''}</p>
-              <p><strong>Activity:</strong> {obs["Activity (foraging, preening, calling, perching, others)"] || ''}</p>
-              <p><strong>Time:</strong> {this.convertExcelTime(obs.Time) || ''}</p>
-              <p><strong>Height of Tree:</strong> {obs["Height of tree/m"] != null && !isNaN(obs["Height of tree/m"]) ? `${obs["Height of tree/m"]}m` : ''}</p>
-              <p><strong>Height of Bird:</strong> {obs["Height of bird/m"] != null && !isNaN(obs["Height of bird/m"]) ? `${obs["Height of bird/m"]}m` : ''}</p>
-              <p><strong>Number of Bird(s):</strong> {obs["Number of Birds"] != null ? obs["Number of Birds"] : ''}</p>
-              <p><strong>Seen/Heard:</strong> {obs["Seen/Heard"] || ''}</p>
-            </div>
-          )}
-        </div>
-      );
-    });
   }
 
   // Custom Date Cell Editor Component
@@ -2207,9 +2100,34 @@ constructor(props) {
           // Make the whole cell act as a delete button
           return (
             <div
-              onClick={(e) => {
-                console.log('Delete button clicked for row:', params.node.rowIndex);
-                  //const deleteResult = deleteSurveyData(recordId);
+              onClick={async (e) => {
+                e.stopPropagation();
+                
+                // Get the record ID from the row data
+                const recordId = params.data._id;
+                if (!recordId) {
+                  console.error('No record ID found for deletion');
+                  alert('Cannot delete record: No ID found');
+                  return;
+                }
+                
+                // Confirm deletion
+                const confirmed = window.confirm('Are you sure you want to delete this survey record?');
+                if (!confirmed) return;
+                
+                try {
+                  // Call the delete handler passed from parent
+                  if (this.props.onDataDelete) {
+                    await this.props.onDataDelete(recordId);
+                    console.log('Record deleted successfully:', recordId);
+                  } else {
+                    console.error('No delete handler provided');
+                    alert('Delete functionality not available');
+                  }
+                } catch (error) {
+                  console.error('Error deleting record:', error);
+                  alert('Failed to delete record. Please try again.');
+                }
               }}
               style={{
                 backgroundColor: '#dc3545',
@@ -2396,19 +2314,46 @@ constructor(props) {
               }
               
               try {
-                console.log('🔄 Attempting to update survey data:', { recordId, updatedRowData });
-                const result = await updateSurveyData(recordId, updatedRowData);
-                console.log('🔄 Update result:', result);
-                
-                if (result.success) {
-                  console.log('✅ Survey updated successfully:', result.message);
-                } else {
-                  console.error('❌ Survey update failed:', result.message);
-                  // You might want to revert the change or show an error message
+                // Check if we have a valid record ID and onDataUpdate handler
+                if (!recordId) {
+                  console.error('� No record ID available for update');
+                  alert('Cannot update record: No ID found');
+                  return;
                 }
+                
+                if (!this.props.onDataUpdate) {
+                  console.error('💥 No update handler provided');
+                  alert('Update functionality not available');
+                  return;
+                }
+                
+                // Prepare the updated data (only the changed field)
+                const updateData = {
+                  [event.colDef.field]: event.newValue
+                };
+                
+                // If this was a Bird ID change that also updated Number of Birds, include that
+                if (event.colDef.field === 'SHB individual ID' && updatedRowData['Number of Birds'] !== event.data['Number of Birds']) {
+                  updateData['Number of Birds'] = updatedRowData['Number of Birds'];
+                }
+                
+                console.log('🔄 Attempting to update survey:', { recordId, updateData });
+                
+                // Call the update handler from parent component
+                await this.props.onDataUpdate(recordId, updateData);
+                
+                console.log('✅ Survey updated successfully');
+                
               } catch (updateError) {
                 console.error('💥 Error updating survey:', updateError);
-                // You might want to revert the change or show an error message
+                alert('Error updating survey. Changes may not be saved.');
+                
+                // Revert the change in the grid
+                setTimeout(() => {
+                  const gridApi = event.api;
+                  const rowNode = event.node;
+                  rowNode.setDataValue(event.colDef.field, event.oldValue);
+                }, 50);
               }
             }}
             getRowStyle={params => {
@@ -2423,7 +2368,7 @@ constructor(props) {
                   backgroundColor = '#FFE0B2';  // Soft pastel orange
                   break;
                 case "Not found":
-                  backgroundColor = '#E0E0E0';  // Soft pastel grey
+                  backgroundColor = '#FFCDD2';  // Soft pastel grey
                   break;
               }
 
@@ -2442,7 +2387,7 @@ constructor(props) {
             <span>Heard</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ display: 'inline-block', width: 18, height: 18, background: '#E0E0E0', borderRadius: 3, border: '1px solid #ccc' }}></span>
+            <span style={{ display: 'inline-block', width: 18, height: 18, background: '#FFCDD2', borderRadius: 3, border: '1px solid #ccc' }}></span>
             <span>Not found</span>
           </div>
         </div>

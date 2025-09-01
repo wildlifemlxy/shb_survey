@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
-import './TreeHeightChart.css';
-import './TreeHeightChartScroll.css';
+import '../../../css/components/Charts/TreeChart/TreeHeightChart.css';
+import '../../../css/components/Charts/TreeChart/TreeHeightChartScroll.css';
 
 class TreeHeightChart extends Component {
   state = { hoveredTree: null, tooltipX: 0, tooltipY: 0 };

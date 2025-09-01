@@ -4,7 +4,7 @@ import domtoimage from 'dom-to-image';
 import jsPDF from 'jspdf';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
-import './MaintenanceBotButton.css';
+import '../../css/components/MaintenanceBot/MaintenanceBotButton.css';
 import SystemHealthStatus from './SystemHealthStatus';
 import QuickActionsPanel from './QuickActionsPanel';
 import StatusMessages from './StatusMessages';
@@ -45,7 +45,7 @@ class MaintenanceBotButton extends Component {
   }
 
   componentDidMount() {
-    console.log('MaintenanceBotButton mounted', this.props.shbData);
+    console.log('MaintenanceBotButton mounted');
     this.loadMaintenanceStatus();
     // Check status every 30 seconds
     this.statusInterval = setInterval(this.loadMaintenanceStatus, 30000);
@@ -962,14 +962,12 @@ class MaintenanceBotButton extends Component {
 
     console.log('Starting Excel export...', this.state.currentPage);
 
-    // Try to get data from props first (preferred method)
+    // Excel export is no longer available without authenticated data
     let observationData = [];
-    if (this.props.shbData) {
-      observationData = this.props.shbData.surveys;
-    } else {
-      observationData = [];
-      console.warn('No valid observation data found for export. Export will be empty.');
-    }
+    console.warn('Excel export not available - no authenticated data access.');
+    
+    // You could fetch public data here if needed
+    // observationData = await fetchPublicData();
 
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Observation Data');
@@ -1570,6 +1568,7 @@ class MaintenanceBotButton extends Component {
           onSendMessage={this.handleSendMessage}
           onBotResponse={this.handleBotResponse}
           currentPage={currentPage}
+          onOpenNewSurveyModal={this.props.onOpenNewSurveyModal}
         />
 
         {/* Floating Button with image icon */}
@@ -1661,6 +1660,8 @@ class MaintenanceBotButton extends Component {
                   onToggleQuickActions={() => this.setState(prev => ({ showQuickActions: !prev.showQuickActions }))}
                   onBackup={() => this.exportCurrentPage('backup')}
                   onChatbot={this.handleChatToggle}
+                  onNewSurvey={this.props.onOpenNewSurveyModal}
+                  onNewEvent={this.props.onOpenNewEventModal}
                   backupDisabled={
                     currentPage !== 'dashboard' ||
                     !isDataTableTab ||

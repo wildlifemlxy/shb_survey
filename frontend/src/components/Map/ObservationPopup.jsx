@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import './ObservationPopup.css';
+import '../../css/components/Map/ObservationPopup.css';
 
 const ObservationPopup = ({ position, data, onClose }) => {
   if (!position || !data) return null;

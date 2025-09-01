@@ -1,18 +1,19 @@
 import React, { Component } from 'react';
-import Map from '../../Map/Map';
+import GoogleMapComponent from '../../Map/GoogleMapComponent';
 import '../../../css/components/Tabs/MapViewTab.css';
 
 class MapViewTab extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      mapType: 'Hybrid',
-      zoomLevel: 11,
+      mapType: 'Hybrid', // Fixed to hybrid view
+      zoomLevel: 11, // Default zoom level matching map configuration
     };
   }
 
   handleMapTypeChange = (mapType) => {
-    this.setState({ mapType });
+    // Since we only use hybrid, keep it fixed
+    this.setState({ mapType: 'Hybrid' });
   };
 
   handleZoomLevelChange = (zoomLevel) => {
@@ -86,13 +87,13 @@ class MapViewTab extends Component {
                   <span>Heard</span>
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-grey.png" alt="Not Found" width={18} height={28} />
+                  <img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png" alt="Not Found" width={18} height={28} />
                   <span>Not Found</span>
                 </span>
               </section>
             </div>
           <div className="single-layer-map">
-            <Map
+            <GoogleMapComponent
               data={data}
               height="100%"
               onMapTypeChange={this.handleMapTypeChange}

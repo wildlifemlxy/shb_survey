@@ -12,7 +12,7 @@ import DataViewTab from '../Tabs/DataView/DataViewTab';
 import ChartsViewTab from '../Tabs/ChartsView/ChartsViewTab';
 
 // Import modal components
-import AddEventModal from '../Events/Type/AddEventModal';
+import AddEventModal from '../../Events/Type/AddEventModal';
 
 // Import filter component
 import FilterSection from '../Filters/FilterSection';
@@ -37,7 +37,7 @@ class DashboardContainer extends Component {
       locations: [],
       activities: [],
       validCoordinates: [],
-      filteredData: props.shbData || [],
+      filteredData: props.shbDataForPublic?.surveys || [],
       currentDateTime: this.getFormattedDateTime(),
       showAddEventModal: false,
     };
@@ -95,23 +95,24 @@ class DashboardContainer extends Component {
   }
 
   updateDataFromProps = () => {
-    const { shbData } = this.props;
-    
+    const surveyData = this.props.shbData;
+    console.log('Updating data from props:', surveyData);
+
     // Early return if no data
-    if (!shbData || shbData.length === 0) {
+    if (!surveyData || surveyData.length === 0) {
       return;
     }
     
-    const uniqueLocations = getUniqueLocations(shbData);
-    const uniqueActivities = getUniqueActivity(shbData);
-    const validCoordinates = getValidCoordinates(shbData);
+    const uniqueLocations = getUniqueLocations(surveyData);
+    const uniqueActivities = getUniqueActivity(surveyData);
+    const validCoordinates = getValidCoordinates(surveyData);
 
     const locationsWithAll = ["All Locations", ...uniqueLocations];
     const activitiesWithAll = ["All Activities", ...uniqueActivities];
 
     // Only update state if data has actually changed
     const stateUpdate = {
-      filteredData: shbData,
+      filteredData: surveyData,
       locations: locationsWithAll,
       activities: activitiesWithAll,
       validCoordinates: validCoordinates,
@@ -137,10 +138,10 @@ class DashboardContainer extends Component {
   };
 
   applyFilters = () => {
-    const { shbData } = this.props;
+    const surveyData = this.props.shbDataForPublic?.surveys || [];
     
     // Early return if no data or currently updating
-    if (!shbData || shbData.length === 0 || this.isUpdating) {
+    if (!surveyData || surveyData.length === 0 || this.isUpdating) {
       return;
     }
     
@@ -150,7 +151,7 @@ class DashboardContainer extends Component {
       searchQuery: this.state.searchQuery
     };
     
-    let filtered = filterData(shbData, filters);
+    let filtered = filterData(surveyData, filters);
     
     // Apply additional search filtering if search query exists
     if (this.state.searchQuery && this.state.searchQuery.trim()) {

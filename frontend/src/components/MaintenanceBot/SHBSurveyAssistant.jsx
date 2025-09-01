@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import './SHBSurveyAssistant.css';
+import '../../css/components/MaintenanceBot/SHBSurveyAssistant.css';
 
 const BASE_URL =
   window.location.hostname === 'localhost'

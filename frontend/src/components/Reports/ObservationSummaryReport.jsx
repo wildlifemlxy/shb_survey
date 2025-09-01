@@ -1,5 +1,5 @@
 import React from 'react';
-import './ObservationDataReport.css';
+import '../../css/components/Reports/ObservationDataReport.css';
 
 const ObservationSummaryReport = ({
   reportDate,

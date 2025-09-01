@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import './LoginPopup.css'; // Import the updated styles
+import '../../css/components/Auth/LoginPopup.css'; // Import the updated styles
 import { fetchLoginData, changePassword, resetPassword } from '../../data/loginData';
 import QRCode from 'qrcode';
 import botDetectionService from '../../services/botDetection';
@@ -65,6 +65,8 @@ class LoginPopup extends Component {
     
     // Initialize bot detection
     botDetectionService.initialize();
+    
+    // Start with login form - QR code comes after successful login
   }
 
   componentWillUnmount() {
@@ -128,6 +130,7 @@ class LoginPopup extends Component {
       isResettingPassword: false,
       resetPasswordError: '',
       resetPasswordSuccess: false,
+      // Reset QR code states - back to login form
       showMFAPin: false,
       mfaPin: '',
       qrCodeDataUrl: '',
@@ -148,10 +151,7 @@ class LoginPopup extends Component {
       isRecaptchaLoaded: false
     });
     
-    // Clear stored authentication tokens
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('publicKey');
-    localStorage.removeItem('sessionId');
+    // No session data to clear
     
     // Reset bot detection service
     botDetectionService.reset();
@@ -160,7 +160,7 @@ class LoginPopup extends Component {
   };
 
   handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     const { email, password } = this.state;
     
     if (!email || !password) {
@@ -175,39 +175,17 @@ class LoginPopup extends Component {
       console.log('Login result:', result);
       
       if (result.success) {
-        // Enhanced token-based authentication response handling
-        console.log('Login successful with token-based authentication');
+        // Login credentials validated successfully - NOW show QR code for ALL users
+        console.log('Login successful - credentials validated, now showing QR code');
         
-        // Store token data if available (from new encryption system)
-        if (result.token && result.publicKey && result.sessionId) {
-          console.log('Token-based authentication data received:', {
-            hasToken: !!result.token,
-            hasPublicKey: !!result.publicKey,
-            hasSessionId: !!result.sessionId
-          });
-          
-          // Store authentication data for the new system
-          localStorage.setItem('authToken', result.token);
-          localStorage.setItem('publicKey', result.publicKey);
-          localStorage.setItem('sessionId', result.sessionId);
-          
-          console.log('Encrypted authentication tokens stored successfully');
-        }
+        this.setState({
+          userData: result.data,
+          isLoading: false,
+          error: '' // Clear any previous errors
+        });
         
-        // Check if this is first time login
-        if (result.data && result.data.firstTimeLogin) {
-          console.log('First time login detected, showing password change dialog');
-          console.log('User data structure:', result.data);
-          this.setState({ 
-            showPasswordChange: true,
-            userData: result.data,
-            isLoading: false 
-          });
-        } else {
-          // Normal login flow - generate MFA PIN
-          console.log('Normal login successful, generating MFA PIN');
-          await this.generateMFAPinAndQR(email, result.data);
-        }
+        // Generate QR code for ALL users after successful login validation
+        await this.generateMFAPinAndQR(email, result.data);
       } else {
         this.setState({ 
           error: result?.message || 'Invalid email or password. Please try again.' 
@@ -336,17 +314,103 @@ class LoginPopup extends Component {
     }
   };
 
+  // Complete login flow - validates credentials and PIN in one step
+  handleCompleteLogin = async () => {
+    const { email, password, userInputPin, mfaPin, userData } = this.state;
+    
+    // Step 1: Validate email and password are provided
+    if (!email || !password) {
+      this.setState({ error: 'Please enter both email and password' });
+      return;
+    }
+    
+    // Step 2: Validate PIN is complete
+    const enteredPin = userInputPin.join('');
+    if (enteredPin.length !== 8) {
+      this.setState({ mfaError: 'Please enter all 8 digits of the PIN' });
+      return;
+    }
+    
+    // Step 3: Validate PIN matches QR code
+    if (enteredPin !== mfaPin) {
+      this.setState({ 
+        mfaError: 'PIN does not match. Please try again.',
+        userInputPin: ['', '', '', '', '', '', '', ''], // Clear the input
+        pinInputStartTimes: new Array(8).fill(null) // Reset timing
+      });
+      // Focus first input
+      const firstInput = document.getElementById('pin-input-0');
+      if (firstInput) firstInput.focus();
+      return;
+    }
+    
+    // Step 4: If we don't have user data yet, validate credentials first
+    if (!userData) {
+      try {
+        this.setState({ isLoading: true, error: '', mfaError: '' });
+        
+        const result = await fetchLoginData(email, password);
+        console.log('Login result:', result);
+        
+        if (result.success) {
+          if (result.data && result.data.firstTimeLogin === true) {
+            console.log('First time login detected, showing password change dialog');
+            this.setState({ 
+              showPasswordChange: true,
+              userData: result.data,
+              isLoading: false 
+            });
+            return;
+          } else {
+            // Credentials valid and PIN matches - complete login
+            console.log('Login successful - credentials and PIN verified');
+            this.setState({
+              userData: result.data,
+              isLoading: false
+            });
+            this.handleMFAComplete();
+          }
+        } else {
+          this.setState({ 
+            error: result?.message || 'Invalid email or password. Please try again.',
+            isLoading: false 
+          });
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        this.setState({ 
+          error: 'An error occurred during login. Please try again later.',
+          isLoading: false 
+        });
+      }
+    } else {
+      // We already have user data and PIN is valid - complete login
+      console.log('PIN verified successfully - completing login');
+      this.handleMFAComplete();
+    }
+  };
+
   // Verify the entered PIN against the generated PIN (Frontend-only verification)
   handleVerifyPin = async () => {
-    const enteredPin = this.state.userInputPin.join('');
-    const generatedPin = this.state.mfaPin;
+    const { userInputPin, mfaPin, userData, email, password } = this.state;
+    
+    // Check if user has logged in first
+    if (!userData) {
+      this.setState({ 
+        mfaError: 'Please log in first using the login form below before verifying the PIN.',
+        error: 'Please enter your email and password first.'
+      });
+      return;
+    }
+    
+    const enteredPin = userInputPin.join('');
 
     if (enteredPin.length !== 8) {
       this.setState({ mfaError: 'Please enter all 8 digits' });
       return;
     }
 
-    if (enteredPin === generatedPin) {
+    if (enteredPin === mfaPin) {
       // PIN matches - complete login immediately (frontend-only verification)
       console.log('PIN verified successfully - completing login');
       this.handleMFAComplete();
@@ -547,30 +611,61 @@ class LoginPopup extends Component {
   };
 
   handleMFAComplete = () => {
-    // Complete the login process after MFA with enhanced token data
-    const { userData } = this.state;
+    // Complete the login process after MFA
+    const { userData, email } = this.state;
     
     // Validate userData exists
     if (!userData) {
       console.error('userData is undefined in handleMFAComplete');
-      this.setState({ mfaError: 'Session data lost. Please login again.' });
+      console.log('Current state:', this.state);
+      
+      // Try to recover by checking if we have email and can reconstruct basic user data
+      if (email) {
+        console.log('Attempting to recover with email:', email);
+        // Create minimal user data with available information
+        const recoveredUserData = {
+          email: email,
+          isAuthenticated: true,
+          loginTime: new Date().toISOString()
+        };
+        
+        console.log('MFA Complete - using recovered user data:', recoveredUserData);
+        this.props.onLoginSuccess(recoveredUserData);
+        return;
+      }
+      
+      // If no recovery possible, reset to login form
+      this.setState({ 
+        showMFAPin: false,
+        mfaPin: '',
+        qrCodeDataUrl: '',
+        mfaError: '',
+        error: 'Session expired. Please login again.'
+      });
       return;
     }
     
-    // Prepare enhanced login response for parent component
+    // Check if this is a first-time login that needs password change
+    if (userData.firstTimeLogin === true) {
+      console.log('First-time login detected after PIN verification - showing password change dialog');
+      this.setState({ 
+        showMFAPin: false,
+        showPasswordChange: true,
+        mfaError: ''
+        // Keep mfaPin and qrCodeDataUrl preserved for potential return to MFA
+      });
+      return;
+    }
+    
+    // Prepare user data for parent component (normal login flow)
     const enhancedUserData = {
       ...userData,
-      // Include token-based authentication data if available
-      token: localStorage.getItem('authToken'),
-      publicKey: localStorage.getItem('publicKey'),
-      sessionId: localStorage.getItem('sessionId')
+      isAuthenticated: true,
+      loginTime: new Date().toISOString()
     };
     
-    console.log('MFA Complete - sending enhanced user data:', {
-      userData: userData,
-      hasToken: !!enhancedUserData.token,
-      hasPublicKey: !!enhancedUserData.publicKey,
-      hasSessionId: !!enhancedUserData.sessionId
+    console.log('MFA Complete - sending user data:', {
+      userData: enhancedUserData
     });
     
     this.props.onLoginSuccess(enhancedUserData);
@@ -638,8 +733,18 @@ class LoginPopup extends Component {
         console.log('Password changed successfully');
         // Update userData to remove firstTimeLogin flag
         const updatedUserData = { ...userData, firstTimeLogin: false };
-        // Generate MFA PIN after password change
-        await this.generateMFAPinAndQR(userEmail, updatedUserData);
+        
+        // Complete the login process and store consistent authentication data
+        localStorage.setItem('currentUser', JSON.stringify(updatedUserData));
+        localStorage.setItem('user', JSON.stringify(updatedUserData)); // Fallback compatibility
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('isAuthenticated', 'true');
+        localStorage.setItem('userRole', updatedUserData.role || 'user');
+        localStorage.setItem('loginTimestamp', Date.now().toString());
+        
+        // Clear the form and close popup
+        this.clearForm();
+        this.props.onLoginSuccess(updatedUserData);
       } else {
         this.setState({ 
           passwordChangeError: result?.message || 'Failed to change password. Please try again.' 
@@ -728,14 +833,14 @@ class LoginPopup extends Component {
       email, password, isLoading, error, showPasswordChange, newPassword, confirmPassword, 
       showNewPassword, showConfirmPassword, passwordChangeError, isChangingPassword, 
       showResetPassword, resetEmail, isResettingPassword, resetPasswordError, resetPasswordSuccess, 
-      showMFAPin, mfaPin, qrCodeDataUrl, isGeneratingMFA, mfaError, userInputPin,
+      showMFAPin, mfaPin, qrCodeDataUrl, isGeneratingMFA, mfaError, userInputPin, userData,
       showBotChallenge, botChallenge, challengeAnswer, isPerformingBotDetection
     } = this.state;
     const { isOpen } = this.props;
 
     if (!isOpen) return null;
 
-    // Show MFA PIN and QR Code dialog
+    // Show MFA PIN and QR Code dialog (after successful login)
     if (showMFAPin) {
       return (
         <div className="login-popup-overlay">
@@ -750,7 +855,11 @@ class LoginPopup extends Component {
               <p>Scan the QR code and enter the 8-digit PIN</p>
             </div>
             
-            <form className="login-form" onSubmit={(e) => { e.preventDefault(); this.handleVerifyPin(); }}>
+            <form className="login-form" onSubmit={(e) => { 
+              e.preventDefault(); 
+              this.handleVerifyPin();
+            }}>
+              {/* Show MFA errors */}
               {mfaError && (
                 <div className="login-error">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -759,8 +868,9 @@ class LoginPopup extends Component {
                   {mfaError}
                 </div>
               )}
-
-              {qrCodeDataUrl && !showBotChallenge && !botChallenge && (
+              
+              {/* QR Code Section */}
+              {qrCodeDataUrl && (
                 <div className="form-group" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <label style={{ color: '#333', marginBottom: '0.5rem', fontSize: '14px' }}>Scan QR Code:</label>
                   <div style={{
@@ -937,9 +1047,10 @@ class LoginPopup extends Component {
                       ? 'linear-gradient(135deg, #6c757d 0%, #495057 100%)'
                       : 'linear-gradient(135deg, #00ECFA 0%, #00B8EA 100%)',
                     boxShadow: '0 4px 15px rgba(0, 184, 234, 0.3)',
-                    width: '100%'
+                    width: '100%',
+                    marginBottom: '0.5rem'
                   }}
-                  disabled={isGeneratingMFA || isPerformingBotDetection || this.state.userInputPin.join('').length !== 8 || showBotChallenge}
+                  disabled={isGeneratingMFA || isPerformingBotDetection || (!userData && (!email || !password)) || (userData && this.state.userInputPin.join('').length !== 8) || showBotChallenge}
                 >
                   {isPerformingBotDetection ? (
                     <div className="loading-spinner">
@@ -951,8 +1062,13 @@ class LoginPopup extends Component {
                       <div className="spinner"></div>
                       Generating QR Code...
                     </div>
+                  ) : isLoading ? (
+                    <div className="loading-spinner">
+                      <div className="spinner"></div>
+                      Signing In...
+                    </div>
                   ) : (
-                    'Verify PIN'
+                    userData ? 'Verify PIN' : 'Sign In'
                   )}
                 </button>
               </div>
@@ -1076,7 +1192,8 @@ class LoginPopup extends Component {
                   style={{
                     background: 'linear-gradient(135deg, #00ECFA 0%, #00B8EA 100%)',
                     boxShadow: '0 4px 15px rgba(0, 184, 234, 0.3)',
-                    width: '100%'
+                    width: '100%',
+                    marginBottom: '0.5rem'
                   }}
                   disabled={isChangingPassword}
                 >
@@ -1273,25 +1390,12 @@ class LoginPopup extends Component {
             
             <div className="login-button-group">
               <button 
-                type="button" 
-                className="login-button"
-                style={{
-                  background: '#22c55e', // Green color
-                  color: 'white',
-                  boxShadow: '0 2px 8px rgba(34, 197, 94, 0.2)'
-                }}
-                onClick={this.clearForm}
-                disabled={isLoading}
-              >
-                Clear
-              </button>
-              
-              <button 
                 type="submit" 
                 className="login-button"
                 style={{
                   background: 'linear-gradient(135deg, #00ECFA 0%, #00B8EA 100%)', // Blue gradient
-                  boxShadow: '0 4px 15px rgba(0, 184, 234, 0.3)'
+                  boxShadow: '0 4px 15px rgba(0, 184, 234, 0.3)',
+                  width: '100%'
                 }}
                 disabled={isLoading}
               >

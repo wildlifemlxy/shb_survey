@@ -1,0 +1,10 @@
+.tree-height-chart-scroll-x {
+  overflow-x: auto;
+  overflow-y: visible;
+  width: 100%;
+}
+
+.tree-height-chart-inner {
+  min-width: 900px; /* or set to chartWidth if you want always scroll */
+  width: fit-content;
+}

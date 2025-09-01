@@ -4,299 +4,44 @@ var SurveyController = require('../Controller/Survey/surveyController');
 var UsersController = require('../Controller/Users/usersController'); 
 const { sendOneSignalNotification } = require('../services/notificationService');
 const startEventTypeUpdater = require('../cron/eventTypeUpdater');
-const tokenEncryption = require('../middleware/tokenEncryption');
 
 // Start cron jobs ONCE at module load, not inside the route handler
+let cronJobsStarted = false;
 
-// Get current date and time in dd/mm/yyyy and 24-hour format (Singapore time)
-const now = new Date();
-const sgOptions = { timeZone: 'Asia/Singapore', hour12: false };
-const [dateStr, timeStrFull] = now.toLocaleString('en-GB', sgOptions).split(',').map(s => s.trim());
-const timeStr = timeStrFull.slice(0,5); // HH:mm only
-
-router.post('/', async function(req, res, next) 
-{
+router.post('/', async function(req, res, next) {
+    var requestData = req.body;
     const io = req.app.get('io'); // Get the Socket.IO instance
-    startEventTypeUpdater(io);
-    // Do NOT call startEventReminders() here again!
-    console.log('Survey route request received:', req.body);
     
-    // Initialize requestData
-    let requestData = req.body;
+    // Start cron job once when needed
+    if (!cronJobsStarted) {
+        try {
+            startEventTypeUpdater(io);
+            cronJobsStarted = true;
+        } catch (error) {
+            console.error('Error starting cron jobs:', error);
+        }
+    }
     
     if(requestData.purpose === "retrieve")
     {
+        console.log("Received request to retrieve surveys");
         try {
-            // Handle encrypted request data for retrieve purpose
-            if (req.body.encryptedData && req.body.requiresServerEncryption) {
-                try {
-                    const decryptResult = tokenEncryption.decryptRequestData(req.body);
-                    if (decryptResult.success) {
-                        requestData = decryptResult.data;
-                        
-                        // Get client public key from decrypted request data
-                        const clientPublicKey = requestData.clientPublicKey || requestData.publicKey;
-                        
-                        // Apply token encryption for authenticated access with client's public key
-                        return await tokenEncryption.encryptResponseDataMiddleware(req, res, async () => {
-                            var surveyController = new SurveyController();
-                            var usersController = new UsersController();
-                            
-                            // Get all surveys for calculating statistics
-                            var surveyResult = await surveyController.getAllSurveys();
-                            var userResult = await usersController.getAllUsers();
-                            //console.log('Surveys retrieved successfully:', surveyResult.success, userResult.success ? userResult.users.length : 0);
-                            
-                            return {"result": surveyResult, "userCount": userResult.success ? userResult.users.length : 0};
-                        }, clientPublicKey);
-                    } else {
-                        console.error('🔓 Request decryption failed:', decryptResult.error);
-                        return res.status(400).json({ error: 'Failed to decrypt request data' });
-                    }
-                } catch (decryptError) {
-                    console.error('🔓 Request decryption error:', decryptError);
-                    return res.status(400).json({ error: 'Invalid encrypted request' });
-                }
-            }
-
+            var surveyController = new SurveyController();
+            //var usersController = new UsersController();
+            
+            // Get all surveys for calculating statistics
+            var surveyResult = await surveyController.getAllSurveys();
+   
+            return res.json({
+                surveyResult
+            });
         } catch (error) {
             console.error('Error retrieving surveys:', error);
             return res.status(500).json({ error: 'Failed to retrieve surveys.' });
         }
     } 
-    else if(req.body.purpose === "insert")
-    {
-        try {
-            // Handle encrypted request data for insert purpose
-            if (req.body.encryptedData && req.body.requiresServerEncryption) {
-                console.log('🔓 Decrypting incoming insert request data...');
-                try {
-                    const decryptResult = tokenEncryption.decryptRequestData(req.body);
-                    if (decryptResult.success) {
-                        requestData = decryptResult.data;
-                        console.log('🔓 Insert request decryption successful:', requestData);
-                        
-                        // Get client public key from decrypted request data
-                        const clientPublicKey = requestData.clientPublicKey || requestData.publicKey;
-                        console.log('🔐 Using client public key for insert response encryption:', clientPublicKey ? 'Found' : 'Not found');
-                        
-                        // Apply token encryption for authenticated access with client's public key
-                        var controller = new SurveyController();
-                        let results = [];
-                        if (Array.isArray(requestData.data)) {
-                            for (const survey of requestData.data) {
-                                const result = await controller.insertSurvey(survey);
-                                results.push(result);
-                            }
-                            await sendOneSignalNotification({
-                                title: 'New Survey Update',
-                                message: `New survey has been updated in the database on ${dateStr} at ${timeStr}`,
-                                web_url: "https://gentle-dune-0405ec500.1.azurestaticapps.net/"
-                            });
-                            console.log('New survey notification sent successfully');
-                            if (io) {
-                                io.emit('survey-updated', {
-                                    message: 'Survey updated successfully',
-                                });
-                            }
-                            return res.json({"result": { success: true, message: "All surveys inserted.", details: results }});
-                        } else {
-                            // Single object fallback
-                            console.log('🔍 About to insert single survey:', JSON.stringify(requestData.data, null, 2));
-                            const result = await controller.insertSurvey(requestData.data);
-                            console.log('Survey inserted successfully:', result);
-                            
-                            await sendOneSignalNotification({
-                                title: 'New Survey Update',
-                                message: `New survey has been updated in the database on ${dateStr} at ${timeStr}`,
-                                web_url: "https://gentle-dune-0405ec500.1.azurestaticapps.net/"
-                            });
-                            console.log('New survey notification sent successfully');
-                            if (io) {
-                                io.emit('survey-updated', {
-                                    message: 'Survey updated successfully',
-                                });
-                            }
-                            return res.json({"result": result});
-                        }
-                    } else {
-                        console.error('🔓 Insert request decryption failed:', decryptResult.error);
-                        return res.status(400).json({ error: 'Failed to decrypt insert request data' });
-                    }
-                } catch (decryptError) {
-                    console.error('🔓 Insert request decryption error:', decryptError);
-                    return res.status(400).json({ error: 'Invalid encrypted insert request' });
-                }
-            }
-        } catch (error) {
-            console.error('Error inserting survey(s):', error);
-            return res.status(500).json({ error: 'Failed to insert survey(s).' });
-        }
-    } 
-    else if(req.body.purpose === "update")
-    {
-        console.log('Update request for survey:', req.body);
-        try {
-            // Handle encrypted request data for update purpose
-            if (req.body.encryptedData && req.body.requiresServerEncryption) {
-                console.log('🔓 Decrypting incoming update request data...');
-                try {
-                    const decryptResult = tokenEncryption.decryptRequestData(req.body);
-                    if (decryptResult.success) {
-                        requestData = decryptResult.data;
-                        console.log('🔓 Update request decryption successful:', requestData);
-                        
-                        // Get client public key from decrypted request data
-                        const clientPublicKey = requestData.clientPublicKey || requestData.publicKey;
-                        console.log('🔐 Using client public key for update response encryption:', clientPublicKey ? 'Found' : 'Not found');
-                        
-                        // Apply token encryption for authenticated access with client's public key
-                        var controller = new SurveyController();
 
-                        const { recordId, updatedRowData } = requestData;
-                        console.log('🔍 About to update survey:', { recordId, updatedRowData });
-                        
-                        // Call the update method in the controller
-                        var result = await controller.updateSurvey(recordId, updatedRowData);
-
-                        console.log('Survey updated successfully:', result);
-                        
-                        // Emit socket event for real-time updates
-                        if (io) {
-                            io.emit('survey-updated', {
-                                message: 'Survey record updated successfully',
-                            });
-                        }
-                        
-                        return res.json({"result": result});
-                    } else {
-                        console.error('🔓 Update request decryption failed:', decryptResult.error);
-                        return res.status(400).json({ error: 'Failed to decrypt update request data' });
-                    }
-                } catch (decryptError) {
-                    console.error('🔓 Update request decryption error:', decryptError);
-                    return res.status(400).json({ error: 'Invalid encrypted update request' });
-                }
-            } else {
-                // Fallback for non-encrypted requests (backwards compatibility)
-                console.log('📝 Processing non-encrypted update request...');
-                var controller = new SurveyController();
-
-                const { recordId, updatedRowData } = req.body;
-                console.log('🔍 About to update survey (non-encrypted):', { recordId, updatedRowData });
-                
-                // Call the update method in the controller
-                var result = await controller.updateSurvey(recordId, updatedRowData);
-
-                console.log('Survey updated successfully:', result);
-                
-                // Emit socket event for real-time updates
-                if (io) {
-                    io.emit('survey-updated', {
-                        message: 'Survey record updated successfully',
-                    });
-                }
-                
-                return res.json({"result": result});
-            }
-
-        } catch (error) {
-            console.error('Error updating survey:', error);
-            return res.status(500).json({ 
-                error: 'Failed to update survey.',
-                details: error.message 
-            });
-        }
-    }
-    else if(req.body.purpose === "delete")
-    {
-        console.log('Delete request for survey:', req.body);
-        try {
-            // Handle encrypted request data for delete purpose
-            if (req.body.encryptedData && req.body.requiresServerEncryption) {
-                console.log('🔓 Decrypting incoming delete request data...');
-                try {
-                    const decryptResult = tokenEncryption.decryptRequestData(req.body);
-                    if (decryptResult.success) {
-                        requestData = decryptResult.data;
-                        console.log('🔓 Delete request decryption successful:', requestData);
-                        
-                        // Get client public key from decrypted request data
-                        const clientPublicKey = requestData.clientPublicKey || requestData.publicKey;
-                        console.log('🔐 Using client public key for delete response encryption:', clientPublicKey ? 'Found' : 'Not found');
-                        
-                        // Apply token encryption for authenticated access with client's public key
-                        var controller = new SurveyController();
-                        
-                        const { recordId } = requestData;
-                        console.log('🗑️ About to delete survey:', { recordId });
-                        
-                        // Call the delete method in the controller
-                        var result = await controller.deleteSurvey(recordId);
-
-                        console.log('Survey deleted successfully:', result);
-                        
-                        // Emit socket event for real-time updates
-                        if (io) {
-                            io.emit('survey-updated', {
-                                message: 'Survey record deleted successfully',
-                                recordId: recordId
-                            });
-                        }
-                        
-                        return res.json({
-                            "result": {
-                                success: true,
-                                message: "Survey deleted successfully",
-                                recordId: recordId
-                            }
-                        });
-                    } else {
-                        console.error('🔓 Delete request decryption failed:', decryptResult.error);
-                        return res.status(400).json({ error: 'Failed to decrypt delete request data' });
-                    }
-                } catch (decryptError) {
-                    console.error('🔓 Delete request decryption error:', decryptError);
-                    return res.status(400).json({ error: 'Invalid encrypted delete request' });
-                }
-            } else {
-                // Fallback for non-encrypted requests (backwards compatibility)
-                console.log('🗑️ Processing non-encrypted delete request...');
-                var controller = new SurveyController();
-                
-                const { recordId } = req.body;
-                console.log('🗑️ About to delete survey (non-encrypted):', { recordId });
-                
-                // Call the delete method in the controller
-                var result = await controller.deleteSurvey(recordId);
-
-                console.log('Survey deleted successfully:', result);
-                
-                // Emit socket event for real-time updates
-                if (io) {
-                    io.emit('survey-updated', {
-                        message: 'Survey record deleted successfully',
-                        recordId: recordId
-                    });
-                }
-                
-                return res.json({
-                    "result": {
-                        success: true,
-                        message: "Survey deleted successfully",
-                        recordId: recordId
-                    }
-                });
-            }
-        } catch (error) {
-            console.error('Error deleting survey:', error);
-            return res.status(500).json({ 
-                error: 'Failed to delete survey.',
-                details: error.message 
-            });
-        }
-    }
-    else if(req.body.purpose === "retrievePublic")
+    else if(requestData.purpose === "getPublicStatistics")
     {
         try {
             var surveyController = new SurveyController();
@@ -305,166 +50,204 @@ router.post('/', async function(req, res, next)
             // Get all surveys for calculating statistics
             var surveyResult = await surveyController.getAllSurveys();
             var userResult = await usersController.getAllUsers();
-            
-            const surveys = surveyResult.success ? surveyResult.surveys : [];
-            const users = userResult.success ? userResult.users : [];
-            
+
             // Calculate statistics
-            const numberOfObservations = surveys.length;
+            let totalObservations = 0;
+            let uniqueLocations = new Set();
+            let uniqueYears = 0;
+            let earliestDate = null;
             
-            // Get unique locations (assuming surveys have location data)
-            const uniqueLocations = new Set();
-            surveys.forEach(survey => {
-                if (survey.Location) {
-                    // Handle different location formats
-                    if (typeof survey.Location === 'string') {
+            if (surveyResult.surveys && surveyResult.surveys.length > 0) {
+                totalObservations = surveyResult.surveys.length;
+                console.log("Total observations:", totalObservations);
+                
+                surveyResult.surveys.forEach(survey => {
+                    // Add unique locations
+                    if (survey.Location) {
                         uniqueLocations.add(survey.Location);
                     }
-                } else if (survey.location) {
-                    // Fallback to lowercase location field
-                    if (typeof survey.location === 'string') {
-                        uniqueLocations.add(survey.location);
-                    }
-                }
-            });
-            const numberOfLocations = uniqueLocations.size;
-            
-            // Get number of volunteers (users)
-            const numberOfVolunteers = users.length;
-            
-            // Calculate years active (from first survey date to current date)
-            let yearsActive = 0;
-            if (surveys.length > 0) {
-                // Find the earliest survey date
-                let earliestDate = null;
-                surveys.forEach(survey => {
-                    let surveyDate = null;
                     
-                    // Try different date field names and formats
+                    // Find the earliest date
                     if (survey.Date) {
-                        // Handle your specific date formats: '21-Jun-25' or '21/06/2025'
-                        const dateStr = survey.Date.toString();
-                        
-                        // Parse date format like '21-Jun-25' (dd-Mmm-yy)
-                        if (dateStr.includes('-')) {
-                            // Split by dash and handle dd-MMM-yy format
-                            const parts = dateStr.split('-');
-                            if (parts.length === 3) {
-                                const day = parts[0];
-                                const month = parts[1];
-                                let year = parts[2];
-                                
-                                // Convert 2-digit year to 4-digit year
-                                // Assuming years 00-50 are 2000-2050, 51-99 are 1951-1999
-                                if (year.length === 2) {
-                                    const yearNum = parseInt(year);
-                                    if (yearNum <= 50) {
-                                        year = '20' + year;
-                                    } else {
-                                        year = '19' + year;
-                                    }
-                                }
-                                
-                                // Create a date string that JavaScript can parse
-                                const jsDateStr = `${day}-${month}-${year}`;
-                                surveyDate = new Date(jsDateStr);
+                        const surveyDate = new Date(survey.Date);
+                        if (!isNaN(surveyDate)) {
+                            if (!earliestDate || surveyDate < earliestDate) {
+                                earliestDate = surveyDate;
                             }
-                        }
-                        // Parse date format like '21/06/2025' (dd/mm/yyyy)
-                        else if (dateStr.includes('/')) {
-                            // Split by slash and handle dd/mm/yyyy format
-                            const parts = dateStr.split('/');
-                            if (parts.length === 3) {
-                                const day = parts[0];
-                                const month = parts[1];
-                                const year = parts[2];
-                                
-                                // Create a date using year, month-1 (0-indexed), day
-                                surveyDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-                            }
-                        }
-                        // Fallback: try direct parsing
-                        else {
-                            surveyDate = new Date(dateStr);
-                        }
-                    } else if (survey.createdAt) {
-                        surveyDate = new Date(survey.createdAt);
-                    } else if (survey.date) {
-                        surveyDate = new Date(survey.date);
-                    } else if (survey.timestamp) {
-                        surveyDate = new Date(survey.timestamp);
-                    }
-                    
-                    // Check if date is valid and update earliest
-                    if (surveyDate && !isNaN(surveyDate.getTime())) {
-                        if (!earliestDate || surveyDate < earliestDate) {
-                            earliestDate = surveyDate;
                         }
                     }
                 });
                 
-                // Calculate years from earliest date to now
+                // Calculate years from earliest date to current date (precise calculation)
                 if (earliestDate) {
-                    const currentDate = new Date();
-                    const timeDifference = currentDate - earliestDate;
-                    const daysDifference = timeDifference / (1000 * 60 * 60 * 24);
+                    const currentDate = new Date(); // Define currentDate
                     
-                    // Calculate years more precisely
-                    const yearsDifference = daysDifference / 365.25; // Using 365.25 to account for leap years
-            
+                    // Calculate years more precisely considering days, months, and years
+                    let years = currentDate.getFullYear() - earliestDate.getFullYear();
+                    let months = currentDate.getMonth() - earliestDate.getMonth();
+                    let days = currentDate.getDate() - earliestDate.getDate();       
                     
-                    // If the time span is less than 1 year but more than 6 months, show as 1 year
-                    // If more than 1 year, show the actual calculated years
-                    if (yearsDifference >= 1) {
-                        yearsActive = Math.ceil(yearsDifference);
-                    } else if (daysDifference >= 180) { // More than 6 months
-                        yearsActive = 1;
-                    } else {
-                        yearsActive = 1; // Default minimum
+                    // Adjust for negative days
+                    if (days < 0) {
+                        months--;
+                        const lastMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0);
+                        days += lastMonth.getDate();
                     }
-                } else {
-                    console.log('No valid dates found in surveys');
-                    yearsActive = 1; // Default if no valid dates
+                    
+                    // Adjust for negative months
+                    if (months < 0) {
+                        years--;
+                        months += 12;
+                    }
+                    
+                    
+                    // If we have less than 1 full year but some time passed, show as "1+"
+                    if (years === 0 && (months > 0 || days > 0)) {
+                        uniqueYears = "1+";
+                    }
+                    // If there are extra months or days beyond complete years, show as "X+" 
+                    else if (months > 0 || days > 0) {
+                        uniqueYears = `${years}+`;
+                    } 
+                    // If exactly X years with no extra time
+                    else {
+                        uniqueYears = years.toString();
+                    }
                 }
             }
             
-            const statistics = {
-                observations: numberOfObservations,
-                locations: numberOfLocations,
-                volunteers: numberOfVolunteers,
-                yearsActive: yearsActive
-            };
-
-            console.log('Statistics calculated:', statistics);
-            
             return res.json({
-                "result": { 
-                    success: true, 
-                    statistics: statistics 
-                }
-            }); 
-            
-        } catch (error) {
-            return res.status(500).json({ error: 'Failed to retrieve statistics.' });
-        }
-    } 
-    else if(req.body.purpose === "retrieveAndriod") {
-        try {
-            // Fallback for non-encrypted requests
-            var surveyController = new SurveyController();
-            var usersController = new UsersController();
-            var surveyResult = await surveyController.getAllSurveys();
-            var userResult = await usersController.getAllUsers();
-            return res.json({
-                "result": surveyResult,
+                success: true,
+                statistics: {
+                    totalObservations: totalObservations,
+                    uniqueLocations: uniqueLocations.size,
+                    numberOfYears: uniqueYears
+                },
+                userCount: userResult.success ? userResult.users.length : 0
             });
+            
         } catch (error) {
             console.error('Error retrieving surveys:', error);
             return res.status(500).json({ error: 'Failed to retrieve surveys.' });
         }
+    } 
+
+    else if(req.body.purpose === "insert")
+    {
+        try {
+            var controller = new SurveyController();
+            
+            // Remove the purpose key from the data before inserting
+            const surveyData = { ...requestData };
+            delete surveyData.purpose;
+            
+            var result = await controller.insertSurvey(surveyData);
+            
+            if (result.success) {
+                // Emit real-time update for survey insertion
+                if (io) {
+                    io.emit('surveyInserted', {
+                        action: 'insert',
+                        data: surveyData,
+                        insertedId: result.insertedId,
+                        timestamp: new Date().toISOString()
+                    });
+                    console.log('Socket.IO: Survey insertion event emitted');
+                }
+                
+                return res.json({
+                    success: true,
+                    message: 'Survey created successfully',
+                    insertedId: result.insertedId
+                });
+            } else {
+                return res.status(400).json({
+                    success: false,
+                    error: result.message || 'Failed to create survey'
+                });
+            }
+        } catch (error) {
+            console.error('Error creating survey:', error);
+            return res.status(500).json({ error: 'Failed to create survey.' });
+        }
+    }
+    else if(req.body.purpose === "update")
+    {
+        try {
+            console.log("Received request to update survey with ID:", requestData.recordId || requestData._id);
+            var controller = new SurveyController();
+            
+            // Extract record ID and updated data
+            const recordId = requestData.recordId || requestData._id;
+            const updatedData = { ...requestData };
+            delete updatedData.purpose;
+            delete updatedData.recordId;
+            
+            var result = await controller.updateSurvey(recordId, updatedData);
+            
+            if (result.success) {
+                // Emit real-time update for survey update
+                if (io) {
+                    io.emit('surveyUpdated', {
+                        action: 'update',
+                        data: updatedData,
+                        recordId: recordId,
+                        timestamp: new Date().toISOString()
+                    });
+                    console.log('Socket.IO: Survey update event emitted for ID:', recordId);
+                }
+                
+                return res.json({
+                    success: true,
+                    message: 'Survey updated successfully',
+                    modifiedCount: result.modifiedCount
+                });
+            } else {
+                return res.status(400).json({
+                    success: false,
+                    error: result.message || 'Failed to update survey'
+                });
+            }
+        } catch (error) {
+            console.error('Error updating survey:', error);
+            return res.status(500).json({ error: 'Failed to update survey.' });
+        }
+    }
+    else if(req.body.purpose === "delete")
+    {
+        try {
+            console.log("Received request to delete survey with ID:", requestData.surveyId);
+            var controller = new SurveyController();
+            var result = await controller.deleteSurvey(requestData.surveyId);
+            
+            if (result.success) {
+                // Emit real-time update for survey deletion
+                if (io) {
+                    io.emit('surveyDeleted', {
+                        action: 'delete',
+                        surveyId: requestData.surveyId,
+                        timestamp: new Date().toISOString()
+                    });
+                    console.log('Socket.IO: Survey deletion event emitted for ID:', requestData.surveyId);
+                }
+                
+                return res.json({
+                    success: true,
+                    message: 'Survey deleted successfully'
+                });
+            } else {
+                return res.status(400).json({
+                    success: false,
+                    error: result.message || 'Failed to delete survey'
+                });
+            }
+        } catch (error) {
+            console.error('Error deleting survey:', error);
+            return res.status(500).json({ error: 'Failed to delete survey.' });
+        }
     }
     else {
-        return res.status(400).json({ error: 'Invalid purpose.' });
+        return res.status(400).json({ error: 'Invalid purpose. Supported: retrieve, insert, update, delete' });
     }
 });
 

@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import { Navigate } from 'react-router-dom';
-import './NotFound.css';
+import '../../css/components/NotFound/NotFound.css';
 
 class NotFound extends Component {
   constructor(props) {

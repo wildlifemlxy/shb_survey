@@ -1,9 +1,9 @@
 import React, { Component } from 'react';
-import './NewSurveyModal.css';
+import '../../css/components/Dashboard/NewSurveyModal.css';
 import ObserverInfoSection from './ObserverInfoSection';
 import ObservationDetailsSection from './ObservationDetailsSection';
 import SubmissionSummarySection from './SubmissionSummarySection';
-import { insertSurveyData } from '../../data/shbData';
+import simpleApiService from '../../utils/simpleApiService';
 
 const SECTIONS = [
   {
@@ -398,18 +398,27 @@ class NewSurveyModal extends Component {
     e.preventDefault();
     const summary = JSON.parse(this.formatSubmissionSummaryAsJson());
     console.log('Submitting survey data:', summary);
+    
     try {
-      const result = await insertSurveyData(summary);
-      console.log('Insert result:', result);
-      if (result.success) {
-        console.log('Survey inserted successfully:', result.message);
-        this.handleCancel();
-        // Optionally reset form or close modal here
-      } else {
-        console.error('Insert failed:', result.message);
+      // Submit each observation as a separate survey entry
+      const submissions = [];
+      
+      for (const surveyEntry of summary) {
+        const result = await simpleApiService.submitSurvey(surveyEntry);
+        submissions.push(result);
       }
+      
+      console.log('Survey submission successful:', submissions);
+      
+      // Show success message
+      alert(`Successfully submitted ${summary.length} survey observation(s)!`);
+      
+      // Close the modal and reset form
+      this.handleCancel();
+      
     } catch (error) {
-      console.error('Error inserting survey:', error);
+      console.error('Error submitting survey:', error);
+      alert('Error submitting survey. Please try again.');
     }
   };
 

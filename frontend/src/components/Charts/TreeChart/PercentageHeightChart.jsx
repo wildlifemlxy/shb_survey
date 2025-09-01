@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import './PercentageHeightChart.css';
+import '../../../css/components/Charts/TreeChart/PercentageHeightChart.css';
 
 class PercentageHeightChart extends Component {
   state = { hoveredTree: null, tooltipX: 0, tooltipY: 0 };

@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import MarkerClusterGroup from 'react-leaflet-markercluster';
 import { Marker } from 'react-leaflet';
 import L from 'leaflet';
-import './ObservationMarkerCluster.css';
+import '../../../../css/components/Map/components/Map/ObservationMarkerCluster.css';
 
 // Custom iconCreateFunction for gradient backgrounds by cluster size
 const iconCreateFunction = (cluster) => {

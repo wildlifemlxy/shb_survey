@@ -1,10 +1,13 @@
 const DatabaseConnectivity = require("../../Database/databaseConnectivity");
 const { ObjectId } = require('mongodb');
 
-class SurveyController {
-  async getAllSurveys() {
+class SurveyController 
+{
+  async getAllSurveys() 
+  {
     const db = new DatabaseConnectivity();
-    try {
+    try 
+    {
       await db.initialize();
       const databaseName = "Straw-Headed-Bulbul";
       const collectionName = "Wildlife Survey";

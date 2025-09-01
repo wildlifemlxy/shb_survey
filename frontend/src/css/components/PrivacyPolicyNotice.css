@@ -1,0 +1,127 @@
+/* Privacy Policy Container Styles */
+.privacy-policy-container {
+  min-height: 100vh;
+  height: auto;
+  max-height: 100vh;
+  width: 100%;
+  background: linear-gradient(135deg, #F0FDF4 0%, #ECFDF5 50%, #F9FAFB 100%);
+  position: relative;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header Styles */
+.privacy-policy-header {
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(10px);
+  border-bottom: 1.5px solid var(--border-light);
+  box-shadow: 0 6px 24px 0 rgba(0,0,0,0.10), var(--shadow-lg);
+  position: sticky;
+  top: 0;
+  z-index: 1200;
+  width: 100%;
+}
+
+.header-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+  position: relative;
+  z-index: 2;
+}
+
+.header-title h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, var(--primary-green), var(--forest-green));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.025em;
+}
+
+.privacy-policy-datetime {
+  font-size: 0.95rem;
+  color: #888;
+  margin-bottom: 0.2rem;
+}
+
+.header-title p {
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+.header-actions .home-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: #333;
+  font-weight: 500;
+  transition: color 0.2s;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--border-light);
+}
+
+.header-actions .home-link:hover {
+  color: var(--primary-green);
+  background: rgba(255, 255, 255, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* Content Styles */
+.privacy-policy-container > div:last-child {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+  flex: 1;
+}
+
+.privacy-policy-container h2,
+.privacy-policy-container h3 {
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.privacy-policy-container ul {
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.privacy-policy-container p {
+  margin-bottom: 1rem;
+  line-height: 1.7;
+}
+
+.privacy-policy-container li {
+  margin-bottom: 0.5rem;
+}
+
+@media (max-width: 600px) {
+  .privacy-policy-container {
+    padding: 1rem;
+  }
+  .settings-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .privacy-policy-container h1 {
+    font-size: 1.5rem;
+  }
+}

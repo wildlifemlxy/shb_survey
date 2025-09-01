@@ -1,5 +1,6 @@
-import React from 'react';
-import './ObservationDataReport.css';
+import React, { Component } from 'react';
+import '../../css/components/Reports/ObservationDataReport.css';
+import Papa from 'papaparse';
 
 const ObservationDataReport = ({
   reportDate,

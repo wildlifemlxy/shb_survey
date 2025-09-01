@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import './ObservationDetailsSection.css';
+import '../../css/components/Dashboard/ObservationDetailsSection.css';
 import '../../css/components/Location/Location.css'; // Import the new CSS file for location styling
 import '../../css/components/Form/FormControls.css'; // Import common form controls CSS
 

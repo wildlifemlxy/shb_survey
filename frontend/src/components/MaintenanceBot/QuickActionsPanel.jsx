@@ -51,6 +51,8 @@ class QuickActionsPanel extends Component {
       onToggleQuickActions,
       onBackup,
       onChatbot,
+      onNewSurvey,
+      onNewEvent,
       backupDisabled,
       backupTooltip,
       currentUser
@@ -83,11 +85,10 @@ class QuickActionsPanel extends Component {
         {showQuickActions && (
           <div style={{ marginTop: 8 }}>
             <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
               gap: 8,
-              marginBottom: 8,
-              flexDirection: 'row'
+              marginBottom: 8
             }}>
               {currentUser.role !== "WWF-Volunteer" && (
                 <button
@@ -111,8 +112,7 @@ class QuickActionsPanel extends Component {
                     lineHeight: '1.2',
                     transition: 'all 0.2s ease',
                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                    whiteSpace: 'nowrap',
-                    width: '33%'
+                    whiteSpace: 'nowrap'
                   }}
                   title={backupTooltip}
                 >
@@ -146,8 +146,7 @@ class QuickActionsPanel extends Component {
                   lineHeight: '1.2',
                   transition: 'all 0.2s ease',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  whiteSpace: 'nowrap',
-                  width: '33%'
+                  whiteSpace: 'nowrap'
                 }}
                 title="Click to chat with the SHB Survey Assistant!"
               >
@@ -156,7 +155,83 @@ class QuickActionsPanel extends Component {
                   Chatbot
                 </span>
               </button>
-              <div style={{ width: '33%', minHeight: 32 }}></div>
+              <button
+                onClick={() => {
+                  // Call parent's new survey function
+                  if (onNewSurvey && typeof onNewSurvey === 'function') {
+                    onNewSurvey();
+                  }
+                }}
+                style={{
+                  padding: '8px 16px',
+                  background: '#059669',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  minHeight: 32,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  lineHeight: '1.2',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  whiteSpace: 'nowrap'
+                }}
+                title="Create a new survey observation"
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 5v14M5 12h14"/>
+                  </svg>
+                  New Survey
+                </span>
+              </button>
+              <button
+                onClick={() => {
+                  console.log('QuickActionsPanel: New Event button clicked');
+                  // Call parent's new event function
+                  if (onNewEvent && typeof onNewEvent === 'function') {
+                    console.log('QuickActionsPanel: Calling onNewEvent function');
+                    onNewEvent();
+                  } else {
+                    console.error('QuickActionsPanel: onNewEvent is not a function or is undefined', onNewEvent);
+                  }
+                }}
+                style={{
+                  padding: '8px 16px',
+                  background: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  minHeight: 32,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  lineHeight: '1.2',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  whiteSpace: 'nowrap'
+                }}
+                title="Create a new event"
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                  New Event
+                </span>
+              </button>
             </div>
           </div>
         )}

@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import './ResetPassword.css';
+import '../../css/components/ResetPassword/ResetPassword.css';
 
 const BASE_URL =
   window.location.hostname === 'localhost'

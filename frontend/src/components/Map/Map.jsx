@@ -2,6 +2,8 @@ import React, { Component } from 'react';
 import ObservationMarker from './components/Map/ObservationMarker';
 import { MapContainer, TileLayer, ZoomControl, useMapEvent } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import { USE_GOOGLE_MAPS, GOOGLE_MAPS_API_KEY } from '../../config/mapConfig';
+import googleMapsService from '../../services/googleMapsService';
 
 // Fix for default markers issue in React Leaflet
 import L from 'leaflet';
@@ -57,10 +59,21 @@ class Map extends Component {
     this.state = {
       mapStyle: 'hybrid',
       minZoom: 11,
+      tileUrl: null,
     };
     // Create a stable key that doesn't change unnecessarily
     this.lastDataHash = null;
   }
+
+  componentDidMount() {
+    // Initialize enhanced tile URL with Google Maps API key
+    this.updateTileUrl();
+  }
+
+  updateTileUrl = () => {
+    const tileUrl = googleMapsService.getEnhancedTileUrl(this.state.mapStyle);
+    this.setState({ tileUrl });
+  };
 
   // Generate a hash of the data to detect real changes
   generateDataHash = (data) => {
@@ -90,7 +103,9 @@ class Map extends Component {
 
   // Placeholder for map type change, if implemented in the future
   handleMapTypeChange = (newType) => {
-    this.setState({ mapStyle: newType });
+    this.setState({ mapStyle: newType }, () => {
+      this.updateTileUrl();
+    });
     if (this.props.onMapTypeChange) {
       this.props.onMapTypeChange(newType);
     }
@@ -98,10 +113,11 @@ class Map extends Component {
 
   render() {
     const { height = '100%', data, zoom = 13 } = this.props;
-    const { minZoom } = this.state;
+    const { minZoom, tileUrl } = this.state;
 
     console.log('Map render - data:', data);
     console.log('Map render - zoom:', zoom);
+    console.log('Map render - Google Maps API enabled:', USE_GOOGLE_MAPS);
 
     // Generate stable key based on data content, not just length
     const dataHash = this.generateDataHash(data);
@@ -109,6 +125,9 @@ class Map extends Component {
     if (hasDataChanged) {
       this.lastDataHash = dataHash;
     }
+
+    // Use enhanced tile URL or fallback
+    const currentTileUrl = tileUrl || "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}";
 
     return (
       <div style={{ height, width: '100%', position: 'relative' }}>
@@ -131,8 +150,10 @@ class Map extends Component {
             closeObservationPopup={this.props.closeObservationPopup}
           />
           <TileLayer
-            url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-            attribution="&copy; Google"
+            url={currentTileUrl}
+            attribution={USE_GOOGLE_MAPS && GOOGLE_MAPS_API_KEY ? 
+              "&copy; Google Maps Platform" : 
+              "&copy; Google"}
           />
           {data && data.length > 0 && (
             <ObservationMarker

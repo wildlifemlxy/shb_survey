@@ -26,7 +26,7 @@ import {
   getTopActivities, 
   getTopLocations 
 } from '../utils/detailedAnalysisUtils';
-import './DetailedAnalysisPopup.css';
+import '../css/components/DetailedAnalysisPopup.css';
 
 class DetailedAnalysisPopup extends Component {
   constructor(props) {

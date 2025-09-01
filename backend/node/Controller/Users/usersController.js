@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 const DatabaseConnectivity = require('../../Database/databaseConnectivity');
 const EmailService = require('../../Others/Email/General');
-const crypto = require('crypto');
 
 class UsersController {
     constructor() {
@@ -17,7 +16,7 @@ class UsersController {
     async initializeLiveUpdates() {
         try {
             // Start live updates for user-related collections
-            await this.dbConnection.startLiveUpdates(['Accounts', 'Survey', 'Gallery', 'Events']);
+            await this.dbConnection.startLiveUpdates(['Accounts', 'Survey', 'Events']);
         } catch (error) {
             // Silent initialization - live updates will retry automatically
         }
@@ -33,22 +32,22 @@ class UsersController {
         return this.dbConnection.subscribeToLiveUpdates(collectionName, callback);
     }
 
-async deleteUser(userId) {
-    try {
-        await this.dbConnection.initialize();
-        const filter = { _id: userId };
-        const result = await this.dbConnection.deleteDocument(
-            'Straw-Headed-Bulbul',
-            'Accounts',
-            filter
-        );
-        console.log('User deletion result:', result);
-        return result;
-    } catch (error) {
-        console.error('Error deleting user:', error);
-        throw error;
+    async deleteUser(userId) {
+        try {
+            await this.dbConnection.initialize();
+            const filter = { _id: userId };
+            const result = await this.dbConnection.deleteDocument(
+                'Straw-Headed-Bulbul',
+                'Accounts',
+                filter
+            );
+            console.log('User deletion result:', result);
+            return result;
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            throw error;
+        }
     }
-}
     
     async verifyUser(email, password) {
         try {
@@ -61,67 +60,35 @@ async deleteUser(userId) {
                 'Accounts',
                 { email: email }
             );
-            console.log(`[${this.dbConnection.instanceId}] User found:`, user ? 'Yes' : 'No');
 
-            if (!user || !user.hashPassword) {
+            if (!user || !user.password) {
                 return {
                     success: false,
                     message: 'Invalid email or password'
                 };
             }
 
-            // 2. Get salt and hashPassword
-            let salt, storedHash;
-            if (user.hashPassword.includes(':')) {
-                [salt, storedHash] = user.hashPassword.split(':');
-            } else {
-                salt = user.salt;
-                storedHash = user.hashPassword;
-            }
+            // Direct password comparison (no hashing)
+            if (password === user.password) 
+            {
+                console.log('User authenticated successfully:', user);
+                const isFirstTimeLogin = user.firstTimeLogin;
 
-
-            // 3. Hash the input password using the stored salt
-            const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
-
-            // 4. Compare the computed hash to the stored hashPassword
-            if (hash === storedHash) {
-                //user.firstTimeLogin = true;
-                const isFirstTimeLogin = user.firstTimeLogin === true || user.firstTimeLogin === 'true';
-
-                /*// Send congratulations email for first-time login
-                if (isFirstTimeLogin) {
-                    try {
-                        // If you have the newPassword available, pass it here. Otherwise, pass null or undefined.
-                        const emailResult = await this.emailService.sendFirstLoginCongratulationsEmail(email, {
-                            email: email,
-                            name: user.name || 'User',
-                            password: password // Pass the password used for login (if appropriate)
-                        });
-                        console.log('First login congratulations email sent:', emailResult.success);
-                    } catch (emailError) {
-                        console.error('Failed to send congratulations email:', emailError);
-                    }
-                }*/
-
-                console.log(`[${this.dbConnection.instanceId}] Authentication successful for:`, email);
                 return {
                     success: true,
                     user: {
                         ...user,
-                        firstTimeLogin: isFirstTimeLogin,
-                        salt: salt // explicitly include salt in response
+                        firstTimeLogin: isFirstTimeLogin
                     },
                     message: 'Authentication successful'
                 };
             } else {
-                console.log(`[${this.dbConnection.instanceId}] Authentication failed for:`, email);
                 return {
                     success: false,
                     message: 'Invalid email or password'
                 };
             }
         } catch (error) {
-            console.error(`[${this.dbConnection.instanceId}] Error verifying user:`, error);
             return {
                 success: false,
                 message: 'Authentication error occurred'
@@ -192,21 +159,15 @@ async deleteUser(userId) {
             throw error;
         }
     }
+    
     async changePassword(userId, email, newPassword) {
         try {
             console.log('Changing password for user:', email, 'with ID:', userId, 'password:', newPassword);
             await this.dbConnection.initialize();
 
-            // Generate a new salt and hash the new password
-            const salt = crypto.randomBytes(16).toString('hex');
-            const hash = crypto.pbkdf2Sync(newPassword, salt, 100000, 64, 'sha512').toString('hex');
-            const customHash = `${salt}:${hash}`;
-
-            // Always update the password field, hashPassword, and salt
+            // Store password directly (no hashing)
             const updateFields = {
                 password: newPassword,
-                hashPassword: customHash,
-                salt: salt,
                 firstTimeLogin: false,
                 lastPasswordChange: new Date()
             };
@@ -282,12 +243,7 @@ async deleteUser(userId) {
                 };
             }
 
-            // Generate a new salt and hash the new password
-            const salt = crypto.randomBytes(16).toString('hex');
-            const hash = crypto.pbkdf2Sync(newPassword, salt, 100000, 64, 'sha512').toString('hex');
-            const customHash = `${salt}:${hash}`;
-
-            // Update the hashPassword and salt, clear first-time login flag
+            // Store password directly (no hashing)
             const result = await this.dbConnection.updateDocument(
                 'Straw-Headed-Bulbul', // database name
                 'Accounts', // collection name
@@ -295,16 +251,13 @@ async deleteUser(userId) {
                 {
                     $set: {
                         password: newPassword,
-                        hashPassword: customHash,
-                        salt: salt,
                         firstTimeLogin: false, // Clear first-time login flag
                         lastPasswordChange: new Date() // Track when password was changed
                     }
                 }
             );
-
-            console.log('Password update result:', result);
-            await this.sendWelcomeEmail(email, newPassword)
+           
+            await this.sendWelcomeEmail(user.name, mail, newPassword)
 
             if (result.modifiedCount > 0) {
                 return {
@@ -326,27 +279,13 @@ async deleteUser(userId) {
         }
     }
 
-    async sendWelcomeEmail(email, newPassword) {
+    async sendWelcomeEmail(name, email, newPassword) {
         try {
             console.log('Sending welcome email to:', email);
             await this.dbConnection.initialize();
             
-            // First, check if the user exists
-            const user = await this.dbConnection.findDocument(
-                'Straw-Headed-Bulbul', // database name
-                'Accounts', // collection name
-                { email: email, password: newPassword } // filter by email and password
-            );
-
-            if (!user) {
-                return { 
-                    success: false, 
-                    message: 'User not found with this email address' 
-                };
-            }
-
             // Send welcome/congratulations email
-            const emailResult = await this.emailService.sendFirstLoginCongratulationsEmail(email, { name: 'User', password: newPassword });
+            const emailResult = await this.emailService.sendFirstLoginCongratulationsEmail(email, { name: name, password: newPassword });
 
             if (emailResult.success) {
                 return { 

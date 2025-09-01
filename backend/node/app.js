@@ -1,6 +1,3 @@
-// Load environment variables
-require('dotenv').config();
-
 var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
@@ -14,9 +11,6 @@ var surveyRoutes = require('./routes/surveyRoutes'); // Import MongoDB survey ro
 var eventsRoutes = require('./routes/eventsRoutes'); // Import MongoDB events routes
 var telegramRoutes = require('./routes/telegramRoutes'); // Import MongoDB telegram routes
 var userRoutes = require('./routes/usersRoutes'); // Import MongoDB user routes
-var galleryRoutes = require('./routes/galleryRoutes'); // Import MongoDB gallery routes
-var secureRoutes = require('./routes/secureRoutes'); // Import secure encrypted routes
-var tokenEncryption = require('./middleware/tokenEncryption'); // Import token encryption middleware 
 
 app.use(cors()); // Enable CORS
 app.use(logger('dev')); // HTTP request logger
@@ -32,7 +26,7 @@ app.use(logger('dev'));
 app.use(cors({
   origin: ['http://localhost:3000', 'https://gentle-dune-0405ec500.1.azurestaticapps.net'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'], // Add any other methods you want to support
-  allowedHeaders: ['Content-Type', 'Authorization', 'Content-Disposition'], 
+  allowedHeaders: ['Content-Type', 'Content-Disposition'], // Removed Authorization since no tokens
   exposedHeaders: ['Content-Disposition'], // Add this line to expose the header
 }));
 
@@ -41,16 +35,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Serve uploaded files from backend uploads directory
-// Serve email assets (logos, etc.) from Others/Email directory
-app.use('/Others/Email', express.static(path.join(__dirname, 'Others/Email')));
-
 app.use('/surveys', surveyRoutes); // Register MongoDB survey routes
 app.use('/events', eventsRoutes); // Register MongoDB events routes
 app.use('/telegram', telegramRoutes); // Register MongoDB telegram routes
 app.use('/users', userRoutes); // Register MongoDB user routes
-app.use('/gallery', galleryRoutes); // Register MongoDB gallery routes
-app.use('/secure', secureRoutes); // Register secure encrypted routes
 
 //
 // Increase payload limits for Azure App Service
@@ -75,14 +63,6 @@ app.use(function(req, res, next) {
 // error handler (API style)
 app.use(function(err, req, res, next) {
   console.error('Unhandled error:', err);
-  
-  if (err.name === 'JsonWebTokenError') {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-  
-  if (err.name === 'TokenExpiredError') {
-    return res.status(401).json({ error: 'Token expired' });
-  }
   
   res.status(err.status || 500).json({
     message: err.message,
