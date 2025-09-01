@@ -740,6 +740,7 @@ class LoginPopup extends Component {
     });
 
     socket.on('qr-login-response', (data) => {
+      console.log('Socket received qr-login-response:', data);
       this.handleQRLoginResponse(data);
     });
 
@@ -760,8 +761,17 @@ class LoginPopup extends Component {
     // Check if sessionId matches or if no sessionId is provided (for backward compatibility)
     const sessionMatches = !sessionId || sessionId === this.state.mobileApprovalSessionId;
     
+    console.log('Mobile auth response validation:', {
+      sessionMatches,
+      showMobileApproval: this.state.showMobileApproval,
+      approved,
+      sessionId,
+      expectedSessionId: this.state.mobileApprovalSessionId
+    });
+    
     if (sessionMatches && this.state.showMobileApproval) {
       if (approved) {
+        console.log('✅ Mobile approval APPROVED - updating state and closing popup');
         this.setState({ 
           mobileApprovalStatus: 'approved',
           isWaitingForMobileApproval: false,
@@ -773,11 +783,17 @@ class LoginPopup extends Component {
           clearTimeout(this.state.mobileApprovalTimeout);
         }
         
-        // For mobile approval, add a slight delay to show "approved" status before completing login
-        setTimeout(() => {
-          console.log('Mobile approval timeout reached, calling handleMFAComplete');
-          this.handleMFAComplete();
-        }, 1500); // 1.5 second delay to show approval confirmation
+        // Immediately complete login and close popup for mobile approval
+        console.log('Mobile approval confirmed - completing login immediately');
+        this.handleMFAComplete();
+        
+        // Force close the popup
+        if (this.props.onClose) {
+          setTimeout(() => {
+            console.log('Force closing popup after mobile approval');
+            this.props.onClose();
+          }, 500); // Small delay to ensure handleMFAComplete finishes
+        }
       } else {
         this.setState({ 
           mobileApprovalStatus: 'denied',
