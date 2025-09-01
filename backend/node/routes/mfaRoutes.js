@@ -164,15 +164,16 @@ async function handleRequestApproval(req, res) {
 
 // Handle Mobile Approval
 async function handleApproval(req, res) {
-  const { userId, email, approved } = req.body;
+  const { userId, email, approved, sessionId } = req.body;
   
-  console.log('Mobile Approval:', { userId, email, approved });
+  console.log('Mobile Approval:', { userId, email, approved, sessionId });
   
   // Emit approval response to web browser
   const io = req.app.get('io'); // Get the Socket.IO instance
   if (io) {
     io.emit('mobile-auth-response', {
       approved: approved,
+      sessionId: sessionId, // Include sessionId in the response
       userData: approved ? { userId, email } : null
     });
   }
@@ -181,6 +182,7 @@ async function handleApproval(req, res) {
     success: true,
     message: approved ? 'Login approved' : 'Login denied',
     approved: approved,
+    sessionId: sessionId,
     userData: approved ? { userId, email } : null,
     timestamp: Date.now()
   });

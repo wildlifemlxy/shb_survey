@@ -706,7 +706,14 @@ class LoginPopup extends Component {
       userData: enhancedUserData
     });
     
+    // Clear the form and close the popup after successful login
+    this.clearForm();
     this.props.onLoginSuccess(enhancedUserData);
+    
+    // Also call onClose to ensure the popup closes
+    if (this.props.onClose) {
+      this.props.onClose();
+    }
   };
 
   // Initialize Socket.IO connection for real-time mobile communication
@@ -728,6 +735,7 @@ class LoginPopup extends Component {
     });
 
     socket.on('mobile-auth-response', (data) => {
+      console.log('Socket received mobile-auth-response:', data);
       this.handleMobileAuthResponse(data);
     });
 
@@ -744,14 +752,20 @@ class LoginPopup extends Component {
 
   // Handle mobile authentication response
   handleMobileAuthResponse = (data) => {
+    console.log('Received mobile auth response:', data);
+    console.log('Current session ID:', this.state.mobileApprovalSessionId);
+    
     const { sessionId, approved, userData } = data;
     
-    if (sessionId === this.state.mobileApprovalSessionId) {
+    // Check if sessionId matches or if no sessionId is provided (for backward compatibility)
+    const sessionMatches = !sessionId || sessionId === this.state.mobileApprovalSessionId;
+    
+    if (sessionMatches && this.state.showMobileApproval) {
       if (approved) {
         this.setState({ 
           mobileApprovalStatus: 'approved',
           isWaitingForMobileApproval: false,
-          userData: userData
+          userData: userData || this.state.userData // Use provided userData or keep existing
         });
         
         // Clear timeout
@@ -761,6 +775,7 @@ class LoginPopup extends Component {
         
         // For mobile approval, add a slight delay to show "approved" status before completing login
         setTimeout(() => {
+          console.log('Mobile approval timeout reached, calling handleMFAComplete');
           this.handleMFAComplete();
         }, 1500); // 1.5 second delay to show approval confirmation
       } else {
@@ -770,6 +785,12 @@ class LoginPopup extends Component {
           error: 'Login denied on mobile device'
         });
       }
+    } else {
+      console.log('Session ID mismatch or not in mobile approval state:', { 
+        received: sessionId, 
+        expected: this.state.mobileApprovalSessionId,
+        showMobileApproval: this.state.showMobileApproval 
+      });
     }
   };
 
