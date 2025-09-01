@@ -11,6 +11,7 @@ var surveyRoutes = require('./routes/surveyRoutes'); // Import MongoDB survey ro
 var eventsRoutes = require('./routes/eventsRoutes'); // Import MongoDB events routes
 var telegramRoutes = require('./routes/telegramRoutes'); // Import MongoDB telegram routes
 var userRoutes = require('./routes/usersRoutes'); // Import MongoDB user routes
+var mfaRoutes = require('./routes/mfaRoutes'); // Import MFA routes
 
 app.use(cors()); // Enable CORS
 app.use(logger('dev')); // HTTP request logger
@@ -24,7 +25,7 @@ app.set('view engine', 'pug'); // You can change to 'ejs' or others if needed
 
 app.use(logger('dev'));
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://gentle-dune-0405ec500.1.azurestaticapps.net'],
+  origin: ['http://localhost:3000', 'https://gentle-dune-0405ec500.1.azurestaticapps.net', "android-app://"],
   methods: ['GET', 'POST', 'PUT', 'DELETE'], // Add any other methods you want to support
   allowedHeaders: ['Content-Type', 'Content-Disposition'], // Removed Authorization since no tokens
   exposedHeaders: ['Content-Disposition'], // Add this line to expose the header
@@ -39,6 +40,7 @@ app.use('/surveys', surveyRoutes); // Register MongoDB survey routes
 app.use('/events', eventsRoutes); // Register MongoDB events routes
 app.use('/telegram', telegramRoutes); // Register MongoDB telegram routes
 app.use('/users', userRoutes); // Register MongoDB user routes
+app.use('/mfa', mfaRoutes); // Register MFA routes
 
 //
 // Increase payload limits for Azure App Service

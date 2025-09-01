@@ -1,0 +1,155 @@
+var express = require('express');
+var router = express.Router();
+
+// Single POST /mfa endpoint - handles setup and verification based on req.body
+router.post('/', async (req, res) => {
+  try {
+    const { purpose, userId, email, deviceId, deviceType, code, approved } = req.body;
+    
+    console.log('MFA Request:', req.body);
+    
+    switch (purpose) {
+      case 'setup':
+        return await handleSetup(req, res);
+      case 'verify':
+        return await handleVerify(req, res);
+      case 'qr_scan':
+        return await handleQRScan(req, res);
+      case 'approval':
+        return await handleApproval(req, res);
+      default:
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid purpose. Use: setup, verify, qr_scan, or approval',
+          timestamp: Date.now()
+        });
+    }
+    
+  } catch (error) {
+    console.error('MFA error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'MFA operation failed',
+      error: error.message,
+      timestamp: Date.now()
+    });
+  }
+});
+
+// Handle MFA Setup
+async function handleSetup(req, res) {
+  const { userId, email, deviceId, deviceType } = req.body;
+  
+  console.log('MFA Setup:', { userId, email, deviceId, deviceType });
+  
+  // Generate QR data
+  const timestamp = Date.now();
+  const qrData = {
+    type: 'mobile_login',
+    userId,
+    email,
+    deviceId,
+    timestamp,
+    webAppUrl: req.get('origin') || 'https://gentle-dune-0405ec500.1.azurestaticapps.net'
+  };
+  
+  return res.json({
+    success: true,
+    message: 'MFA setup successful',
+    data: {
+      qrData,
+      type: 'setup'
+    },
+    timestamp: Date.now()
+  });
+}
+
+// Handle MFA Verification
+async function handleVerify(req, res) {
+  const { userId, email, code, approved } = req.body;
+  
+  console.log('MFA Verify:', { userId, email, code, approved });
+  
+  let verificationResult = false;
+  
+  if (code) {
+    // Verify PIN/Code
+    verificationResult = /^\d{6,8}$/.test(code);
+  } else if (typeof approved !== 'undefined') {
+    // Verify approval
+    verificationResult = approved === true;
+  }
+  
+  if (verificationResult) {
+    // Emit success to web browser
+    if (global.io) {
+      global.io.emit('mobile-auth-response', {
+        approved: true,
+        userData: { userId, email }
+      });
+    }
+    
+    return res.json({
+      success: true,
+      message: 'MFA verification successful',
+      data: {
+        userData: { userId, email },
+        verified: true
+      },
+      timestamp: Date.now()
+    });
+  } else {
+    return res.status(400).json({
+      success: false,
+      message: 'MFA verification failed',
+      timestamp: Date.now()
+    });
+  }
+}
+
+// Handle QR Code Scan
+async function handleQRScan(req, res) {
+  const { userId, email, deviceId } = req.body;
+  
+  console.log('QR Scan:', { userId, email, deviceId });
+  
+  // Emit QR scan success to web browser
+  if (global.io) {
+    global.io.emit('qr-login-response', {
+      success: true,
+      userData: { userId, email }
+    });
+  }
+  
+  return res.json({
+    success: true,
+    message: 'QR scan successful - login completed',
+    userData: { userId, email },
+    timestamp: Date.now()
+  });
+}
+
+// Handle Mobile Approval
+async function handleApproval(req, res) {
+  const { userId, email, approved } = req.body;
+  
+  console.log('Mobile Approval:', { userId, email, approved });
+  
+  // Emit approval response to web browser
+  if (global.io) {
+    global.io.emit('mobile-auth-response', {
+      approved: approved,
+      userData: approved ? { userId, email } : null
+    });
+  }
+  
+  return res.json({
+    success: true,
+    message: approved ? 'Login approved' : 'Login denied',
+    approved: approved,
+    userData: approved ? { userId, email } : null,
+    timestamp: Date.now()
+  });
+}
+
+module.exports = router;

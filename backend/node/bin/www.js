@@ -81,7 +81,8 @@ const io = new Server(server, {
   cors: {
     origin: [
       'http://localhost:3000',
-      'https://gentle-dune-0405ec500.1.azurestaticapps.net'
+      'https://gentle-dune-0405ec500.1.azurestaticapps.net',
+      'android-app://'
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Content-Disposition'],
