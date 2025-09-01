@@ -36,6 +36,7 @@ class MaintenanceBotButton extends Component {
       exportStatus: 'idle', // idle, exporting, completed, error
       currentPage: null,
       activeDashboardTab: 'overview', // Track active dashboard tab
+      activeEventsTab: 'Upcoming', // Track active events tab
       // Chat functionality
       showChat: false,
       messages: [
@@ -157,6 +158,10 @@ class MaintenanceBotButton extends Component {
         const activeTab = this.detectActiveDashboardTab();
         this.setState({ activeDashboardTab: activeTab });
         console.log(`Initial dashboard tab: ${activeTab}`);
+      } else if (currentPage === 'surveyEvents') {
+        const activeEventsTab = this.detectActiveEventsTab();
+        this.setState({ activeEventsTab: activeEventsTab });
+        console.log(`Initial events tab: ${activeEventsTab}`);
       }
     }
   };
@@ -241,6 +246,41 @@ class MaintenanceBotButton extends Component {
     return activeTab;
   };
 
+  // Detect active events tab (Upcoming or Past)
+  detectActiveEventsTab = () => {
+    const activeTabSelectors = [
+      '.tab-button.active',
+      '.tab.active',
+      '[aria-selected="true"]',
+      '.active',
+      '.selected'
+    ];
+    
+    let activeTab = 'Upcoming'; // default
+    
+    // Look for active tab elements in events page
+    for (const selector of activeTabSelectors) {
+      const activeElements = document.querySelectorAll(selector);
+      for (const activeElement of activeElements) {
+        if (activeElement) {
+          const tabText = activeElement.textContent?.toLowerCase() || '';
+          const tabId = activeElement.id?.toLowerCase() || '';
+          
+          if (tabText.includes('past') || tabId.includes('past')) {
+            activeTab = 'Past';
+            break;
+          } else if (tabText.includes('upcoming') || tabId.includes('upcoming')) {
+            activeTab = 'Upcoming';
+            break;
+          }
+        }
+      }
+      if (activeTab !== 'Upcoming') break; // Found a match, stop searching
+    }
+    
+    return activeTab;
+  };
+
   // Add click listeners to tab elements for immediate detection
   addTabClickListeners = () => {
     const tabSelectors = [
@@ -270,6 +310,12 @@ class MaintenanceBotButton extends Component {
           if (this.state.activeDashboardTab !== currentTab) {
             this.setState({ activeDashboardTab: currentTab });
             console.log(`Tab clicked - changed to: ${currentTab}`, event.target);
+          }
+        } else if (this.state.currentPage === 'surveyEvents') {
+          const currentEventsTab = this.detectActiveEventsTab();
+          if (this.state.activeEventsTab !== currentEventsTab) {
+            this.setState({ activeEventsTab: currentEventsTab });
+            console.log(`Events tab clicked - changed to: ${currentEventsTab}`, event.target);
           }
         }
       }, 100);
@@ -962,12 +1008,22 @@ class MaintenanceBotButton extends Component {
 
     console.log('Starting Excel export...', this.state.currentPage);
 
-    // Excel export is no longer available without authenticated data
+    // Fetch the actual observation data
     let observationData = [];
-    console.warn('Excel export not available - no authenticated data access.');
-    
-    // You could fetch public data here if needed
-    // observationData = await fetchPublicData();
+    try {
+      // Import the fetchSurveyData function
+      const { fetchSurveyData } = await import('../../data/shbData.js');
+      observationData = await fetchSurveyData();
+      console.log('Fetched observation data:', observationData);
+      
+      if (!observationData || observationData.length === 0) {
+        console.warn('No observation data available for export');
+        observationData = [];
+      }
+    } catch (error) {
+      console.error('Error fetching observation data:', error);
+      observationData = [];
+    }
 
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Observation Data');
@@ -1143,7 +1199,7 @@ class MaintenanceBotButton extends Component {
       } else if (seenHeardValue === 'heard') {
         rowFillColor = { argb: 'FFFFE0B2' }; // Light orange for "Heard" - matches UI
       } else if (seenHeardValue === 'not found' || seenHeardValue === 'notfound') {
-        rowFillColor = { argb: 'FFE0E0E0' }; // Light gray for "Not found" - matches UI
+        rowFillColor = { argb: 'FFCDD2' }; // Light red for "Not found" - #FFCDD2
       } else {
         // Apply alternating row colors for other values
         if (index % 2 === 0) {
@@ -1548,7 +1604,7 @@ class MaintenanceBotButton extends Component {
   }
 
   render() {
-    const { isOpen, maintenanceStatus, lastMaintenance, activeTasks, systemHealth, showQuickActions, isHidden, showExportActions, exportStatus, currentPage, activeDashboardTab, showChat, messages } = this.state;
+    const { isOpen, maintenanceStatus, lastMaintenance, activeTasks, systemHealth, showQuickActions, isHidden, showExportActions, exportStatus, currentPage, activeDashboardTab, activeEventsTab, showChat, messages } = this.state;
     const statusColor = this.getStatusColor();
     const exportType = currentPage === 'dashboard' && activeDashboardTab === 'dataTable' ? 'Excel' : 'PDF';
     const isDataTableTab = currentPage === 'dashboard' && activeDashboardTab === 'dataTable';
@@ -1619,7 +1675,10 @@ class MaintenanceBotButton extends Component {
                 borderRadius: 12,
                 boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
                 zIndex: 998,
-                border: '1px solid #e5e7eb'
+                border: '1px solid #e5e7eb',
+                overflow: 'visible', // Ensure content is visible
+                contain: 'layout style', // Create stacking context
+                isolation: 'isolate' // Force new stacking context
               }}
             >
               {/* Panel Header */}
@@ -1651,12 +1710,19 @@ class MaintenanceBotButton extends Component {
                 </div>
               </div>
               <div style={{ padding: 16 }}>
-                {/* System Health */}
-                <SystemHealthStatus systemHealth={systemHealth} />
+                {/* System Health - hidden by default for tools interface */}
+                {/* 
+                {(currentPage === 'dashboard' || currentPage === 'surveyEvents') && (
+                  <SystemHealthStatus systemHealth={systemHealth} />
+                )}
+                */}
                 {/* Quick Actions */}
                 <QuickActionsPanel
                   showQuickActions={showQuickActions}
                   currentUser={this.props.currentUser}
+                  currentPage={currentPage}
+                  activeDashboardTab={activeDashboardTab}
+                  activeEventsTab={this.state.activeEventsTab}
                   onToggleQuickActions={() => this.setState(prev => ({ showQuickActions: !prev.showQuickActions }))}
                   onBackup={() => this.exportCurrentPage('backup')}
                   onChatbot={this.handleChatToggle}

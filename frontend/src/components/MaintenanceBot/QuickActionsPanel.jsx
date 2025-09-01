@@ -55,13 +55,21 @@ class QuickActionsPanel extends Component {
       onNewEvent,
       backupDisabled,
       backupTooltip,
-      currentUser
+      currentUser,
+      currentPage,
+      activeDashboardTab,
+      activeEventsTab
     } = this.props;
     console.log('Rendering QuickActionsPanel with props:', currentUser.role);
     // Add this debug log to see exact role values
     console.log('Current user role type and value:', typeof currentUser.role, JSON.stringify(currentUser.role));
     return (
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ 
+        marginBottom: 16,
+        position: 'relative', // Ensure proper positioning context
+        zIndex: 1, // Ensure it's above other elements but within modal
+        width: '100%' // Ensure it doesn't overflow
+      }}>
         <button
           onClick={onToggleQuickActions}
           style={{
@@ -79,49 +87,21 @@ class QuickActionsPanel extends Component {
             marginBottom: 8
           }}
         >
-          <span>⚡ Quick Actions</span>
+          <span>🔧 Tools</span>
           <span>{showQuickActions ? '▼' : '▶'}</span>
         </button>
         {showQuickActions && (
           <div style={{ marginTop: 8 }}>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
+              gridTemplateColumns: 'repeat(2, 1fr)', // Exactly 2 buttons per row
               gap: 8,
-              marginBottom: 8
+              marginBottom: 8,
+              position: 'relative', // Ensure buttons stay within container
+              width: '100%', // Constrain to container width
+              maxWidth: '100%' // Prevent overflow
             }}>
-              {currentUser.role !== "WWF-Volunteer" && (
-                <button
-                  onClick={onBackup}
-                  disabled={backupDisabled}
-                  style={{
-                    padding: '8px 16px',
-                    background: backupDisabled ? '#9ca3af' : '#10b981',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 6,
-                    cursor: backupDisabled ? 'not-allowed' : 'pointer',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    opacity: backupDisabled ? 0.6 : 1,
-                    minHeight: 32,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    textAlign: 'center',
-                    lineHeight: '1.2',
-                    transition: 'all 0.2s ease',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                    whiteSpace: 'nowrap'
-                  }}
-                  title={backupTooltip}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    Backup
-                  </span>
-                </button>
-              )}
+              {/* Chatbot button - show on all pages (FIRST POSITION) */}
               <button
                 onClick={() => {
                   // Call parent's chat toggle function
@@ -130,7 +110,7 @@ class QuickActionsPanel extends Component {
                   }
                 }}
                 style={{
-                  padding: '8px 16px',
+                  padding: '10px 16px',
                   background: '#4f46e5',
                   color: 'white',
                   border: 'none',
@@ -138,7 +118,7 @@ class QuickActionsPanel extends Component {
                   cursor: 'pointer',
                   fontSize: 11,
                   fontWeight: 600,
-                  minHeight: 32,
+                  minHeight: 36,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -146,7 +126,11 @@ class QuickActionsPanel extends Component {
                   lineHeight: '1.2',
                   transition: 'all 0.2s ease',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap', // Keep text on single line
+                  position: 'relative', // Ensure button stays in normal flow
+                  width: '100%', // Constrain to grid cell
+                  maxWidth: '100%', // Prevent overflow
+                  minWidth: 0 // Allow buttons to shrink below their content size
                 }}
                 title="Click to chat with the SHB Survey Assistant!"
               >
@@ -155,7 +139,9 @@ class QuickActionsPanel extends Component {
                   Chatbot
                 </span>
               </button>
-              <button
+              {/* New Survey button - only show on dashboard data table tab */}
+              {currentPage === 'dashboard' && activeDashboardTab === 'dataTable' && (
+                <button
                 onClick={() => {
                   // Call parent's new survey function
                   if (onNewSurvey && typeof onNewSurvey === 'function') {
@@ -163,7 +149,7 @@ class QuickActionsPanel extends Component {
                   }
                 }}
                 style={{
-                  padding: '8px 16px',
+                  padding: '10px 16px',
                   background: '#059669',
                   color: 'white',
                   border: 'none',
@@ -171,7 +157,7 @@ class QuickActionsPanel extends Component {
                   cursor: 'pointer',
                   fontSize: 11,
                   fontWeight: 600,
-                  minHeight: 32,
+                  minHeight: 36,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -179,7 +165,11 @@ class QuickActionsPanel extends Component {
                   lineHeight: '1.2',
                   transition: 'all 0.2s ease',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap', // Keep text on single line
+                  position: 'relative', // Ensure button stays in normal flow
+                  width: '100%', // Constrain to grid cell
+                  maxWidth: '100%', // Prevent overflow
+                  minWidth: 0 // Allow buttons to shrink below their content size
                 }}
                 title="Create a new survey observation"
               >
@@ -190,7 +180,10 @@ class QuickActionsPanel extends Component {
                   New Survey
                 </span>
               </button>
-              <button
+              )}
+              {/* New Event button - only show on surveyEvents page and only on Upcoming tab (not Past) */}
+              {currentPage === 'surveyEvents' && activeEventsTab === 'Upcoming' && (
+                <button
                 onClick={() => {
                   console.log('QuickActionsPanel: New Event button clicked');
                   // Call parent's new event function
@@ -202,15 +195,15 @@ class QuickActionsPanel extends Component {
                   }
                 }}
                 style={{
-                  padding: '8px 16px',
-                  background: '#dc2626',
+                  padding: '10px 16px',
+                  background: '#059669',
                   color: 'white',
                   border: 'none',
                   borderRadius: 6,
                   cursor: 'pointer',
                   fontSize: 11,
                   fontWeight: 600,
-                  minHeight: 32,
+                  minHeight: 36,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -218,7 +211,11 @@ class QuickActionsPanel extends Component {
                   lineHeight: '1.2',
                   transition: 'all 0.2s ease',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap', // Keep text on single line
+                  position: 'relative', // Ensure button stays in normal flow
+                  width: '100%', // Constrain to grid cell
+                  maxWidth: '100%', // Prevent overflow
+                  minWidth: 0 // Allow buttons to shrink below their content size
                 }}
                 title="Create a new event"
               >
@@ -232,6 +229,44 @@ class QuickActionsPanel extends Component {
                   New Event
                 </span>
               </button>
+              )}
+              {/* Backup button - only show on dashboard data table tab and for non-WWF-Volunteer users (LAST POSITION) */}
+              {currentUser.role !== "WWF-Volunteer" && currentPage === 'dashboard' && activeDashboardTab === 'dataTable' && (
+                <button
+                  onClick={onBackup}
+                  disabled={backupDisabled}
+                  style={{
+                    padding: '10px 16px',
+                    background: backupDisabled ? '#9ca3af' : '#10b981',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: backupDisabled ? 'not-allowed' : 'pointer',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    opacity: backupDisabled ? 0.6 : 1,
+                    minHeight: 36,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                    lineHeight: '1.2',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    whiteSpace: 'nowrap', // Keep text on single line
+                    position: 'relative', // Ensure button stays in normal flow
+                    width: '100%', // Constrain to grid cell
+                    maxWidth: '100%', // Prevent overflow
+                    minWidth: 0 // Allow buttons to shrink below their content size
+                  }}
+                  title={backupTooltip}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Backup
+                  </span>
+                </button>
+              )}
             </div>
           </div>
         )}
