@@ -1206,6 +1206,66 @@ class LoginPopup extends Component {
       );
     }
 
+    // Show Mobile Approval Modal (separate modal)
+    if (showMobileApproval) {
+      return (
+        <div className="login-popup-overlay">
+          <div className="login-card">
+            <button className="login-close-button" onClick={() => this.setState({ showMobileApproval: false, mobileApprovalStatus: 'pending' })}>
+              x
+            </button>
+            
+            <div className="login-header">
+              <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF Logo" className="login-logo" />
+              <h1>Mobile Approval</h1>
+              <p>Check your mobile device for the approval request</p>
+            </div>
+
+            <div style={{ textAlign: 'center', padding: '20px' }}>
+              <h3 style={{ marginBottom: '15px', color: '#374151' }}>Waiting for Mobile Approval</h3>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                marginBottom: '20px'
+              }}>
+                <div style={{
+                  width: '60px',
+                  height: '60px',
+                  border: '3px solid #f3f4f6',
+                  borderTop: '3px solid #22c55e',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }}></div>
+              </div>
+              
+              <p style={{ color: '#6b7280', fontSize: '16px', marginBottom: '15px' }}>
+                {mobileApprovalStatus === 'pending' && 'Check your mobile device for the approval request'}
+                {mobileApprovalStatus === 'approved' && 'Approved! Logging you in...'}
+                {mobileApprovalStatus === 'denied' && 'Login request was denied'}
+                {mobileApprovalStatus === 'timeout' && 'Request timed out'}
+              </p>
+              
+              <button
+                type="button"
+                onClick={() => this.setState({ showMobileApproval: false, mobileApprovalStatus: 'pending' })}
+                style={{
+                  padding: '8px 16px',
+                  background: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // Show MFA PIN and QR Code dialog (old flow - keep for fallback)
     if (showMFAPin) {
       return (
@@ -1856,141 +1916,6 @@ class LoginPopup extends Component {
                   fontSize: '14px'
                 }}>
                   {mfaError}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Mobile Approval Screen */}
-          {loginMethod === 'mobile-approval' && (
-            <div className="mobile-approval-section">
-              {!showMobileApproval ? (
-                <form className="login-form" onSubmit={(e) => { e.preventDefault(); this.requestMobileApproval(); }}>
-                  {error && (
-                    <div className="login-error">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                      </svg>
-                      {error}
-                    </div>
-                  )}
-                  
-                  <div className="form-group">
-                    <label htmlFor="email">Email</label>
-                    <input
-                      type="text"
-                      id="email"
-                      name="email"
-                      value={email}
-                      onChange={this.handleInputChange}
-                      placeholder="Enter your email"
-                      disabled={isLoading}
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="password">Password</label>
-                    <div className="password-input-container" style={{ position: 'relative' }}>
-                      <input
-                        type={this.state.showPassword ? "text" : "password"}
-                        id="password"
-                        name="password"
-                        value={password}
-                        onChange={this.handleInputChange}
-                        placeholder="Enter your password"
-                        disabled={isLoading}
-                        style={{width: '100%'}}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => this.setState(prevState => ({ showPassword: !prevState.showPassword }))}
-                        style={{
-                          position: 'absolute',
-                          right: '10px',
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          background: 'transparent',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontSize: '16px',
-                          color: '#555',
-                        }}
-                      >
-                        {this.state.showPassword ? (
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-                          </svg>
-                        ) : (
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>
-                          </svg>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="login-button-group">
-                    <button 
-                      type="submit" 
-                      className="login-button"
-                      style={{
-                        background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                        boxShadow: '0 4px 15px rgba(245, 158, 11, 0.3)',
-                        width: '100%'
-                      }}
-                      disabled={isLoading}
-                    >
-                      {isLoading ? (
-                        <div className="loading-spinner">
-                          <div className="spinner"></div>
-                          Requesting Mobile Approval...
-                        </div>
-                      ) : (
-                        'Request Mobile Approval'
-                      )}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '20px' }}>
-                  <h3 style={{ marginBottom: '15px', color: '#374151' }}>Waiting for Mobile Approval</h3>
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    marginBottom: '20px'
-                  }}>
-                    <div style={{
-                      width: '60px',
-                      height: '60px',
-                      border: '3px solid #f3f4f6',
-                      borderTop: '3px solid #22c55e',
-                      borderRadius: '50%',
-                      animation: 'spin 1s linear infinite'
-                    }}></div>
-                  </div>
-                  
-                  <p style={{ color: '#6b7280', fontSize: '16px', marginBottom: '15px' }}>
-                    {mobileApprovalStatus === 'pending' && 'Check your mobile device for the approval request'}
-                    {mobileApprovalStatus === 'approved' && 'Approved! Logging you in...'}
-                    {mobileApprovalStatus === 'denied' && 'Login request was denied'}
-                    {mobileApprovalStatus === 'timeout' && 'Request timed out'}
-                  </p>
-                  
-                  <button
-                    type="button"
-                    onClick={() => this.setState({ showMobileApproval: false, mobileApprovalStatus: 'pending' })}
-                    style={{
-                      padding: '8px 16px',
-                      background: '#6b7280',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Cancel
-                  </button>
                 </div>
               )}
             </div>
