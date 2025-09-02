@@ -32,11 +32,9 @@ async function sendOneSignalNotification({ title, message, data = null, type = '
 
     // Handle different notification types
     if (type === 'mfa_approval') {
-      // For MFA approval - target all Android devices (device_type = 1)
-      notificationData.filters = [
-        { "field": "device_type", "relation": "=", "value": "1" }
-      ];
-      console.log("Targeting all Android devices for MFA approval");
+      // For MFA approval - target all users including Android devices
+      notificationData.included_segments = ["Active Users", "Engaged Users", "All"];
+      console.log("Targeting all users for MFA approval");
     } else {
       // For web push notifications - include web URL and target web browsers
       notificationData.url = "https://gentle-dune-0405ec500.1.azurestaticapps.net/";
