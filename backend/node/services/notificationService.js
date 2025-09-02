@@ -15,7 +15,7 @@ async function sendOneSignalNotification({ title, message, data = null, type = '
     console.log("Sending OneSignal notification with:", { title, message, data, type });
 
     // Add your Player ID here to force notification to your device
-    const testDevices = ['be9615de-c4d7-42e6-950e-8aa7b4a790cf']; // Replace with your actual Player ID from OneSignal dashboard
+    const testDevices = ['0f8be4aa-26f3-4680-b6ae-84171fabf176']; // Replace with your actual Player ID from OneSignal dashboard
 
     const notificationData = {
       app_id: ONESIGNAL_APP_ID,
