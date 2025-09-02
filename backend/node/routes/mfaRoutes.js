@@ -1,6 +1,5 @@
 var express = require('express');
 var router = express.Router();
-const { sendOneSignalNotification } = require('../services/notificationService');
 
 // Single POST /mfa endpoint - handles setup and verification based on req.body
 router.post('/', async (req, res) => {
@@ -155,22 +154,9 @@ async function handleRequestApproval(req, res) {
     console.log('Mobile approval request sent to Android app via Socket.IO');
   }
   
-  // Also send OneSignal push notification to Android app (so user can click on it)
-  try {
-    const notificationResult = await sendOneSignalNotification({
-      title: 'Login Approval Required',
-      message: `Login approval requested for ${email}. Tap to approve or deny.`
-    });
-    
-    console.log('OneSignal push notification sent:', notificationResult);
-  } catch (notificationError) {
-    console.error('Failed to send OneSignal notification:', notificationError);
-    // Continue even if OneSignal fails - Socket.IO might still work
-  }
-  
   return res.json({
     success: true,
-    message: 'Mobile approval request sent to Android app via Socket.IO and OneSignal',
+    message: 'Mobile approval request sent to Android app via Socket.IO',
     sessionId: sessionId,
     timestamp: Date.now()
   });
