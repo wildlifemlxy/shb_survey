@@ -164,7 +164,7 @@ async function handleRequestApproval(req, res) {
         type: 'mfa_approval'
       }
     });
-    
+    //aok
     console.log('Mobile approval request sent to Android app via Socket.IO with OneSignal data');
     
     // Also send OneSignal notification directly from server
