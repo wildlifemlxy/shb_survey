@@ -33,10 +33,25 @@ async function sendOneSignalNotification({ title, message, data = null, type = '
     // Handle different notification types
     if (type === 'mfa_approval') {
       // For MFA approval - target Android app only
-      notificationData.filters = [
-        { "field": "tag", "key": "device_type", "relation": "=", "value": "android" }
-      ];
-      console.log("Targeting Android app for MFA approval");
+      // Use include_player_ids for testing with your specific device
+      if (testDevices && testDevices.length > 0) {
+        notificationData.include_player_ids = testDevices;
+        console.log("Targeting specific Android device for MFA approval:", testDevices);
+      } else {
+        // Target all Android devices (device_type = 1)
+        notificationData.filters = [
+          { "field": "device_type", "relation": "=", "value": "1" }
+        ];
+        console.log("Targeting all Android devices for MFA approval");
+      }
+      
+      // Add debugging - also send to all devices for testing
+      console.log("⚠️  For testing: If Android device not found, sending to all devices");
+      if (!testDevices || testDevices.length === 0) {
+        // Fallback to all devices if no Android devices found
+        notificationData.included_segments = ["All"];
+        delete notificationData.filters;
+      }
     } else {
       // For web push notifications - include web URL and target web browsers
       notificationData.url = "https://gentle-dune-0405ec500.1.azurestaticapps.net/";

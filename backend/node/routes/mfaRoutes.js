@@ -141,43 +141,69 @@ async function handleRequestApproval(req, res) {
   
   console.log('Requesting Mobile Approval:', { userId, email, sessionId });
   
-  // Send OneSignal push notification to open the Android app
-  try {
-    const notificationResult = await sendOneSignalNotification({
-      title: 'Login Approval Required',
-      message: `Login approval requested for ${email}. Tap to approve or deny.`,
-      data: {
-        userId,
-        email,
-        sessionId,
-        type: 'login_approval'
-      },
-      type: 'mfa_approval'
-    });
-    
-    console.log('OneSignal push notification sent to open app:', notificationResult);
-  } catch (notificationError) {
-    console.error('Failed to send OneSignal notification:', notificationError);
-    // Continue even if OneSignal fails - user might already have app open
-  }
-  
   // Send approval request to Android app via Socket.IO (for real-time communication once app is open)
   const io = req.app.get('io'); // Get the Socket.IO instance
   if (io) {
+    // Emit to Socket.IO with OneSignal notification included
     io.emit('mobile-approval-request', {
       userId,
       email,
       sessionId,
       message: 'Login approval required',
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      // Include OneSignal notification data
+      oneSignalNotification: {
+        title: 'Login Approval Required',
+        message: `Login approval requested for ${email}. Tap to approve or deny.`,
+        data: {
+          userId,
+          email,
+          sessionId,
+          type: 'login_approval'
+        },
+        type: 'mfa_approval'
+      }
     });
     
-    console.log('Mobile approval request sent to Android app via Socket.IO');
+    console.log('Mobile approval request sent to Android app via Socket.IO with OneSignal data');
+    
+    // Also send OneSignal notification directly from server
+    try {
+      const notificationResult = await sendOneSignalNotification({
+        title: 'Login Approval Required',
+        message: `Login approval requested for ${email}. Tap to approve or deny.`,
+        data: {
+          userId,
+          email,
+          sessionId,
+          type: 'login_approval'
+        },
+        type: 'mfa_approval'
+      });
+      
+      console.log('OneSignal push notification sent:', notificationResult);
+      
+      // Emit OneSignal result to connected clients
+      io.emit('onesignal-notification-sent', {
+        sessionId,
+        result: notificationResult,
+        timestamp: Date.now()
+      });
+    } catch (notificationError) {
+      console.error('Failed to send OneSignal notification:', notificationError);
+      
+      // Emit error to connected clients
+      io.emit('onesignal-notification-error', {
+        sessionId,
+        error: notificationError.message,
+        timestamp: Date.now()
+      });
+    }
   }
   
   return res.json({
     success: true,
-    message: 'Mobile approval request sent via OneSignal (to open app) and Socket.IO (for in-app handling)',
+    message: 'Mobile approval request sent via Socket.IO with OneSignal integration',
     sessionId: sessionId,
     timestamp: Date.now()
   });
