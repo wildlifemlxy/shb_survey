@@ -14,15 +14,15 @@ async function sendOneSignalNotification({ title, message, data = null, type = '
   try {    
     console.log("Sending OneSignal notification with:", { title, message, data, type });
 
-    // Add your Player ID here to force notification to your device
-    const testDevices = ['0f8be4aa-26f3-4680-b6ae-84171fabf176']; // Replace with your actual Player ID from OneSignal dashboard
-
     const notificationData = {
       app_id: ONESIGNAL_APP_ID,
       contents: { en: message },
       headings: { en: title },
       priority: 10,
-      ttl: 259200  // 72 days in seconds
+      ttl: 259200,  // 72 days in seconds
+      send_after: new Date().toISOString(), // Send immediately
+      // Target all users regardless of subscription status
+      include_unsubscribed: true
     };
     
     // Add custom data if provided (for MFA approval, etc.)
@@ -32,26 +32,11 @@ async function sendOneSignalNotification({ title, message, data = null, type = '
 
     // Handle different notification types
     if (type === 'mfa_approval') {
-      // For MFA approval - target Android app only
-      // Use include_player_ids for testing with your specific device
-      if (testDevices && testDevices.length > 0) {
-        notificationData.include_player_ids = testDevices;
-        console.log("Targeting specific Android device for MFA approval:", testDevices);
-      } else {
-        // Target all Android devices (device_type = 1)
-        notificationData.filters = [
-          { "field": "device_type", "relation": "=", "value": "1" }
-        ];
-        console.log("Targeting all Android devices for MFA approval");
-      }
-      
-      // Add debugging - also send to all devices for testing
-      console.log("⚠️  For testing: If Android device not found, sending to all devices");
-      if (!testDevices || testDevices.length === 0) {
-        // Fallback to all devices if no Android devices found
-        notificationData.included_segments = ["All"];
-        delete notificationData.filters;
-      }
+      // For MFA approval - target all Android devices (device_type = 1)
+      notificationData.filters = [
+        { "field": "device_type", "relation": "=", "value": "1" }
+      ];
+      console.log("Targeting all Android devices for MFA approval");
     } else {
       // For web push notifications - include web URL and target web browsers
       notificationData.url = "https://gentle-dune-0405ec500.1.azurestaticapps.net/";
