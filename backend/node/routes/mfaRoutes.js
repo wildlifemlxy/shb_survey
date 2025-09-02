@@ -169,7 +169,7 @@ async function handleApproval(req, res) {
   console.log('Mobile Approval:', { userId, email, approved, sessionId });
   
   // Emit approval response to web browser
-  const io = req.app.get('io'); // Get the Socket.IO instance
+  const io = req.app.get('io'); // Get the Socket.IO instance ok
   if (io) {
     io.emit('mobile-auth-response', {
       approved: approved,
