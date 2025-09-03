@@ -9,7 +9,6 @@ router.post('/', async (req, res) => {
 
     const io = req.app.get('io'); // Get the Socket.IO instance
     console.log('MFA Request:', req.body);
-    //ok
     
     switch (purpose) {
       case 'setup':
