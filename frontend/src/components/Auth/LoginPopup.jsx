@@ -775,7 +775,7 @@ class LoginPopup extends Component {
         this.setState({ 
           mobileApprovalStatus: 'approved',
           isWaitingForMobileApproval: false,
-          userData: userData || this.state.userData // Use provided userData or keep existing
+          userData: userData || this.state.userData
         });
         
         // Clear timeout
@@ -787,12 +787,10 @@ class LoginPopup extends Component {
         console.log('Mobile approval confirmed - completing login immediately');
         this.handleMFAComplete();
         
-        // Force close the popup
+        // Force close the popup immediately
         if (this.props.onClose) {
-          setTimeout(() => {
-            console.log('Force closing popup after mobile approval');
-            this.props.onClose();
-          }, 500); // Small delay to ensure handleMFAComplete finishes
+          console.log('Force closing popup after mobile approval');
+          this.props.onClose();
         }
       } else {
         this.setState({ 
@@ -800,6 +798,18 @@ class LoginPopup extends Component {
           isWaitingForMobileApproval: false,
           error: 'Login denied on mobile device'
         });
+        
+        // Clear timeout
+        if (this.state.mobileApprovalTimeout) {
+          clearTimeout(this.state.mobileApprovalTimeout);
+        }
+        
+        // Close popup and return to home page (before login state)
+        console.log('Mobile approval denied - closing popup and returning to home page');
+        this.clearForm();
+        if (this.props.onClose) {
+          this.props.onClose();
+        }
       }
     } else {
       console.log('Session ID mismatch or not in mobile approval state:', { 
