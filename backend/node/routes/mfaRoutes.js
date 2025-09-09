@@ -135,36 +135,6 @@ async function handleQRScan(req, res) {
   });
 }
 
-
-
-// Handle Mobile Approval
-async function handleApproval(req, res) {
-  const { userId, email, approved, sessionId } = req.body;
-  
-  console.log('Mobile Approval:', { userId, email, approved, sessionId });
-  
-  // Emit approval response to web browser
-  const io = req.app.get('io'); // Get the Socket.IO instance ok
-  if (io) {
-    io.emit('mobile-auth-response', {
-      approved: approved,
-      sessionId: sessionId, // Include sessionId in the response
-      userData: approved ? { userId, email } : null
-    });
-  }
-  
-  return res.json({
-    success: true,
-    message: approved ? 'Login approved' : 'Login denied',
-    approved: approved,
-    sessionId: sessionId,
-    userData: approved ? { userId, email } : null,
-    timestamp: Date.now()
-  });
-}
-
-module.exports = router;
-// Handle Request for Mobile Approval - Send notification to Android app
 async function handleRequestApproval(req, res) {
   const { userId, email, sessionId } = req.body;
   
@@ -249,3 +219,33 @@ async function handleRequestApproval(req, res) {
     timestamp: Date.now()
   });
 }
+
+
+// Handle Mobile Approval
+async function handleApproval(req, res) {
+  const { userId, email, approved, sessionId } = req.body;
+  
+  console.log('Mobile Approval:', { userId, email, approved, sessionId });
+  
+  // Emit approval response to web browser
+  const io = req.app.get('io'); // Get the Socket.IO instance ok
+  if (io) {
+    io.emit('mobile-auth-response', {
+      approved: approved,
+      sessionId: sessionId, // Include sessionId in the response
+      userData: approved ? { userId, email } : null
+    });
+  }
+  
+  return res.json({
+    success: true,
+    message: approved ? 'Login approved' : 'Login denied',
+    approved: approved,
+    sessionId: sessionId,
+    userData: approved ? { userId, email } : null,
+    timestamp: Date.now()
+  });
+}
+
+module.exports = router;
+// Handle Request for Mobile Approval - Send notification to Android app

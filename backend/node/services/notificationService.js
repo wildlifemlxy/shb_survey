@@ -31,8 +31,8 @@ async function sendOneSignalNotification({ title, message, data = null, type = '
     }
 
     // Add Android notification category settings if provided
-    if (androidNotificationCategory && type === 'mfa_approval') {
-      // Android-specific notification settings
+    if (androidNotificationCategory) {
+      // Android-specific notification settings for all Android devices and apps
       notificationData.android_channel_id = androidNotificationCategory.channel_id;
       notificationData.priority = androidNotificationCategory.priority;
       notificationData.android_visibility = androidNotificationCategory.visibility;
@@ -51,7 +51,7 @@ async function sendOneSignalNotification({ title, message, data = null, type = '
         notificationData.android_group = androidNotificationCategory.category;
       }
       
-      console.log("Applied Android notification category settings for MFA approval");
+      console.log("Applied Android notification category settings for all Android devices and apps");
     }
 
     // Handle different notification types
