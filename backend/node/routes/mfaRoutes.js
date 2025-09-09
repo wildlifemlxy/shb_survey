@@ -153,8 +153,8 @@ async function handleRequestApproval(req, res) {
       timestamp: Date.now(),
       // Include OneSignal notification data
       oneSignalNotification: {
-        title: 'Login Approval Required',
-        message: `Login approval requested for ${email}. Tap to approve or deny.`,
+        title: 'SHB Survey Login Request',
+        message: `Someone wants to login to your account. Please tap this notification to approve or deny.`,
         data: {
           userId,
           email,
@@ -169,8 +169,8 @@ async function handleRequestApproval(req, res) {
     // Also send OneSignal notification directly from server
     try {
       const notificationResult = await sendOneSignalNotification({
-        title: 'Login Approval Required',
-        message: `Login approval requested for ${email}. Tap to approve or deny.`,
+        title: 'SHB Survey Login Request',
+        message: `Someone wants to login to your account. Please tap this notification to approve or deny.`,
         data: {
           userId,
           email,
