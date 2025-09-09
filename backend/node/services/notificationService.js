@@ -10,7 +10,7 @@ const ONESIGNAL_API_KEY = 'Basic os_v2_app_b63idq47vzbctmurm6ghabe2aia7hart4zcev
  * Send a OneSignal push notification to a specific device (for testing) or all users.
  * The notification can include additional data for the Android app.
  */
-async function sendOneSignalNotification({ title, message, data = null, type = 'web', androidNotificationCategory = null }) {
+async function sendOneSignalNotification({ title, message, data = null, type, androidNotificationCategory = null }) {
   try {    
     console.log("Sending OneSignal notification with:", { title, message, data, type, androidNotificationCategory });
 
