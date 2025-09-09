@@ -135,6 +135,35 @@ async function handleQRScan(req, res) {
   });
 }
 
+
+
+// Handle Mobile Approval
+async function handleApproval(req, res) {
+  const { userId, email, approved, sessionId } = req.body;
+  
+  console.log('Mobile Approval:', { userId, email, approved, sessionId });
+  
+  // Emit approval response to web browser
+  const io = req.app.get('io'); // Get the Socket.IO instance ok
+  if (io) {
+    io.emit('mobile-auth-response', {
+      approved: approved,
+      sessionId: sessionId, // Include sessionId in the response
+      userData: approved ? { userId, email } : null
+    });
+  }
+  
+  return res.json({
+    success: true,
+    message: approved ? 'Login approved' : 'Login denied',
+    approved: approved,
+    sessionId: sessionId,
+    userData: approved ? { userId, email } : null,
+    timestamp: Date.now()
+  });
+}
+
+module.exports = router;
 // Handle Request for Mobile Approval - Send notification to Android app
 async function handleRequestApproval(req, res) {
   const { userId, email, sessionId } = req.body;
@@ -177,7 +206,20 @@ async function handleRequestApproval(req, res) {
           sessionId,
           type: 'login_approval'
         },
-        type: 'mfa_approval'
+        type: 'mfa_approval',
+        // Android notification category for better organization
+        androidNotificationCategory: {
+          category: 'CATEGORY_SECURITY',
+          channel_id: 'login_approval_channel',
+          priority: 10,
+          visibility: 1, // VISIBILITY_PUBLIC
+          importance: 4, // IMPORTANCE_HIGH
+          sound: 'default',
+          vibration_pattern: [0, 250, 250, 250],
+          led_color: 'FF0000FF', // Blue color
+          small_icon: 'ic_notification',
+          large_icon: 'ic_large_notification'
+        }
       });
       
       console.log('OneSignal push notification sent:', notificationResult);
@@ -207,31 +249,3 @@ async function handleRequestApproval(req, res) {
     timestamp: Date.now()
   });
 }
-
-// Handle Mobile Approval
-async function handleApproval(req, res) {
-  const { userId, email, approved, sessionId } = req.body;
-  
-  console.log('Mobile Approval:', { userId, email, approved, sessionId });
-  
-  // Emit approval response to web browser
-  const io = req.app.get('io'); // Get the Socket.IO instance ok
-  if (io) {
-    io.emit('mobile-auth-response', {
-      approved: approved,
-      sessionId: sessionId, // Include sessionId in the response
-      userData: approved ? { userId, email } : null
-    });
-  }
-  
-  return res.json({
-    success: true,
-    message: approved ? 'Login approved' : 'Login denied',
-    approved: approved,
-    sessionId: sessionId,
-    userData: approved ? { userId, email } : null,
-    timestamp: Date.now()
-  });
-}
-
-module.exports = router;

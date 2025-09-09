@@ -10,9 +10,9 @@ const ONESIGNAL_API_KEY = 'Basic os_v2_app_b63idq47vzbctmurm6ghabe2aia7hart4zcev
  * Send a OneSignal push notification to a specific device (for testing) or all users.
  * The notification can include additional data for the Android app.
  */
-async function sendOneSignalNotification({ title, message, data = null, type = 'web' }) {
+async function sendOneSignalNotification({ title, message, data = null, type = 'web', androidNotificationCategory = null }) {
   try {    
-    console.log("Sending OneSignal notification with:", { title, message, data, type });
+    console.log("Sending OneSignal notification with:", { title, message, data, type, androidNotificationCategory });
 
     const notificationData = {
       app_id: ONESIGNAL_APP_ID,
@@ -28,6 +28,30 @@ async function sendOneSignalNotification({ title, message, data = null, type = '
     // Add custom data if provided (for MFA approval, etc.)
     if (data) {
       notificationData.data = data;
+    }
+
+    // Add Android notification category settings if provided
+    if (androidNotificationCategory && type === 'mfa_approval') {
+      // Android-specific notification settings
+      notificationData.android_channel_id = androidNotificationCategory.channel_id;
+      notificationData.priority = androidNotificationCategory.priority;
+      notificationData.android_visibility = androidNotificationCategory.visibility;
+      notificationData.android_sound = androidNotificationCategory.sound;
+      notificationData.android_led_color = androidNotificationCategory.led_color;
+      notificationData.small_icon = androidNotificationCategory.small_icon;
+      notificationData.large_icon = androidNotificationCategory.large_icon;
+      
+      // Vibration pattern
+      if (androidNotificationCategory.vibration_pattern) {
+        notificationData.android_vibration_pattern = androidNotificationCategory.vibration_pattern;
+      }
+      
+      // Notification category
+      if (androidNotificationCategory.category) {
+        notificationData.android_group = androidNotificationCategory.category;
+      }
+      
+      console.log("Applied Android notification category settings for MFA approval");
     }
 
     // Handle different notification types
