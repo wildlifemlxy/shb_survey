@@ -1,8 +1,9 @@
 import React, { Component } from 'react';
+import { createPortal } from 'react-dom';
 import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry } from 'ag-grid-community';
 import { AllCommunityModule } from 'ag-grid-community';
-import {getUniqueLocations, getUniqueSeenHeards } from '../../utils/dataProcessing';
+import { getUniqueSeenHeards } from '../../utils/dataProcessing';
 import isEqual from 'lodash/isEqual';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -2218,22 +2219,55 @@ constructor(props) {
               return String(params.node.rowIndex);
             }}
             onCellValueChanged={async (event) => {
-              // Handle cell value changes when editing
-              let recordId = event.data._id || event.data._rowId;
-              
-              // Convert MongoDB ObjectId buffer to string if needed
-              if (recordId && typeof recordId === 'object' && recordId.buffer) {
-                // This is a MongoDB ObjectId buffer, convert to hex string
-                const buffer = recordId.buffer;
-                recordId = Array.from(new Uint8Array(Object.values(buffer)))
-                  .map(b => b.toString(16).padStart(2, '0'))
-                  .join('');
-                console.log('🔧 Converted ObjectId buffer to string:', recordId);
-              } else if (recordId && typeof recordId === 'object') {
-                // Try to stringify if it's still an object
-                recordId = JSON.stringify(recordId);
-                console.log('🔧 Stringified object ID:', recordId);
+              // Validate that the new value is actually different
+              if (event.oldValue === event.newValue) {
+                console.log('⏭️ No change detected, skipping update');
+                return;
               }
+
+              // Handle cell value changes when editing
+              let recordId = event.data._id || event.data.id || event.data._rowId || event.data.surveyId;
+              
+              // Enhanced MongoDB ObjectId handling
+              if (recordId && typeof recordId === 'object') {
+                if (recordId.buffer) {
+                  // This is a MongoDB ObjectId buffer, convert to hex string
+                  try {
+                    const buffer = recordId.buffer;
+                    recordId = Array.from(new Uint8Array(Object.values(buffer)))
+                      .map(b => b.toString(16).padStart(2, '0'))
+                      .join('');
+                    console.log('🔧 Converted ObjectId buffer to string:', recordId);
+                  } catch (bufferError) {
+                    console.error('❌ Error converting ObjectId buffer:', bufferError);
+                    // Try alternative conversion methods
+                    if (recordId.toString) {
+                      recordId = recordId.toString();
+                    } else {
+                      recordId = JSON.stringify(recordId);
+                    }
+                  }
+                } else if (recordId.$oid) {
+                  // Handle MongoDB extended JSON format
+                  recordId = recordId.$oid;
+                } else {
+                  // Try to stringify if it's still an object
+                  recordId = recordId.toString ? recordId.toString() : JSON.stringify(recordId);
+                }
+              }
+              
+              // Final validation of record ID
+              if (!recordId || typeof recordId !== 'string' || recordId.trim() === '') {
+                console.error('❌ Invalid record ID:', recordId);
+                alert('Cannot update record: Invalid or missing ID');
+                // Revert the change
+                setTimeout(() => {
+                  event.node.setDataValue(event.colDef.field, event.oldValue);
+                }, 50);
+                return;
+              }
+              
+              recordId = recordId.trim();
               
               console.log('Cell value changed:', {
                 recordId: recordId,
@@ -2307,8 +2341,20 @@ constructor(props) {
                   
                   if (enteredCount !== actualBirdCount) {
                     console.log('⚠️ Warning: Number of Birds (' + enteredCount + ') does not match unique Bird IDs count (' + actualBirdCount + ')');
-                    // You could show a warning to the user here
-                    // For now, we'll let the user's manual entry take precedence
+                    // Show warning dialog to user
+                    const userChoice = window.confirm(
+                      `Warning: Number of Birds (${enteredCount}) does not match unique Bird IDs count (${actualBirdCount}).\n\n` +
+                      `Current Bird IDs: ${uniqueBirdIds.join(', ')}\n\n` +
+                      `Do you want to continue with your manual entry of ${enteredCount} birds?`
+                    );
+                    
+                    if (!userChoice) {
+                      // User cancelled, revert the change
+                      setTimeout(() => {
+                        event.node.setDataValue(event.colDef.field, event.oldValue);
+                      }, 50);
+                      return;
+                    }
                   }
                 }
               }
