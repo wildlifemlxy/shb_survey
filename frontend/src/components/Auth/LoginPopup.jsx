@@ -706,14 +706,18 @@ class LoginPopup extends Component {
       userData: enhancedUserData
     });
     
-    // Clear the form and close the popup after successful login
-    this.clearForm();
-    this.props.onLoginSuccess(enhancedUserData);
-    
-    // Also call onClose to ensure the popup closes
+    // Close the popup first to avoid showing login form during clearForm
     if (this.props.onClose) {
       this.props.onClose();
     }
+    
+    // Send user data to parent component
+    this.props.onLoginSuccess(enhancedUserData);
+    
+    // Clear the form after closing popup
+    setTimeout(() => {
+      this.clearForm();
+    }, 100);
   };
 
   // Initialize Socket.IO connection for real-time mobile communication
@@ -830,10 +834,12 @@ class LoginPopup extends Component {
           userData: userData,
           showQRLogin: false,
           isLoading: false
+        }, () => {
+          // Complete login immediately for QR code - no additional steps needed
+          // Use callback to ensure state is updated before calling handleMFAComplete
+          console.log('QR Code scan successful - completing login and closing popup');
+          this.handleMFAComplete();
         });
-        
-        // Complete login immediately for QR code - no additional steps needed
-        this.handleMFAComplete();
       } else {
         this.setState({ 
           mfaError: error || 'QR login failed',
