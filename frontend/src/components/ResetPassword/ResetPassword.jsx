@@ -58,7 +58,7 @@ class ResetPassword extends Component {
       
       // Make API call to change password
       const response = await axios.post(`${BASE_URL}/users`, {
-        purpose: 'changePassword',
+        purpose: 'reset-password',
         email: email,
         newPassword: newPassword
       });
