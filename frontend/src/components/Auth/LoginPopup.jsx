@@ -10,12 +10,20 @@ import io from 'socket.io-client';
 
 class LoginPopup extends Component {
   componentDidUpdate(prevProps, prevState) {
-    // Auto-close the whole popup after reset password success
+    // Auto-close the popup after reset password success
     if (this.state.resetPasswordSuccess && !prevState.resetPasswordSuccess) {
-      setTimeout(() => {
-        this.clearForm();
-        if (this.props.onClose) this.props.onClose();
-      }, 3000); // 2 seconds
+      // First, show success message for 2 seconds
+        // Then clear form and close popup
+        this.setState({ 
+          showResetPassword: false,
+          resetPasswordSuccess: false,
+          resetEmail: ''
+        }, () => {
+          this.clearForm();
+          if (this.props.onClose) {
+            this.props.onClose();
+          }
+        });
     }
   }
   constructor(props) {
