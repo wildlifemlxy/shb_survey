@@ -57,7 +57,7 @@ class SimpleApiService {
   async resetPassword(data) {
     try {
       const response = await axios.post(`${this.baseURL}/users`, {
-        purpose: 'resetPassword',
+        purpose: 'reset-password',
         email: data.email
       });
       return response.data;
