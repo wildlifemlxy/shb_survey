@@ -59,7 +59,7 @@ class ResetPassword extends Component {
       
       // Make API call to change password
       const response = await axios.post(`${BASE_URL}/users`, {
-        purpose: 'reset-password',
+        purpose: 'change-password',
         email: email,
         newPassword: newPassword
       });
@@ -97,6 +97,11 @@ class ResetPassword extends Component {
     const { email, newPassword, confirmPassword, isLoading, error, success, showNewPassword, showConfirmPassword } = this.state;
     
     if (success) {
+      // Auto redirect after 3 seconds
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 3000);
+
       return (
         <div className="reset-password-container">
           <div className="reset-password-card">
@@ -112,10 +117,13 @@ class ResetPassword extends Component {
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
               </svg>
               <p>You can now sign in with your new password.</p>
+              <p style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
+                (Redirecting to login in 3 seconds...)
+              </p>
             </div>
             
             <div className="reset-password-actions">
-              <Link to="/login" className="back-to-login-button">
+              <Link to="/" className="back-to-login-button">
                 Back to Login
               </Link>
             </div>

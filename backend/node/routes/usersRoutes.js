@@ -130,10 +130,10 @@ async function handleResetPassword(req, res) {
     const result = await controller.resetPassword(email, newPassword);
     console.log('Password reset request result for', email, ':', result);
     
-    /*return res.json({
+    return res.json({
         success: result.success,
         message: result.message || (result.success ? 'Password reset email sent' : 'Failed to send reset email')
-    });*/
+    });
 }
 
 // reCAPTCHA verification handler function

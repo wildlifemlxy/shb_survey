@@ -12,18 +12,12 @@ class LoginPopup extends Component {
   componentDidUpdate(prevProps, prevState) {
     // Auto-close the popup after reset password success
     if (this.state.resetPasswordSuccess && !prevState.resetPasswordSuccess) {
-      // First, show success message for 2 seconds
-        // Then clear form and close popup
-        this.setState({ 
-          showResetPassword: false,
-          resetPasswordSuccess: false,
-          resetEmail: ''
-        }, () => {
-          this.clearForm();
-          if (this.props.onClose) {
-            this.props.onClose();
-          }
-        });
+      // Wait briefly to show success message, then close
+      setTimeout(() => {
+        if (this.props.onClose) {
+          this.props.onClose();
+        }
+      }, 2000);
     }
   }
   constructor(props) {
@@ -1119,24 +1113,27 @@ class LoginPopup extends Component {
       
       // Call reset password API using the helper function
       const result = await resetPassword(resetEmail);
-      
+      console.log('Reset password response:', result);
+
       if (result.success) {
-        this.setState({ 
+        // Show success message without closing
+        this.setState({
           resetPasswordSuccess: true,
-          resetPasswordError: ''
+          resetPasswordError: '',
+          isResettingPassword: false
         });
       } else {
         this.setState({ 
-          resetPasswordError: result?.message || 'Failed to send reset email. Please try again.' 
+          resetPasswordError: result?.message || 'Failed to send reset email. Please try again.',
+          isResettingPassword: false
         });
       }
     } catch (error) {
       console.error('Reset password error:', error);
       this.setState({ 
-        resetPasswordError: 'An error occurred while sending reset email. Please try again.' 
+        resetPasswordError: 'An error occurred while sending reset email. Please try again.',
+        isResettingPassword: false
       });
-    } finally {
-      this.setState({ isResettingPassword: false });
     }
   };
 
@@ -1727,7 +1724,9 @@ class LoginPopup extends Component {
             <div className="login-header">
               <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF Logo" className="login-logo" />
               <h1>Reset Password</h1>
-              <p>Enter your email to receive password reset instructions</p>
+              {(!resetPasswordSuccess && !resetPasswordError)&& (
+                <p>Enter your email to receive password reset instructions</p>
+              )}
             </div>
             
             <form className="login-form" onSubmit={this.handleResetPasswordSubmit}>
@@ -1745,8 +1744,8 @@ class LoginPopup extends Component {
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                   </svg>
-                  Password reset email sent successfully! Please check your inbox.<br/>
-                  <span style={{ fontSize: '12px', color: '#888' }}>(This window will close automatically.)</span>
+                  Password reset email sent successfully! Please check your inbox for further instructions.<br/>
+                  <span style={{ fontSize: '12px', color: '#888' }}>(This window will closes automatically.)</span><br/>
                 </div>
               ) : (
                 <>
