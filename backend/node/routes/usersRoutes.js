@@ -108,7 +108,8 @@ async function handleChangePassword(req, res) {
 
 // Reset password handler function
 async function handleResetPassword(req, res) {
-    const { email } = req.body;
+    console.log('Password reset request received:', req.body);
+    const { email, newPassword } = req.body;
     
     if (!email) {
         return res.status(400).json({
@@ -126,12 +127,13 @@ async function handleResetPassword(req, res) {
     }
 
     const controller = new UsersController();
-    const result = await controller.resetPassword(email);
+    const result = await controller.resetPassword(email, newPassword);
+    console.log('Password reset request result for', email, ':', result);
     
-    return res.json({
+    /*return res.json({
         success: result.success,
         message: result.message || (result.success ? 'Password reset email sent' : 'Failed to send reset email')
-    });
+    });*/
 }
 
 // reCAPTCHA verification handler function

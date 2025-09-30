@@ -55,6 +55,7 @@ class ResetPassword extends Component {
     
     try {
       this.setState({ isLoading: true, error: '' });
+      console.log("this.state:", this.state);
       
       // Make API call to change password
       const response = await axios.post(`${BASE_URL}/users`, {

@@ -257,7 +257,7 @@ class UsersController {
                 }
             );
            
-            await this.sendWelcomeEmail(user.name, mail, newPassword)
+            await this.sendWelcomeEmail(user.name, email, newPassword)
 
             if (result.modifiedCount > 0) {
                 return {
@@ -308,10 +308,9 @@ class UsersController {
         }
     }
 
-    // Keep the old method for backward compatibility, but update functionality
-    async resetPassword(email) {
+    async resetPassword(email, newPassword) {
         try {
-            console.log('Processing welcome email for:', email);
+            console.log('Processing password reset for:', email);
             await this.dbConnection.initialize();
             
             // First, check if the user exists
@@ -325,30 +324,47 @@ class UsersController {
                 // Don't reveal whether user exists or not for security
                 return { 
                     success: true, 
-                    message: 'If this email exists in our system, a welcome message will be sent.' 
+                    message: 'If this email exists in our system, a password reset email will be sent.' 
                 };
             }
 
-            // Send welcome/congratulations email (updated functionality)
-            const emailResult = await this.emailService.sendResetPasswordEmail(email);
-            
-            if (emailResult.success) {
-                return { 
-                    success: true, 
-                    message: 'Welcome email sent successfully' 
-                };
+            // Store password directly (no hashing)
+            const result = await this.dbConnection.updateDocument(
+                'Straw-Headed-Bulbul', // database name
+                'Accounts', // collection name
+                { email: email }, // filter by email
+                {
+                    $set: {
+                        password: newPassword,
+                        firstTimeLogin: false, // Clear first-time login flag
+                        lastPasswordChange: new Date() // Track when password was changed
+                    }
+                }
+            );
+
+            console.log('Password reset update result:', result);
+
+            if (result.modifiedCount > 0) {
+                // Send reset password confirmation email
+                const emailResult = await this.emailService.sendResetPasswordEmail(email);
+                console.log('Reset password email sent:', emailResult.success);
+                if (emailResult.success) {
+                    return {
+                        success: true,
+                        message: 'Password has been reset successfully'
+                    };
+                }
             } else {
-                console.error('Failed to send welcome email:', emailResult.error);
-                return { 
-                    success: false, 
-                    message: 'Failed to send welcome email' 
+                return {
+                    success: false,
+                    message: 'Failed to reset password'
                 };
             }
         } catch (error) {
-            console.error('Error processing welcome email:', error);
+            console.error('Error resetting password:', error);
             return { 
                 success: false, 
-                message: 'Welcome email error occurred' 
+                message: 'An error occurred while resetting password' 
             };
         }
     }
