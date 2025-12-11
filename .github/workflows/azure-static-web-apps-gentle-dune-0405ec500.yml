@@ -20,10 +20,16 @@ jobs:
           submodules: true
           lfs: false
 
+      - name: Remove lock file and node_modules
+        run: |
+          cd frontend
+          rm -f package-lock.json
+          rm -rf node_modules
+
       - name: Install Dependencies
         run: |
           cd frontend
-          npm ci
+          npm install
 
       - name: Build
         run: |
