@@ -97,7 +97,7 @@ class ResetPassword extends Component {
     const { email, newPassword, confirmPassword, isLoading, error, success, showNewPassword, showConfirmPassword } = this.state;
     
     if (success) {
-      // Auto redirect after 3 seconds
+      // Auto redirect after 3 seconds ok
       setTimeout(() => {
         window.location.href = '/';
       }, 3000);
