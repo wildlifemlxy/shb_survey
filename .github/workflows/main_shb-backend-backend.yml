@@ -1,7 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: WWF Straw Headed Bulbul (Backend) - Node App
+name: WWF Straw Headed Bulbul (Backend Backup) - Node App
 
 on:
   push:
@@ -34,7 +34,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
+          path: ./backend/node
 
   deploy:
     runs-on: ubuntu-latest
@@ -62,5 +62,5 @@ jobs:
         with:
           app-name: 'shb-backend-backend'
           slot-name: 'Production'
-          package: .
+          package: ${{ github.workspace }}
           
