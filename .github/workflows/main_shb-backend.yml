@@ -40,6 +40,7 @@ jobs:
         with:
           name: node-app
           path: ./backend/node
+          if-no-files-found: error
 
   deploy:
     runs-on: ubuntu-latest
@@ -53,20 +54,21 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: node-app
+          path: ./appdata
       
       - name: Verify deployment structure
         run: |
-          echo "Contents of current directory:"
-          ls -la
+          echo "Contents of appdata directory:"
+          ls -la ./appdata
           echo "Checking for required files..."
-          [ -f "package.json" ] && echo "✓ package.json found" || echo "✗ package.json NOT found"
-          [ -f "app.js" ] && echo "✓ app.js found" || echo "✗ app.js NOT found"
-          [ -d "bin" ] && echo "✓ bin/ directory found" || echo "✗ bin/ directory NOT found"
-          [ -d "node_modules" ] && echo "✓ node_modules found" || echo "✗ node_modules NOT found"
+          [ -f "./appdata/package.json" ] && echo "✓ package.json found" || echo "✗ package.json NOT found"
+          [ -f "./appdata/app.js" ] && echo "✓ app.js found" || echo "✗ app.js NOT found"
+          [ -d "./appdata/bin" ] && echo "✓ bin/ directory found" || echo "✗ bin/ directory NOT found"
+          [ -d "./appdata/node_modules" ] && echo "✓ node_modules found" || echo "✗ node_modules NOT found"
       
-      - name: Create web.config for Azure App Service
+      - name: Create web.config in deployment directory
         run: |
-          cat > web.config << 'EOF'
+          cat > ./appdata/web.config << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <configuration>
             <system.webServer>
@@ -100,6 +102,8 @@ jobs:
             </system.webServer>
           </configuration>
           EOF
+          echo "✓ web.config created"
+          [ -f "./appdata/web.config" ] && echo "✓ web.config verified" || echo "✗ web.config NOT found"
       
       - name: Login to Azure
         uses: azure/login@v2
@@ -114,5 +118,5 @@ jobs:
         with:
           app-name: 'shb-backend'
           slot-name: 'Production'
-          package: .
+          package: ./appdata
           
