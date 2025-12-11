@@ -23,6 +23,12 @@ jobs:
         with:
           node-version: '22.x'
 
+      - name: Remove lock file and node_modules
+        working-directory: ./backend/node
+        run: |
+          rm -f package-lock.json
+          rm -rf node_modules
+
       - name: npm install and build
         working-directory: ./backend/node
         run: |
