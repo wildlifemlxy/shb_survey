@@ -54,6 +54,53 @@ jobs:
         with:
           name: node-app
       
+      - name: Verify deployment structure
+        run: |
+          echo "Contents of current directory:"
+          ls -la
+          echo "Checking for required files..."
+          [ -f "package.json" ] && echo "✓ package.json found" || echo "✗ package.json NOT found"
+          [ -f "app.js" ] && echo "✓ app.js found" || echo "✗ app.js NOT found"
+          [ -d "bin" ] && echo "✓ bin/ directory found" || echo "✗ bin/ directory NOT found"
+          [ -d "node_modules" ] && echo "✓ node_modules found" || echo "✗ node_modules NOT found"
+      
+      - name: Create web.config for Azure App Service
+        run: |
+          cat > web.config << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <system.webServer>
+              <webSocket enabled="false" />
+              <handlers>
+                <add name="iisnode" path="bin/www.js" verb="*" modules="iisnode" />
+              </handlers>
+              <rewrite>
+                <rules>
+                  <rule name="NodeInspector" patternSyntax="ECMAScript" stopProcessing="true">
+                    <match url="^bin/www.js\/debug[\/]?" />
+                  </rule>
+                  <rule name="StaticContent">
+                    <action type="Rewrite" url="public{REQUEST_URI}" />
+                  </rule>
+                  <rule name="DynamicContent">
+                    <conditions>
+                      <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="True" />
+                    </conditions>
+                    <action type="Rewrite" url="bin/www.js" />
+                  </rule>
+                </rules>
+              </rewrite>
+              <security>
+                <requestFiltering>
+                  <hiddenSegments>
+                    <add segment="node_modules" />
+                  </hiddenSegments>
+                </requestFiltering>
+              </security>
+            </system.webServer>
+          </configuration>
+          EOF
+      
       - name: Login to Azure
         uses: azure/login@v2
         with:
