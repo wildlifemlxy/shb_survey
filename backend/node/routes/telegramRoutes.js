@@ -28,7 +28,9 @@ router.post('/', async function(req, res, next) {
             return res.status(500).json({ error: err.message || 'Failed to create bot.' });
         }
     }
-    else if (purpose === 'getBotInfo') {
+    else if (purpose === 'getBotInfo') 
+    {
+        console.log('Getting bot info for token:', token);
         try {
             if (!token) {
                 return res.status(400).json({ error: 'Bot token is required.' });

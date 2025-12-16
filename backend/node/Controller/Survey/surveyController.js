@@ -5,7 +5,7 @@ class SurveyController
 {
   async getAllSurveys() 
   {
-    const db = new DatabaseConnectivity();
+    const db = DatabaseConnectivity.getInstance();
     try 
     {
       await db.initialize();
@@ -26,13 +26,11 @@ class SurveyController
         message: 'Error retrieving surveys',
         error: err.message
       };
-    } finally {
-      await db.close();
     }
   }
 
   async updateSurvey(recordId, updatedData) {
-      const db = new DatabaseConnectivity();
+      const db = DatabaseConnectivity.getInstance();
       try {
           // Validate recordId
           if (!ObjectId.isValid(recordId)) {
@@ -78,13 +76,11 @@ class SurveyController
               message: 'Error updating survey',
               error: error.message
           };
-      } finally {
-          await db.close();
       }
   }
 
   async insertSurvey(surveyData) {
-    const db = new DatabaseConnectivity();
+    const db = DatabaseConnectivity.getInstance();
     try {
       await db.initialize();
       const databaseName = "Straw-Headed-Bulbul";
@@ -102,13 +98,11 @@ class SurveyController
         message: 'Error inserting survey',
         error: err.message
       };
-    } finally {
-      await db.close();
     }
   }
 
   async deleteSurvey(recordId) {
-    const db = new DatabaseConnectivity();
+    const db = DatabaseConnectivity.getInstance();
     try {
       // Validate recordId
       if (!ObjectId.isValid(recordId)) {

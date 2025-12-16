@@ -4,7 +4,9 @@ class QuickActionsPanel extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      isWwfVolunteer: false
+      isWwfVolunteer: false,
+      isUploading: false,
+      uploadFileName: ''
     };
   }
 
@@ -42,6 +44,51 @@ class QuickActionsPanel extends Component {
       });
     } catch (error) {
       console.error('Error checking user role:', error);
+    }
+  }
+
+  handleImageUpload = async (file) => {
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('purpose', 'upload');
+
+    // Call parent handler to show upload modal
+    if (this.props.onSetUploading) {
+      this.props.onSetUploading(true, file.name);
+    }
+
+    try {
+      const baseUrl = window.location.hostname === 'localhost'
+        ? 'http://localhost:3001'
+        : 'https://shb-backend.azurewebsites.net';
+
+      const response = await fetch(`${baseUrl}/images`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+
+      // Hide upload modal
+      if (this.props.onSetUploading) {
+        this.props.onSetUploading(false, '');
+      }
+
+      if (data.success) {
+        console.log('Image uploaded successfully:', data.file);
+        alert(`Image uploaded successfully!\nFile: ${data.file.filename}`);
+      } else {
+        console.error('Upload failed:', data.error);
+        alert(`Upload failed: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      if (this.props.onSetUploading) {
+        this.props.onSetUploading(false, '');
+      }
+      alert(`Error uploading image: ${error.message}`);
     }
   }
 
@@ -137,6 +184,51 @@ class QuickActionsPanel extends Component {
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                   Chatbot
+                </span>
+              </button>
+              {/* Upload Image button - show on all pages */}
+              <button
+                onClick={() => {
+                  // Trigger file input
+                  const fileInput = document.createElement('input');
+                  fileInput.type = 'file';
+                  fileInput.accept = 'image/*';
+                  fileInput.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      this.handleImageUpload(file);
+                    }
+                  };
+                  fileInput.click();
+                }}
+                style={{
+                  padding: '10px 16px',
+                  background: '#8b5cf6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  minHeight: 36,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  lineHeight: '1.2',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  whiteSpace: 'nowrap', // Keep text on single line
+                  position: 'relative', // Ensure button stays in normal flow
+                  width: '100%', // Constrain to grid cell
+                  maxWidth: '100%', // Prevent overflow
+                  minWidth: 0 // Allow buttons to shrink below their content size
+                }}
+                title="Upload an image file"
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  Upload Image
                 </span>
               </button>
               {/* New Survey button - only show on dashboard data table tab */}

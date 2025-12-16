@@ -4,7 +4,7 @@ const DatabaseConnectivity = require("../../Database/databaseConnectivity");
 class TelegramController {
   // Create a new Telegram bot entry in the database
   async createBot(token, name, description) {
-    const db = new DatabaseConnectivity();
+    const db = DatabaseConnectivity.getInstance();
     try {
       await db.initialize();
       const databaseName = "Straw-Headed-Bulbul";
@@ -28,14 +28,12 @@ class TelegramController {
         message: 'Error inserting bot',
         error: err.message
       };
-    } finally {
-      await db.close();
     }
   }
 
   // Retrieve all Telegram bot entries from the database
   async getAllBots() {
-    const db = new DatabaseConnectivity();
+    const db = DatabaseConnectivity.getInstance();
     try {
       await db.initialize();
       const databaseName = "Straw-Headed-Bulbul";
@@ -54,14 +52,12 @@ class TelegramController {
         message: 'Error retrieving bots',
         error: err.message
       };
-    } finally {
-      await db.close();
     }
   }
 
   // Store chat history (always insert, do not check for existing)
   async storeChatHistory(token, chatId, message) {
-    const db = new DatabaseConnectivity();
+    const db = DatabaseConnectivity.getInstance();
     try {
       await db.initialize();
       const databaseName = "Straw-Headed-Bulbul";
@@ -81,14 +77,12 @@ class TelegramController {
     } catch (err) {
       console.error('Error storing chat history:', err);
       return { success: false, message: 'Error storing chat history', error: err.message };
-    } finally {
-      await db.close();
     }
   }
 
   // Save the Telegram messageId and chatId for an event
   async saveTelegramMessageId(eventId, chatId, messageId) {
-    const db = new DatabaseConnectivity();
+    const db = DatabaseConnectivity.getInstance();
     try {
       await db.initialize();
       const databaseName = "Straw-Headed-Bulbul";
@@ -105,14 +99,12 @@ class TelegramController {
     } catch (err) {
       console.error('Error saving Telegram messageId:', err);
       return { success: false, message: 'Error saving Telegram messageId', error: err.message };
-    } finally {
-      await db.close();
     }
   }
 
   // Retrieve the Telegram messageId for an event and chat
   async getTelegramMessageId(eventId, chatId) {
-    const db = new DatabaseConnectivity();
+    const db = DatabaseConnectivity.getInstance();
     try {
       await db.initialize();
       const databaseName = "Straw-Headed-Bulbul";
@@ -126,14 +118,12 @@ class TelegramController {
     } catch (err) {
       console.error('Error retrieving Telegram messageId:', err);
       return null;
-    } finally {
-      await db.close();
     }
   }
 
   // Retrieve chat history for a given token and chatId (optionally filter by date)
   async getChatHistory(token, chatId, date = null) {
-    const db = new DatabaseConnectivity();
+    const db = DatabaseConnectivity.getInstance();
     try {
       await db.initialize();
       const databaseName = "Straw-Headed-Bulbul";
@@ -157,8 +147,6 @@ class TelegramController {
         message: 'Error retrieving chat history',
         error: err.message
       };
-    } finally {
-      await db.close();
     }
   }
 }

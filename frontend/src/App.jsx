@@ -12,11 +12,14 @@ import ProtectedRoute from './components/Auth/ProtectedRoute.jsx';
 import RoleProtectedRoute from './components/Auth/RoleProtectedRoute.jsx';
 import NotFound from './components/NotFound/NotFound.jsx';
 import ObservationPopup from './components/Map/ObservationPopup.jsx';
+import ImageViewerPopup from './components/Gallery/ImageViewerPopup.jsx';
 import TermsOfServiceNotice from './components/TermsOfServiceNotice.jsx';
 import PrivacyPolicyNotice from './components/PrivacyPolicyNotice.jsx';
+import UploadProgressModal from './components/UploadProgressModal/UploadProgressModal.jsx';
 import { io } from 'socket.io-client';
 import { AuthProvider } from './components/Auth/AuthContext.jsx';
 import { getCurrentUser, isLoggedIn, clearSession } from './data/loginData.js';
+import OAuthCallback from './components/Auth/OAuthCallback.jsx';
 
 import { fetchSurveyDataForHomePage, fetchSurveyData } from './data/shbData.js';
 import { getAllEvents } from './data/surveyData.js';
@@ -56,7 +59,11 @@ class App extends Component {
       showObservationPopup: false,
       observationPopupData: null,
       observationPopupPosition: { x: 0, y: 0 },
-      currentOpenMarkerId: null
+      currentOpenMarkerId: null,
+      isUploading: false,
+      uploadFileName: '',
+      showImageViewer: false,
+      viewerImageData: null
     };
   }
 
@@ -344,6 +351,33 @@ class App extends Component {
     });
   };
 
+  // Upload progress handlers
+  setUploading = (isUploading, uploadFileName = '') => {
+    this.setState({ isUploading, uploadFileName });
+  };
+
+  // Image viewer handlers
+  openImageViewer = (imageData) => {
+    console.log('Opening image viewer:', imageData);
+    this.setState({ 
+      showImageViewer: true, 
+      viewerImageData: imageData 
+    });
+  };
+
+  closeImageViewer = () => {
+    this.setState({ 
+      showImageViewer: false, 
+      viewerImageData: null 
+    });
+  };
+
+  handleImageDeleted = (fileId) => {
+    console.log('Image deleted:', fileId);
+    this.closeImageViewer();
+    // Reload gallery - pass callback to Gallery component
+  };
+
   render() {
     const { 
       shbData, 
@@ -356,7 +390,11 @@ class App extends Component {
       showObservationPopup, 
       observationPopupData, 
       observationPopupPosition, 
-      shbDataForPublic
+      shbDataForPublic,
+      isUploading,
+      uploadFileName,
+      showImageViewer,
+      viewerImageData
     } = this.state;
 
     return (
@@ -380,8 +418,14 @@ class App extends Component {
                       onLoginSuccess={this.onLoginSuccess}
                       openObservationPopup={this.openObservationPopup}
                       closeObservationPopup={this.closeObservationPopup}
+                      onImageClick={this.openImageViewer}
                     />
                   } 
+                />
+                
+                <Route 
+                  path="/callback" 
+                  element={<OAuthCallback />} 
                 />
                 
                 <Route 
@@ -459,9 +503,16 @@ class App extends Component {
               currentUser={currentUser} 
               onOpenNewSurveyModal={this.handleOpenNewSurveyModal}
               onOpenNewEventModal={this.handleOpenNewEventModal}
+              onSetUploading={this.setUploading}
             />
           </>
         )}
+        
+        {/* Upload Progress Modal */}
+        <UploadProgressModal 
+          isUploading={isUploading}
+          uploadFileName={uploadFileName}
+        />
         
         {/* Global Observation Popup */}
         {showObservationPopup && observationPopupData && (
@@ -471,6 +522,14 @@ class App extends Component {
             onClose={this.closeObservationPopup}
           />
         )}
+
+        {/* Image Viewer Popup */}
+        <ImageViewerPopup 
+          isOpen={showImageViewer}
+          imageData={viewerImageData}
+          onClose={this.closeImageViewer}
+          onDelete={this.handleImageDeleted}
+        />
       </AuthProvider>
     );
   }

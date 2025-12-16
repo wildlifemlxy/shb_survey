@@ -5,6 +5,7 @@ import { getCurrentUser, isLoggedIn, clearSession } from '../../data/loginData';
 import { getUniqueLocations } from '../../utils/dataProcessing';
 import { standardizeCoordinates } from '../../utils/coordinateStandardization';
 import { fetchSurveyDataForHomePage } from '../../data/shbData';
+import Gallery from '../Gallery/Gallery';
 import '../../css/components/Home/Home.css';
 
 
@@ -621,6 +622,9 @@ class Home extends React.Component {
               </div>
             </div>
           </section>
+
+        {/* Gallery Component */}
+        <Gallery onImageClick={this.props.onImageClick} />
 
         {/* Info Section */}
         <section className="info-section">

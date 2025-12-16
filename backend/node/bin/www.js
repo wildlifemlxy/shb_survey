@@ -2,6 +2,8 @@
  * Module dependencies.
  */
 
+require('dotenv').config({ path: '../../azure-webapp-config.env' });
+
 var app = require('../app');
 var debug = require('debug')('backend:server');
 var http = require('http');

@@ -4,8 +4,8 @@ import axios from 'axios';
 // dynamically choose between your local and prod backends
 const BASE_URL =
   window.location.hostname === 'localhost'
-    ? 'http://localhost:3001/api'
-    : 'https://shb-backend.azurewebsites.net/api';
+    ? 'http://localhost:3001'
+    : 'https://shb-backend.azurewebsites.net';
 
 // create a single axios instance
 const api = axios.create({
@@ -118,6 +118,62 @@ const apiService = {
       return data;
     } catch (error) {
       console.error('Error updating event participants:', error);
+      throw error;
+    }
+  },
+
+  // Gallery related endpoints
+  getGalleryImages: async () => {
+    try {
+      console.log('📸 Requesting gallery images from /images with purpose: gallery');
+      const { data } = await api.post('/images', {
+        purpose: 'gallery'
+      });
+      console.log('✓ Full API response:', data);
+      console.log('📷 Images array:', data.images);
+      console.log('🔢 Total images:', data.images ? data.images.length : 0);
+      
+      if (data.images && data.images.length > 0) {
+        data.images.forEach((img, idx) => {
+          console.log(`  Image ${idx + 1}: ${img.title} (ID: ${img.id})`);
+          console.log(`    - Stream URL: ${img.src}`);
+          console.log(`    - MIME Type: ${img.mimeType}`);
+        });
+      }
+      
+      return data.images || [];
+    } catch (error) {
+      console.error('❌ Error fetching gallery images:', error);
+      throw error;
+    }
+  },
+
+  streamImage: async (fileId) => {
+    try {
+      console.log('🖼️ Streaming image:', fileId);
+      const response = await api.post('/images', 
+        { purpose: 'stream', fileId },
+        { responseType: 'blob' }
+      );
+      console.log('✓ Image stream received for:', fileId);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error streaming image:', fileId, error);
+      throw error;
+    }
+  },
+
+  deleteImage: async (fileId) => {
+    try {
+      console.log('🗑️ Deleting image:', fileId);
+      const { data } = await api.post('/images', {
+        purpose: 'delete',
+        fileId
+      });
+      console.log('✓ Image deleted successfully:', fileId);
+      return data;
+    } catch (error) {
+      console.error('❌ Error deleting image:', fileId, error);
       throw error;
     }
   },

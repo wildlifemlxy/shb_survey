@@ -12,48 +12,42 @@ var eventsRoutes = require('./routes/eventsRoutes'); // Import MongoDB events ro
 var telegramRoutes = require('./routes/telegramRoutes'); // Import MongoDB telegram routes
 var userRoutes = require('./routes/usersRoutes'); // Import MongoDB user routes
 var mfaRoutes = require('./routes/mfaRoutes'); // Import MFA routes
+var imagesRoutes = require('./routes/imagesRoutes'); // Import images routes
 
 app.use(cors()); // Enable CORS
 app.use(logger('dev')); // HTTP request logger
-app.use(express.json()); // For parsing JSON
-app.use(express.urlencoded({ extended: true })); // For parsing URL-encoded data
-app.use(cookieParser()); // For parsing cookies
 
-// Set up views (if you're using templates)okok
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'pug'); // You can change to 'ejs' or others if needed
-
-app.use(logger('dev'));
-app.use(cors({
-  origin: ['http://localhost:3000', 'https://gentle-dune-0405ec500.1.azurestaticapps.net', "android-app://"],
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Add any other methods you want to support
-  allowedHeaders: ['Content-Type', 'Content-Disposition'], // Removed Authorization since no tokens
-  exposedHeaders: ['Content-Disposition'], // Add this line to expose the header
-}));
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
-
-app.use('/surveys', surveyRoutes); // Register MongoDB survey routes
-app.use('/events', eventsRoutes); // Register MongoDB events routes
-app.use('/telegram', telegramRoutes); // Register MongoDB telegram routes
-app.use('/users', userRoutes); // Register MongoDB user routes
-app.use('/mfa', mfaRoutes); // Register MFA routes
-
-//
-// Increase payload limits for Azure App Service
+// Increase payload limits BEFORE parsing middleware
 app.use(express.json({ 
-  limit: '10mb',
-  extended: true 
+  limit: '200mb'
 }));
-
 app.use(express.urlencoded({ 
-  limit: '10mb',
+  limit: '200mb',
   extended: true,
   parameterLimit: 50000
 }));
+app.use(cookieParser());
+
+// Set up views (if you're using templates)
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'pug');
+
+app.use(cors({
+  origin: ['http://localhost:3000', 'https://gentle-dune-0405ec500.1.azurestaticapps.net', "android-app://"],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Content-Disposition'],
+  exposedHeaders: ['Content-Disposition'],
+}));
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Register routes
+app.use('/surveys', surveyRoutes);
+app.use('/events', eventsRoutes);
+app.use('/telegram', telegramRoutes);
+app.use('/users', userRoutes);
+app.use('/mfa', mfaRoutes);
+app.use('/images', imagesRoutes);
 
 
 //
