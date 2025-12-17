@@ -291,6 +291,7 @@ class GalleryController {
       // Get file stream
       const mediaLabel = isVideo ? '🎬 VIDEO' : '🖼️ IMAGE';
       console.log(`${mediaLabel} Starting file stream... ${fileMetadata.data.name}`);
+      console.log(`File size: ${fileMetadata.data.size} bytes`);
 
       const response = await drive.files.get(
         { fileId: fileId, alt: 'media' },
@@ -300,44 +301,60 @@ class GalleryController {
       // Set headers for proper streaming
       res.setHeader('Content-Type', fileMetadata.data.mimeType);
       res.setHeader('Content-Disposition', `inline; filename="${fileMetadata.data.name}"`);
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      res.setHeader('Content-Length', fileMetadata.data.size);
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.setHeader('Pragma', 'public');
       res.setHeader('Accept-Ranges', 'bytes');
       res.setHeader('Connection', 'keep-alive');
+      
+      // Only set Content-Length if size is available and reasonable
+      if (fileMetadata.data.size && fileMetadata.data.size > 0 && fileMetadata.data.size < 5 * 1024 * 1024 * 1024) {
+        res.setHeader('Content-Length', fileMetadata.data.size);
+      }
 
-      // Pipe stream to response
-      response.data.pipe(res);
+      console.log(`📤 Headers set, piping stream...`);
 
-      // Handle errors
+      // Pipe stream to response with error handling
       response.data.on('error', (error) => {
-        console.error(`❌ Stream error for ${fileId}:`, error.message);
+        console.error(`❌ Google Drive stream error for ${fileId}:`, error.message);
         if (!res.headersSent) {
           res.status(500).json({
             success: false,
-            error: 'Failed to stream file'
+            error: 'Failed to stream file from Google Drive'
           });
-        } else {
-          res.end();
         }
+      });
+
+      response.data.on('data', (chunk) => {
+        console.log(`📥 Streaming chunk: ${chunk.length} bytes`);
+      });
+
+      response.data.on('end', () => {
+        console.log(`✅ Google Drive stream ended for ${fileId}: ${fileMetadata.data.name}`);
       });
 
       res.on('error', (error) => {
         console.error(`❌ Response error for ${fileId}:`, error.message);
-        response.data.destroy();
+        if (response.data) {
+          response.data.destroy();
+        }
       });
 
-      response.data.on('end', () => {
-        console.log(`✅ Stream completed for ${fileId}: ${fileMetadata.data.name}`);
+      // Pipe with error handling
+      response.data.pipe(res).on('error', (error) => {
+        console.error(`❌ Pipe error for ${fileId}:`, error.message);
+      });
+
+      res.on('finish', () => {
+        console.log(`✅ Response finished for ${fileId}: ${fileMetadata.data.name}`);
       });
     } catch (error) {
       console.error('=== Stream Error ===');
       console.error('Error:', error.message);
+      console.error('Stack:', error.stack);
       if (!res.headersSent) {
         res.status(500).json({
           success: false,
-          error: 'Failed to retrieve image',
+          error: 'Failed to retrieve media',
           message: error.message
         });
       }
@@ -516,7 +533,8 @@ class GalleryController {
       // Emit socket event to notify all clients that image was deleted
       const io = req.app.get('io');
       if (io) {
-        io.emit('image_deleted', { fileId: fileId });
+        io.sockets.emit('image_deleted', { fileId: fileId });
+        console.log('📡 Socket event emitted: image_deleted for', fileId);
       }
 
       return res.status(200).json({

@@ -10,6 +10,7 @@ const BASE_URL =
 // create a single axios instance
 const api = axios.create({
   baseURL: BASE_URL,
+  timeout: 300000, // 5 minutes for large video files
   // you can add headers, timeouts, interceptors, etc. here
 });
 
@@ -148,13 +149,46 @@ const apiService = {
     }
   },
 
-  streamImage: async (fileId) => {
+  streamImage: async (fileId, onProgress) => {
     try {
       console.log('🎬📸 Requesting file stream for:', fileId);
+      console.log('📊 Starting download - progress at 0%');
+      
+      if (onProgress) {
+        onProgress(0); // Start at 0%
+      }
+      
+      let lastProgressLogged = 0;
+      
+      // Use axios with larger timeout for videos (10 minutes)
       const response = await api.post('/gallery', 
         { purpose: 'stream', fileId },
-        { responseType: 'blob' }
+        { 
+          responseType: 'blob',
+          timeout: 600000, // 10 minutes for large video files
+          onDownloadProgress: (progressEvent) => {
+            const total = progressEvent.total || 0;
+            const loaded = progressEvent.loaded || 0;
+            
+            if (total > 0) {
+              const percentCompleted = Math.round((loaded * 100) / total);
+              
+              // Call progress callback for UI
+              if (onProgress) {
+                onProgress(percentCompleted);
+              }
+              
+              // Log every 1% change for console
+              if (Math.abs(percentCompleted - lastProgressLogged) >= 1) {
+                console.log(`📥 [${fileId}] ▓░ Downloading: ${percentCompleted}% (${(loaded / 1024 / 1024).toFixed(1)}MB / ${(total / 1024 / 1024).toFixed(1)}MB)`);
+                lastProgressLogged = percentCompleted;
+              }
+            }
+          }
+        }
       );
+      
+      console.log(`✅ [${fileId}] Download complete! 100%`);
       
       const blob = response.data;
       const contentType = response.headers['content-type'] || 'unknown';
@@ -162,20 +196,25 @@ const apiService = {
       const mediaLabel = isVideo ? '🎬 VIDEO' : '🖼️ IMAGE';
       
       console.log(`${mediaLabel} Stream received for:`, fileId);
-      console.log('  - Content-Type:', contentType);
-      console.log('  - Blob size:', blob.size, 'bytes');
-      console.log('  - Blob type:', blob.type);
+      console.log(`  - Content-Type: ${contentType}`);
+      console.log(`  - Blob size: ${blob.size} bytes (${(blob.size / 1024 / 1024).toFixed(2)}MB)`);
+      
+      if (!blob) {
+        console.error('❌ BLOB IS NULL/UNDEFINED!');
+        throw new Error('No blob received from server');
+      }
       
       if (blob.size === 0) {
-        console.error('❌ EMPTY BLOB received! Content-Type:', contentType);
+        console.error('❌ EMPTY BLOB received!');
         throw new Error('Empty blob received from server');
       }
       
+      console.log(`✅ Blob is valid, ready to display`);
       return blob;
     } catch (error) {
-      console.error('❌ Error streaming media:', fileId, error);
+      console.error('❌ Error streaming media:', fileId);
+      console.error('Error message:', error.message);
       console.error('Response status:', error.response?.status);
-      console.error('Response data:', error.response?.data);
       throw error;
     }
   },

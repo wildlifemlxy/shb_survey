@@ -4,12 +4,15 @@ import apiService from '../../services/apiServices';
 import '../../css/components/Gallery/Gallery.css';
 
 // Component to stream and display images and videos
-const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady }) => {
+const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady, isVisible = true }) => {
   const [mediaSrc, setMediaSrc] = React.useState(null);
   const [error, setError] = React.useState(false);
   const [mediaType, setMediaType] = React.useState(null);
   const [isReady, setIsReady] = React.useState(false);
+  const [hasStartedLoading, setHasStartedLoading] = React.useState(false);
+  const [downloadProgress, setDownloadProgress] = React.useState(0);
   const readyTimeoutRef = React.useRef(null);
+  const containerRef = React.useRef(null);
   
   console.log(`🎬 StreamImage: ${title}`, { fileId, mimeType, mediaType, mediaSrc: !!mediaSrc, isReady });
   
@@ -32,6 +35,12 @@ const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady }
 
   React.useEffect(() => {
     const streamMedia = async () => {
+      // Only start loading if visible and not already started
+      if (!isVisible || hasStartedLoading) {
+        console.log(`📍 [${fileId}] Not visible or already loading. isVisible: ${isVisible}, hasStartedLoading: ${hasStartedLoading}`);
+        return;
+      }
+      
       console.log(`📥 [${fileId}] Streaming ${mediaType}...`);
       
       if (!fileId || !mediaType) {
@@ -39,23 +48,43 @@ const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady }
         return;
       }
       
+      // Reset progress to 0% when starting
+      setDownloadProgress(0);
+      setHasStartedLoading(true); // Mark that we've started loading
+      
       try {
-        const blob = await apiService.streamImage(fileId);
+        console.log(`📥 [${fileId}] Calling apiService.streamImage...`);
+        const blob = await apiService.streamImage(fileId, (progress) => {
+          console.log(`📊 [${fileId}] Progress update: ${progress}%`);
+          setDownloadProgress(progress);
+        });
+        console.log(`📥 [${fileId}] Got blob response:`, { blob, blobType: typeof blob, blobConstructor: blob?.constructor?.name, blobSize: blob?.size });
         
-        if (!blob || blob.size === 0) {
-          console.error(`❌ [${fileId}] Empty blob`);
+        if (!blob) {
+          console.error(`❌ [${fileId}] Blob is null/undefined`);
           setError(true);
           if (onItemReady) onItemReady(fileId, false);
           return;
         }
         
+        if (blob.size === 0) {
+          console.error(`❌ [${fileId}] Empty blob, size is 0`);
+          setError(true);
+          if (onItemReady) onItemReady(fileId, false);
+          return;
+        }
+        
+        console.log(`✅ [${fileId}] Creating object URL from blob (${blob.size} bytes)...`);
         const url = URL.createObjectURL(blob);
-        console.log(`✅ [${fileId}] Blob URL created, size: ${blob.size} bytes`);
+        console.log(`✅ [${fileId}] Object URL created: ${url}`);
+        console.log(`✅ [${fileId}] Setting mediaSrc to URL...`);
         
         setMediaSrc(url);
+        console.log(`✅ [${fileId}] mediaSrc state updated`);
         
         // Mark ready immediately after blob is ready, or after short timeout
-        const timeoutDuration = 1000;
+        const timeoutDuration = 5000; // Increased to 5 seconds for videos
+        console.log(`⏰ [${fileId}] Setting timeout of ${timeoutDuration}ms...`);
         readyTimeoutRef.current = setTimeout(() => {
           console.warn(`⏰ [${fileId}] Timeout - forcing ready`);
           setIsReady(true);
@@ -64,6 +93,7 @@ const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady }
         
       } catch (err) {
         console.error(`❌ [${fileId}] Stream error:`, err.message);
+        console.error(`❌ [${fileId}] Full error:`, err);
         setError(true);
         if (onItemReady) onItemReady(fileId, false);
       }
@@ -80,7 +110,7 @@ const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady }
         console.log(`🧹 [${fileId}] Cleaned up`);
       }
     };
-  }, [fileId, mediaType, onItemReady]);
+  }, [fileId, mediaType, onItemReady, isVisible, hasStartedLoading]);
 
   if (error) {
     return (
@@ -145,14 +175,18 @@ const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady }
     );
   }
 
-  // Still loading/waiting
-  if (mediaSrc && !isReady) {
-    console.log(`⏳ [${fileId}] Waiting for ${mediaType}...`);
-  } else if (!mediaSrc) {
-    console.log(`📥 [${fileId}] Streaming...`);
-  }
+  // Still loading/waiting - show spinner as progress indicator
+  console.log(`⏳ [${fileId}] Loading state - mediaSrc: ${!!mediaSrc}, isReady: ${isReady}, progress: ${downloadProgress}%`);
   
-  return null;
+  return (
+    <div className="gallery-img-loading">
+      <span className="gallery-loading-label">Loading</span>
+      <div className="gallery-spinner-progress" style={{ '--progress': downloadProgress }}>
+        <div className="gallery-spinner-small"></div>
+      </div>
+      <span className="gallery-progress-text">{downloadProgress}%</span>
+    </div>
+  );
 };
 
 class Gallery extends React.Component {
@@ -165,12 +199,37 @@ class Gallery extends React.Component {
       error: null,
       retryCount: 0,
       currentPage: 1,
-      itemsPerPage: 12
+      itemsPerPage: 12,
+      visibleItems: new Set() // Track which items are visible
     };
+    this.intersectionObserver = null;
   }
 
   componentDidMount() {
     this.setupSocketListener();
+    
+    // Setup Intersection Observer for lazy loading
+    this.intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const fileId = entry.target.dataset.fileId;
+          if (entry.isIntersecting) {
+            this.setState((prevState) => ({
+              visibleItems: new Set([...prevState.visibleItems, fileId])
+            }));
+            console.log(`👁️ Item visible: ${fileId}`);
+          } else {
+            this.setState((prevState) => {
+              const newVisible = new Set(prevState.visibleItems);
+              newVisible.delete(fileId);
+              return { visibleItems: newVisible };
+            });
+          }
+        });
+      },
+      { threshold: 0.1 } // Start loading when 10% visible
+    );
+    
     // Small delay to ensure socket is ready before API call
     setTimeout(() => {
       this.fetchGalleryImages();
@@ -202,19 +261,6 @@ class Gallery extends React.Component {
       reconnectionAttempts: 5
     });
 
-    this.socket.on('connect', () => {
-      console.log('✓ Connected to socket server:', this.socket.id);
-      console.log('📡 Socket ready to receive updates');
-    });
-
-    this.socket.on('connect_error', (error) => {
-      console.error('❌ Socket connection error:', error);
-    });
-
-    this.socket.on('disconnect', (reason) => {
-      console.log('✗ Disconnected from socket server:', reason);
-    });
-
     this.socket.on('image_uploaded', (newImageData) => {
       console.log('🎉 New image uploaded event received:', newImageData);
       
@@ -227,61 +273,26 @@ class Gallery extends React.Component {
     });
 
     this.socket.on('image_deleted', (data) => {
-      console.log('🗑️ Image deleted event received:', data.fileId);
+      const fileId = data?.fileId || data;
+      console.log('🗑️ Image deleted event received:', fileId);
       
-      // Remove deleted image from gallery
-      this.setState(prevState => ({
-        galleryItems: prevState.galleryItems.filter(item => item.id !== data.fileId)
-      }));
+      // Remove image from gallery and clean up readyItems
+      this.setState(prevState => {
+        const newReadyItems = new Set(prevState.readyItems);
+        newReadyItems.delete(fileId);
+        
+        return {
+          galleryItems: prevState.galleryItems.filter(item => item.id !== fileId),
+          readyItems: newReadyItems
+        };
+      });
       
       console.log('✓ Gallery updated - image removed');
-    });
-
-    this.socket.on('gallery_update', (data) => {
-      console.log('📡 🎉 GALLERY UPDATE RECEIVED! 🎉');
-      console.log('Data structure:', data);
-      console.log('Images array:', data.images);
-      console.log('Count:', data.count);
-      console.log('Full data:', JSON.stringify(data, null, 2));
-      
-      // Clear timeout if socket event arrived
-      if (this.socketTimeoutId) {
-        clearTimeout(this.socketTimeoutId);
-        this.socketTimeoutId = null;
-        console.log('✅ Socket timeout cleared - event arrived in time');
-      }
-      
-      if (!data.images || data.images.length === 0) {
-        console.warn('⚠️ No images in gallery_update data');
-        return;
-      }
-      
-      console.log('✅ Setting gallery items:', data.images.length);
-      
-      // Reset ready items when new items arrive
-      this.setState({
-        galleryItems: data.images,
-        readyItems: new Set(),
-        isLoading: true,
-        error: null
-      }, () => {
-        console.log('✅ Gallery state updated with', data.count, 'items');
-        console.log('Current gallery items:', this.state.galleryItems);
-      });
     });
 
     this.socket.on('error', (error) => {
       console.error('❌ Socket error:', error);
     });
-
-    // Log all events for debugging
-    const originalOn = this.socket.on.bind(this.socket);
-    this.socket.on = function(event, handler) {
-      if (!['connect', 'disconnect', 'error'].includes(event)) {
-        console.log(`📢 Socket listener attached for event: ${event}`);
-      }
-      return originalOn(event, handler);
-    };
 
     console.log('✅ Socket listener setup complete');
   };
@@ -345,7 +356,7 @@ class Gallery extends React.Component {
         this.setState({ 
           galleryItems: [],
           isLoading: false,
-          error: 'No media found'
+          error: null
         });
       }
     } catch (error) {
@@ -410,10 +421,6 @@ class Gallery extends React.Component {
     const paginatedItems = galleryItems.slice(startIndex, endIndex);
     
     // Filter to show only ready items
-    const readyItems_list = paginatedItems.filter(item => readyItems.has(item.id));
-    
-    console.log('📊 PAGINATION:', { totalPages, startIndex, endIndex, paginatedItems: paginatedItems.length, readyItems: readyItems_list.length });
-
     return (
       <section className="gallery-wrapper">
         <div className="gallery-header-section">
@@ -424,10 +431,17 @@ class Gallery extends React.Component {
         <div>
           <div className="gallery-items-grid">
               {paginatedItems.map((item, index) => {
+                const isVisible = this.state.visibleItems.has(item.id);
                 return (
                   <div 
                     key={item.id || index} 
                     className="gallery-card-item"
+                    data-file-id={item.id}
+                    ref={(el) => {
+                      if (el && this.intersectionObserver) {
+                        this.intersectionObserver.observe(el);
+                      }
+                    }}
                   >
                     <StreamImage 
                       fileId={item.id} 
@@ -436,11 +450,12 @@ class Gallery extends React.Component {
                       mimeType={item.mimeType}
                       onImageClick={this.handleImageClick}
                       onItemReady={this.handleItemReady}
+                      isVisible={isVisible}
                     />
                   </div>
                 );
               })}
-              {readyItems_list.length === 0 && isLoading && (
+              {galleryItems.length === 0 && isLoading && (
                 <div className="gallery-loading-state">
                   <div className="gallery-spinner"></div>
                   <p>Loading gallery</p>
