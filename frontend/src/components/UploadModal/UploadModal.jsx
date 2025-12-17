@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import axios from 'axios';
 import '../../css/components/UploadModal/UploadModal.css';
 
 class UploadModal extends Component {
@@ -56,11 +57,41 @@ class UploadModal extends Component {
     // Generate previews for each file
     const newPreviews = validFiles.map(file => {
       return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          resolve(e.target.result);
-        };
-        reader.readAsDataURL(file);
+        if (file.type.startsWith('video/')) {
+          // For videos, extract thumbnail from middle frame
+          const video = document.createElement('video');
+          video.onloadedmetadata = () => {
+            // Seek to middle of video
+            const middleTime = video.duration / 2;
+            video.currentTime = middleTime;
+          };
+          video.onseeked = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            resolve(canvas.toDataURL('image/jpeg'));
+          };
+          
+          video.onerror = () => {
+            // Fallback if video thumbnail extraction fails
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              resolve(e.target.result);
+            };
+            reader.readAsDataURL(file);
+          };
+          
+          video.src = URL.createObjectURL(file);
+        } else {
+          // For images, use regular preview
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            resolve(e.target.result);
+          };
+          reader.readAsDataURL(file);
+        }
       });
     });
 
@@ -79,6 +110,25 @@ class UploadModal extends Component {
     }));
   };
 
+  handleModalClose = () => {
+    // Reset state to default values
+    this.setState({
+      isDragOver: false,
+      selectedFiles: [],
+      filePreviews: [],
+      isUploading: false,
+      uploadProgress: {},
+      uploadStatus: {},
+      currentFileIndex: 0,
+      totalFiles: 0
+    });
+    
+    // Call parent's onClose callback
+    if (this.props.onClose) {
+      this.props.onClose();
+    }
+  };
+
   handleUpload = async () => {
     const { selectedFiles } = this.state;
     if (selectedFiles.length === 0) {
@@ -86,95 +136,87 @@ class UploadModal extends Component {
       return;
     }
 
-    this.setState({ isUploading: true, totalFiles: selectedFiles.length, currentFileIndex: 0 });
+    this.setState({ isUploading: true, totalFiles: selectedFiles.length, currentFileIndex: selectedFiles.length });
 
     const baseUrl = window.location.hostname === 'localhost'
       ? 'http://localhost:3001'
       : 'https://shb-backend.azurewebsites.net';
 
-    let successCount = 0;
-    let failureCount = 0;
-    const errors = [];
     const uploadProgress = {};
     const uploadStatus = {};
+    const errors = [];
 
+    // Initialize all files
     for (let i = 0; i < selectedFiles.length; i++) {
-      const file = selectedFiles[i];
       uploadProgress[i] = 0;
       uploadStatus[i] = 'uploading';
-      this.setState({ currentFileIndex: i + 1 });
-
-      try {
-        const formData = new FormData();
-        formData.append('image', file);
-        formData.append('purpose', 'upload');
-
-        const xhr = new XMLHttpRequest();
-
-        // Track upload progress
-        xhr.upload.addEventListener('progress', (e) => {
-          if (e.lengthComputable) {
-            const percentComplete = (e.loaded / e.total) * 100;
-            uploadProgress[i] = Math.round(percentComplete);
-            this.setState({ uploadProgress: { ...this.state.uploadProgress, ...uploadProgress } });
-          }
-        });
-
-        // Handle completion
-        xhr.addEventListener('load', () => {
-          if (xhr.status === 200) {
-            const response = JSON.parse(xhr.responseText);
-            if (response.success) {
-              successCount++;
-              uploadStatus[i] = 'success';
-              console.log(`✅ File ${i + 1} uploaded successfully`);
-            } else {
-              failureCount++;
-              uploadStatus[i] = 'failed';
-              errors.push(`${file.name}: ${response.error}`);
-              console.error(`❌ File ${i + 1} upload failed:`, response.error);
-            }
-          } else {
-            failureCount++;
-            uploadStatus[i] = 'failed';
-            errors.push(`${file.name}: Upload failed (${xhr.status})`);
-            console.error(`❌ File ${i + 1} upload failed with status ${xhr.status}`);
-          }
-          this.setState({ uploadStatus: { ...this.state.uploadStatus, ...uploadStatus } });
-        });
-
-        // Handle error
-        xhr.addEventListener('error', () => {
-          failureCount++;
-          uploadStatus[i] = 'failed';
-          errors.push(`${file.name}: Network error`);
-          console.error(`❌ File ${i + 1} network error`);
-          this.setState({ uploadStatus: { ...this.state.uploadStatus, ...uploadStatus } });
-        });
-
-        xhr.open('POST', `${baseUrl}/gallery`);
-        xhr.send(formData);
-      } catch (error) {
-        failureCount++;
-        uploadStatus[i] = 'failed';
-        errors.push(`${file.name}: ${error.message}`);
-        console.error(`❌ File ${i + 1} error:`, error);
-        this.setState({ uploadStatus: { ...this.state.uploadStatus, ...uploadStatus } });
-      }
     }
+    
+    this.setState({ uploadProgress, uploadStatus });
+
+    // Create all upload promises simultaneously
+    const uploadPromises = selectedFiles.map((file, i) => {
+      return new Promise((resolve) => {
+        try {
+          const formData = new FormData();
+          formData.append('image', file);
+          formData.append('purpose', 'upload');
+
+          axios.post(`${baseUrl}/gallery`, formData, {
+            onUploadProgress: (progressEvent) => {
+              if (progressEvent.lengthComputable) {
+                const percentComplete = (progressEvent.loaded / progressEvent.total) * 100;
+                uploadProgress[i] = Math.round(percentComplete);
+                this.setState({ uploadProgress: { ...this.state.uploadProgress, ...uploadProgress } });
+              }
+            },
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          })
+            .then((response) => {
+              if (response.data.success) {
+                uploadStatus[i] = 'success';
+                console.log(`✅ File ${i + 1} uploaded successfully`);
+              } else {
+                uploadStatus[i] = 'failed';
+                errors.push(`${file.name}: ${response.data.error}`);
+                console.error(`❌ File ${i + 1} upload failed:`, response.data.error);
+              }
+              this.setState({ uploadStatus: { ...this.state.uploadStatus, ...uploadStatus } });
+              resolve();
+            })
+            .catch((error) => {
+              uploadStatus[i] = 'failed';
+              errors.push(`${file.name}: ${error.message}`);
+              console.error(`❌ File ${i + 1} error:`, error);
+              this.setState({ uploadStatus: { ...this.state.uploadStatus, ...uploadStatus } });
+              resolve();
+            });
+        } catch (error) {
+          uploadStatus[i] = 'failed';
+          errors.push(`${file.name}: ${error.message}`);
+          console.error(`❌ File ${i + 1} error:`, error);
+          this.setState({ uploadStatus: { ...this.state.uploadStatus, ...uploadStatus } });
+          resolve();
+        }
+      });
+    });
 
     // Wait for all uploads to complete
+    await Promise.all(uploadPromises);
+
+    // Wait a moment then close
     setTimeout(() => {
       this.setState({ isUploading: false, currentFileIndex: 0 });
 
       // Close modal and refresh
       this.setState({ selectedFiles: [], uploadProgress: {}, uploadStatus: {}, filePreviews: [] });
-      if (this.props.onClose) {
-        this.props.onClose();
-      }
       if (this.props.onUploadComplete) {
         this.props.onUploadComplete();
       }
+      // Call handleModalClose to ensure state is properly reset
+      this.handleModalClose();
     }, 1000);
   };
 
@@ -193,14 +235,14 @@ class UploadModal extends Component {
     if (!isOpen) return null;
 
     return (
-      <div className="upload-modal-overlay" onClick={onClose}>
+      <div className="upload-modal-overlay" onClick={this.handleModalClose}>
         <div className="upload-modal" onClick={(e) => e.stopPropagation()}>
           {/* Header */}
           <div className="upload-modal-header">
             <h2>Upload Media</h2>
             <button
               className="upload-modal-close"
-              onClick={onClose}
+              onClick={this.handleModalClose}
               disabled={isUploading}
               title="Close"
             >
@@ -254,7 +296,7 @@ class UploadModal extends Component {
                               style={{
                                 width: '100%',
                                 height: '100%',
-                                objectFit: 'cover',
+                                objectFit: 'contain',
                                 borderRadius: '4px'
                               }}
                             />
@@ -308,7 +350,7 @@ class UploadModal extends Component {
           <div className="upload-modal-footer">
             <button
               className="upload-button-cancel"
-              onClick={onClose}
+              onClick={this.handleModalClose}
               disabled={isUploading}
             >
               Cancel

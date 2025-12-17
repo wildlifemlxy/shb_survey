@@ -5,7 +5,6 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -43,6 +42,15 @@
   gap: 30px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   text-align: center;
+  position: relative;
+}
+
+.image-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 10px;
 }
 
 .image-viewer-title {
@@ -50,6 +58,32 @@
   font-weight: 700;
   color: #333;
   margin: 0;
+  flex: 1;
+}
+
+.image-viewer-close-btn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.image-viewer-close-btn:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.image-viewer-close-btn:active {
+  background: #e0e0e0;
 }
 
 @keyframes slideUp {

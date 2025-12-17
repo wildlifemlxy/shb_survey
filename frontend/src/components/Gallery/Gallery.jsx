@@ -1,6 +1,5 @@
 import React from 'react';
 import io from 'socket.io-client';
-import axios from 'axios';
 import apiService from '../../services/apiServices';
 import '../../css/components/Gallery/Gallery.css';
 
@@ -12,10 +11,13 @@ const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady, 
   const [isReady, setIsReady] = React.useState(false);
   const [hasStartedLoading, setHasStartedLoading] = React.useState(false);
   const [downloadProgress, setDownloadProgress] = React.useState(0);
+  const [canDisplay, setCanDisplay] = React.useState(false);
+  const [videoThumbnail, setVideoThumbnail] = React.useState(null);
   const readyTimeoutRef = React.useRef(null);
+  const delayTimeoutRef = React.useRef(null);
   const containerRef = React.useRef(null);
   
-  console.log(`🎬 StreamImage: ${title}`, { fileId, mimeType, mediaType, mediaSrc: !!mediaSrc, isReady });
+  console.log(`🎬 StreamImage: ${title}`, { fileId, mimeType, mediaType, mediaSrc: !!mediaSrc, isReady, canDisplay });
   
   // Detect media type
   React.useEffect(() => {
@@ -36,9 +38,9 @@ const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady, 
 
   React.useEffect(() => {
     const streamMedia = async () => {
-      // Only start loading if visible and not already started
-      if (!isVisible || hasStartedLoading) {
-        console.log(`📍 [${fileId}] Not visible or already loading. isVisible: ${isVisible}, hasStartedLoading: ${hasStartedLoading}`);
+      // Load all files simultaneously - don't wait for visibility
+      if (hasStartedLoading) {
+        console.log(`📍 [${fileId}] Already loading. hasStartedLoading: ${hasStartedLoading}`);
         return;
       }
       
@@ -89,6 +91,28 @@ const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady, 
         
         console.log(`✅ [${fileId}] mediaSrc state updated`);
         
+        // Generate video thumbnail if it's a video
+        if (mediaType === 'video' || mimeType?.startsWith('video/')) {
+          console.log(`📹 [${fileId}] Generating video thumbnail from middle frame...`);
+          const video = document.createElement('video');
+          video.onloadedmetadata = () => {
+            // Seek to middle of video
+            const middleTime = video.duration / 2;
+            video.currentTime = middleTime;
+          };
+          video.onseeked = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            const thumbnailUrl = canvas.toDataURL('image/jpeg');
+            setVideoThumbnail(thumbnailUrl);
+            console.log(`✅ [${fileId}] Video thumbnail (middle frame) generated`);
+          };
+          video.src = url;
+        }
+        
         // Mark ready immediately after blob is ready, or after short timeout
         const timeoutDuration = 5000; // Increased to 5 seconds for videos
         console.log(`⏰ [${fileId}] Setting timeout of ${timeoutDuration}ms...`);
@@ -119,6 +143,23 @@ const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady, 
     };
   }, [fileId, mediaType, onItemReady, isVisible, hasStartedLoading]);
 
+  // Handle 0.25-second delay when download reaches 100%
+  React.useEffect(() => {
+    if (downloadProgress === 100 && mediaSrc && !canDisplay) {
+      console.log(`⏱️ [${fileId}] Download complete (100%) - starting 0.25 second delay before display`);
+      delayTimeoutRef.current = setTimeout(() => {
+        console.log(`✅ [${fileId}] 0.25 second delay complete - allowing display`);
+        setCanDisplay(true);
+      }, 250);
+    }
+
+    return () => {
+      if (delayTimeoutRef.current) {
+        clearTimeout(delayTimeoutRef.current);
+      }
+    };
+  }, [downloadProgress, mediaSrc, canDisplay, fileId]);
+
   if (error) {
     return (
       <div className="gallery-img-unavailable">
@@ -127,15 +168,15 @@ const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady, 
     );
   }
 
-  // Show media when mediaSrc exists (blob is ready to render)
-  // Media will be displayed, but onLoad/onCanPlay will trigger onItemReady
-  if (mediaSrc) {
-    console.log(`🎨 [${fileId}] RENDERING ${mediaType?.toUpperCase()}: ${title}`);
+  // Show media only when mediaSrc exists AND download is 100% complete AND 2 second delay passed
+  if (mediaSrc && downloadProgress === 100 && canDisplay) {
+    console.log(`🎨 [${fileId}] RENDERING ${mediaType?.toUpperCase()}: ${title} (Progress: ${downloadProgress}%, Delay Complete: ${canDisplay})`);
     
     return mediaType === 'video' ? (
-      <video 
-        src={mediaSrc} 
-        className="gallery-img gallery-video"
+      <img 
+        src={videoThumbnail || mediaSrc} 
+        alt={alt || title || 'Video thumbnail'} 
+        className="gallery-img"
         onClick={() => {
           if (isSelectMode) {
             if (onSelectToggle) onSelectToggle();
@@ -145,20 +186,17 @@ const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady, 
             }
           }
         }}
-        onError={(e) => {
-          console.error(`❌ [${fileId}] Video error:`, e);
+        onError={() => {
+          console.error(`❌ [${fileId}] Thumbnail error`);
           setError(true);
         }}
-        onCanPlay={() => {
-          console.log(`✅ [${fileId}] VIDEO canPlay - marking as ready`);
+        onLoad={() => {
+          console.log(`✅ [${fileId}] THUMBNAIL loaded - marking as ready`);
           clearTimeout(readyTimeoutRef.current);
           setIsReady(true);
           if (onItemReady) onItemReady(fileId, true);
         }}
-        title="Click to view and manage"
-        controls
-        controlsList="nodownload"
-        preload="auto"
+        title="Click to view video"
         style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000' }}
       />
     ) : (
@@ -193,9 +231,17 @@ const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady, 
   // Still loading/waiting - show spinner as progress indicator
   console.log(`⏳ [${fileId}] Loading state - mediaSrc: ${!!mediaSrc}, isReady: ${isReady}, progress: ${downloadProgress}%`);
   
+  // Determine loading message based on progress
+  let loadingMessage = 'Loading';
+  if (downloadProgress === 0) {
+    loadingMessage = 'Starting...';
+  } else if (downloadProgress < 100) {
+    loadingMessage = `Loading... ${downloadProgress}%`;
+  }
+  
   return (
     <div className="gallery-img-loading">
-      <span className="gallery-loading-label">Loading</span>
+      <span className="gallery-loading-label">{loadingMessage}</span>
       <div className="gallery-spinner-progress" style={{ '--progress': downloadProgress }}>
         <div className="gallery-spinner-small"></div>
       </div>
@@ -219,7 +265,8 @@ class Gallery extends React.Component {
       selectedItems: new Set(), // Track selected items for bulk delete
       isSelectMode: false, // Toggle between select and normal mode
       isDeleting: false, // Track if deletion is in progress
-      mediaSrcMap: {} // Map of fileId -> mediaSrc (blob URL)
+      mediaSrcMap: {}, // Map of fileId -> mediaSrc (blob URL)
+      mediaFilter: 'All' // Filter: 'All', 'Videos', 'Photos'
     };
     this.intersectionObserver = null;
   }
@@ -426,8 +473,9 @@ class Gallery extends React.Component {
   };
 
   goToNextPage = () => {
-    const { currentPage, galleryItems, itemsPerPage } = this.state;
-    const totalPages = Math.ceil(galleryItems.length / itemsPerPage);
+    const { currentPage, itemsPerPage } = this.state;
+    const filteredItems = this.getFilteredItems();
+    const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
     if (currentPage < totalPages) {
       this.setState({ currentPage: currentPage + 1 });
     }
@@ -468,6 +516,25 @@ class Gallery extends React.Component {
     this.setState({ selectedItems: new Set() });
   };
 
+  setMediaFilter = (filter) => {
+    // Just change the filter and reset page, don't reload media
+    this.setState({ 
+      mediaFilter: filter, 
+      currentPage: 1 
+    });
+  };
+
+  getFilteredItems = () => {
+    const { galleryItems, mediaFilter } = this.state;
+    
+    if (mediaFilter === 'Videos') {
+      return galleryItems.filter(item => item.mimeType && item.mimeType.startsWith('video/'));
+    } else if (mediaFilter === 'Photos') {
+      return galleryItems.filter(item => item.mimeType && item.mimeType.startsWith('image/'));
+    }
+    return galleryItems;
+  };
+
   bulkDelete = () => {
     const { selectedItems, galleryItems, mediaSrcMap } = this.state;
     
@@ -495,21 +562,26 @@ class Gallery extends React.Component {
     }
   };
   render() {
-    const { galleryItems, readyItems, isLoading, error, currentPage, itemsPerPage, isSelectMode, selectedItems, isDeleting } = this.state;
+    const { galleryItems, readyItems, isLoading, error, currentPage, itemsPerPage, isSelectMode, selectedItems, isDeleting, mediaFilter } = this.state;
+    
+    // Get filtered items
+    const filteredItems = this.getFilteredItems();
     
     console.log('🎨 GALLERY RENDER:', {
       itemsCount: galleryItems.length,
+      filteredCount: filteredItems.length,
+      filter: mediaFilter,
       readyCount: readyItems.size,
       isLoading,
       error,
       currentPage
     });
     
-    // Calculate pagination
-    const totalPages = Math.ceil(galleryItems.length / itemsPerPage);
+    // Calculate pagination based on filtered items
+    const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    const paginatedItems = galleryItems.slice(startIndex, endIndex);
+    const paginatedItems = filteredItems.slice(startIndex, endIndex);
     
     // Filter to show only ready items
     return (
@@ -521,78 +593,116 @@ class Gallery extends React.Component {
               <h2 className="gallery-main-title">Gallery</h2>
               <p className="gallery-main-subtitle">Explore conservation efforts and captured moments</p>
             </div>
-            <div style={{ display: 'flex', gap: '8px', position: 'absolute', right: '0', top: '0' }}>
-              <button
-                onClick={this.selectAll}
-                style={{
-                  padding: '8px 16px',
-                  background: '#4f46e5',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  whiteSpace: 'nowrap'
-                }}
-                title="Select all items in gallery"
-              >
-                ✓ Select All
-              </button>
-              <button
-                onClick={this.deselectAll}
-                style={{
-                  padding: '8px 16px',
-                  background: '#6b7280',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  whiteSpace: 'nowrap'
-                }}
-                title="Deselect all items in gallery"
-              >
-                ✗ Deselect All
-              </button>
-              <button
-                onClick={this.bulkDelete}
-                disabled={selectedItems.size === 0 || isDeleting}
-                style={{
-                  padding: '8px 16px',
-                  background: selectedItems.size === 0 ? '#d1d5db' : '#ef4444',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: selectedItems.size === 0 ? 'not-allowed' : 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  whiteSpace: 'nowrap'
-                }}
-                title="Delete selected items"
-              >
-                {isDeleting ? '⏳ Deleting...' : '🗑️ Delete Selected'}
-              </button>
-              <button
-                onClick={this.toggleSelectMode}
-                style={{
-                  padding: '8px 16px',
-                  background: isSelectMode ? '#ef4444' : '#4f46e5',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  whiteSpace: 'nowrap'
-                }}
-                title="Toggle selection mode for bulk delete"
-              >
-                {isSelectMode ? '✕ Cancel' : '📋 Select'}
-              </button>
-            </div>
+            {/* Buttons hidden before login */}
+            {localStorage.getItem('userRole') && (
+              <div style={{ display: 'flex', gap: '8px', position: 'absolute', right: '0', top: '0' }}>
+                <button
+                  onClick={this.selectAll}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#4f46e5',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    whiteSpace: 'nowrap'
+                  }}
+                  title="Select all items in gallery"
+                >
+                  ✓ Select All
+                </button>
+                <button
+                  onClick={this.deselectAll}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#6b7280',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    whiteSpace: 'nowrap'
+                  }}
+                  title="Deselect all items in gallery"
+                >
+                  ✗ Deselect All
+                </button>
+                <button
+                  onClick={this.bulkDelete}
+                  disabled={selectedItems.size === 0 || isDeleting}
+                  style={{
+                    padding: '8px 16px',
+                    background: selectedItems.size === 0 ? '#d1d5db' : '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: selectedItems.size === 0 ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    whiteSpace: 'nowrap'
+                  }}
+                  title="Delete selected items"
+                >
+                  {isDeleting ? '⏳ Deleting...' : '🗑️ Delete Selected'}
+                </button>
+                <button
+                  onClick={this.toggleSelectMode}
+                  style={{
+                    padding: '8px 16px',
+                    background: isSelectMode ? '#ef4444' : '#4f46e5',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    whiteSpace: 'nowrap'
+                  }}
+                  title="Toggle selection mode for bulk delete"
+                >
+                  {isSelectMode ? '✕ Cancel' : '📋 Select'}
+                </button>
+              </div>
+            )}
           </div>
+        </div>
+
+        {/* Filter buttons */}
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '24px', flexWrap: 'wrap' }}>
+          {['All', 'Photos', 'Videos'].map((filter) => (
+            <button
+              key={filter}
+              onClick={() => this.setMediaFilter(filter)}
+              style={{
+                padding: '10px 20px',
+                background: mediaFilter === filter ? '#4f46e5' : '#e5e7eb',
+                color: mediaFilter === filter ? 'white' : '#374151',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '600',
+                transition: 'all 0.3s ease',
+                minWidth: '80px'
+              }}
+              onMouseEnter={(e) => {
+                if (mediaFilter !== filter) {
+                  e.target.style.background = '#d1d5db';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (mediaFilter !== filter) {
+                  e.target.style.background = '#e5e7eb';
+                }
+              }}
+              title={`Show ${filter === 'All' ? 'all media' : filter.toLowerCase()}`}
+            >
+              {filter}
+            </button>
+          ))}
         </div>
 
         {/* Selection toolbar */}
@@ -615,10 +725,7 @@ class Gallery extends React.Component {
                     style={{
                       position: 'relative',
                       cursor: 'pointer',
-                      opacity: isSelectMode ? (isSelected ? 0.7 : 1) : 1,
-                      border: isSelectMode && isSelected ? '3px solid #4f46e5' : 'none',
-                      borderRadius: '8px',
-                      boxShadow: isSelectMode && isSelected ? '0 0 0 3px rgba(79, 70, 229, 0.1)' : 'none'
+                      borderRadius: '8px'
                     }}
                   >
                     {isSelectMode && (
@@ -723,7 +830,7 @@ class Gallery extends React.Component {
             </div>
 
             {/* Pagination Controls */}
-            {!isLoading && galleryItems.length > 0 && totalPages > 1 && (
+            {!isLoading && filteredItems.length > 0 && totalPages > 1 && (
               <div className="gallery-pagination">
                 <button 
                   className="gallery-pagination-btn"

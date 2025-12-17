@@ -68,7 +68,7 @@ class SubmissionSummarySection extends Component
         return `${d.toString().padStart(2, '0')}/${m.toString().padStart(2, '0')}/${y}`;
     }
     render() {
-        const { newSurvey } = this.props;
+        const { newSurvey, uploadedFiles, filePreviews } = this.props;
         console.log('SubmissionSummarySection newSurvey:', newSurvey);
         // Support both array and flat object for newSurvey
         const isObservationArray = Array.isArray(newSurvey['Observation Details']);
@@ -128,6 +128,79 @@ class SubmissionSummarySection extends Component
                                 <div><strong>Activity Details:</strong> {obs['ActivityDetails']}</div>
                             </div>
                         );})}
+                    </div>
+                )}
+                
+                {/* Display uploaded files section */}
+                {uploadedFiles && uploadedFiles.length > 0 && (
+                    <div style={{
+                        border: '1px solid #e0e0e0',
+                        borderRadius: 10,
+                        padding: '14px 16px',
+                        background: '#fff',
+                        fontSize: '1.01rem',
+                        marginTop: 12
+                    }}>
+                        <div style={{ fontWeight: 500, color: '#3949ab', marginBottom: 8 }}>
+                            Uploaded Files ({uploadedFiles.length})
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {uploadedFiles.map((file, index) => (
+                                <div
+                                    key={index}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        padding: '10px',
+                                        background: '#f9f9f9',
+                                        borderRadius: '6px',
+                                        border: '1px solid #f0f0f0'
+                                    }}
+                                >
+                                    {/* Thumbnail */}
+                                    <div
+                                        style={{
+                                            width: '50px',
+                                            height: '50px',
+                                            borderRadius: '4px',
+                                            background: '#e5e7eb',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            flexShrink: 0,
+                                            overflow: 'hidden'
+                                        }}
+                                    >
+                                        {filePreviews && filePreviews[index] ? (
+                                            <img
+                                                src={filePreviews[index]}
+                                                alt={file.name}
+                                                style={{
+                                                    width: '100%',
+                                                    height: '100%',
+                                                    objectFit: 'cover'
+                                                }}
+                                            />
+                                        ) : (
+                                            <div style={{ fontSize: '20px' }}>
+                                                {file.type.startsWith('video/') ? '🎬' : '🖼️'}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* File info */}
+                                    <div>
+                                        <div style={{ fontWeight: 500, fontSize: '0.95rem' }}>
+                                            {file.name}
+                                        </div>
+                                        <div style={{ fontSize: '0.85rem', color: '#666' }}>
+                                            {(file.size / 1024 / 1024).toFixed(2)} MB • {file.type.startsWith('video/') ? 'Video' : 'Image'}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>

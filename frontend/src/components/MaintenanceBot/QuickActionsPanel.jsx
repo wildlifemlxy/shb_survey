@@ -169,44 +169,46 @@ class QuickActionsPanel extends Component {
                   Chatbot
                 </span>
               </button>
-              {/* Upload Image/Video button - show on all pages */}
-              <button
-                onClick={() => {
-                  // Open upload modal
-                  if (this.props.onOpenUploadModal) {
-                    this.props.onOpenUploadModal();
-                  }
-                }}
-                style={{
-                  padding: '10px 16px',
-                  background: '#8b5cf6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  minHeight: 36,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  textAlign: 'center',
-                  lineHeight: '1.2',
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  whiteSpace: 'nowrap',
-                  position: 'relative',
-                  width: '100%',
-                  maxWidth: '100%',
-                  minWidth: 0
-                }}
-                title="Click to upload images or videos"
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                  Upload
-                </span>
-              </button>
+              {/* Upload Image/Video button - show only on home page */}
+              {currentPage === 'home' && (
+                <button
+                  onClick={() => {
+                    // Open upload modal
+                    if (this.props.onOpenUploadModal) {
+                      this.props.onOpenUploadModal();
+                    }
+                  }}
+                  style={{
+                    padding: '10px 16px',
+                    background: '#8b5cf6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    minHeight: 36,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                    lineHeight: '1.2',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    whiteSpace: 'nowrap',
+                    position: 'relative',
+                    width: '100%',
+                    maxWidth: '100%',
+                    minWidth: 0
+                  }}
+                  title="Click to upload images or videos"
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    Upload Media
+                  </span>
+                </button>
+              )}
               {/* New Survey button - only show on dashboard data table tab */}
               {currentPage === 'dashboard' && activeDashboardTab === 'dataTable' && (
                 <button

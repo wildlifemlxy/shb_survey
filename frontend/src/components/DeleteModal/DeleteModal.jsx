@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import axios from 'axios';
 import '../../css/components/DeleteModal/DeleteModal.css';
 
 class DeleteModal extends Component {
@@ -9,20 +10,61 @@ class DeleteModal extends Component {
       currentFileIndex: 0,
       totalFiles: 0,
       deleteProgress: {},
-      deleteStatus: {}
+      deleteStatus: {},
+      videoThumbnails: {} // Store generated video thumbnails
     };
   }
 
   componentDidMount() {
     this.resetModal();
+    this.generateVideoThumbnails();
   }
 
   componentDidUpdate(prevProps) {
     // Reset state when fileIds change (new deletion started)
     if (prevProps.fileIds !== this.props.fileIds) {
       this.resetModal();
+      this.generateVideoThumbnails();
     }
   }
+
+  generateVideoThumbnails = () => {
+    const { fileIds } = this.props;
+    if (!fileIds || fileIds.length === 0) return;
+
+    fileIds.forEach((file, index) => {
+      const mimeType = file.mimeType || '';
+      
+      // Only generate thumbnails for videos
+      if (mimeType.startsWith('video/') && file.src) {
+        const video = document.createElement('video');
+        video.onloadedmetadata = () => {
+          // Seek to middle of video
+          const middleTime = video.duration / 2;
+          video.currentTime = middleTime;
+        };
+        video.onseeked = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(video, 0, 0);
+          const thumbnailUrl = canvas.toDataURL('image/jpeg');
+          
+          // Store thumbnail in state with file index as key
+          this.setState(prevState => ({
+            videoThumbnails: {
+              ...prevState.videoThumbnails,
+              [index]: thumbnailUrl
+            }
+          }));
+          
+          console.log(`✅ Generated middle frame thumbnail for video ${index + 1}`);
+        };
+        video.src = file.src;
+      }
+    });
+  };
 
   resetModal = () => {
     this.setState({
@@ -59,60 +101,54 @@ class DeleteModal extends Component {
 
       const deleteProgress = {};
       const deleteStatus = {};
-      let successCount = 0;
-      let failureCount = 0;
-
+      
+      // Initialize all files
       for (let i = 0; i < fileIds.length; i++) {
-        const file = fileIds[i];
-        const fileId = file.id || file;
         deleteProgress[i] = 0;
         deleteStatus[i] = 'deleting';
-        this.setState({ 
-          currentFileIndex: i + 1,
-          deleteProgress,
-          deleteStatus
-        });
+      }
+      
+      this.setState({ deleteProgress, deleteStatus, currentFileIndex: fileIds.length });
 
+      // Create all delete promises simultaneously
+      const deletePromises = fileIds.map(async (file, index) => {
+        const fileId = file.id || file;
+        
         try {
-          // Simulate progress
-          for (let progress = 0; progress <= 100; progress += 20) {
-            deleteProgress[i] = progress;
+          // Simulate progress animation
+          for (let progress = 0; progress <= 90; progress += 15) {
+            deleteProgress[index] = progress;
             this.setState({ deleteProgress: { ...this.state.deleteProgress, ...deleteProgress } });
             await new Promise(resolve => setTimeout(resolve, 50));
           }
 
           // Make the actual delete request
-          const response = await fetch(`${baseUrl}/gallery`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              purpose: 'delete',
-              fileId: fileId
-            })
+          const response = await axios.post(`${baseUrl}/gallery`, {
+            purpose: 'delete',
+            fileId: fileId
           });
 
-          const result = await response.json();
-
-          if (result.success) {
-            deleteProgress[i] = 100;
-            deleteStatus[i] = 'success';
-            successCount++;
-            console.log(`✅ File ${i + 1} deleted successfully`);
+          if (response.data.success) {
+            deleteProgress[index] = 100;
+            deleteStatus[index] = 'success';
+            console.log(`✅ File ${index + 1} deleted successfully`);
           } else {
-            deleteStatus[i] = 'failed';
-            failureCount++;
-            console.error(`❌ File ${i + 1} delete failed:`, result.message);
+            deleteStatus[index] = 'failed';
+            console.error(`❌ File ${index + 1} delete failed:`, response.data.message);
           }
         } catch (error) {
-          deleteStatus[i] = 'failed';
-          failureCount++;
-          console.error(`❌ File ${i + 1} error:`, error.message);
+          deleteStatus[index] = 'failed';
+          console.error(`❌ File ${index + 1} error:`, error.message);
         }
 
-        this.setState({ deleteProgress: { ...this.state.deleteProgress, ...deleteProgress }, deleteStatus: { ...this.state.deleteStatus, ...deleteStatus } });
-      }
+        this.setState({ 
+          deleteProgress: { ...this.state.deleteProgress, ...deleteProgress }, 
+          deleteStatus: { ...this.state.deleteStatus, ...deleteStatus } 
+        });
+      });
+
+      // Wait for all delete operations to complete
+      await Promise.all(deletePromises);
 
       // Wait a moment then close
       setTimeout(() => {
@@ -133,22 +169,37 @@ class DeleteModal extends Component {
   };
 
   render() {
-    const { isOpen, onClose, fileIds } = this.props;
-    const { isDeleting, currentFileIndex, totalFiles, deleteProgress, deleteStatus } = this.state;
+    const { isOpen, onClose, fileIds, onCancel } = this.props;
+    const { isDeleting, currentFileIndex, totalFiles, deleteProgress, deleteStatus, videoThumbnails } = this.state;
+
+    const handleCancelClick = () => {
+      if (onCancel) {
+        onCancel();
+      }
+    };
+
+    const handleCloseClick = () => {
+      if (onClose) {
+        onClose();
+      }
+    };
 
     if (!isOpen) return null;
 
     return (
-      <div className="delete-modal-overlay" onClick={onClose}>
+      <div 
+        className="delete-modal-overlay" 
+        onClick={handleCloseClick}
+      >
         <div className="delete-modal" onClick={(e) => e.stopPropagation()}>
           {/* Header */}
           <div className="delete-modal-header">
             <h2>Delete Media</h2>
             <button
               className="delete-modal-close"
-              onClick={onClose}
-              disabled={isDeleting}
+              onClick={handleCloseClick}
               title="Close"
+              style={{ cursor: 'pointer' }}
             >
               ✕
             </button>
@@ -162,7 +213,9 @@ class DeleteModal extends Component {
                 {fileIds.map((file, index) => {
                   const fileId = file.id || file;
                   const fileName = file.title || file.name || `File ${index + 1}`;
-                  const thumbnail = file.src || file.thumbnail || null;
+                  const mimeType = file.mimeType || '';
+                  // Use generated video thumbnail if available, otherwise use file thumbnail/src
+                  const thumbnail = videoThumbnails[index] || file.src || file.thumbnail || null;
                   
                   return (
                     <div key={index} className="delete-file-item">
@@ -175,7 +228,7 @@ class DeleteModal extends Component {
                             width: '48px',
                             height: '48px',
                             borderRadius: '4px',
-                            objectFit: 'cover',
+                            objectFit: 'contain',
                             marginRight: '12px',
                             flexShrink: 0
                           }}
@@ -213,15 +266,15 @@ class DeleteModal extends Component {
           <div className="delete-modal-footer">
             <button
               className="delete-button-cancel"
-              onClick={onClose}
-              disabled={isDeleting}
+              onClick={handleCancelClick}
+              style={{ cursor: 'pointer' }}
             >
               Cancel
             </button>
             <button
               className="delete-button-submit"
               onClick={this.handleDelete}
-              disabled={isDeleting}
+              style={{ cursor: 'pointer' }}
             >
               {isDeleting ? '⏳ Deleting...' : '🗑️ Delete'}
             </button>

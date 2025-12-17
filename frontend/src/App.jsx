@@ -10,6 +10,7 @@ import NewSurveyModal from './components/Dashboard/NewSurveyModal.jsx';
 import MaintenanceBotButton from './components/MaintenanceBot/MaintenanceBotButton.jsx';
 import UploadModal from './components/UploadModal/UploadModal.jsx';
 import DeleteModal from './components/DeleteModal/DeleteModal.jsx';
+import UploadSuccessModal from './components/Dashboard/UploadSuccessModal.jsx';
 import ProtectedRoute from './components/Auth/ProtectedRoute.jsx';
 import RoleProtectedRoute from './components/Auth/RoleProtectedRoute.jsx';
 import NotFound from './components/NotFound/NotFound.jsx';
@@ -69,7 +70,11 @@ class App extends Component {
       showUploadModal: false,
       uploadModalFiles: null,
       showDeleteModal: false,
-      deleteModalFileIds: []
+      deleteModalFileIds: [],
+      showUploadSuccessModal: false,
+      uploadedFileCount: 0,
+      shouldReopenImageViewerOnCancel: false, // Track if we should reopen ImageViewer when DeleteModal is cancelled
+      pendingImageViewerData: null // Store image data to reopen when delete is cancelled
     };
   }
 
@@ -405,23 +410,78 @@ class App extends Component {
   };
 
   handleOpenDeleteModal = (fileIds = []) => {
+    // Default: only reopen ImageViewer if it's currently open and single file
+    const shouldReopen = this.state.showImageViewer && fileIds.length === 1;
     this.setState({ 
       showDeleteModal: true,
-      deleteModalFileIds: fileIds
+      deleteModalFileIds: fileIds,
+      shouldReopenImageViewerOnCancel: shouldReopen
     });
+  };
+
+  handleOpenDeleteModalFromViewer = (fileIds = []) => {
+    // When delete is initiated from ImageViewer, close the viewer and mark to reopen on cancel
+    // Only for single file deletion
+    if (fileIds.length === 1) {
+      this.setState({ 
+        showDeleteModal: true,
+        deleteModalFileIds: fileIds,
+        showImageViewer: false,
+        shouldReopenImageViewerOnCancel: true, // Always reopen on cancel when coming from viewer
+        pendingImageViewerData: this.state.viewerImageData // Store the image data to reopen
+      });
+    } else {
+      // For multiple files, just open delete modal without reopening viewer
+      this.setState({ 
+        showDeleteModal: true,
+        deleteModalFileIds: fileIds,
+        showImageViewer: false,
+        shouldReopenImageViewerOnCancel: false,
+        pendingImageViewerData: null
+      });
+    }
   };
 
   handleCloseDeleteModal = () => {
     this.setState({ 
       showDeleteModal: false,
-      deleteModalFileIds: []
+      deleteModalFileIds: [],
+      shouldReopenImageViewerOnCancel: false,
+      pendingImageViewerData: null
     });
+  };
+
+  handleDeleteModalCancel = () => {
+    console.log('Delete modal cancelled');
+    this.handleCloseDeleteModal();
+    if (this.state.shouldReopenImageViewerOnCancel && this.state.pendingImageViewerData) {
+      this.openImageViewer(this.state.pendingImageViewerData);
+    }
   };
 
   handleDeleteComplete = () => {
     console.log('Delete completed, reloading gallery...');
     this.loadData(); // Reload data to refresh gallery
     this.handleCloseDeleteModal();
+  };
+
+  handleOpenUploadSuccessModal = (fileCount = 0) => {
+    this.setState({ 
+      showUploadSuccessModal: true,
+      uploadedFileCount: fileCount
+    });
+  };
+
+  handleCloseUploadSuccessModal = () => {
+    this.setState({ 
+      showUploadSuccessModal: false,
+      uploadedFileCount: 0
+    });
+  };
+
+  handleNavigateToGallery = () => {
+    // Navigate to home page gallery
+    window.location.href = '/';
   };
 
   render() {
@@ -539,7 +599,8 @@ class App extends Component {
             <NewSurveyModal 
               show={showNewSurveyModal} 
               onClose={this.handleCloseNewSurveyModal} 
-              onSubmit={this.handleAddSurvey} 
+              onSubmit={this.handleAddSurvey}
+              onUploadSuccess={this.handleOpenUploadSuccessModal}
             />
             <DetailedAnalysisPopup
               isOpen={showDetailedAnalysis}
@@ -567,7 +628,14 @@ class App extends Component {
           isOpen={this.state.showDeleteModal}
           fileIds={this.state.deleteModalFileIds}
           onClose={this.handleCloseDeleteModal}
+          onCancel={this.handleDeleteModalCancel}
           onDeleteComplete={this.handleDeleteComplete}
+        />
+        <UploadSuccessModal
+          isOpen={this.state.showUploadSuccessModal}
+          fileCount={this.state.uploadedFileCount}
+          onClose={this.handleCloseUploadSuccessModal}
+          onViewGallery={this.handleNavigateToGallery}
         />
         <UploadProgressModal 
           isUploading={isUploading}
@@ -589,7 +657,8 @@ class App extends Component {
           imageData={viewerImageData}
           onClose={this.closeImageViewer}
           onDelete={this.handleImageDeleted}
-          onOpenDeleteModal={this.handleOpenDeleteModal}
+          onOpenDeleteModal={this.handleOpenDeleteModalFromViewer}
+          onDeleteModalOpen={() => {}} // Callback when delete modal opens (not needed in App level)
         />
       </AuthProvider>
     );
