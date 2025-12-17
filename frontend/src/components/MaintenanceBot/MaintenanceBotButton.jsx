@@ -1728,6 +1728,7 @@ class MaintenanceBotButton extends Component {
                   onChatbot={this.handleChatToggle}
                   onNewSurvey={this.props.onOpenNewSurveyModal}
                   onNewEvent={this.props.onOpenNewEventModal}
+                  onOpenUploadModal={this.props.onOpenUploadModal}
                   onSetUploading={this.props.onSetUploading}
                   backupDisabled={
                     currentPage !== 'dashboard' ||

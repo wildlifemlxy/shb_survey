@@ -624,7 +624,10 @@ class Home extends React.Component {
           </section>
 
         {/* Gallery Component */}
-        <Gallery onImageClick={this.props.onImageClick} />
+        <Gallery 
+          onImageClick={this.props.onImageClick}
+          onOpenDeleteModal={this.props.onOpenDeleteModal}
+        />
 
         {/* Info Section */}
         <section className="info-section">

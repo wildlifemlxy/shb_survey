@@ -2,32 +2,17 @@ import React from 'react';
 import apiService from '../../services/apiServices';
 import './ImageViewerPopup.css';
 
-const ImageViewerPopup = ({ isOpen, imageData, onClose, onDelete }) => {
-  const [isDeleting, setIsDeleting] = React.useState(false);
-
+const ImageViewerPopup = ({ isOpen, imageData, onClose, onDelete, onOpenDeleteModal }) => {
   const isVideo = imageData?.isVideo || imageData?.mimeType?.startsWith('video/');
 
-  const handleDelete = async () => {
-    const confirmed = window.confirm(`Delete "${imageData.title}"?`);
-    if (!confirmed) return;
-
-    setIsDeleting(true);
-    try {
-      console.log('🗑️ Deleting:', imageData.fileId, isVideo ? '(VIDEO)' : '(IMAGE)');
-      await apiService.deleteImage(imageData.fileId);
-      
-      console.log('✓ Media moved to trash:', imageData.title);
-      
-      if (onDelete) {
-        onDelete(imageData.fileId);
-      }
-      
+  const handleDelete = () => {
+    if (onOpenDeleteModal && imageData?.fileId) {
+      onOpenDeleteModal([{
+        id: imageData.fileId,
+        title: imageData.title,
+        src: imageData.src
+      }]);
       onClose();
-    } catch (error) {
-      console.error('❌ Failed to delete media:', error);
-      alert('Failed to delete: ' + error.message);
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -110,9 +95,8 @@ const ImageViewerPopup = ({ isOpen, imageData, onClose, onDelete }) => {
             <button 
               className="image-viewer-btn delete-btn"
               onClick={handleDelete}
-              disabled={isDeleting}
             >
-              {isDeleting ? 'Deleting...' : 'Delete'}
+              Delete
             </button>
           </div>
         </div>

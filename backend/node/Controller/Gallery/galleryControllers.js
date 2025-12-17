@@ -553,6 +553,97 @@ class GalleryController {
       });
     }
   }
+
+  // Handle bulk delete (trash) images from Google Drive
+  async handleBulkDelete(req, res) {
+    try {
+      const { fileIds } = req.body;
+
+      if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing or invalid fileIds',
+          message: 'At least one file ID is required to delete images'
+        });
+      }
+
+      if (!GalleryController.googleAuthClient) {
+        return res.status(500).json({
+          success: false,
+          error: 'Google Drive client not initialized',
+          message: 'Unable to connect to Google Drive'
+        });
+      }
+
+      const drive = google.drive({
+        version: 'v3',
+        auth: GalleryController.googleAuthClient
+      });
+
+      const deletedFileIds = [];
+      const failedFileIds = [];
+
+      // Delete each file
+      for (const fileId of fileIds) {
+        try {
+          // Verify file exists and is from target folder
+          const fileMetadata = await drive.files.get({
+            fileId: fileId,
+            fields: 'name, parents'
+          });
+
+          const fileParents = fileMetadata.data.parents || [];
+          const isFromTargetFolder = fileParents.includes(GalleryController.GOOGLE_DRIVE_CONFIG.targetFolderId);
+
+          if (!isFromTargetFolder) {
+            console.warn(`⚠️ File ${fileId} is not from target folder, skipping`);
+            failedFileIds.push(fileId);
+            continue;
+          }
+
+          // Move file to trash
+          await drive.files.update({
+            fileId: fileId,
+            resource: {
+              trashed: true
+            }
+          });
+
+          deletedFileIds.push(fileId);
+          console.log('🗑️ Image moved to trash:', fileId);
+        } catch (error) {
+          console.error(`❌ Error deleting file ${fileId}:`, error.message);
+          failedFileIds.push(fileId);
+        }
+      }
+
+      // Emit socket events for each deleted file
+      const io = req.app.get('io');
+      if (io) {
+        deletedFileIds.forEach(fileId => {
+          io.sockets.emit('image_deleted', { fileId: fileId });
+          console.log('📡 Socket event emitted: image_deleted for', fileId);
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: `Bulk delete completed. ${deletedFileIds.length} file(s) deleted.`,
+        deletedFileIds: deletedFileIds,
+        failedFileIds: failedFileIds,
+        totalRequested: fileIds.length
+      });
+    } catch (error) {
+      console.error('❌ Error in bulk delete:', error.message);
+      console.error('Error Stack:', error.stack);
+
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to delete images',
+        message: error.message
+      });
+    }
+  }
 }
 
 // Initialize the static client on module load

@@ -1,10 +1,11 @@
 import React from 'react';
 import io from 'socket.io-client';
+import axios from 'axios';
 import apiService from '../../services/apiServices';
 import '../../css/components/Gallery/Gallery.css';
 
 // Component to stream and display images and videos
-const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady, isVisible = true }) => {
+const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady, onMediaSourceReady, onSelectToggle, isSelectMode, isVisible = true }) => {
   const [mediaSrc, setMediaSrc] = React.useState(null);
   const [error, setError] = React.useState(false);
   const [mediaType, setMediaType] = React.useState(null);
@@ -80,6 +81,12 @@ const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady, 
         console.log(`✅ [${fileId}] Setting mediaSrc to URL...`);
         
         setMediaSrc(url);
+        
+        // Notify parent component of media source
+        if (onMediaSourceReady) {
+          onMediaSourceReady(fileId, url);
+        }
+        
         console.log(`✅ [${fileId}] mediaSrc state updated`);
         
         // Mark ready immediately after blob is ready, or after short timeout
@@ -130,8 +137,12 @@ const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady, 
         src={mediaSrc} 
         className="gallery-img gallery-video"
         onClick={() => {
-          if (onImageClick) {
-            onImageClick({ fileId, title, src: mediaSrc, isVideo: true });
+          if (isSelectMode) {
+            if (onSelectToggle) onSelectToggle();
+          } else {
+            if (onImageClick) {
+              onImageClick({ fileId, title, src: mediaSrc, isVideo: true });
+            }
           }
         }}
         onError={(e) => {
@@ -156,8 +167,12 @@ const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady, 
         alt={alt || title || 'Gallery item'} 
         className="gallery-img"
         onClick={() => {
-          if (onImageClick) {
-            onImageClick({ fileId, title, src: mediaSrc, mimeType });
+          if (isSelectMode) {
+            if (onSelectToggle) onSelectToggle();
+          } else {
+            if (onImageClick) {
+              onImageClick({ fileId, title, src: mediaSrc, mimeType });
+            }
           }
         }}
         onError={() => {
@@ -200,7 +215,11 @@ class Gallery extends React.Component {
       retryCount: 0,
       currentPage: 1,
       itemsPerPage: 12,
-      visibleItems: new Set() // Track which items are visible
+      visibleItems: new Set(), // Track which items are visible
+      selectedItems: new Set(), // Track selected items for bulk delete
+      isSelectMode: false, // Toggle between select and normal mode
+      isDeleting: false, // Track if deletion is in progress
+      mediaSrcMap: {} // Map of fileId -> mediaSrc (blob URL)
     };
     this.intersectionObserver = null;
   }
@@ -321,6 +340,17 @@ class Gallery extends React.Component {
     });
   };
 
+  handleMediaSourceReady = (fileId, mediaSrc) => {
+    console.log(`📸 Media source ready for ${fileId}:`, mediaSrc);
+    
+    this.setState(prevState => ({
+      mediaSrcMap: {
+        ...prevState.mediaSrcMap,
+        [fileId]: mediaSrc
+      }
+    }));
+  };
+
   fetchGalleryImages = async () => {
     try {
       this.setState({ isLoading: true, error: null });
@@ -402,9 +432,70 @@ class Gallery extends React.Component {
       this.setState({ currentPage: currentPage + 1 });
     }
   };
+  toggleSelectMode = () => {
+    this.setState(prevState => ({
+      isSelectMode: !prevState.isSelectMode,
+      selectedItems: new Set() // Clear selection when toggling mode
+    }));
+  };
 
+  toggleItemSelection = (fileId) => {
+    this.setState(prevState => {
+      const newSelectedItems = new Set(prevState.selectedItems);
+      if (newSelectedItems.has(fileId)) {
+        newSelectedItems.delete(fileId);
+      } else {
+        newSelectedItems.add(fileId);
+      }
+      return { selectedItems: newSelectedItems };
+    });
+  };
+
+  selectAll = () => {
+    const { galleryItems } = this.state;
+    
+    this.setState(prevState => {
+      const newSelectedItems = new Set(prevState.selectedItems);
+      galleryItems.forEach(item => newSelectedItems.add(item.id));
+      return { 
+        selectedItems: newSelectedItems,
+        isSelectMode: true
+      };
+    });
+  };
+
+  deselectAll = () => {
+    this.setState({ selectedItems: new Set() });
+  };
+
+  bulkDelete = () => {
+    const { selectedItems, galleryItems, mediaSrcMap } = this.state;
+    
+    if (selectedItems.size === 0) {
+      alert('Please select at least one item to delete');
+      return;
+    }
+
+    // Map selected IDs to full item objects with mediaSrc
+    const filesToDelete = galleryItems
+      .filter(item => selectedItems.has(item.id))
+      .map(item => ({
+        ...item,
+        src: mediaSrcMap[item.id] || item.src // Use blob URL from map if available
+      }));
+
+    if (this.props.onOpenDeleteModal) {
+      this.props.onOpenDeleteModal(filesToDelete);
+      
+      // Exit selection mode and clear selections after initiating delete
+      this.setState({
+        isSelectMode: false,
+        selectedItems: new Set()
+      });
+    }
+  };
   render() {
-    const { galleryItems, readyItems, isLoading, error, currentPage, itemsPerPage } = this.state;
+    const { galleryItems, readyItems, isLoading, error, currentPage, itemsPerPage, isSelectMode, selectedItems, isDeleting } = this.state;
     
     console.log('🎨 GALLERY RENDER:', {
       itemsCount: galleryItems.length,
@@ -422,27 +513,187 @@ class Gallery extends React.Component {
     
     // Filter to show only ready items
     return (
-      <section className="gallery-wrapper">
+      <>
+        <section className="gallery-wrapper">
         <div className="gallery-header-section">
-          <h2 className="gallery-main-title">Gallery</h2>
-          <p className="gallery-main-subtitle">Explore conservation efforts and captured moments</p>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', flexDirection: 'column', position: 'relative' }}>
+            <div style={{ textAlign: 'center' }}>
+              <h2 className="gallery-main-title">Gallery</h2>
+              <p className="gallery-main-subtitle">Explore conservation efforts and captured moments</p>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', position: 'absolute', right: '0', top: '0' }}>
+              <button
+                onClick={this.selectAll}
+                style={{
+                  padding: '8px 16px',
+                  background: '#4f46e5',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  whiteSpace: 'nowrap'
+                }}
+                title="Select all items in gallery"
+              >
+                ✓ Select All
+              </button>
+              <button
+                onClick={this.deselectAll}
+                style={{
+                  padding: '8px 16px',
+                  background: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  whiteSpace: 'nowrap'
+                }}
+                title="Deselect all items in gallery"
+              >
+                ✗ Deselect All
+              </button>
+              <button
+                onClick={this.bulkDelete}
+                disabled={selectedItems.size === 0 || isDeleting}
+                style={{
+                  padding: '8px 16px',
+                  background: selectedItems.size === 0 ? '#d1d5db' : '#ef4444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: selectedItems.size === 0 ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  whiteSpace: 'nowrap'
+                }}
+                title="Delete selected items"
+              >
+                {isDeleting ? '⏳ Deleting...' : '🗑️ Delete Selected'}
+              </button>
+              <button
+                onClick={this.toggleSelectMode}
+                style={{
+                  padding: '8px 16px',
+                  background: isSelectMode ? '#ef4444' : '#4f46e5',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  whiteSpace: 'nowrap'
+                }}
+                title="Toggle selection mode for bulk delete"
+              >
+                {isSelectMode ? '✕ Cancel' : '📋 Select'}
+              </button>
+            </div>
+          </div>
         </div>
+
+        {/* Selection toolbar */}
 
         <div>
           <div className="gallery-items-grid">
               {paginatedItems.map((item, index) => {
                 const isVisible = this.state.visibleItems.has(item.id);
+                const isSelected = selectedItems.has(item.id);
                 return (
                   <div 
                     key={item.id || index} 
-                    className="gallery-card-item"
+                    className={`gallery-card-item ${isSelectMode ? 'select-mode' : ''} ${isSelected ? 'selected' : ''}`}
                     data-file-id={item.id}
                     ref={(el) => {
                       if (el && this.intersectionObserver) {
                         this.intersectionObserver.observe(el);
                       }
                     }}
+                    style={{
+                      position: 'relative',
+                      cursor: 'pointer',
+                      opacity: isSelectMode ? (isSelected ? 0.7 : 1) : 1,
+                      border: isSelectMode && isSelected ? '3px solid #4f46e5' : 'none',
+                      borderRadius: '8px',
+                      boxShadow: isSelectMode && isSelected ? '0 0 0 3px rgba(79, 70, 229, 0.1)' : 'none'
+                    }}
                   >
+                    {isSelectMode && (
+                      <div 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          this.toggleItemSelection(item.id);
+                        }}
+                        style={{
+                        position: 'absolute',
+                        top: '8px',
+                        right: '8px',
+                        width: '24px',
+                        height: '24px',
+                        background: isSelected ? '#4f46e5' : 'white',
+                        border: '2px solid #4f46e5',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        zIndex: 10,
+                        cursor: 'pointer'
+                      }}>
+                        {isSelected ? '✓' : ''}
+                      </div>
+                    )}
+                    {!isSelectMode && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (this.props.onOpenDeleteModal) {
+                            const { mediaSrcMap } = this.state;
+                            const itemWithSrc = {
+                              ...item,
+                              src: mediaSrcMap[item.id] || item.src
+                            };
+                            this.props.onOpenDeleteModal([itemWithSrc]);
+                          }
+                        }}
+                        style={{
+                          position: 'absolute',
+                          top: '8px',
+                          right: '8px',
+                          width: '32px',
+                          height: '32px',
+                          background: 'rgba(239, 68, 68, 0.9)',
+                          border: 'none',
+                          borderRadius: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                          cursor: 'pointer',
+                          zIndex: 10,
+                          fontSize: '16px',
+                          transition: 'all 0.2s ease',
+                          opacity: 0,
+                          pointerEvents: 'none'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.opacity = '1';
+                          e.currentTarget.style.pointerEvents = 'auto';
+                          e.currentTarget.style.background = 'rgba(239, 68, 68, 1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.opacity = '0';
+                          e.currentTarget.style.pointerEvents = 'none';
+                          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.9)';
+                        }}
+                        title="Delete this item"
+                      >
+                        🗑️
+                      </button>
+                    )}
                     <StreamImage 
                       fileId={item.id} 
                       title={item.title} 
@@ -450,6 +701,9 @@ class Gallery extends React.Component {
                       mimeType={item.mimeType}
                       onImageClick={this.handleImageClick}
                       onItemReady={this.handleItemReady}
+                      onMediaSourceReady={this.handleMediaSourceReady}
+                      onSelectToggle={() => this.toggleItemSelection(item.id)}
+                      isSelectMode={isSelectMode}
                       isVisible={isVisible}
                     />
                   </div>
@@ -494,6 +748,7 @@ class Gallery extends React.Component {
             )}
           </div>
         </section>
+      </>
       );
     }
   }

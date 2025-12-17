@@ -62,10 +62,13 @@ router.post('/', upload.single('image'), async function(req, res, next) {
   else if (requestData.purpose === "delete") {
     return await galleryController.handleDelete(req, res);
   }
+  else if (requestData.purpose === "bulk-delete") {
+    return await galleryController.handleBulkDelete(req, res);
+  }
   else {
     return res.status(400).json({
       success: false,
-      error: 'Invalid purpose. Supported: upload, gallery, stream, delete'
+      error: 'Invalid purpose. Supported: upload, gallery, stream, delete, bulk-delete'
     });
   }
 });

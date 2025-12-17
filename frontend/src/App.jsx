@@ -8,6 +8,8 @@ import DetailedAnalysisPopup from './components/DetailedAnalysisPopup.jsx';
 import ThemeToggle from './components/ThemeToggle/index.js';
 import NewSurveyModal from './components/Dashboard/NewSurveyModal.jsx';
 import MaintenanceBotButton from './components/MaintenanceBot/MaintenanceBotButton.jsx';
+import UploadModal from './components/UploadModal/UploadModal.jsx';
+import DeleteModal from './components/DeleteModal/DeleteModal.jsx';
 import ProtectedRoute from './components/Auth/ProtectedRoute.jsx';
 import RoleProtectedRoute from './components/Auth/RoleProtectedRoute.jsx';
 import NotFound from './components/NotFound/NotFound.jsx';
@@ -63,7 +65,11 @@ class App extends Component {
       isUploading: false,
       uploadFileName: '',
       showImageViewer: false,
-      viewerImageData: null
+      viewerImageData: null,
+      showUploadModal: false,
+      uploadModalFiles: null,
+      showDeleteModal: false,
+      deleteModalFileIds: []
     };
   }
 
@@ -378,6 +384,46 @@ class App extends Component {
     // Reload gallery - pass callback to Gallery component
   };
 
+  handleOpenUploadModal = (files = null) => {
+    this.setState({ 
+      showUploadModal: true,
+      uploadModalFiles: files
+    });
+  };
+
+  handleCloseUploadModal = () => {
+    this.setState({ 
+      showUploadModal: false,
+      uploadModalFiles: null
+    });
+  };
+
+  handleUploadComplete = () => {
+    console.log('Upload completed, reloading gallery...');
+    this.loadData(); // Reload data to refresh gallery
+    this.handleCloseUploadModal();
+  };
+
+  handleOpenDeleteModal = (fileIds = []) => {
+    this.setState({ 
+      showDeleteModal: true,
+      deleteModalFileIds: fileIds
+    });
+  };
+
+  handleCloseDeleteModal = () => {
+    this.setState({ 
+      showDeleteModal: false,
+      deleteModalFileIds: []
+    });
+  };
+
+  handleDeleteComplete = () => {
+    console.log('Delete completed, reloading gallery...');
+    this.loadData(); // Reload data to refresh gallery
+    this.handleCloseDeleteModal();
+  };
+
   render() {
     const { 
       shbData, 
@@ -394,7 +440,8 @@ class App extends Component {
       isUploading,
       uploadFileName,
       showImageViewer,
-      viewerImageData
+      viewerImageData,
+      showUploadModal
     } = this.state;
 
     return (
@@ -419,6 +466,7 @@ class App extends Component {
                       openObservationPopup={this.openObservationPopup}
                       closeObservationPopup={this.closeObservationPopup}
                       onImageClick={this.openImageViewer}
+                      onOpenDeleteModal={this.handleOpenDeleteModal}
                     />
                   } 
                 />
@@ -504,11 +552,23 @@ class App extends Component {
               onOpenNewSurveyModal={this.handleOpenNewSurveyModal}
               onOpenNewEventModal={this.handleOpenNewEventModal}
               onSetUploading={this.setUploading}
+              onOpenUploadModal={this.handleOpenUploadModal}
             />
           </>
         )}
         
-        {/* Upload Progress Modal */}
+        {/* Upload Modal */}
+        <UploadModal 
+          isOpen={showUploadModal}
+          onClose={this.handleCloseUploadModal}
+          onUploadComplete={this.handleUploadComplete}
+        />
+        <DeleteModal 
+          isOpen={this.state.showDeleteModal}
+          fileIds={this.state.deleteModalFileIds}
+          onClose={this.handleCloseDeleteModal}
+          onDeleteComplete={this.handleDeleteComplete}
+        />
         <UploadProgressModal 
           isUploading={isUploading}
           uploadFileName={uploadFileName}
@@ -529,6 +589,7 @@ class App extends Component {
           imageData={viewerImageData}
           onClose={this.closeImageViewer}
           onDelete={this.handleImageDeleted}
+          onOpenDeleteModal={this.handleOpenDeleteModal}
         />
       </AuthProvider>
     );

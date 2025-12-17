@@ -6,8 +6,10 @@ class QuickActionsPanel extends Component {
     this.state = {
       isWwfVolunteer: false,
       isUploading: false,
-      uploadFileName: ''
+      uploadFileName: '',
+      isDragOver: false
     };
+    this.dropZoneRef = React.createRef();
   }
 
   componentDidMount() {
@@ -47,48 +49,29 @@ class QuickActionsPanel extends Component {
     }
   }
 
-  handleImageUpload = async (file) => {
-    if (!file) return;
+  handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    this.setState({ isDragOver: true });
+  }
 
-    const formData = new FormData();
-    formData.append('image', file);
-    formData.append('purpose', 'upload');
+  handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    this.setState({ isDragOver: false });
+  }
 
-    // Call parent handler to show upload modal
-    if (this.props.onSetUploading) {
-      this.props.onSetUploading(true, file.name);
-    }
-
-    try {
-      const baseUrl = window.location.hostname === 'localhost'
-        ? 'http://localhost:3001'
-        : 'https://shb-backend.azurewebsites.net';
-
-      const response = await fetch(`${baseUrl}/gallery`, {
-        method: 'POST',
-        body: formData
-      });
-
-      const data = await response.json();
-
-      // Hide upload modal
-      if (this.props.onSetUploading) {
-        this.props.onSetUploading(false, '');
+  handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    this.setState({ isDragOver: false });
+    
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      // Open upload modal with dropped files
+      if (this.props.onOpenUploadModal) {
+        this.props.onOpenUploadModal(files);
       }
-
-      if (data.success) {
-        console.log('Image uploaded successfully:', data.file);
-        alert(`Image uploaded successfully!\nFile: ${data.file.filename}`);
-      } else {
-        console.error('Upload failed:', data.error);
-        alert(`Upload failed: ${data.error}`);
-      }
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      if (this.props.onSetUploading) {
-        this.props.onSetUploading(false, '');
-      }
-      alert(`Error uploading image: ${error.message}`);
     }
   }
 
@@ -113,9 +96,9 @@ class QuickActionsPanel extends Component {
     return (
       <div style={{ 
         marginBottom: 16,
-        position: 'relative', // Ensure proper positioning context
-        zIndex: 1, // Ensure it's above other elements but within modal
-        width: '100%' // Ensure it doesn't overflow
+        position: 'relative',
+        zIndex: 1,
+        width: '100%'
       }}>
         <button
           onClick={onToggleQuickActions}
@@ -141,12 +124,12 @@ class QuickActionsPanel extends Component {
           <div style={{ marginTop: 8 }}>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)', // Exactly 2 buttons per row
+              gridTemplateColumns: 'repeat(2, 1fr)',
               gap: 8,
               marginBottom: 8,
-              position: 'relative', // Ensure buttons stay within container
-              width: '100%', // Constrain to container width
-              maxWidth: '100%' // Prevent overflow
+              position: 'relative',
+              width: '100%',
+              maxWidth: '100%'
             }}>
               {/* Chatbot button - show on all pages (FIRST POSITION) */}
               <button
@@ -173,11 +156,11 @@ class QuickActionsPanel extends Component {
                   lineHeight: '1.2',
                   transition: 'all 0.2s ease',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  whiteSpace: 'nowrap', // Keep text on single line
-                  position: 'relative', // Ensure button stays in normal flow
-                  width: '100%', // Constrain to grid cell
-                  maxWidth: '100%', // Prevent overflow
-                  minWidth: 0 // Allow buttons to shrink below their content size
+                  whiteSpace: 'nowrap',
+                  position: 'relative',
+                  width: '100%',
+                  maxWidth: '100%',
+                  minWidth: 0
                 }}
                 title="Click to chat with the SHB Survey Assistant!"
               >
@@ -189,17 +172,10 @@ class QuickActionsPanel extends Component {
               {/* Upload Image/Video button - show on all pages */}
               <button
                 onClick={() => {
-                  // Trigger file input
-                  const fileInput = document.createElement('input');
-                  fileInput.type = 'file';
-                  fileInput.accept = 'image/*,video/*';
-                  fileInput.onchange = (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      this.handleImageUpload(file);
-                    }
-                  };
-                  fileInput.click();
+                  // Open upload modal
+                  if (this.props.onOpenUploadModal) {
+                    this.props.onOpenUploadModal();
+                  }
                 }}
                 style={{
                   padding: '10px 16px',
@@ -218,13 +194,13 @@ class QuickActionsPanel extends Component {
                   lineHeight: '1.2',
                   transition: 'all 0.2s ease',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  whiteSpace: 'nowrap', // Keep text on single line
-                  position: 'relative', // Ensure button stays in normal flow
-                  width: '100%', // Constrain to grid cell
-                  maxWidth: '100%', // Prevent overflow
-                  minWidth: 0 // Allow buttons to shrink below their content size
+                  whiteSpace: 'nowrap',
+                  position: 'relative',
+                  width: '100%',
+                  maxWidth: '100%',
+                  minWidth: 0
                 }}
-                title="Upload images or videos"
+                title="Click to upload images or videos"
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
@@ -257,11 +233,11 @@ class QuickActionsPanel extends Component {
                   lineHeight: '1.2',
                   transition: 'all 0.2s ease',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  whiteSpace: 'nowrap', // Keep text on single line
-                  position: 'relative', // Ensure button stays in normal flow
-                  width: '100%', // Constrain to grid cell
-                  maxWidth: '100%', // Prevent overflow
-                  minWidth: 0 // Allow buttons to shrink below their content size
+                  whiteSpace: 'nowrap',
+                  position: 'relative',
+                  width: '100%',
+                  maxWidth: '100%',
+                  minWidth: 0
                 }}
                 title="Create a new survey observation"
               >
@@ -303,11 +279,11 @@ class QuickActionsPanel extends Component {
                   lineHeight: '1.2',
                   transition: 'all 0.2s ease',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  whiteSpace: 'nowrap', // Keep text on single line
-                  position: 'relative', // Ensure button stays in normal flow
-                  width: '100%', // Constrain to grid cell
-                  maxWidth: '100%', // Prevent overflow
-                  minWidth: 0 // Allow buttons to shrink below their content size
+                  whiteSpace: 'nowrap',
+                  position: 'relative',
+                  width: '100%',
+                  maxWidth: '100%',
+                  minWidth: 0
                 }}
                 title="Create a new event"
               >
@@ -345,11 +321,11 @@ class QuickActionsPanel extends Component {
                     lineHeight: '1.2',
                     transition: 'all 0.2s ease',
                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                    whiteSpace: 'nowrap', // Keep text on single line
-                    position: 'relative', // Ensure button stays in normal flow
-                    width: '100%', // Constrain to grid cell
-                    maxWidth: '100%', // Prevent overflow
-                    minWidth: 0 // Allow buttons to shrink below their content size
+                    whiteSpace: 'nowrap',
+                    position: 'relative',
+                    width: '100%',
+                    maxWidth: '100%',
+                    minWidth: 0
                   }}
                   title={backupTooltip}
                 >
