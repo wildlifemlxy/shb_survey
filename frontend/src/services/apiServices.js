@@ -125,8 +125,8 @@ const apiService = {
   // Gallery related endpoints
   getGalleryImages: async () => {
     try {
-      console.log('📸 Requesting gallery images from /images with purpose: gallery');
-      const { data } = await api.post('/images', {
+      console.log('📸 Requesting gallery images from /gallery with purpose: gallery');
+      const { data } = await api.post('/gallery', {
         purpose: 'gallery'
       });
       console.log('✓ Full API response:', data);
@@ -150,15 +150,32 @@ const apiService = {
 
   streamImage: async (fileId) => {
     try {
-      console.log('🖼️ Streaming image:', fileId);
-      const response = await api.post('/images', 
+      console.log('🎬📸 Requesting file stream for:', fileId);
+      const response = await api.post('/gallery', 
         { purpose: 'stream', fileId },
         { responseType: 'blob' }
       );
-      console.log('✓ Image stream received for:', fileId);
-      return response.data;
+      
+      const blob = response.data;
+      const contentType = response.headers['content-type'] || 'unknown';
+      const isVideo = contentType.startsWith('video/');
+      const mediaLabel = isVideo ? '🎬 VIDEO' : '🖼️ IMAGE';
+      
+      console.log(`${mediaLabel} Stream received for:`, fileId);
+      console.log('  - Content-Type:', contentType);
+      console.log('  - Blob size:', blob.size, 'bytes');
+      console.log('  - Blob type:', blob.type);
+      
+      if (blob.size === 0) {
+        console.error('❌ EMPTY BLOB received! Content-Type:', contentType);
+        throw new Error('Empty blob received from server');
+      }
+      
+      return blob;
     } catch (error) {
-      console.error('❌ Error streaming image:', fileId, error);
+      console.error('❌ Error streaming media:', fileId, error);
+      console.error('Response status:', error.response?.status);
+      console.error('Response data:', error.response?.data);
       throw error;
     }
   },
@@ -166,7 +183,7 @@ const apiService = {
   deleteImage: async (fileId) => {
     try {
       console.log('🗑️ Deleting image:', fileId);
-      const { data } = await api.post('/images', {
+      const { data } = await api.post('/gallery', {
         purpose: 'delete',
         fileId
       });

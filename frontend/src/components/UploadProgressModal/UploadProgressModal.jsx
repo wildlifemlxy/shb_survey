@@ -10,7 +10,7 @@ const UploadProgressModal = ({ isUploading, uploadFileName }) => {
     <div className="shb-upload-overlay">
       <div className="shb-upload-container">
         <div className="shb-upload-title">
-          Uploading Image
+          Uploading In Progresss
         </div>
 
         <div className="shb-upload-loader">

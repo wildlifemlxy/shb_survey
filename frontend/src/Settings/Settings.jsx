@@ -1,13 +1,29 @@
 import React, { Component } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHome } from '@fortawesome/free-solid-svg-icons';
+import { faHome, faUpload } from '@fortawesome/free-solid-svg-icons';
 import { faTelegramPlane } from '@fortawesome/free-brands-svg-icons';
 import '../css/components/Settings/Settings.css';
 import CreateTelegramBotTab from './CreateTelegramBotTab';
 import BotDetailsTab from './BotDetailsTab';
 
 const TABS = [
+  {
+    key: 'Upload',
+    label: 'Upload Photos & Videos',
+    icon: faUpload,
+    description: 'Upload survey photos and videos to the gallery. Organize your media by survey events.',
+    component: () => (
+      <div className="upload-tab-content">
+        <h2>Upload Media</h2>
+        <p>Upload your survey photos and videos here. They will be organized and displayed in the gallery for easy access and management.</p>
+        <div className="upload-placeholder">
+          <p>Upload feature coming soon</p>
+        </div>
+      </div>
+    ),
+    extraProps: {},
+  },
   {
     key: 'CreateBot',
     label: 'Create Telegram Bot',

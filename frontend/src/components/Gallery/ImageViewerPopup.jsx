@@ -5,16 +5,18 @@ import './ImageViewerPopup.css';
 const ImageViewerPopup = ({ isOpen, imageData, onClose, onDelete }) => {
   const [isDeleting, setIsDeleting] = React.useState(false);
 
+  const isVideo = imageData?.isVideo || imageData?.mimeType?.startsWith('video/');
+
   const handleDelete = async () => {
     const confirmed = window.confirm(`Delete "${imageData.title}"?`);
     if (!confirmed) return;
 
     setIsDeleting(true);
     try {
-      console.log('🗑️ Deleting image:', imageData.fileId);
+      console.log('🗑️ Deleting:', imageData.fileId, isVideo ? '(VIDEO)' : '(IMAGE)');
       await apiService.deleteImage(imageData.fileId);
       
-      console.log('✓ Image moved to trash:', imageData.title);
+      console.log('✓ Media moved to trash:', imageData.title);
       
       if (onDelete) {
         onDelete(imageData.fileId);
@@ -22,8 +24,8 @@ const ImageViewerPopup = ({ isOpen, imageData, onClose, onDelete }) => {
       
       onClose();
     } catch (error) {
-      console.error('❌ Failed to delete image:', error);
-      alert('Failed to delete image: ' + error.message);
+      console.error('❌ Failed to delete media:', error);
+      alert('Failed to delete: ' + error.message);
     } finally {
       setIsDeleting(false);
     }
@@ -31,11 +33,19 @@ const ImageViewerPopup = ({ isOpen, imageData, onClose, onDelete }) => {
 
   const handleViewFullScreen = async () => {
     try {
-      // Call backend stream endpoint with purpose: "stream"
+      console.log(`📺 Opening full screen:`, imageData.fileId, isVideo ? 'VIDEO' : 'IMAGE');
+      
+      // If we already have the blob URL from the gallery, use it directly
+      if (imageData.src && imageData.src.startsWith('blob:')) {
+        window.open(imageData.src, '_blank');
+        return;
+      }
+      
+      // Otherwise, fetch the stream
       const response = await fetch(
         window.location.hostname === 'localhost' 
-          ? 'http://localhost:3001/images'
-          : 'https://shb-backend.azurewebsites.net/images',
+          ? 'http://localhost:3001/gallery'
+          : 'https://shb-backend.azurewebsites.net/gallery',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -46,11 +56,36 @@ const ImageViewerPopup = ({ isOpen, imageData, onClose, onDelete }) => {
         }
       );
       
-      if (!response.ok) throw new Error('Failed to stream image');
+      if (!response.ok) throw new Error('Failed to stream media');
       
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
-      window.open(blobUrl, '_blank');
+      
+      if (isVideo) {
+        // For videos, create an HTML page that plays the video
+        const html = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>${imageData.title}</title>
+            <style>
+              body { margin: 0; background: #000; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+              video { max-width: 100%; max-height: 100vh; }
+            </style>
+          </head>
+          <body>
+            <video controls autoplay style="max-width: 100%; max-height: 100vh;">
+              <source src="${blobUrl}" type="${blob.type}">
+              Your browser does not support the video tag.
+            </video>
+          </body>
+          </html>
+        `;
+        const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
+        window.open(dataUrl, '_blank');
+      } else {
+        window.open(blobUrl, '_blank');
+      }
     } catch (error) {
       alert('Failed to open full screen: ' + error.message);
     }
@@ -62,7 +97,7 @@ const ImageViewerPopup = ({ isOpen, imageData, onClose, onDelete }) => {
     <div className="image-viewer-overlay" onClick={onClose}>
       <div className="image-viewer-container" onClick={(e) => e.stopPropagation()}>
         <div className="image-viewer-modal">
-          <h2 className="image-viewer-title">Image Options</h2>
+          <h2 className="image-viewer-title">{isVideo ? '🎬 Video Options' : 'Image Options'}</h2>
           
           <div className="image-viewer-buttons">
             <button 

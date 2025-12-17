@@ -12,7 +12,7 @@ var eventsRoutes = require('./routes/eventsRoutes'); // Import MongoDB events ro
 var telegramRoutes = require('./routes/telegramRoutes'); // Import MongoDB telegram routes
 var userRoutes = require('./routes/usersRoutes'); // Import MongoDB user routes
 var mfaRoutes = require('./routes/mfaRoutes'); // Import MFA routes
-var imagesRoutes = require('./routes/imagesRoutes'); // Import images routes
+var galleryRoutes = require('./routes/galleryRoutes'); // Import images routes
 
 app.use(cors()); // Enable CORS
 app.use(logger('dev')); // HTTP request logger
@@ -47,7 +47,7 @@ app.use('/events', eventsRoutes);
 app.use('/telegram', telegramRoutes);
 app.use('/users', userRoutes);
 app.use('/mfa', mfaRoutes);
-app.use('/images', imagesRoutes);
+app.use('/gallery', galleryRoutes);
 
 
 //

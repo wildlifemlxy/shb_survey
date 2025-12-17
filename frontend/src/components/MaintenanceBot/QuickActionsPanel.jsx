@@ -64,7 +64,7 @@ class QuickActionsPanel extends Component {
         ? 'http://localhost:3001'
         : 'https://shb-backend.azurewebsites.net';
 
-      const response = await fetch(`${baseUrl}/images`, {
+      const response = await fetch(`${baseUrl}/gallery`, {
         method: 'POST',
         body: formData
       });
@@ -186,13 +186,13 @@ class QuickActionsPanel extends Component {
                   Chatbot
                 </span>
               </button>
-              {/* Upload Image button - show on all pages */}
+              {/* Upload Image/Video button - show on all pages */}
               <button
                 onClick={() => {
                   // Trigger file input
                   const fileInput = document.createElement('input');
                   fileInput.type = 'file';
-                  fileInput.accept = 'image/*';
+                  fileInput.accept = 'image/*,video/*';
                   fileInput.onchange = (e) => {
                     const file = e.target.files[0];
                     if (file) {
@@ -224,11 +224,11 @@ class QuickActionsPanel extends Component {
                   maxWidth: '100%', // Prevent overflow
                   minWidth: 0 // Allow buttons to shrink below their content size
                 }}
-                title="Upload an image file"
+                title="Upload images or videos"
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                  Upload Image
+                  Upload
                 </span>
               </button>
               {/* New Survey button - only show on dashboard data table tab */}

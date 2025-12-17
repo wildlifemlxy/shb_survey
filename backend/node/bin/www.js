@@ -109,18 +109,86 @@ try {
 }
 
 io.on('connection', (socket) => {
-  //console.log('client connected:', socket.id);
+  console.log('✓ Socket client connected:', socket.id);
 
   socket.on('message', (data) => {
-    //console.log('Received from client:', data);
+    console.log('📨 Received from client:', data);
     // Echo back or broadcast
     socket.emit('message', 'Hello from Node.js backend!');
   });
 
+  // Listen for gallery request from frontend
+  socket.on('request_gallery', () => {
+    console.log('📥 Gallery request received from client:', socket.id);
+    
+    // Query Google Drive immediately for this client
+    queryGalleryAndRespond(socket);
+  });
+
   socket.on('disconnect', () => {
-    //console.log('client disconnected:', socket.id);
+    console.log('✗ Socket client disconnected:', socket.id);
   });
 });
+
+// Helper function to query Google Drive and send to a specific socket client
+async function queryGalleryAndRespond(socket) {
+  try {
+    const { google } = require('googleapis');
+    const GalleryController = require('../Controller/Gallery/GalleryControllers');
+    
+    console.log('📡 Querying Google Drive for client:', socket.id);
+    
+    if (!GalleryController.googleAuthClient) {
+      console.error('❌ Google Drive client not initialized');
+      socket.emit('gallery_update', {
+        images: [],
+        count: 0,
+        error: 'Google Drive client not initialized'
+      });
+      return;
+    }
+    
+    const drive = google.drive({
+      version: 'v3',
+      auth: GalleryController.googleAuthClient
+    });
+
+    const response = await drive.files.list({
+      q: `'${GalleryController.GOOGLE_DRIVE_CONFIG.targetFolderId}' in parents and (mimeType contains 'image/' or mimeType contains 'video/') and trashed = false`,
+      spaces: 'drive',
+      fields: 'files(id, name, createdTime, mimeType)',
+      pageSize: 100,
+      orderBy: 'createdTime desc'
+    });
+
+    console.log(`✅ Found ${response.data.files.length} media files for client:`, socket.id);
+
+    const images = response.data.files.map(file => ({
+      src: `/images/stream/${file.id}`,
+      alt: file.name,
+      title: file.name.replace(/\.[^.]+$/, ''),
+      id: file.id,
+      mimeType: file.mimeType,
+      createdTime: file.createdTime
+    }));
+
+    // Send gallery_update to THIS specific client
+    socket.emit('gallery_update', {
+      images: images,
+      count: images.length,
+      timestamp: new Date().toISOString()
+    });
+    
+    console.log('📡 Sent gallery_update to client:', socket.id, 'with', images.length, 'items');
+  } catch (error) {
+    console.error('❌ Error querying gallery:', error.message);
+    socket.emit('gallery_update', {
+      images: [],
+      count: 0,
+      error: error.message
+    });
+  }
+}
 
 
 /**
