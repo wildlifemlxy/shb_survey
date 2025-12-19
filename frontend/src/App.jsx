@@ -16,6 +16,7 @@ import RoleProtectedRoute from './components/Auth/RoleProtectedRoute.jsx';
 import NotFound from './components/NotFound/NotFound.jsx';
 import ObservationPopup from './components/Map/ObservationPopup.jsx';
 import ImageViewerPopup from './components/Gallery/ImageViewerPopup.jsx';
+import FullScreenMediaViewer from './components/Gallery/FullScreenMediaViewer.jsx';
 import TermsOfServiceNotice from './components/TermsOfServiceNotice.jsx';
 import PrivacyPolicyNotice from './components/PrivacyPolicyNotice.jsx';
 import UploadProgressModal from './components/UploadProgressModal/UploadProgressModal.jsx';
@@ -74,7 +75,14 @@ class App extends Component {
       showUploadSuccessModal: false,
       uploadedFileCount: 0,
       shouldReopenImageViewerOnCancel: false, // Track if we should reopen ImageViewer when DeleteModal is cancelled
-      pendingImageViewerData: null // Store image data to reopen when delete is cancelled
+      pendingImageViewerData: null, // Store image data to reopen when delete is cancelled
+      showFullScreenModal: false, // Show full screen media modal
+      fullScreenMediaContent: null, // Content for full screen modal
+      fullScreenMediaGallery: [], // Array of gallery files for navigation
+      fullScreenInitialIndex: 0, // Initial index for fullscreen gallery
+      galleryItems: [], // Store gallery items to pass to viewer
+      showFullScreenMediaViewer: false, // Show fullscreen media viewer modal
+      fullScreenMediaViewerData: null // Data for fullscreen media viewer modal
     };
   }
 
@@ -368,11 +376,12 @@ class App extends Component {
   };
 
   // Image viewer handlers
-  openImageViewer = (imageData) => {
+  openImageViewer = (imageData, galleryArray = []) => {
     console.log('Opening image viewer:', imageData);
     this.setState({ 
       showImageViewer: true, 
-      viewerImageData: imageData 
+      viewerImageData: imageData,
+      galleryItems: galleryArray
     });
   };
 
@@ -380,6 +389,92 @@ class App extends Component {
     this.setState({ 
       showImageViewer: false, 
       viewerImageData: null 
+    });
+  };
+
+  openFullScreenMediaViewer = (imageData) => {
+    this.setState({
+      showFullScreenMediaViewer: true,
+      fullScreenMediaViewerData: imageData
+    });
+  };
+
+  closeFullScreenMediaViewer = () => {
+    this.setState({
+      showFullScreenMediaViewer: false,
+      fullScreenMediaViewerData: null
+    });
+  };
+
+  // Full Screen Media Modal handlers - now opens as a route
+  openFullScreenModal = async (imageData, galleryArray = []) => {
+    try {
+      // Use the galleryArray passed from Gallery (which has blob URLs)
+      const allGalleryItems = galleryArray && galleryArray.length > 0 
+        ? galleryArray 
+        : (this.state.galleryItems && this.state.galleryItems.length > 0 
+          ? this.state.galleryItems 
+          : []);
+      
+      // Find the index FIRST in the original items
+      const searchId = imageData.id || imageData.fileId;
+      let initialIndex = 0;
+      
+      if (searchId && allGalleryItems.length > 0) {
+        initialIndex = allGalleryItems.findIndex(item => item.id === searchId);
+        
+        if (initialIndex < 0 && imageData.title) {
+          initialIndex = allGalleryItems.findIndex(item => item.title === imageData.title);
+        }
+      }
+      
+      if (initialIndex < 0) {
+        initialIndex = 0;
+      }
+      
+      // Pass file info to new tab (will fetch blobs there)
+      const mediaFilesInfo = allGalleryItems && allGalleryItems.length > 0 
+        ? allGalleryItems.map(item => ({
+            id: item.id || item.fileId,
+            fileId: item.fileId,
+            title: item.title,
+            mimeType: item.mimeType,
+            isVideo: item.isVideo || item.mimeType?.startsWith('video/')
+          }))
+        : [];
+      
+      // Store gallery metadata in sessionStorage to pass to new tab
+      sessionStorage.setItem('galleryFullScreenData', JSON.stringify({
+        galleryFiles: mediaFilesInfo,
+        initialIndex: initialIndex
+      }));
+      
+      // Open in new tab
+      window.open('/gallery-fullscreen', '_blank');
+    } catch (error) {
+      console.error('Failed to open full screen gallery:', error);
+      alert('Failed to open gallery: ' + error.message);
+    }
+  };
+
+  closeFullScreenModal = () => {
+    // Cleanup blob URLs
+    if (this.state.fullScreenMediaContent?.blobUrl) {
+      URL.revokeObjectURL(this.state.fullScreenMediaContent.blobUrl);
+    }
+    
+    if (this.state.fullScreenMediaGallery && this.state.fullScreenMediaGallery.length > 0) {
+      this.state.fullScreenMediaGallery.forEach(media => {
+        if (media.blobUrl) {
+          URL.revokeObjectURL(media.blobUrl);
+        }
+      });
+    }
+    
+    this.setState({
+      showFullScreenModal: false,
+      fullScreenMediaContent: null,
+      fullScreenMediaGallery: []
     });
   };
 
@@ -659,6 +754,17 @@ class App extends Component {
           onDelete={this.handleImageDeleted}
           onOpenDeleteModal={this.handleOpenDeleteModalFromViewer}
           onDeleteModalOpen={() => {}} // Callback when delete modal opens (not needed in App level)
+          onOpenFullScreenModal={this.openFullScreenModal}
+          onOpenFullScreenMediaViewer={this.openFullScreenMediaViewer}
+          galleryFiles={this.state.galleryItems}
+        />
+
+        {/* Fullscreen Media Viewer Modal */}
+        <FullScreenMediaViewer 
+          isOpen={this.state.showFullScreenMediaViewer}
+          imageData={this.state.fullScreenMediaViewerData}
+          onClose={this.closeFullScreenMediaViewer}
+          galleryFiles={this.state.galleryItems}
         />
       </AuthProvider>
     );

@@ -182,7 +182,7 @@ const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady, 
             if (onSelectToggle) onSelectToggle();
           } else {
             if (onImageClick) {
-              onImageClick({ fileId, title, src: mediaSrc, isVideo: true });
+              onImageClick({ fileId, title, src: mediaSrc, isVideo: true, mimeType });
             }
           }
         }}
@@ -453,7 +453,19 @@ class Gallery extends React.Component {
 
   handleImageClick = (imageData) => {
     if (this.props.onImageClick) {
-      this.props.onImageClick(imageData);
+      // Get all gallery items with their blob URLs from mediaSrcMap
+      const galleryWithSrc = this.state.galleryItems.map(item => ({
+        ...item,
+        blobUrl: this.state.mediaSrcMap[item.id] || item.src,
+        isVideo: item.mimeType?.startsWith('video/')
+      }));
+      console.log('📸 handleImageClick called with:', {
+        clickedFileId: imageData.fileId,
+        clickedTitle: imageData.title,
+        galleryLength: galleryWithSrc.length,
+        galleryIds: galleryWithSrc.map((g, i) => ({ index: i, id: g.id, title: g.title }))
+      });
+      this.props.onImageClick(imageData, galleryWithSrc);
     }
   };
 

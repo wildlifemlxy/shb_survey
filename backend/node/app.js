@@ -33,7 +33,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://gentle-dune-0405ec500.1.azurestaticapps.net', "android-app://"],
+  origin: ['http://localhost:3000', 'http://localhost:3002', 'https://gentle-dune-0405ec500.1.azurestaticapps.net', "android-app://"],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Content-Disposition'],
   exposedHeaders: ['Content-Disposition'],
