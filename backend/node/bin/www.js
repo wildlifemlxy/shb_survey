@@ -2,6 +2,7 @@
  * Module dependencies. ok
  */
 
+require('dotenv').config(); // Load local .env file
 require('dotenv').config({ path: '../../azure-webapp-config.env' });
 
 var app = require('../app');

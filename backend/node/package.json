@@ -9,6 +9,7 @@
     "stop": "pm2 delete all"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
     "argon2": "^0.43.0",
     "axios": "^1.10.0",
     "body-parser": "^1.20.2",

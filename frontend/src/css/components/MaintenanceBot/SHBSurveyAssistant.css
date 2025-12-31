@@ -15,8 +15,8 @@
 /* Chat Window */
 .shb-chat-window { 
     position: fixed;
-    top: 375px;
-    right: 180px; /* Moved further left to avoid maintenance bot */
+    bottom: 90px;
+    right: 110px; /* Aligned with Dashboard Tools & Settings panel */
     width: 400px;
     max-width: calc(100vw - 40px);
     height: 500px;
@@ -129,6 +129,112 @@
   font-size: 15px;
   transition: background 0.2s ease;
   font-weight: bolder;
+}
+
+/* Quick Actions inside chat message */
+.message-quick-actions {
+  display: block;
+  margin-top: 8px;
+}
+
+.message-suggestion {
+  display: inline;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: #2563eb;
+  font-size: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  box-shadow: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.message-suggestion:hover {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: #1d4ed8;
+}
+
+.message-suggestion:active {
+  transform: none;
+  box-shadow: none;
+  color: #1e40af;
+}
+
+/* Identification Result Card - Two Column Layout */
+.identification-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1px solid #86efac;
+  border-radius: 12px;
+  margin-top: 4px;
+}
+
+.identification-image {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.identification-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.identification-image img:hover {
+  transform: scale(1.05);
+}
+
+.identification-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.identification-common-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #166534;
+}
+
+.identification-scientific-name {
+  font-size: 13px;
+  font-style: italic;
+  color: #6b7280;
+}
+
+/* Reference Image for Animal Identification */
+.reference-image-container {
+  margin-top: 8px;
+  border-radius: 8px;
+  overflow: hidden;
+  max-width: 250px;
+}
+
+.reference-image {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.reference-image:hover {
+  transform: scale(1.02);
 }
 
 /* Date Badge */
@@ -428,15 +534,14 @@
   gap: 0;
   padding: 0;
   background: transparent;
-  border-radius: 12px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
   border: none;
 }
 
 .attachment-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  opacity: 0.9;
 }
 
 .attachment-preview {
@@ -453,16 +558,21 @@
   border-radius: 8px;
   overflow: hidden;
   position: relative;
-  background: #f3f4f6;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.image-thumbnail {
+  width: 120px;
+  height: 120px;
 }
 
 .image-thumbnail img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 8px;
 }
 
 .video-thumbnail video {

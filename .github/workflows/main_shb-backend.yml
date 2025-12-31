@@ -112,6 +112,20 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_3CCFE7F988624D2EBA2AC840D4F532CC }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_2EBCCC9CDA82437C8E2EB41FCEB0F529 }}
 
+      - name: 'Configure Azure App Settings'
+        uses: azure/appservice-settings@v1
+        with:
+          app-name: 'shb-backend'
+          slot-name: 'Production'
+          app-settings-json: |
+            [
+              {
+                "name": "GEMINI_API_KEY",
+                "value": "${{ secrets.GEMINI_API_KEY }}",
+                "slotSetting": false
+              }
+            ]
+
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3

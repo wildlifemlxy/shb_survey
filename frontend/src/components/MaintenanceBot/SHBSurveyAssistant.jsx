@@ -15,7 +15,8 @@ class SHBSurveyAssistant extends Component {
           id: 1, 
           text: "🤖 Hello! I'm the SHB Survey Assistant. How can I help you today?", 
           sender: 'bot', 
-          timestamp: new Date() 
+          timestamp: new Date(),
+          showQuickActions: true // Show quick action buttons with this message
         }
       ],
       inputMessage: '',
@@ -23,6 +24,8 @@ class SHBSurveyAssistant extends Component {
       connectionStatus: 'connected', // connected, connecting, disconnected
       isDragOver: false, // For drag and drop visual feedback
       showAttachMenu: false, // For attachment dropdown menu
+      isIdentifying: false, // For animal identification loading state
+      pendingIdentification: false, // Flag to indicate next image upload is for identification
     };
   }
 
@@ -424,6 +427,143 @@ class SHBSurveyAssistant extends Component {
     }
   }
 
+  // Animal Identification Feature
+  handleIdentifyAnimal = () => {
+    // Trigger file input for image selection directly
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.onchange = (e) => {
+      const files = Array.from(e.target.files);
+      if (files.length > 0 && files[0].type.startsWith('image/')) {
+        this.processAnimalIdentification(files[0]);
+      }
+    };
+    fileInput.click();
+  }
+
+  processAnimalIdentification = async (imageFile) => {
+    // Show the uploaded image in chat
+    const userImageMessage = {
+      id: Date.now(),
+      text: '',
+      sender: 'user',
+      timestamp: new Date(),
+      type: 'attachment',
+      files: [imageFile]
+    };
+
+    this.setState(prevState => ({
+      messages: [...prevState.messages, userImageMessage],
+      isIdentifying: true,
+      pendingIdentification: false
+    }));
+
+    // Show analyzing message
+    const analyzingMessage = {
+      id: Date.now() + 1,
+      text: "🔄 Analyzing image with AI... Please wait.",
+      sender: 'bot',
+      timestamp: new Date()
+    };
+
+    this.setState(prevState => ({
+      messages: [...prevState.messages, analyzingMessage]
+    }));
+
+    try {
+      // Convert image to base64
+      const base64Image = await this.fileToBase64(imageFile);
+      
+      // Call the backend API
+      const response = await fetch(`${BASE_URL}/animal-identification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          purpose: 'identify',
+          image: base64Image,
+          mimeType: imageFile.type
+        })
+      });
+
+      const result = await response.json();
+
+      // Remove the analyzing message and show results
+      this.setState(prevState => ({
+        messages: prevState.messages.filter(msg => msg.id !== analyzingMessage.id)
+      }));
+
+      if (result.success && result.identification) {
+        const identification = result.identification;
+        const primary = identification.primaryMatch;
+
+        // Include reference image URL in the result message if available
+        const referenceImageUrl = primary.wikipediaData?.success && primary.wikipediaData.image?.url
+          ? (primary.wikipediaData.originalImage?.url || primary.wikipediaData.image.url)
+          : null;
+
+        const resultMessage = {
+          id: Date.now() + 2,
+          text: '', // No text, using custom card layout
+          sender: 'bot',
+          timestamp: new Date(),
+          type: 'identification-result',
+          commonName: primary.commonName,
+          scientificName: primary.scientificName,
+          referenceImageUrl: referenceImageUrl
+        };
+
+        this.setState(prevState => ({
+          messages: [...prevState.messages, resultMessage],
+          isIdentifying: false
+        }));
+
+      } else {
+        const errorMessage = {
+          id: Date.now() + 2,
+          text: `❌ Could not identify the animal. ${result.error || 'Please try with a clearer image.'}`,
+          sender: 'bot',
+          timestamp: new Date()
+        };
+
+        this.setState(prevState => ({
+          messages: [...prevState.messages, errorMessage],
+          isIdentifying: false
+        }));
+      }
+
+    } catch (error) {
+      console.error('Animal identification error:', error);
+      
+      const errorMessage = {
+        id: Date.now() + 2,
+        text: `❌ Error during identification: ${error.message}. Please try again later.`,
+        sender: 'bot',
+        timestamp: new Date()
+      };
+
+      this.setState(prevState => ({
+        messages: prevState.messages.filter(msg => msg.text !== "🔄 Analyzing image with AI... Please wait."),
+        isIdentifying: false
+      }));
+
+      this.setState(prevState => ({
+        messages: [...prevState.messages, errorMessage]
+      }));
+    }
+  }
+
+  fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
+    });
+  }
+
   // Drag and Drop handlers
   handleDragOver = (e) => {
     e.preventDefault();
@@ -581,6 +721,19 @@ class SHBSurveyAssistant extends Component {
                         {message.text}
                       </div>
                     )}
+                    {/* Quick Action Buttons - shown with greeting message */}
+                    {message.showQuickActions && (
+                      <div className="message-quick-actions">
+                        <div 
+                          className="message-suggestion"
+                          onClick={this.handleIdentifyAnimal}
+                          role="button"
+                          tabIndex={0}
+                        >
+                          🔍 Can you help me identify an animal from a photo?
+                        </div>
+                      </div>
+                    )}
                     {message.type === 'attachment' && message.files && (
                       <div className="message-attachments">
                         {Array.from(message.files).map((file, index) => (
@@ -594,6 +747,24 @@ class SHBSurveyAssistant extends Component {
                             </div>
                           </div>
                         ))}
+                      </div>
+                    )}
+                    {/* Identification Result Card - two column layout */}
+                    {message.type === 'identification-result' && (
+                      <div className="identification-card">
+                        {message.referenceImageUrl && (
+                          <div className="identification-image">
+                            <img 
+                              src={message.referenceImageUrl} 
+                              alt={message.commonName}
+                              onClick={() => window.open(message.referenceImageUrl, '_blank')}
+                            />
+                          </div>
+                        )}
+                        <div className="identification-info">
+                          <div className="identification-common-name">{message.commonName}</div>
+                          <div className="identification-scientific-name">{message.scientificName}</div>
+                        </div>
                       </div>
                     )}
                     <div className="message-time">

@@ -40,7 +40,7 @@ class MaintenanceBotButton extends Component {
       // Chat functionality
       showChat: false,
       messages: [
-        { id: 1, text: "🤖 Hello! I'm the SHB Survey Assistant. How can I help you today?", sender: 'bot', timestamp: new Date() }
+        { id: 1, text: "🤖 Hello! I'm the SHB Survey Assistant. How can I help you today?", sender: 'bot', timestamp: new Date(), showQuickActions: true }
       ]
     };
   }
