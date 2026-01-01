@@ -1,0 +1,20 @@
+# Environment variables - NEVER commit these
+.env
+.env.*
+*.env
+azure-webapp-config.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build outputs
+.vite/
+dist/
+build/

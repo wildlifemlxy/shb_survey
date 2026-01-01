@@ -126,11 +126,12 @@ Important: Return ONLY valid JSON, no markdown formatting or code blocks.`;
   }
 
   /**
-   * Fetch reference image from Wikipedia REST API
+   * Fetch multiple reference images from Wikipedia REST API (all angles)
    * @param {string} scientificName - Scientific name of the species
-   * @returns {Object} - Wikipedia image data
+   * @param {number} maxImages - Maximum number of images to fetch (default: 10)
+   * @returns {Object} - Wikipedia images data with multiple angles
    */
-  static async getWikipediaImage(scientificName) {
+  static async getWikipediaImages(scientificName, maxImages = 10) {
     try {
       if (!scientificName) {
         throw new Error('Scientific name is required');
@@ -138,8 +139,10 @@ Important: Return ONLY valid JSON, no markdown formatting or code blocks.`;
 
       // Format scientific name for Wikipedia search
       const searchTerm = scientificName.trim();
+      const allImages = [];
+      let pageInfo = null;
 
-      // Wikipedia REST API endpoint for page summary (includes main image)
+      // Step 1: Get page summary for basic info
       const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(searchTerm)}`;
 
       try {
@@ -150,99 +153,316 @@ Important: Return ONLY valid JSON, no markdown formatting or code blocks.`;
           timeout: 10000
         });
 
-        if (summaryResponse.data && summaryResponse.data.thumbnail) {
-          return {
-            success: true,
-            image: {
-              url: summaryResponse.data.thumbnail.source,
-              width: summaryResponse.data.thumbnail.width,
-              height: summaryResponse.data.thumbnail.height
-            },
-            originalImage: summaryResponse.data.originalimage ? {
-              url: summaryResponse.data.originalimage.source,
-              width: summaryResponse.data.originalimage.width,
-              height: summaryResponse.data.originalimage.height
-            } : null,
+        if (summaryResponse.data) {
+          pageInfo = {
             title: summaryResponse.data.title,
             description: summaryResponse.data.description,
             extract: summaryResponse.data.extract,
             wikipediaUrl: summaryResponse.data.content_urls?.desktop?.page || null
           };
+
+          // Add main thumbnail if available
+          if (summaryResponse.data.thumbnail) {
+            allImages.push({
+              url: summaryResponse.data.thumbnail.source,
+              width: summaryResponse.data.thumbnail.width,
+              height: summaryResponse.data.thumbnail.height,
+              type: 'main',
+              description: 'Main article image'
+            });
+          }
+
+          // Add original image if different from thumbnail
+          if (summaryResponse.data.originalimage) {
+            allImages.push({
+              url: summaryResponse.data.originalimage.source,
+              width: summaryResponse.data.originalimage.width,
+              height: summaryResponse.data.originalimage.height,
+              type: 'original',
+              description: 'Original high-resolution image'
+            });
+          }
         }
       } catch (summaryError) {
-        // If summary endpoint fails, try the images endpoint
-        console.log(`Summary endpoint failed for ${scientificName}, trying images endpoint...`);
+        console.log(`Summary endpoint failed for ${scientificName}, continuing with images endpoint...`);
       }
 
-      // Fallback: Use MediaWiki API to search for images with original size
+      // Step 2: Get ALL images from the Wikipedia page
       const mediaWikiUrl = `https://en.wikipedia.org/w/api.php`;
-      const params = {
+      
+      // First, get all image filenames from the page
+      const imagesParams = {
         action: 'query',
         titles: searchTerm,
-        prop: 'pageimages|extracts|imageinfo',
-        piprop: 'original|thumbnail',
-        pithumbsize: 500,
-        exintro: true,
-        explaintext: true,
+        prop: 'images',
+        imlimit: maxImages * 2, // Request more to filter
         format: 'json',
         origin: '*'
       };
 
-      const mediaWikiResponse = await axios.get(mediaWikiUrl, {
-        params,
+      const imagesResponse = await axios.get(mediaWikiUrl, {
+        params: imagesParams,
         headers: {
           'User-Agent': 'SHB-Survey-Assistant/1.0 (Wildlife Identification Bot)'
         },
         timeout: 10000
       });
 
-      const pages = mediaWikiResponse.data.query?.pages;
+      const pages = imagesResponse.data.query?.pages;
       if (pages) {
         const pageId = Object.keys(pages)[0];
         const page = pages[pageId];
 
-        if (pageId !== '-1' && (page.thumbnail || page.original)) {
-          return {
-            success: true,
-            image: page.thumbnail ? {
-              url: page.thumbnail.source,
-              width: page.thumbnail.width,
-              height: page.thumbnail.height
-            } : null,
-            originalImage: page.original ? {
-              url: page.original.source,
-              width: page.original.width,
-              height: page.original.height
-            } : null,
-            title: page.title,
-            extract: page.extract,
-            wikipediaUrl: `https://en.wikipedia.org/wiki/${encodeURIComponent(page.title)}`
-          };
+        if (pageId !== '-1' && page.images) {
+          // Filter for actual image files (exclude icons, logos, commons symbols)
+          const imageFiles = page.images
+            .filter(img => {
+              const filename = img.title.toLowerCase();
+              return (
+                (filename.endsWith('.jpg') || 
+                 filename.endsWith('.jpeg') || 
+                 filename.endsWith('.png') || 
+                 filename.endsWith('.gif') ||
+                 filename.endsWith('.webp')) &&
+                !filename.includes('icon') &&
+                !filename.includes('logo') &&
+                !filename.includes('symbol') &&
+                !filename.includes('flag') &&
+                !filename.includes('map') &&
+                !filename.includes('commons') &&
+                !filename.includes('wikidata') &&
+                !filename.includes('edit-clear') &&
+                !filename.includes('ambox') &&
+                !filename.includes('question_book')
+              );
+            })
+            .slice(0, maxImages);
+
+          // Get image URLs for each file
+          if (imageFiles.length > 0) {
+            const imageInfoParams = {
+              action: 'query',
+              titles: imageFiles.map(img => img.title).join('|'),
+              prop: 'imageinfo',
+              iiprop: 'url|size|extmetadata',
+              iiurlwidth: 800, // Request scaled version
+              format: 'json',
+              origin: '*'
+            };
+
+            const imageInfoResponse = await axios.get(mediaWikiUrl, {
+              params: imageInfoParams,
+              headers: {
+                'User-Agent': 'SHB-Survey-Assistant/1.0 (Wildlife Identification Bot)'
+              },
+              timeout: 15000
+            });
+
+            const imagePages = imageInfoResponse.data.query?.pages;
+            if (imagePages) {
+              Object.values(imagePages).forEach(imgPage => {
+                if (imgPage.imageinfo && imgPage.imageinfo[0]) {
+                  const info = imgPage.imageinfo[0];
+                  const metadata = info.extmetadata || {};
+                  
+                  // Extract description from metadata
+                  let imgDescription = 'Reference image';
+                  if (metadata.ImageDescription?.value) {
+                    // Strip HTML tags
+                    imgDescription = metadata.ImageDescription.value.replace(/<[^>]*>/g, '').slice(0, 200);
+                  } else if (metadata.ObjectName?.value) {
+                    imgDescription = metadata.ObjectName.value;
+                  }
+
+                  // Add both thumbnail and original URLs
+                  if (info.thumburl) {
+                    allImages.push({
+                      url: info.thumburl,
+                      width: info.thumbwidth || 800,
+                      height: info.thumbheight || null,
+                      originalUrl: info.url,
+                      originalWidth: info.width,
+                      originalHeight: info.height,
+                      type: 'gallery',
+                      title: imgPage.title.replace('File:', ''),
+                      description: imgDescription
+                    });
+                  } else if (info.url) {
+                    allImages.push({
+                      url: info.url,
+                      width: info.width,
+                      height: info.height,
+                      type: 'gallery',
+                      title: imgPage.title.replace('File:', ''),
+                      description: imgDescription
+                    });
+                  }
+                }
+              });
+            }
+          }
+
+          // Update page info if not already set
+          if (!pageInfo) {
+            pageInfo = {
+              title: page.title,
+              wikipediaUrl: `https://en.wikipedia.org/wiki/${encodeURIComponent(page.title)}`
+            };
+          }
         }
       }
 
-      // No image found
+      // Step 3: Also search Wikimedia Commons for more images
+      const commonsImages = await AnimalIdentificationController.getWikimediaCommonsImages(
+        scientificName, 
+        Math.max(5, maxImages - allImages.length)
+      );
+      
+      if (commonsImages.length > 0) {
+        allImages.push(...commonsImages);
+      }
+
+      // Remove duplicate URLs
+      const uniqueImages = [];
+      const seenUrls = new Set();
+      for (const img of allImages) {
+        if (!seenUrls.has(img.url)) {
+          seenUrls.add(img.url);
+          uniqueImages.push(img);
+        }
+      }
+
+      if (uniqueImages.length === 0) {
+        return {
+          success: false,
+          message: `No Wikipedia images found for: ${scientificName}`
+        };
+      }
+
       return {
-        success: false,
-        message: `No Wikipedia image found for: ${scientificName}`
+        success: true,
+        images: uniqueImages.slice(0, maxImages),
+        totalFound: uniqueImages.length,
+        ...pageInfo
       };
 
     } catch (error) {
-      console.error('Error fetching Wikipedia image:', error.message);
+      console.error('Error fetching Wikipedia images:', error.message);
       return {
         success: false,
-        message: `Failed to fetch Wikipedia image: ${error.message}`
+        message: `Failed to fetch Wikipedia images: ${error.message}`
       };
     }
   }
 
   /**
+   * Fetch images from Wikimedia Commons for additional angles
+   * @param {string} searchTerm - Species name to search
+   * @param {number} limit - Maximum images to fetch
+   * @returns {Array} - Array of image objects
+   */
+  static async getWikimediaCommonsImages(searchTerm, limit = 5) {
+    try {
+      const commonsUrl = 'https://commons.wikimedia.org/w/api.php';
+      
+      // Search for images on Commons
+      const searchParams = {
+        action: 'query',
+        generator: 'search',
+        gsrsearch: `${searchTerm} filetype:bitmap`,
+        gsrnamespace: 6, // File namespace
+        gsrlimit: limit,
+        prop: 'imageinfo',
+        iiprop: 'url|size|extmetadata',
+        iiurlwidth: 800,
+        format: 'json',
+        origin: '*'
+      };
+
+      const response = await axios.get(commonsUrl, {
+        params: searchParams,
+        headers: {
+          'User-Agent': 'SHB-Survey-Assistant/1.0 (Wildlife Identification Bot)'
+        },
+        timeout: 10000
+      });
+
+      const images = [];
+      const pages = response.data.query?.pages;
+      
+      if (pages) {
+        Object.values(pages).forEach(page => {
+          if (page.imageinfo && page.imageinfo[0]) {
+            const info = page.imageinfo[0];
+            const metadata = info.extmetadata || {};
+            
+            let description = 'Wikimedia Commons image';
+            if (metadata.ImageDescription?.value) {
+              description = metadata.ImageDescription.value.replace(/<[^>]*>/g, '').slice(0, 200);
+            }
+
+            images.push({
+              url: info.thumburl || info.url,
+              width: info.thumbwidth || info.width,
+              height: info.thumbheight || info.height,
+              originalUrl: info.url,
+              originalWidth: info.width,
+              originalHeight: info.height,
+              type: 'commons',
+              title: page.title.replace('File:', ''),
+              description: description,
+              source: 'Wikimedia Commons'
+            });
+          }
+        });
+      }
+
+      return images;
+    } catch (error) {
+      console.error('Error fetching Wikimedia Commons images:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Legacy method for backward compatibility - now returns multiple images
+   * @param {string} scientificName - Scientific name of the species
+   * @returns {Object} - Wikipedia image data
+   */
+  static async getWikipediaImage(scientificName) {
+    const result = await AnimalIdentificationController.getWikipediaImages(scientificName, 1);
+    
+    if (result.success && result.images && result.images.length > 0) {
+      const mainImage = result.images[0];
+      return {
+        success: true,
+        image: {
+          url: mainImage.url,
+          width: mainImage.width,
+          height: mainImage.height
+        },
+        originalImage: mainImage.originalUrl ? {
+          url: mainImage.originalUrl,
+          width: mainImage.originalWidth,
+          height: mainImage.originalHeight
+        } : null,
+        title: result.title,
+        description: result.description,
+        extract: result.extract,
+        wikipediaUrl: result.wikipediaUrl
+      };
+    }
+    
+    return result;
+  }
+
+  /**
    * Main handler for animal identification endpoint
-   * Combines Gemini identification with Wikipedia reference images
+   * Combines Gemini identification with Wikipedia reference images (multiple angles)
    */
   async handleIdentification(req, res) {
     try {
-      const { image, mimeType } = req.body;
+      const { image, mimeType, maxImages = 10 } = req.body;
 
       // Validate input
       if (!image) {
@@ -281,26 +501,30 @@ Important: Return ONLY valid JSON, no markdown formatting or code blocks.`;
         });
       }
 
-      // Step 2: Fetch Wikipedia images for identified species
-      console.log('📚 Fetching Wikipedia reference images...');
+      // Step 2: Fetch Wikipedia images for identified species (ALL ANGLES)
+      console.log('📚 Fetching Wikipedia reference images from all angles...');
       const identification = identificationResult.identification;
       
-      // Get image for primary match
+      // Get ALL images for primary match (multiple angles)
       let primaryWikipediaData = null;
       if (identification.primaryMatch?.scientificName) {
-        primaryWikipediaData = await AnimalIdentificationController.getWikipediaImage(
-          identification.primaryMatch.scientificName
+        primaryWikipediaData = await AnimalIdentificationController.getWikipediaImages(
+          identification.primaryMatch.scientificName,
+          maxImages
         );
+        console.log(`📷 Found ${primaryWikipediaData.images?.length || 0} images for primary match`);
       }
 
-      // Get images for alternative matches
+      // Get images for alternative matches (multiple angles each)
       const alternativesWithImages = [];
       if (identification.alternatives && Array.isArray(identification.alternatives)) {
         for (const alt of identification.alternatives) {
           if (alt.scientificName) {
-            const wikiData = await AnimalIdentificationController.getWikipediaImage(
-              alt.scientificName
+            const wikiData = await AnimalIdentificationController.getWikipediaImages(
+              alt.scientificName,
+              Math.min(5, maxImages) // Fewer images for alternatives
             );
+            console.log(`📷 Found ${wikiData.images?.length || 0} images for alternative: ${alt.commonName}`);
             alternativesWithImages.push({
               ...alt,
               wikipediaData: wikiData
@@ -324,10 +548,12 @@ Important: Return ONLY valid JSON, no markdown formatting or code blocks.`;
           imageQuality: identification.imageQuality
         },
         model: identificationResult.model,
+        totalImagesRetrieved: (primaryWikipediaData?.images?.length || 0) + 
+          alternativesWithImages.reduce((sum, alt) => sum + (alt.wikipediaData?.images?.length || 0), 0),
         timestamp: new Date().toISOString()
       };
 
-      console.log('✅ Animal identification complete');
+      console.log(`✅ Animal identification complete - ${finalResult.totalImagesRetrieved} reference images retrieved`);
       return res.status(200).json(finalResult);
 
     } catch (error) {

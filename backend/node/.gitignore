@@ -1,2 +1,28 @@
 # keys folder and all its contents
 keys/
+
+# Environment variables - NEVER commit these
+.env
+.env.local
+.env.development
+.env.production
+.env*.local
+*.env
+
+# Node modules
+node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
