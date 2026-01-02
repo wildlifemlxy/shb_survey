@@ -76,23 +76,46 @@ router.post('/', async function(req, res, next) {
             }
             
             const telegramRes = await axios.get(`https://api.telegram.org/bot${token}/getUpdates`);
-            const updates = telegramRes.data.result;
+            
+            // Check if response is valid
+            if (!telegramRes.data || !telegramRes.data.ok) {
+                console.log('Telegram API returned error:', telegramRes.data);
+                return res.status(200).json({ groups: [], message: 'No updates available from Telegram.' });
+            }
+            
+            const updates = telegramRes.data.result || [];
+            
+            // If no updates, return empty groups
+            if (!updates || updates.length === 0) {
+                console.log('No updates found for bot');
+                return res.status(200).json({ groups: [], message: 'Bot has no recent updates. Add the bot to a group and send a message to see it here.' });
+            }
+            
             // Include every chat the bot has seen in its updates
             const chats = {};
             for (const update of updates) {
                 console.log('Processing update:', update);
-                const msg = update.message || update.channel_post;
+                const msg = update.message || update.channel_post || update.my_chat_member || update.chat_member;
                 if (msg && msg.chat && msg.chat.id) {
                     const chat = msg.chat;
-                    chats[chat.id] = chat.title || chat.username || String(chat.id);
+                    chats[chat.id] = {
+                        id: chat.id,
+                        title: chat.title || chat.username || chat.first_name || String(chat.id),
+                        type: chat.type || 'unknown'
+                    };
                 }
             }
             console.log('Telegram getUpdates response:', chats);
             const groups = Object.values(chats);
             return res.status(200).json({ groups });
         } catch (err) {
-            console.error('Error in getBotGroups:', err);
-            return res.status(500).json({ error: err.message || 'Failed to retrieve group info.' });
+            console.error('Error in getBotGroups:', err.response?.data || err.message);
+            // Return empty groups with error message instead of 500
+            return res.status(200).json({ 
+                groups: [], 
+                error: err.response?.data?.description || err.message || 'Failed to retrieve group info.',
+                message: 'Could not fetch bot groups. Make sure the bot token is valid and the bot has been added to groups.'
+            });
         }
     }
     else if (purpose === 'getChatHistory') {

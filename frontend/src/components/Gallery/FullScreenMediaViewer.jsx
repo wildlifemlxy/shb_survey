@@ -22,6 +22,35 @@ const FullScreenMediaViewer = ({ isOpen, imageData, onClose, galleryFiles = [] }
     }
   }, [currentMedia?.fileId, isOpen, isVideo]);
 
+  // Force video ready after timeout if events don't fire
+  React.useEffect(() => {
+    let forceReadyTimeout;
+    
+    if (isOpen && isVideo && !isVideoReady && videoSource) {
+      console.log('⏰ Starting force-ready timeout for video:', currentMedia?.fileId);
+      
+      forceReadyTimeout = setTimeout(() => {
+        console.log('⏰ Force-ready timeout triggered - forcing video ready state');
+        setIsVideoReady(true);
+        setIsLoading(false);
+        
+        // Try to play if video element exists and has source
+        if (videoRef.current) {
+          console.log('⏰ Attempting play after force-ready');
+          videoRef.current.play().catch(err => {
+            console.log('⏰ Auto-play after force-ready failed (user interaction required):', err.message);
+          });
+        }
+      }, 3000); // Force ready after 3 seconds
+    }
+    
+    return () => {
+      if (forceReadyTimeout) {
+        clearTimeout(forceReadyTimeout);
+      }
+    };
+  }, [isOpen, isVideo, isVideoReady, videoSource, currentMedia?.fileId]);
+
   // Update video source when videoSource changes
   React.useEffect(() => {
     if (videoRef.current && isVideo && videoSource) {

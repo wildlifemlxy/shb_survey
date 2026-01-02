@@ -263,10 +263,11 @@ class PastEvents extends Component {
     });
     
     return (
-      <div className="upcoming-organizer-sections" style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 24, width: '100%' }}>
+      <div className="upcoming-organizer-sections past-events-container" style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 24, width: '100%' }}>
         {/* Year selection tabs */}
         {console.log("Current user name for participation check:", JSON.parse(localStorage.getItem('user') || '{}').name)}
         <div
+          className="year-selection-buttons"
           style={{
             display: 'flex',
             flexDirection: 'row',
@@ -311,6 +312,7 @@ class PastEvents extends Component {
         {/* Month selection tabs (only show if year is selected) */}
         {this.state.selectedYear && monthsInSelectedYear.length > 0 && (
           <div
+            className="month-selection-buttons"
             style={{
               display: 'flex',
               flexDirection: 'row',
@@ -355,12 +357,12 @@ class PastEvents extends Component {
 
         {/* View Mode Toggle (only show when month is selected) */}
         {this.state.selectedYear && this.state.selectedMonth && (
-          <div style={{
+          <div className="view-mode-toggle-container" style={{
             display: 'flex',
             justifyContent: 'center',
             marginBottom: 20
           }}>
-            <div style={{
+            <div className="view-mode-toggle-buttons" style={{
               display: 'flex',
               backgroundColor: '#f3f4f6',
               borderRadius: 8,
@@ -407,7 +409,7 @@ class PastEvents extends Component {
           <>
             {this.state.viewMode === 'list' ? (
               /* List View - Events display */
-              <div style={{ display: 'flex', flexDirection: 'row', gap: 32, width: '100%', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+              <div className="list-view-container" style={{ display: 'flex', flexDirection: 'row', gap: 32, width: '100%', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 {organizerTypes.map((orgType, colIdx) => {
                   const filteredEvents = grouped[orgType].filter(ev => {
                     const eventYear = getYear(ev.Date);
@@ -458,7 +460,7 @@ class PastEvents extends Component {
                   const calendarDays = this.generateCalendarDays(this.state.selectedMonth, eventsForMonth);
                   
                   return (
-                    <div style={{
+                    <div className="calendar-view-container" style={{
                       backgroundColor: '#fff',
                       borderRadius: 12,
                       boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
@@ -466,7 +468,7 @@ class PastEvents extends Component {
                       width: "90vw"
                     }}>
                       {/* Legend */}
-                      <div style={{
+                      <div className="calendar-legend" style={{
                         display: 'flex',
                         justifyContent: 'center',
                         marginBottom: 16,
@@ -526,7 +528,7 @@ class PastEvents extends Component {
                       </div>
                       
                       {/* Calendar Days */}
-                      <div style={{
+                      <div className="calendar-days-grid" style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(7, 1fr)',
                         gap: 4

@@ -279,7 +279,7 @@ class BotChatTabs extends React.Component {
           {groupLoading && <p>Loading {activeTab.toLowerCase()} info...</p>}
           {groupError && <p className="bot-chat-tabs-error">{groupError}</p>}
           {activeTab === 'Groups/Users' && (
-            <>
+            <div className="groups-users-section">
               {displayData && displayData.length === 0 && <p>No {activeTab.toLowerCase()} info found for this bot.</p>}
               {displayData && displayData.length > 0 && (
                 <ul className="bot-chat-tabs-list">
@@ -297,10 +297,10 @@ class BotChatTabs extends React.Component {
                   ))}
                 </ul>
               )}
-            </>
+            </div>
           )}
           {activeTab === 'Chats' && (
-            <div className="telegram-chat-container">
+            <div className="telegram-chat-container chats-section">
               {/* Chat Header */}
               <div className="telegram-chat-header">
                 <div className="telegram-chat-avatar">

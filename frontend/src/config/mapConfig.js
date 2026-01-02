@@ -4,7 +4,8 @@
 
 export const USE_GOOGLE_MAPS = import.meta.env.VITE_USE_GOOGLE_MAPS !== undefined ? 
   import.meta.env.VITE_USE_GOOGLE_MAPS === 'true' : true; // Use environment variable or fallback to true
-export const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "AIzaSyDcip-f6ITdZryC3tGryODuq6XPoMDmao0"; // Use environment variable or fallback
+//export const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "AIzaSyDnOgMPzB6DfoPXV_E9apa4zXSGKmpw8KU"; // Use environment variable or fallback
+export const GOOGLE_MAPS_API_KEY = "AIzaSyDnOgMPzB6DfoPXV_E9apa4zXSGKmpw8KU"; // Use environment variable or fallback
 
 // Singapore Map Configuration
 export const SINGAPORE_CENTER = {

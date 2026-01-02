@@ -1,0 +1,15 @@
+/* Interactive Guide Styles */
+
+.guide-close-x-btn {
+  background: transparent;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #000000;
+  font-weight: bold;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}

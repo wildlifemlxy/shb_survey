@@ -1,29 +1,13 @@
 import React, { Component } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHome, faUpload } from '@fortawesome/free-solid-svg-icons';
+import { faHome } from '@fortawesome/free-solid-svg-icons';
 import { faTelegramPlane } from '@fortawesome/free-brands-svg-icons';
 import '../css/components/Settings/Settings.css';
 import CreateTelegramBotTab from './CreateTelegramBotTab';
 import BotDetailsTab from './BotDetailsTab';
 
 const TABS = [
-  {
-    key: 'Upload',
-    label: 'Upload Photos & Videos',
-    icon: faUpload,
-    description: 'Upload survey photos and videos to the gallery. Organize your media by survey events.',
-    component: () => (
-      <div className="upload-tab-content">
-        <h2>Upload Media</h2>
-        <p>Upload your survey photos and videos here. They will be organized and displayed in the gallery for easy access and management.</p>
-        <div className="upload-placeholder">
-          <p>Upload feature coming soon</p>
-        </div>
-      </div>
-    ),
-    extraProps: {},
-  },
   {
     key: 'CreateBot',
     label: 'Create Telegram Bot',
@@ -84,10 +68,10 @@ class Settings extends Component {
     const TabComponent = activeTabObj.component;
     const tabProps = activeTabObj.extraProps;
     return (
-      <div className="settings-container">
+      <div className="settings-container settings-page">
         <div className="settings-header">
           <div className="header-content">
-            <div className="header-title">
+            <div className="header-title settings-title">
               <h1>Settings</h1>
               <div className="settings-datetime">
                 {this.state.currentDateTime}
@@ -95,7 +79,7 @@ class Settings extends Component {
               <p>Manage your survey platform preferences and integrations for Telegram bots</p>
             </div>
             <div className="header-actions">
-              <Link to="/" className="home-link">
+              <Link to="/" className="home-link settings-home-button">
                 <FontAwesomeIcon icon={faHome} />
                 <span>Home</span>
               </Link>
@@ -103,8 +87,8 @@ class Settings extends Component {
             {/* You can add header actions here if needed */}
           </div>
         </div>
-        <div className="dashboard-tabs">
-          <div className="tabs-container">
+        <div className="dashboard-tabs settings-tabs">
+          <div className="tabs-container settings-tabs-container">
             {TABS.map(tab => (
               <button
                 key={tab.key}

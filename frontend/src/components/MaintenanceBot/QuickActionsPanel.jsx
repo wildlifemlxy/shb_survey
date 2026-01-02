@@ -81,6 +81,7 @@ class QuickActionsPanel extends Component {
       onToggleQuickActions,
       onBackup,
       onChatbot,
+      onGuide,
       onNewSurvey,
       onNewEvent,
       backupDisabled,
@@ -209,6 +210,47 @@ class QuickActionsPanel extends Component {
                   </span>
                 </button>
               )}
+              {/* Guide button - show on all pages */}
+              <button
+                onClick={() => {
+                  // Open interactive guide
+                  if (onGuide && typeof onGuide === 'function') {
+                    onGuide();
+                  }
+                }}
+                style={{
+                  padding: '10px 16px',
+                  background: '#f59e0b',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  minHeight: 36,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  lineHeight: '1.2',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  whiteSpace: 'nowrap',
+                  position: 'relative',
+                  width: '100%',
+                  maxWidth: '100%',
+                  minWidth: 0
+                }}
+                title="Click to view the user guide"
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                  </svg>
+                  Guide
+                </span>
+              </button>
               {/* New Survey button - only show on dashboard data table tab */}
               {currentPage === 'dashboard' && activeDashboardTab === 'dataTable' && (
                 <button

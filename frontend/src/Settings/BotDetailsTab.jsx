@@ -76,7 +76,7 @@ class BotDetailsTab extends React.Component {
     const loading = this.props.isLoading;
     const { selectedBot, groupData, groupLoading, groupError, shownBot, chatHistory, chatHistoryLoading, chatHistoryError } = this.state;
     return (
-      <>
+      <div className="bot-details-tab">
         {loading && <p>Loading bots...</p>}
         {!loading && bots.length === 0 && <p>No bots found.</p>}
         {!loading && bots.length > 0 && (
@@ -102,20 +102,22 @@ class BotDetailsTab extends React.Component {
             >
               Clear
             </button>
-            <label htmlFor="bot-select" style={{ fontWeight: 500 }}>Select a Bot: </label>
-            <input
-              list="bot-list"
-              id="bot-select"
-              value={selectedBot}
-              onChange={this.handleSelect}
-              placeholder="Choose a bot by name"
-              style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc', minWidth: 200 }}
-            />
-            <datalist id="bot-list">
-              {bots.map((bot, idx) => (
-                <option key={bot._id || idx} value={bot.name} />
-              ))}
-            </datalist>
+            <div className="bot-selector">
+              <label htmlFor="bot-select" style={{ fontWeight: 500 }}>Select a Bot: </label>
+              <input
+                list="bot-list"
+                id="bot-select"
+                value={selectedBot}
+                onChange={this.handleSelect}
+                placeholder="Choose a bot by name"
+                style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc', minWidth: 200 }}
+              />
+              <datalist id="bot-list">
+                {bots.map((bot, idx) => (
+                  <option key={bot._id || idx} value={bot.name} />
+                ))}
+              </datalist>
+            </div>
             {(shownBot) && (
               <div style={{ marginTop: 24 }}>
                 <h3>Selected Bot Details</h3>
@@ -143,29 +145,31 @@ class BotDetailsTab extends React.Component {
               </div>
             )}
             {shownBot && (
-              <BotChatTabs
-                groupData={groupData}
-                groupLoading={groupLoading}
-                groupError={groupError}
-                onClearData={() => this.setState({ groupData: null, groupError: null })}
-                chatHistory={chatHistory}
-                chatHistoryLoading={chatHistoryLoading}
-                chatHistoryError={chatHistoryError}
-                onFetchChatHistory={this.fetchChatHistory}
-                botToken={(() => {
-                  const bot = bots.find(bot => bot.name === shownBot);
-                  return bot ? bot.token : '';
-                })()}
-                botId={(() => {
-                  const bot = bots.find(bot => bot.name === shownBot);
-                  return bot ? bot._id : '';
-                })()}
-                // Optionally, pass selectedChatId if you track it in state
-              />
+              <div className="bot-groups-section">
+                <BotChatTabs
+                  groupData={groupData}
+                  groupLoading={groupLoading}
+                  groupError={groupError}
+                  onClearData={() => this.setState({ groupData: null, groupError: null })}
+                  chatHistory={chatHistory}
+                  chatHistoryLoading={chatHistoryLoading}
+                  chatHistoryError={chatHistoryError}
+                  onFetchChatHistory={this.fetchChatHistory}
+                  botToken={(() => {
+                    const bot = bots.find(bot => bot.name === shownBot);
+                    return bot ? bot.token : '';
+                  })()}
+                  botId={(() => {
+                    const bot = bots.find(bot => bot.name === shownBot);
+                    return bot ? bot._id : '';
+                  })()}
+                  // Optionally, pass selectedChatId if you track it in state
+                />
+              </div>
             )}
           </div>
         )}
-      </>
+      </div>
     );
   }
 }

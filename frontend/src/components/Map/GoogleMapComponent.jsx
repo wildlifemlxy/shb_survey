@@ -103,13 +103,7 @@ class GoogleMapComponent extends Component {
 
     this.setState({ isLoadingMaps: true });
 
-    // Create script element with improved loading
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=geometry&callback=initGoogleMaps`;
-    script.async = true;
-    script.defer = true;
-    
-    // Create a global callback for faster initialization
+    // Define global callback FIRST before creating the script
     window.initGoogleMaps = () => {
       // Clear loading timeout on success
       if (this.loadingTimeout) {
@@ -121,6 +115,12 @@ class GoogleMapComponent extends Component {
       // Clean up global callback
       delete window.initGoogleMaps;
     };
+
+    // Create script element with improved loading
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=geometry&callback=initGoogleMaps`;
+    script.async = true;
+    script.defer = true;
     
     script.onerror = () => {
       if (this.retryCount < this.maxRetries) {

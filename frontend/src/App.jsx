@@ -8,6 +8,7 @@ import DetailedAnalysisPopup from './components/DetailedAnalysisPopup.jsx';
 import ThemeToggle from './components/ThemeToggle/index.js';
 import NewSurveyModal from './components/Dashboard/NewSurveyModal.jsx';
 import MaintenanceBotButton from './components/MaintenanceBot/MaintenanceBotButton.jsx';
+import InteractiveGuide from './components/MaintenanceBot/InteractiveGuide.jsx';
 import UploadModal from './components/UploadModal/UploadModal.jsx';
 import DeleteModal from './components/DeleteModal/DeleteModal.jsx';
 import UploadSuccessModal from './components/Dashboard/UploadSuccessModal.jsx';
@@ -20,6 +21,7 @@ import FullScreenMediaViewer from './components/Gallery/FullScreenMediaViewer.js
 import TermsOfServiceNotice from './components/TermsOfServiceNotice.jsx';
 import PrivacyPolicyNotice from './components/PrivacyPolicyNotice.jsx';
 import UploadProgressModal from './components/UploadProgressModal/UploadProgressModal.jsx';
+import ClearChatPopup from './components/MaintenanceBot/ClearChatPopup.jsx';
 import { io } from 'socket.io-client';
 import { AuthProvider } from './components/Auth/AuthContext.jsx';
 import { getCurrentUser, isLoggedIn, clearSession } from './data/loginData.js';
@@ -82,7 +84,14 @@ class App extends Component {
       fullScreenInitialIndex: 0, // Initial index for fullscreen gallery
       galleryItems: [], // Store gallery items to pass to viewer
       showFullScreenMediaViewer: false, // Show fullscreen media viewer modal
-      fullScreenMediaViewerData: null // Data for fullscreen media viewer modal
+      fullScreenMediaViewerData: null, // Data for fullscreen media viewer modal
+      showClearChatPopup: false, // Clear chat confirmation popup
+      // Interactive guide state
+      showGuide: false,
+      guideCurrentPage: 'home',
+      guideActiveDashboardTab: 'dataTable',
+      guideActiveEventsTab: 'upcoming',
+      guideActiveSettingsTab: 'createBot'
     };
   }
 
@@ -406,6 +415,34 @@ class App extends Component {
     });
   };
 
+  // Clear Chat Popup handlers
+  handleConfirmClearChat = () => {
+    // Dispatch event to clear chat and close
+    window.dispatchEvent(new CustomEvent('clearChatConfirmed'));
+    this.setState({ showClearChatPopup: false });
+  };
+
+  handleCancelClearChat = () => {
+    // Dispatch event to close chat without clearing
+    window.dispatchEvent(new CustomEvent('clearChatCancelled'));
+    this.setState({ showClearChatPopup: false });
+  };
+
+  // Interactive Guide handlers
+  handleOpenGuide = (currentPage, activeDashboardTab, activeEventsTab, activeSettingsTab) => {
+    this.setState({ 
+      showGuide: true,
+      guideCurrentPage: currentPage || 'home',
+      guideActiveDashboardTab: activeDashboardTab || 'dataTable',
+      guideActiveEventsTab: activeEventsTab || 'upcoming',
+      guideActiveSettingsTab: activeSettingsTab || 'createBot'
+    });
+  };
+
+  handleCloseGuide = () => {
+    this.setState({ showGuide: false });
+  };
+
   // Full Screen Media Modal handlers - now opens as a route
   openFullScreenModal = async (imageData, galleryArray = []) => {
     try {
@@ -709,6 +746,8 @@ class App extends Component {
               onOpenNewEventModal={this.handleOpenNewEventModal}
               onSetUploading={this.setUploading}
               onOpenUploadModal={this.handleOpenUploadModal}
+              onShowClearChatPopup={() => this.setState({ showClearChatPopup: true })}
+              onOpenGuide={this.handleOpenGuide}
             />
           </>
         )}
@@ -765,6 +804,23 @@ class App extends Component {
           imageData={this.state.fullScreenMediaViewerData}
           onClose={this.closeFullScreenMediaViewer}
           galleryFiles={this.state.galleryItems}
+        />
+
+        {/* Clear Chat Confirmation Popup */}
+        <ClearChatPopup 
+          isOpen={this.state.showClearChatPopup}
+          onConfirm={this.handleConfirmClearChat}
+          onCancel={this.handleCancelClearChat}
+        />
+
+        {/* Interactive Guide Overlay */}
+        <InteractiveGuide
+          isOpen={this.state.showGuide}
+          onClose={this.handleCloseGuide}
+          currentPage={this.state.guideCurrentPage}
+          activeDashboardTab={this.state.guideActiveDashboardTab}
+          activeEventsTab={this.state.guideActiveEventsTab}
+          activeSettingsTab={this.state.guideActiveSettingsTab}
         />
       </AuthProvider>
     );

@@ -37,6 +37,7 @@ class MaintenanceBotButton extends Component {
       currentPage: null,
       activeDashboardTab: 'overview', // Track active dashboard tab
       activeEventsTab: 'Upcoming', // Track active events tab
+      activeSettingsTab: 'createBot', // Track active settings tab
       // Chat functionality
       showChat: false,
       messages: [
@@ -162,6 +163,10 @@ class MaintenanceBotButton extends Component {
         const activeEventsTab = this.detectActiveEventsTab();
         this.setState({ activeEventsTab: activeEventsTab });
         console.log(`Initial events tab: ${activeEventsTab}`);
+      } else if (currentPage === 'settings') {
+        const activeSettingsTab = this.detectActiveSettingsTab();
+        this.setState({ activeSettingsTab: activeSettingsTab });
+        console.log(`Initial settings tab: ${activeSettingsTab}`);
       }
     }
   };
@@ -281,6 +286,41 @@ class MaintenanceBotButton extends Component {
     return activeTab;
   };
 
+  // Detect active settings tab
+  detectActiveSettingsTab = () => {
+    const activeTabSelectors = [
+      '.tab-button.active',
+      '.tab.active',
+      '[aria-selected="true"]',
+      '.active',
+      '.selected'
+    ];
+    
+    let activeTab = 'createBot'; // default
+    
+    // Look for active tab elements in settings page
+    for (const selector of activeTabSelectors) {
+      const activeElements = document.querySelectorAll(selector);
+      for (const activeElement of activeElements) {
+        if (activeElement) {
+          const tabText = activeElement.textContent?.toLowerCase() || '';
+          const tabId = activeElement.id?.toLowerCase() || '';
+          
+          if (tabText.includes('bot details') || tabText.includes('botdetails') || tabId.includes('botdetails')) {
+            activeTab = 'botDetails';
+            break;
+          } else if (tabText.includes('create') || tabId.includes('create')) {
+            activeTab = 'createBot';
+            break;
+          }
+        }
+      }
+      if (activeTab !== 'createBot') break; // Found a match, stop searching
+    }
+    
+    return activeTab;
+  };
+
   // Add click listeners to tab elements for immediate detection
   addTabClickListeners = () => {
     const tabSelectors = [
@@ -316,6 +356,12 @@ class MaintenanceBotButton extends Component {
           if (this.state.activeEventsTab !== currentEventsTab) {
             this.setState({ activeEventsTab: currentEventsTab });
             console.log(`Events tab clicked - changed to: ${currentEventsTab}`, event.target);
+          }
+        } else if (this.state.currentPage === 'settings') {
+          const currentSettingsTab = this.detectActiveSettingsTab();
+          if (this.state.activeSettingsTab !== currentSettingsTab) {
+            this.setState({ activeSettingsTab: currentSettingsTab });
+            console.log(`Settings tab clicked - changed to: ${currentSettingsTab}`, event.target);
           }
         }
       }, 100);
@@ -1625,6 +1671,7 @@ class MaintenanceBotButton extends Component {
           onBotResponse={this.handleBotResponse}
           currentPage={currentPage}
           onOpenNewSurveyModal={this.props.onOpenNewSurveyModal}
+          onShowClearChatPopup={this.props.onShowClearChatPopup}
         />
 
         {/* Floating Button with image icon */}
@@ -1726,6 +1773,13 @@ class MaintenanceBotButton extends Component {
                   onToggleQuickActions={() => this.setState(prev => ({ showQuickActions: !prev.showQuickActions }))}
                   onBackup={() => this.exportCurrentPage('backup')}
                   onChatbot={this.handleChatToggle}
+                  onGuide={() => {
+                    // Close the panel and call App.jsx handler with current page context
+                    this.setState({ isOpen: false });
+                    if (this.props.onOpenGuide) {
+                      this.props.onOpenGuide(currentPage, activeDashboardTab, this.state.activeEventsTab, this.state.activeSettingsTab);
+                    }
+                  }}
                   onNewSurvey={this.props.onOpenNewSurveyModal}
                   onNewEvent={this.props.onOpenNewEventModal}
                   onOpenUploadModal={this.props.onOpenUploadModal}

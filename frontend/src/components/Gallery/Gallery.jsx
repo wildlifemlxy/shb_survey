@@ -38,6 +38,12 @@ const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady, 
 
   React.useEffect(() => {
     const streamMedia = async () => {
+      // Wait for mediaType to be detected first
+      if (!mediaType) {
+        console.log(`⏳ [${fileId}] Waiting for mediaType to be detected...`);
+        return;
+      }
+      
       // Load all files simultaneously - don't wait for visibility
       if (hasStartedLoading) {
         console.log(`📍 [${fileId}] Already loading. hasStartedLoading: ${hasStartedLoading}`);
@@ -46,8 +52,8 @@ const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady, 
       
       console.log(`📥 [${fileId}] Streaming ${mediaType}...`);
       
-      if (!fileId || !mediaType) {
-        console.warn(`❌ [${fileId}] Missing fileId or mediaType`);
+      if (!fileId) {
+        console.warn(`❌ [${fileId}] Missing fileId`);
         return;
       }
       
@@ -607,7 +613,7 @@ class Gallery extends React.Component {
             </div>
             {/* Buttons hidden before login */}
             {localStorage.getItem('userRole') && (
-              <div style={{ display: 'flex', gap: '8px', position: 'absolute', right: '0', top: '0' }}>
+              <div className="gallery-action-buttons" style={{ display: 'flex', gap: '8px', position: 'absolute', right: '0', top: '0' }}>
                 <button
                   onClick={this.selectAll}
                   style={{
@@ -683,7 +689,7 @@ class Gallery extends React.Component {
         </div>
 
         {/* Filter buttons */}
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '24px', flexWrap: 'wrap' }}>
+        <div className="gallery-filter-buttons" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '24px', flexWrap: 'wrap' }}>
           {['All', 'Photos', 'Videos'].map((filter) => (
             <button
               key={filter}

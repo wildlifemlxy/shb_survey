@@ -15,8 +15,7 @@ class SHBSurveyAssistant extends Component {
           id: 1, 
           text: "🤖 Hello! I'm the SHB Survey Assistant. How can I help you today?", 
           sender: 'bot', 
-          timestamp: new Date(),
-          showQuickActions: true // Show quick action buttons with this message
+          timestamp: new Date()
         }
       ],
       inputMessage: '',
@@ -24,10 +23,29 @@ class SHBSurveyAssistant extends Component {
       connectionStatus: 'connected', // connected, connecting, disconnected
       isDragOver: false, // For drag and drop visual feedback
       showAttachMenu: false, // For attachment dropdown menu
+      showGuide: false, // For showing/hiding guide tips
       isIdentifying: false, // For animal identification loading state
       pendingIdentification: false, // Flag to indicate next image upload is for identification
+      pendingImage: null, // Store uploaded image waiting for identification command
+      lastUploadedImage: null, // Store most recent image for retry functionality
     };
   }
+
+  // Clear chat history and reset to initial greeting
+  clearChatHistory = () => {
+    this.setState({
+      messages: [
+        { 
+          id: Date.now(), 
+          text: "🤖 Hello! I'm the SHB Survey Assistant. How can I help you today?", 
+          sender: 'bot', 
+          timestamp: new Date()
+        }
+      ],
+      inputMessage: '',
+      isTyping: false
+    });
+  };
 
   componentDidMount() {
     console.log('SHB Survey Assistant mounted');
@@ -35,6 +53,10 @@ class SHBSurveyAssistant extends Component {
     // Listen for popup events to hide/show assistant
     window.addEventListener('popupOpen', this.hideChatAssistant);
     window.addEventListener('popupClose', this.showChatAssistant);
+    
+    // Listen for clear chat events from App.jsx
+    window.addEventListener('clearChatConfirmed', this.handleClearChatConfirmed);
+    window.addEventListener('clearChatCancelled', this.handleClearChatCancelled);
     
     // Add click outside listener to close chat
     document.addEventListener('mousedown', this.handleClickOutside);
@@ -49,31 +71,67 @@ class SHBSurveyAssistant extends Component {
     // Clean up event listeners
     window.removeEventListener('popupOpen', this.hideChatAssistant);
     window.removeEventListener('popupClose', this.showChatAssistant);
+    window.removeEventListener('clearChatConfirmed', this.handleClearChatConfirmed);
+    window.removeEventListener('clearChatCancelled', this.handleClearChatCancelled);
     document.removeEventListener('mousedown', this.handleClickOutside);
   }
 
+  // Handle close button click - show confirmation popup in App.jsx
+  handleCloseClick = () => {
+    if (this.props.onShowClearChatPopup) {
+      this.props.onShowClearChatPopup();
+    }
+  };
+
+  // Handle clear chat confirmed from App.jsx popup
+  handleClearChatConfirmed = () => {
+    this.clearChatHistory();
+    if (this.props.onChatToggle) {
+      this.props.onChatToggle();
+    }
+  };
+
+  // Handle clear chat cancelled from App.jsx popup
+  handleClearChatCancelled = () => {
+    if (this.props.onChatToggle) {
+      this.props.onChatToggle();
+    }
+  };
+
   handleSendMessage = async () => {
-    const { inputMessage, messages, connectionStatus } = this.state;
+    const { inputMessage, messages, connectionStatus, pendingImage } = this.state;
     
     // Check if sending is allowed
     if (!inputMessage.trim() || connectionStatus !== 'connected') return;
 
+    // Create user message - include pending image if exists
     const newUserMessage = {
       id: Date.now(),
       text: inputMessage,
       sender: 'user',
-      timestamp: new Date()
+      timestamp: new Date(),
+      ...(pendingImage && { 
+        type: 'attachment',
+        files: [pendingImage]
+      })
     };
 
-    // Add user message and show typing indicator
+    // Add user message and show typing indicator, clear pending image
     this.setState({
       messages: [...messages, newUserMessage],
       inputMessage: '',
-      isTyping: true
+      isTyping: true,
+      pendingImage: null
     });
 
     // Generate bot response
-    const botResponse = await this.generateBotResponse(inputMessage);
+    const botResponse = await this.generateBotResponse(inputMessage, pendingImage);
+    
+    // If botResponse is null, identification is being processed, don't show another message
+    if (botResponse === null) {
+      this.setState({ isTyping: false });
+      return;
+    }
     
     // Simulate typing delay
     setTimeout(() => {
@@ -92,9 +150,24 @@ class SHBSurveyAssistant extends Component {
     }, 1000);
   }
 
-  generateBotResponse = async (userMessage) => {
+  generateBotResponse = async (userMessage, imageFile = null) => {
     const message = userMessage.toLowerCase();
     const { currentPage } = this.props; // Get from props instead of state
+    
+    // Check for animal identification request with image
+    if (message.includes('identify') || message.includes('animal') || message.includes('analyze') || message.includes('what is this')) {
+      // If there's an image passed, process it
+      if (imageFile) {
+        // Trigger identification (skip showing image since it's already in user's message)
+        setTimeout(() => {
+          this.processAnimalIdentification(imageFile, true);
+        }, 100);
+        return null; // Don't show a bot response, the identification process will handle it
+      } else {
+        // No image uploaded yet, prompt user to upload
+        return "🔍 Sure! I can help you identify an animal. Please upload an image using the 📎 button first.";
+      }
+    }
     
     // Context-aware responses based on current page
     if (message.includes('help')) {
@@ -175,6 +248,12 @@ class SHBSurveyAssistant extends Component {
     this.setState({ inputMessage: e.target.value });
   }
 
+  handleShowGuide = () => {
+    this.setState(prevState => ({
+      showGuide: !prevState.showGuide
+    }));
+  }
+
   handleInputFocus = () => {
     // Prevent chat from being hidden when input is focused
     this.setState({ inputFocused: true });
@@ -197,26 +276,25 @@ class SHBSurveyAssistant extends Component {
     // Create a file input element with specific accept types
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
-    fileInput.multiple = true;
+    fileInput.multiple = false; // Only allow single file for image identification
     
     switch (fileType) {
       case 'image':
+      default:
         fileInput.accept = 'image/*';
         break;
-      case 'video':
-        fileInput.accept = 'video/*';
-        break;
-      case 'audio':
-        fileInput.accept = 'audio/*';
-        break;
-      default:
-        fileInput.accept = 'image/*,video/*,audio/*';
     }
     
     fileInput.onchange = (e) => {
       const files = Array.from(e.target.files);
       if (files.length > 0) {
-        this.handleFileAttachment(files);
+        // If it's an image, store for potential identification (preview shown in input area)
+        if (fileType === 'image' && files[0].type.startsWith('image/')) {
+          // Store the image for identification
+          this.setState({ pendingImage: files[0] });
+        } else {
+          this.handleFileAttachment(files);
+        }
       }
     };
     
@@ -261,19 +339,11 @@ class SHBSurveyAssistant extends Component {
 
   getFileType = (mimeType) => {
     if (mimeType.startsWith('image/')) return 'image';
-    if (mimeType.startsWith('video/')) return 'video';
-    if (mimeType.startsWith('audio/')) return 'audio';
-    if (mimeType.includes('pdf')) return 'document';
     return 'file';
   }
 
   getFileIcon = (mimeType) => {
     if (mimeType.startsWith('image/')) return '🖼️';
-    if (mimeType.startsWith('video/')) return '🎥';
-    if (mimeType.startsWith('audio/')) return '🎵';
-    if (mimeType.includes('pdf')) return '📄';
-    if (mimeType.includes('document') || mimeType.includes('word')) return '📝';
-    if (mimeType.includes('text')) return '📄';
     return '📎';
   }
 
@@ -299,18 +369,8 @@ class SHBSurveyAssistant extends Component {
           />
         </div>
       );
-    } else if (fileType === 'video') {
-      return (
-        <div className="file-thumbnail video-thumbnail">
-          <video 
-            src={fileUrl}
-            onLoadedData={() => URL.revokeObjectURL(fileUrl)} // Clean up after loading
-          />
-          <div className="play-button">▶️</div>
-        </div>
-      );
     } else {
-      // For audio and documents, show icon
+      // For other files, show icon
       return (
         <div className="file-thumbnail icon-thumbnail">
           <div className="file-icon">{this.getFileIcon(file.type)}</div>
@@ -326,14 +386,8 @@ class SHBSurveyAssistant extends Component {
     if (fileType === 'image') {
       // Create image preview modal
       this.showImagePreview(fileUrl, file.name);
-    } else if (fileType === 'video') {
-      // Create video preview modal
-      this.showVideoPreview(fileUrl, file.name);
-    } else if (fileType === 'audio') {
-      // Create audio player modal
-      this.showAudioPreview(fileUrl, file.name);
     } else {
-      // For documents and other files, try to open in new tab
+      // For other files, try to download
       const link = document.createElement('a');
       link.href = fileUrl;
       link.download = file.name;
@@ -361,75 +415,110 @@ class SHBSurveyAssistant extends Component {
     document.body.appendChild(modal);
   }
 
-  showVideoPreview = (videoUrl, fileName) => {
-    const modal = document.createElement('div');
-    modal.className = 'file-preview-modal';
-    modal.innerHTML = `
-      <div class="modal-overlay" onclick="this.parentElement.remove()">
-        <div class="modal-content" onclick="event.stopPropagation()">
-          <div class="modal-header">
-            <h3>${fileName}</h3>
-            <button class="modal-close" onclick="this.closest('.file-preview-modal').remove()">✕</button>
-          </div>
-          <div class="modal-body">
-            <video controls style="max-width: 100%; max-height: 70vh;">
-              <source src="${videoUrl}" type="video/mp4">
-              Your browser does not support the video tag.
-            </video>
-          </div>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
-  }
-
-  showAudioPreview = (audioUrl, fileName) => {
-    const modal = document.createElement('div');
-    modal.className = 'file-preview-modal';
-    modal.innerHTML = `
-      <div class="modal-overlay" onclick="this.parentElement.remove()">
-        <div class="modal-content" onclick="event.stopPropagation()">
-          <div class="modal-header">
-            <h3>${fileName}</h3>
-            <button class="modal-close" onclick="this.closest('.file-preview-modal').remove()">✕</button>
-          </div>
-          <div class="modal-body">
-            <div class="audio-player">
-              <div class="audio-icon">🎵</div>
-              <audio controls style="width: 100%; margin-top: 16px;">
-                <source src="${audioUrl}" type="audio/mpeg">
-                Your browser does not support the audio element.
-              </audio>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
-  }
-
   generateAttachmentResponse = (files) => {
     const fileTypes = files.map(file => this.getFileType(file.type));
     const hasImages = fileTypes.includes('image');
-    const hasVideos = fileTypes.includes('video');
-    const hasAudio = fileTypes.includes('audio');
 
-    if (hasImages && hasVideos) {
-      return "🖼️🎥 I can see you've attached images and videos! While I can't process media files directly yet, I can help you with questions about uploading survey photos, video documentation, or where to find media management features in the SHB Survey system.";
-    } else if (hasImages) {
-      return "🖼️ Great! I can see you've attached images. These could be useful for survey documentation. I can help you with questions about photo requirements, image formats, or where to upload survey images in the system.";
-    } else if (hasVideos) {
-      return "🎥 I can see you've attached videos! Video documentation can be valuable for survey records. I can help you with questions about video formats, upload requirements, or where to manage video files in the system.";
-    } else if (hasAudio) {
-      return "🎵 I can see you've attached audio files! Audio recordings can be useful for bird call documentation. I can help you with questions about audio formats, recording guidelines, or where to manage audio files in the system.";
+    if (hasImages) {
+      return "🖼️ Great! I can see you've attached an image. Would you like me to help identify the animal in this photo?";
     } else {
-      return "📎 I can see you've attached files. While I can't process file contents directly yet, I can help you with questions about uploading data, file formats, or where to find file management features in the SHB Survey system.";
+      return "📎 I can see you've attached a file. Currently, I can only process image files for animal identification. Please upload an image (JPG, PNG, etc.) if you'd like me to identify an animal.";
     }
   }
 
   // Animal Identification Feature
   handleIdentifyAnimal = () => {
-    // Trigger file input for image selection directly
+    // Show the clicked prompt as a user message
+    const userMessage = {
+      id: Date.now(),
+      text: "🔍 Can you help me identify an animal from a photo?",
+      sender: 'user',
+      timestamp: new Date()
+    };
+
+    this.setState(prevState => ({
+      messages: [...prevState.messages, userMessage]
+    }), () => {
+      // After showing user message, trigger file input for image selection
+      this.triggerImageUpload();
+    });
+  }
+
+  // Handle Yes response to identify again
+  handleIdentifyAgainYes = (messageId) => {
+    // Show user's "Yes" response
+    const userMessage = {
+      id: Date.now(),
+      text: "Yes",
+      sender: 'user',
+      timestamp: new Date()
+    };
+
+    // Remove the confirm message and add user response
+    this.setState(prevState => ({
+      messages: [...prevState.messages.filter(msg => msg.id !== messageId), userMessage]
+    }), () => {
+      // Trigger file input for image selection
+      this.triggerImageUpload();
+    });
+  }
+
+  // Handle No response to identify again
+  handleIdentifyAgainNo = (messageId) => {
+    // Show user's "No" response
+    const userMessage = {
+      id: Date.now(),
+      text: "No",
+      sender: 'user',
+      timestamp: new Date()
+    };
+
+    const botMessage = {
+      id: Date.now() + 1,
+      text: "Okay! Let me know if you need any help.",
+      sender: 'bot',
+      timestamp: new Date()
+    };
+
+    // Remove the confirm message and add responses
+    this.setState(prevState => ({
+      messages: [...prevState.messages.filter(msg => msg.id !== messageId), userMessage, botMessage]
+    }));
+  }
+
+  // Handle Try Again for error messages
+  handleTryAgain = (messageId) => {
+    // Remove the error message silently and retry
+    this.setState(prevState => ({
+      messages: prevState.messages.filter(msg => msg.id !== messageId)
+    }), () => {
+      // Use the last uploaded image if available (skip showing it again), otherwise trigger new upload
+      if (this.state.lastUploadedImage) {
+        this.processAnimalIdentification(this.state.lastUploadedImage, true);
+      } else {
+        this.triggerImageUpload();
+      }
+    });
+  }
+
+  // Handle Cancel/No for error messages
+  handleCancelRetry = (messageId) => {
+    const botMessage = {
+      id: Date.now() + 1,
+      text: "No problem! Let me know if you need any help.",
+      sender: 'bot',
+      timestamp: new Date(),
+      showQuickActions: true
+    };
+
+    // Remove the error message and add bot response
+    this.setState(prevState => ({
+      messages: [...prevState.messages.filter(msg => msg.id !== messageId), botMessage]
+    }));
+  }
+
+  // Trigger file upload dialog
+  triggerImageUpload = () => {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
@@ -442,22 +531,32 @@ class SHBSurveyAssistant extends Component {
     fileInput.click();
   }
 
-  processAnimalIdentification = async (imageFile) => {
-    // Show the uploaded image in chat
-    const userImageMessage = {
-      id: Date.now(),
-      text: '',
-      sender: 'user',
-      timestamp: new Date(),
-      type: 'attachment',
-      files: [imageFile]
-    };
+  processAnimalIdentification = async (imageFile, skipShowImage = false) => {
+    // Store the image for potential retry
+    this.setState({ lastUploadedImage: imageFile });
+    
+    // Show the uploaded image in chat (unless already shown)
+    if (!skipShowImage) {
+      const userImageMessage = {
+        id: Date.now(),
+        text: '',
+        sender: 'user',
+        timestamp: new Date(),
+        type: 'attachment',
+        files: [imageFile]
+      };
 
-    this.setState(prevState => ({
-      messages: [...prevState.messages, userImageMessage],
-      isIdentifying: true,
-      pendingIdentification: false
-    }));
+      this.setState(prevState => ({
+        messages: [...prevState.messages, userImageMessage],
+        isIdentifying: true,
+        pendingIdentification: false
+      }));
+    } else {
+      this.setState({
+        isIdentifying: true,
+        pendingIdentification: false
+      });
+    }
 
     // Show analyzing message
     const analyzingMessage = {
@@ -499,10 +598,15 @@ class SHBSurveyAssistant extends Component {
         const identification = result.identification;
         const primary = identification.primaryMatch;
 
-        // Include reference image URL in the result message if available
-        const referenceImageUrl = primary.wikipediaData?.success && primary.wikipediaData.image?.url
-          ? (primary.wikipediaData.originalImage?.url || primary.wikipediaData.image.url)
-          : null;
+        // Get the best reference image URL
+        let referenceImageUrl = null;
+        if (primary.referenceImages && primary.referenceImages.length > 0) {
+          referenceImageUrl = primary.referenceImages[0].url || primary.referenceImages[0].largeUrl;
+        } else if (primary.wikipediaData?.images && primary.wikipediaData.images.length > 0) {
+          referenceImageUrl = primary.wikipediaData.images[0].url;
+        } else if (primary.verification?.defaultPhoto?.url) {
+          referenceImageUrl = primary.verification.defaultPhoto.url;
+        }
 
         const resultMessage = {
           id: Date.now() + 2,
@@ -515,8 +619,16 @@ class SHBSurveyAssistant extends Component {
           referenceImageUrl: referenceImageUrl
         };
 
+        const followUpMessage = {
+          id: Date.now() + 3,
+          text: 'Would you like to identify another animal?',
+          sender: 'bot',
+          timestamp: new Date(),
+          type: 'confirm-identify-again'
+        };
+
         this.setState(prevState => ({
-          messages: [...prevState.messages, resultMessage],
+          messages: [...prevState.messages, resultMessage, followUpMessage],
           isIdentifying: false
         }));
 
@@ -524,8 +636,10 @@ class SHBSurveyAssistant extends Component {
         const errorMessage = {
           id: Date.now() + 2,
           text: `❌ Could not identify the animal. ${result.error || 'Please try with a clearer image.'}`,
+          question: 'Would you like to try again?',
           sender: 'bot',
-          timestamp: new Date()
+          timestamp: new Date(),
+          type: 'error-with-retry'
         };
 
         this.setState(prevState => ({
@@ -540,8 +654,10 @@ class SHBSurveyAssistant extends Component {
       const errorMessage = {
         id: Date.now() + 2,
         text: `❌ Error during identification: ${error.message}. Please try again later.`,
+        question: 'Would you like to try again?',
         sender: 'bot',
-        timestamp: new Date()
+        timestamp: new Date(),
+        type: 'error-with-retry'
       };
 
       this.setState(prevState => ({
@@ -589,20 +705,17 @@ class SHBSurveyAssistant extends Component {
 
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
-      // Filter for supported file types (only images, videos, and audio)
-      const supportedFiles = files.filter(file => {
-        return file.type.startsWith('image/') || 
-               file.type.startsWith('video/') || 
-               file.type.startsWith('audio/');
-      });
+      // Filter for supported file types (only images)
+      const imageFiles = files.filter(file => file.type.startsWith('image/'));
 
-      if (supportedFiles.length > 0) {
-        this.handleFileAttachment(supportedFiles);
+      if (imageFiles.length > 0) {
+        // Store image in pending state (same as attach button behavior)
+        this.setState({ pendingImage: imageFiles[0] });
       } else {
         // Show message about unsupported files
         const unsupportedMessage = {
           id: Date.now(),
-          text: "⚠️ Only images, videos, and audio files are supported.",
+          text: "⚠️ Only image files are supported for identification.",
           sender: 'bot',
           timestamp: new Date()
         };
@@ -660,11 +773,11 @@ class SHBSurveyAssistant extends Component {
       this.setState({ showAttachMenu: false });
     }
     
-    // Close chat if clicking outside
+    // Show clear chat popup if clicking outside the chat window
     if (this.chatRef && !this.chatRef.contains(event.target)) {
-      // Close chat on outside click
-      if (this.props.onChatToggle) {
-        this.props.onChatToggle(false);
+      // Show the clear chat confirmation popup (same as clicking close button)
+      if (this.props.onShowClearChatPopup) {
+        this.props.onShowClearChatPopup();
       }
     }
   }
@@ -693,7 +806,7 @@ class SHBSurveyAssistant extends Component {
           <div className="chat-header-actions">
             <button 
               className="close-btn"
-              onClick={onChatToggle}
+              onClick={this.handleCloseClick}
               title="Close Chat"
             >
               ✕
@@ -716,25 +829,48 @@ class SHBSurveyAssistant extends Component {
                   className={`message ${message.sender}`}
                 >
                   <div className="message-content">
-                    {message.text && (
-                      <div className="message-text">
-                        {message.text}
-                      </div>
-                    )}
-                    {/* Quick Action Buttons - shown with greeting message */}
-                    {message.showQuickActions && (
-                      <div className="message-quick-actions">
-                        <div 
-                          className="message-suggestion"
-                          onClick={this.handleIdentifyAnimal}
-                          role="button"
-                          tabIndex={0}
-                        >
-                          🔍 Can you help me identify an animal from a photo?
+                    {/* Combined text and attachment in same bubble */}
+                    {message.text && message.type === 'attachment' && message.files && (
+                      <div className="message-text-with-attachment">
+                        <div className="message-text">
+                          {message.text}
+                        </div>
+                        <div className="message-attachments inline">
+                          {Array.from(message.files).map((file, index) => (
+                            <div 
+                              key={index} 
+                              className="attachment-item"
+                              onClick={() => this.handleAttachmentClick(file)}
+                            >
+                              <div className="attachment-preview">
+                                {this.renderFilePreview(file)}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
-                    {message.type === 'attachment' && message.files && (
+                    {/* Text only (no attachment) */}
+                    {message.text && message.type !== 'attachment' && message.type !== 'confirm-identify-again' && message.type !== 'error-with-retry' && (
+                      <div className={`message-text ${message.showQuickActions ? 'with-quick-actions' : ''}`}>
+                        {message.text}
+                        {/* Quick Action Buttons - shown inside greeting message bubble */}
+                        {message.showQuickActions && (
+                          <div className="message-quick-actions">
+                            <div 
+                              className="message-suggestion"
+                              onClick={this.handleIdentifyAnimal}
+                              role="button"
+                              tabIndex={0}
+                            >
+                              🔍 Can you help me identify an animal from a photo?
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {/* Attachment only (no text) */}
+                    {message.type === 'attachment' && message.files && !message.text && (
                       <div className="message-attachments">
                         {Array.from(message.files).map((file, index) => (
                           <div 
@@ -767,9 +903,76 @@ class SHBSurveyAssistant extends Component {
                         </div>
                       </div>
                     )}
-                    <div className="message-time">
-                      {this.formatTime(message.timestamp)}
-                    </div>
+                    {/* Standalone Quick Actions bubble (no text, just quick actions) */}
+                    {!message.text && !message.type && message.showQuickActions && (
+                      <div className="message-quick-actions standalone">
+                        <div 
+                          className="message-suggestion"
+                          onClick={this.handleIdentifyAnimal}
+                          role="button"
+                          tabIndex={0}
+                        >
+                          🔍 Can you help me identify an animal from a photo?
+                        </div>
+                      </div>
+                    )}
+                    {/* Confirm identify again with Yes/No buttons */}
+                    {message.type === 'confirm-identify-again' && (
+                      <div className="confirm-identify-again">
+                        <div className="message-text">
+                          {message.text}
+                        </div>
+                        <div className="confirm-time">
+                          {this.formatTime(message.timestamp)}
+                        </div>
+                        <div className="confirm-buttons">
+                          <button 
+                            className="confirm-btn yes"
+                            onClick={() => this.handleIdentifyAgainYes(message.id)}
+                          >
+                            Yes
+                          </button>
+                          <button 
+                            className="confirm-btn no"
+                            onClick={() => this.handleIdentifyAgainNo(message.id)}
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {/* Error message with Try Again button */}
+                    {message.type === 'error-with-retry' && (
+                      <div className="error-with-retry">
+                        <div className="message-text error">
+                          {message.text}
+                          {message.question && (
+                            <div className="error-question">
+                              {message.question}
+                            </div>
+                          )}
+                        </div>
+                        <div className="retry-buttons">
+                          <button 
+                            className="retry-btn secondary"
+                            onClick={() => this.handleTryAgain(message.id)}
+                          >
+                            Yes
+                          </button>
+                          <button 
+                            className="retry-btn secondary"
+                            onClick={() => this.handleCancelRetry(message.id)}
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {message.type !== 'confirm-identify-again' && (
+                      <div className="message-time">
+                        {this.formatTime(message.timestamp)}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -787,8 +990,53 @@ class SHBSurveyAssistant extends Component {
               )}
             </div>
 
+            {/* Guide Button Section */}
+            <div className="chat-guide-section">
+              <button 
+                className="guide-btn"
+                onClick={this.handleShowGuide}
+              >
+                📖 Guide
+              </button>
+              <button 
+                className="guide-btn"
+                onClick={this.handleIdentifyAnimal}
+              >
+                🔍 Identify Animal
+              </button>
+              {this.state.showGuide && (
+                <div className="guide-content">
+                  <span>📎 Attach images</span>
+                  <span>🖱️ Drag & drop</span>
+                  <span>💬 Type naturally</span>
+                  <button 
+                    className="guide-close-btn"
+                    onClick={this.handleShowGuide}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Chat Input */}
             <div className="chat-input-container">
+              {/* Pending Image Preview */}
+              {this.state.pendingImage && (
+                <div className="pending-image-preview">
+                  <img 
+                    src={URL.createObjectURL(this.state.pendingImage)} 
+                    alt="Pending upload"
+                  />
+                  <button 
+                    className="remove-pending-image"
+                    onClick={() => this.setState({ pendingImage: null })}
+                    title="Remove image"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
               <div className="chat-input-wrapper">
                 <textarea
                   value={inputMessage}
@@ -796,7 +1044,7 @@ class SHBSurveyAssistant extends Component {
                   onKeyPress={this.handleKeyPress}
                   onFocus={this.handleInputFocus}
                   onBlur={this.handleInputBlur}
-                  placeholder="Type your message..."
+                  placeholder={this.state.pendingImage ? "Type 'identify' to analyze the image..." : "Try: identify animal, help, map, survey..."}
                   className="chat-input"
                   rows="1"
                   disabled={connectionStatus !== 'connected'}
@@ -824,14 +1072,6 @@ class SHBSurveyAssistant extends Component {
                         <div className="attach-menu-item" onClick={() => this.handleAttachSpecificType('image')}>
                           <span className="attach-menu-icon">🖼️</span>
                           <span className="attach-menu-text">Photos</span>
-                        </div>
-                        <div className="attach-menu-item" onClick={() => this.handleAttachSpecificType('video')}>
-                          <span className="attach-menu-icon">🎥</span>
-                          <span className="attach-menu-text">Videos</span>
-                        </div>
-                        <div className="attach-menu-item" onClick={() => this.handleAttachSpecificType('audio')}>
-                          <span className="attach-menu-icon">🎵</span>
-                          <span className="attach-menu-text">Audio</span>
                         </div>
                       </div>
                     )}
