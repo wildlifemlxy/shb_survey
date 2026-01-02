@@ -28,7 +28,38 @@ class SHBSurveyAssistant extends Component {
       pendingIdentification: false, // Flag to indicate next image upload is for identification
       pendingImage: null, // Store uploaded image waiting for identification command
       lastUploadedImage: null, // Store most recent image for retry functionality
+      isListening: false, // For speech-to-text recording state
+      speechSupported: 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window, // Check browser support
     };
+    
+    // Initialize speech recognition
+    this.recognition = null;
+    if (this.state.speechSupported) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      this.recognition = new SpeechRecognition();
+      this.recognition.continuous = false;
+      this.recognition.interimResults = true;
+      this.recognition.lang = 'en-US';
+      
+      this.recognition.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .map(result => result[0].transcript)
+          .join('');
+        this.setState({ inputMessage: transcript });
+      };
+      
+      this.recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        this.setState({ isListening: false });
+        if (event.error === 'not-allowed') {
+          alert('Microphone access denied. Please allow microphone access to use speech-to-text.');
+        }
+      };
+      
+      this.recognition.onend = () => {
+        this.setState({ isListening: false });
+      };
+    }
   }
 
   // Clear chat history and reset to initial greeting
@@ -246,6 +277,34 @@ class SHBSurveyAssistant extends Component {
 
   handleInputChange = (e) => {
     this.setState({ inputMessage: e.target.value });
+  }
+
+  // Toggle speech-to-text recording
+  toggleSpeechToText = () => {
+    if (!this.state.speechSupported) {
+      alert('Speech recognition is not supported in your browser. Please use Chrome or Edge for this feature.');
+      return;
+    }
+    
+    if (this.state.isListening) {
+      // Stop listening
+      this.recognition.stop();
+      this.setState({ isListening: false });
+    } else {
+      // Start listening
+      try {
+        this.recognition.start();
+        this.setState({ isListening: true });
+      } catch (error) {
+        console.error('Speech recognition start error:', error);
+        // If already started, stop and restart
+        this.recognition.stop();
+        setTimeout(() => {
+          this.recognition.start();
+          this.setState({ isListening: true });
+        }, 100);
+      }
+    }
   }
 
   handleShowGuide = () => {
@@ -1037,6 +1096,7 @@ class SHBSurveyAssistant extends Component {
                   </button>
                 </div>
               )}
+              
               <div className="chat-input-wrapper">
                 <textarea
                   value={inputMessage}
@@ -1044,7 +1104,7 @@ class SHBSurveyAssistant extends Component {
                   onKeyPress={this.handleKeyPress}
                   onFocus={this.handleInputFocus}
                   onBlur={this.handleInputBlur}
-                  placeholder={this.state.pendingImage ? "Type 'identify' to analyze the image..." : "Try: identify animal, help, map, survey..."}
+                  placeholder="Type your message..."
                   className="chat-input"
                   rows="1"
                   disabled={connectionStatus !== 'connected'}
@@ -1076,6 +1136,42 @@ class SHBSurveyAssistant extends Component {
                       </div>
                     )}
                   </div>
+                  
+                  {/* Speech-to-Text Button */}
+                  {this.state.speechSupported && (
+                    <svg 
+                      className={`speech-button ${this.state.isListening ? 'listening' : ''}`}
+                      onClick={this.toggleSpeechToText}
+                      title={this.state.isListening ? "Stop Recording" : "Speech to Text"}
+                      width="16" 
+                      height="16" 
+                      viewBox="0 0 24 24" 
+                      fill="none"
+                    >
+                      <path 
+                        d="M12 1C10.34 1 9 2.34 9 4V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V4C15 2.34 13.66 1 12 1Z" 
+                        stroke={this.state.isListening ? "#ef4444" : "#6b7280"}
+                        strokeWidth="1.5" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                        fill={this.state.isListening ? "#fecaca" : "none"}
+                      />
+                      <path 
+                        d="M19 10V12C19 15.87 15.87 19 12 19C8.13 19 5 15.87 5 12V10" 
+                        stroke={this.state.isListening ? "#ef4444" : "#6b7280"}
+                        strokeWidth="1.5" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      />
+                      <path 
+                        d="M12 19V23M8 23H16" 
+                        stroke={this.state.isListening ? "#ef4444" : "#6b7280"}
+                        strokeWidth="1.5" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
                   
                   <svg 
                     className="send-button"

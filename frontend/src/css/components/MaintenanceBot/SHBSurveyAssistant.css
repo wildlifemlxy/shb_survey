@@ -854,7 +854,7 @@
   border: 1px solid #d1d5db;
   border-radius: 12px;
   padding: 12px 16px;
-  padding-right: 60px; /* Make room for buttons */
+  padding-right: 100px; /* Make room for buttons (attach, speech, send) */
   font-size: 14px;
   resize: none;
   outline: none;
@@ -889,7 +889,7 @@
   position: relative;
 }
 
-.attach-button, .send-button {
+.attach-button, .send-button, .speech-button {
   border: none;
   background: none;
   cursor: pointer;
@@ -904,19 +904,145 @@
   height: 32px;
 }
 
-.attach-button:hover, .send-button:hover {
+.attach-button:hover, .send-button:hover, .speech-button:hover {
   background: rgba(79, 70, 229, 0.1);
   transform: scale(1.1);
 }
 
-.attach-button:active, .send-button:active {
+.attach-button:active, .send-button:active, .speech-button:active {
   transform: scale(0.95);
 }
 
-.send-button:disabled, .attach-button:disabled {
+.send-button:disabled, .attach-button:disabled, .speech-button:disabled {
   opacity: 0.3;
   cursor: not-allowed;
   transform: none;
+}
+
+/* Speech-to-Text Button Styles */
+.speech-button {
+  position: relative;
+}
+
+.speech-button.listening {
+  background: rgba(239, 68, 68, 0.15);
+  animation: pulse-recording 1.5s ease-in-out infinite;
+}
+
+.speech-button.listening:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+@keyframes pulse-recording {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+/* Voice Record Button */
+.voice-record-button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  border-radius: 6px;
+  padding: 6px;
+  width: 32px;
+  height: 32px;
+}
+
+.voice-record-button:hover {
+  background: rgba(239, 68, 68, 0.1);
+  transform: scale(1.1);
+}
+
+.voice-record-button:active {
+  transform: scale(0.95);
+}
+
+.voice-record-button.recording {
+  background: rgba(239, 68, 68, 0.15);
+  animation: pulse-recording 1.5s ease-in-out infinite;
+}
+
+/* Simple Recording Indicator */
+.voice-recording-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #fef2f2;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  border: 1px solid #fecaca;
+}
+
+.voice-recording-indicator .recording-dot {
+  width: 10px;
+  height: 10px;
+  background: #ef4444;
+  border-radius: 50%;
+  animation: blink-recording 1s ease-in-out infinite;
+}
+
+@keyframes blink-recording {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.voice-recording-indicator .recording-time {
+  font-size: 13px;
+  font-weight: 600;
+  color: #dc2626;
+  font-family: 'Courier New', monospace;
+}
+
+/* Voice Message in Chat */
+.voice-message {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-radius: 16px;
+  min-width: 200px;
+  max-width: 280px;
+}
+
+.voice-message-icon {
+  font-size: 24px;
+}
+
+.voice-message-player {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.voice-audio-player {
+  width: 100%;
+  height: 32px;
+}
+
+.voice-audio-player::-webkit-media-controls-panel {
+  background: transparent;
+}
+
+.voice-duration {
+  font-size: 11px;
+  color: #3b82f6;
+  font-weight: 500;
 }
 
 .send-button:disabled:hover, .attach-button:disabled:hover {
