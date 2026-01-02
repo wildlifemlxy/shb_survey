@@ -2,7 +2,7 @@ import React from 'react';
 import apiService from '../../services/apiServices';
 import './ImageViewerPopup.css';
 
-const ImageViewerPopup = ({ isOpen, imageData, onClose, onDelete, onOpenDeleteModal, onDeleteModalOpen, onOpenFullScreenModal, onOpenFullScreenMediaViewer, galleryFiles = [] }) => {
+const ImageViewerPopup = ({ isOpen, imageData, onClose, onDelete, onOpenDeleteModal, onDeleteModalOpen, onOpenFullScreenModal, onOpenFullScreenMediaViewer, galleryFiles = [], isAuthenticated = false }) => {
   const isVideo = imageData?.isVideo || imageData?.mimeType?.startsWith('video/');
 
   // Debug logging
@@ -57,12 +57,14 @@ const ImageViewerPopup = ({ isOpen, imageData, onClose, onDelete, onOpenDeleteMo
                 View Full Screen
               </button>
 
-              <button 
-                className="image-viewer-btn delete-btn"
-                onClick={handleDelete}
-              >
-                Delete
-              </button>
+              {isAuthenticated && (
+                <button 
+                  className="image-viewer-btn delete-btn"
+                  onClick={handleDelete}
+                >
+                  Delete
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -6,17 +6,23 @@ const FullScreenMediaViewer = ({ isOpen, imageData, onClose, galleryFiles = [] }
   const [displayedMedia, setDisplayedMedia] = React.useState(imageData);
   const [videoThumbnails, setVideoThumbnails] = React.useState({});
   const [freshVideoSource, setFreshVideoSource] = React.useState(null);
+  const [freshImageSource, setFreshImageSource] = React.useState(null);
   const [isVideoReady, setIsVideoReady] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [imageError, setImageError] = React.useState(false);
   const videoRef = React.useRef(null);
 
   const currentMedia = displayedMedia || imageData;
   const isVideo = currentMedia?.isVideo || currentMedia?.mimeType?.startsWith('video/');
   const videoSource = freshVideoSource || currentMedia?.src || currentMedia?.blobUrl;
+  const imageSource = freshImageSource || currentMedia?.src || currentMedia?.blobUrl;
 
   // Reset video ready state when media changes
   React.useEffect(() => {
     setIsVideoReady(false);
+    setFreshVideoSource(null);
+    setFreshImageSource(null);
+    setImageError(false);
     if (isOpen && isVideo) {
       setIsLoading(true);
     }
@@ -165,6 +171,52 @@ const FullScreenMediaViewer = ({ isOpen, imageData, onClose, galleryFiles = [] }
       })();
     }
   }, [currentMedia?.fileId, isOpen, isVideo]);
+
+  // Pre-fetch fresh blob for images when source is not available or on error
+  React.useEffect(() => {
+    const shouldFetchImage = isOpen && !isVideo && currentMedia?.fileId && 
+      (!imageSource || imageError);
+    
+    if (shouldFetchImage) {
+      console.log('📥 Pre-fetching fresh blob for image:', currentMedia.fileId);
+      (async () => {
+        try {
+          const response = await fetch(
+            window.location.hostname === 'localhost' 
+              ? 'http://localhost:3001/gallery'
+              : 'https://shb-backend.azurewebsites.net/gallery',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                purpose: 'stream',
+                fileId: currentMedia.fileId 
+              })
+            }
+          );
+          
+          if (response.ok) {
+            const blob = await response.blob();
+            const newBlobUrl = URL.createObjectURL(blob);
+            console.log('✅ Fresh image blob created:', newBlobUrl.substring(0, 80));
+            console.log('✅ Image blob type:', blob.type, 'Size:', blob.size);
+            setFreshImageSource(newBlobUrl);
+            setImageError(false);
+          } else {
+            console.error('❌ Failed to fetch image blob, status:', response.status);
+          }
+        } catch (error) {
+          console.error('❌ Error fetching image blob:', error.message);
+        }
+      })();
+    }
+  }, [currentMedia?.fileId, isOpen, isVideo, imageSource, imageError]);
+
+  // Handle image load error - trigger fresh blob fetch
+  const handleImageError = () => {
+    console.log('❌ Image failed to load, will fetch fresh blob:', currentMedia?.fileId);
+    setImageError(true);
+  };
 
   React.useEffect(() => {
     if (isOpen) {
@@ -397,6 +449,9 @@ const FullScreenMediaViewer = ({ isOpen, imageData, onClose, galleryFiles = [] }
     }
   };
 
+  // Check if image is loading (no source yet or error occurred and fetching new one)
+  const isImageLoading = !isVideo && (!imageSource || (imageError && !freshImageSource));
+
   if (!isOpen || !imageData) return null;
 
   return (
@@ -416,6 +471,19 @@ const FullScreenMediaViewer = ({ isOpen, imageData, onClose, galleryFiles = [] }
           </div>
           
           <div className="fullscreen-media-content">
+            {isImageLoading && (
+              <div style={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                color: 'white',
+                gap: '16px'
+              }}>
+                <div className="gallery-spinner" style={{ width: '48px', height: '48px' }}></div>
+                <span>Loading image...</span>
+              </div>
+            )}
             {isVideo ? (        
               <video 
                 ref={videoRef}
@@ -476,15 +544,20 @@ const FullScreenMediaViewer = ({ isOpen, imageData, onClose, galleryFiles = [] }
               >
                 Your browser does not support the video tag.
               </video>
-            ) : (
+            ) : !isImageLoading && imageSource ? (
               <img 
-                src={currentMedia?.src} 
+                src={imageSource} 
                 alt={currentMedia?.title}
                 className="fullscreen-media-image"
                 draggable={false}
-                key={currentMedia?.fileId}
+                key={`${currentMedia?.fileId}-${imageSource}`}
+                onError={handleImageError}
+                onLoad={() => {
+                  console.log('✅ Image loaded successfully:', currentMedia?.title);
+                  setImageError(false);
+                }}
               />
-            )}
+            ) : null}
           </div>
           
           <div className="fullscreen-media-footer">

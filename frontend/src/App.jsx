@@ -796,6 +796,7 @@ class App extends Component {
           onOpenFullScreenModal={this.openFullScreenModal}
           onOpenFullScreenMediaViewer={this.openFullScreenMediaViewer}
           galleryFiles={this.state.galleryItems}
+          isAuthenticated={isAuthenticated}
         />
 
         {/* Fullscreen Media Viewer Modal */}
