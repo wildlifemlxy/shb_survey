@@ -226,6 +226,62 @@
   justify-content: center;
 }
 
+.filmstrip-thumbnail-with-overlay {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filmstrip-thumbnail-with-overlay .filmstrip-thumbnail-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.video-overlay-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 20px;
+  color: white;
+  background: rgba(0, 0, 0, 0.6);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 2px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.filmstrip-thumbnail-loading {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #555, #333);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-icon {
+  font-size: 20px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .video-icon {
   font-size: 24px;
 }
