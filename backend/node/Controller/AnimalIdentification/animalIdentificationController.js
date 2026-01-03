@@ -1,6 +1,7 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const axios = require('axios');
 const sharp = require('sharp'); // For image optimization
+require('dotenv').config(); // Load environment variables
 
 class AnimalIdentificationController {
   // Optimal image settings for AI accuracy
@@ -12,13 +13,10 @@ class AnimalIdentificationController {
     minFileSize: 50000,      // Warn if image < 50KB (too small)
   };
   
-  // Gemini API Keys - Multiple keys for quota rotation (doubles daily limit)
-  static GEMINI_API_KEYS = [
-    'AIzaSyAZA-yYhbVjNeqTJX3-TDXG0qN6cnfi9S8', // Key 1 - FREE tier
-    'AIzaSyC5Yqa13oE8Szkxs7oYMPAZ4EurvSCma64', // Key 2 - FREE tier (backup)
-  ];
+  // Gemini API Key - Loaded from environment variable
+  static GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  
   static currentKeyIndex = 0; // Current API key index
-  static GEMINI_API_KEY = AnimalIdentificationController.GEMINI_API_KEYS[0]; // Active key
   
   // Model configuration with automatic fallback (ordered by accuracy, then by quota)
   static GEMINI_MODEL_PRIMARY = 'gemini-2.5-pro';      // BEST accuracy (25 req/day per key)
@@ -30,6 +28,21 @@ class AnimalIdentificationController {
   
   // iNaturalist API for species verification (free, no API key needed)
   static INATURALIST_API_URL = 'https://api.inaturalist.org/v1';
+
+  /**
+   * Convert iNaturalist S3 URLs to static.inaturalist.org URLs
+   * @param {string} url - Original URL (may be S3 or other format)
+   * @returns {string} - Converted URL using static.inaturalist.org
+   */
+  static convertToStaticUrl(url) {
+    if (!url) return null;
+    // Convert S3 URLs to static.inaturalist.org
+    // From: http://inaturalist-open-data.s3.amazonaws.com/photos/169598841/medium.jpg
+    // To: https://static.inaturalist.org/photos/169598841/medium.jpg
+    return url
+      .replace('http://inaturalist-open-data.s3.amazonaws.com', 'https://static.inaturalist.org')
+      .replace('https://inaturalist-open-data.s3.amazonaws.com', 'https://static.inaturalist.org');
+  }
   
   // Quota tracking - auto-switch to fallback model/key when quota exceeded
   static geminiQuotaExceeded = false;
@@ -37,38 +50,24 @@ class AnimalIdentificationController {
   static keyQuotaStatus = {}; // Track quota status per key
   
   /**
-   * Switch to next available API key
-   * @returns {boolean} - True if switched successfully, false if all keys exhausted
+   * Switch to next available API key (single key mode - always returns false)
+   * @returns {boolean} - Always false since we only have one key
    */
   static switchToNextKey() {
-    const nextIndex = AnimalIdentificationController.currentKeyIndex + 1;
-    if (nextIndex < AnimalIdentificationController.GEMINI_API_KEYS.length) {
-      AnimalIdentificationController.currentKeyIndex = nextIndex;
-      AnimalIdentificationController.GEMINI_API_KEY = AnimalIdentificationController.GEMINI_API_KEYS[nextIndex];
-      // Reset model to primary for new key
-      AnimalIdentificationController.GEMINI_MODEL = AnimalIdentificationController.GEMINI_MODEL_PRIMARY;
-      AnimalIdentificationController.fallbackLevel = 0;
-      AnimalIdentificationController.usingFallbackModel = false;
-      console.log(`🔑 Switched to API key ${nextIndex + 1}/${AnimalIdentificationController.GEMINI_API_KEYS.length}`);
-      console.log(`   Reset to primary model: ${AnimalIdentificationController.GEMINI_MODEL_PRIMARY}`);
-      return true;
-    }
-    console.log('❌ All API keys exhausted');
+    console.log('❌ Only one API key configured - cannot switch');
     return false;
   }
   
   /**
-   * Reset all keys to start fresh (called at quota reset time)
+   * Reset to start fresh (called at quota reset time)
    */
   static resetAllKeys() {
-    AnimalIdentificationController.currentKeyIndex = 0;
-    AnimalIdentificationController.GEMINI_API_KEY = AnimalIdentificationController.GEMINI_API_KEYS[0];
     AnimalIdentificationController.GEMINI_MODEL = AnimalIdentificationController.GEMINI_MODEL_PRIMARY;
     AnimalIdentificationController.fallbackLevel = 0;
     AnimalIdentificationController.usingFallbackModel = false;
     AnimalIdentificationController.geminiQuotaExceeded = false;
     AnimalIdentificationController.keyQuotaStatus = {};
-    console.log('🔄 All API keys reset - quotas refreshed');
+    console.log('🔄 API key reset - quotas refreshed');
   }
   
   /**
@@ -155,13 +154,11 @@ class AnimalIdentificationController {
       AnimalIdentificationController.genAI = new GoogleGenerativeAI(
         AnimalIdentificationController.GEMINI_API_KEY
       );
-      const keyCount = AnimalIdentificationController.GEMINI_API_KEYS.length;
       console.log('✓ Gemini AI client initialized');
-      console.log(`   API Keys: ${keyCount} keys available (auto-rotation enabled)`);
-      console.log(`   Primary: ${AnimalIdentificationController.GEMINI_MODEL_PRIMARY} (${25 * keyCount}/day)`);
-      console.log(`   Fallback 1: ${AnimalIdentificationController.GEMINI_MODEL_FALLBACK} (${500 * keyCount}/day)`);
-      console.log(`   Fallback 2: ${AnimalIdentificationController.GEMINI_MODEL_FALLBACK2} (${1500 * keyCount}/day) - uses config without thinkingConfig`);
-      console.log(`   📊 TOTAL CAPACITY: ${(25 + 500 + 1500) * keyCount} identifications/day`);
+      console.log(`   Primary: ${AnimalIdentificationController.GEMINI_MODEL_PRIMARY} (25/day)`);
+      console.log(`   Fallback 1: ${AnimalIdentificationController.GEMINI_MODEL_FALLBACK} (500/day)`);
+      console.log(`   Fallback 2: ${AnimalIdentificationController.GEMINI_MODEL_FALLBACK2} (1500/day) - uses config without thinkingConfig`);
+      console.log(`   📊 TOTAL CAPACITY: ${25 + 500 + 1500} identifications/day`);
       console.log('   ℹ️ All models use IDENTICAL 7-phase diagnostic protocol');
       console.log('✓ iNaturalist API ready for species verification');
       
@@ -343,8 +340,8 @@ class AnimalIdentificationController {
             observationsCount: sp.observations_count,
             wikipediaSummary: sp.wikipedia_summary,
             defaultPhoto: sp.default_photo ? {
-              url: sp.default_photo.medium_url,
-              largeUrl: sp.default_photo.large_url,
+              url: AnimalIdentificationController.convertToStaticUrl(sp.default_photo.medium_url),
+              largeUrl: AnimalIdentificationController.convertToStaticUrl(sp.default_photo.large_url),
               attribution: sp.default_photo.attribution
             } : null,
             conservation_status: sp.conservation_status,
@@ -1055,14 +1052,14 @@ RESPOND WITH VALID JSON ONLY.`;
           wikipediaUrl: taxon.wikipedia_url,
           wikipediaSummary: taxon.wikipedia_summary,
           photos: taxon.taxon_photos?.map(p => ({
-            url: p.photo?.medium_url || p.photo?.url,
-            largeUrl: p.photo?.large_url,
-            originalUrl: p.photo?.original_url,
+            url: AnimalIdentificationController.convertToStaticUrl(p.photo?.medium_url || p.photo?.url),
+            largeUrl: AnimalIdentificationController.convertToStaticUrl(p.photo?.large_url),
+            originalUrl: AnimalIdentificationController.convertToStaticUrl(p.photo?.original_url),
             attribution: p.photo?.attribution
           })) || [],
           defaultPhoto: taxon.default_photo ? {
-            url: taxon.default_photo.medium_url,
-            largeUrl: taxon.default_photo.large_url,
+            url: AnimalIdentificationController.convertToStaticUrl(taxon.default_photo.medium_url),
+            largeUrl: AnimalIdentificationController.convertToStaticUrl(taxon.default_photo.large_url),
             attribution: taxon.default_photo.attribution
           } : null,
           ancestorNames: taxon.ancestors?.map(a => a.name) || [],
@@ -1178,9 +1175,9 @@ RESPOND WITH VALID JSON ONLY.`;
           if (obs.photos) {
             obs.photos.forEach(photo => {
               photos.push({
-                url: photo.url?.replace('square', 'medium'),
-                largeUrl: photo.url?.replace('square', 'large'),
-                originalUrl: photo.url?.replace('square', 'original'),
+                url: AnimalIdentificationController.convertToStaticUrl(photo.url?.replace('square', 'medium')),
+                largeUrl: AnimalIdentificationController.convertToStaticUrl(photo.url?.replace('square', 'large')),
+                originalUrl: AnimalIdentificationController.convertToStaticUrl(photo.url?.replace('square', 'original')),
                 attribution: photo.attribution,
                 observationId: obs.id,
                 observedOn: obs.observed_on,
@@ -2957,6 +2954,8 @@ RESPOND WITH VALID JSON ONLY. NO OTHER TEXT.`;
         success: true,
         images: uniqueImages.slice(0, maxImages),
         totalFound: uniqueImages.length,
+        // Return the main image URL directly for easy access
+        mainImageUrl: uniqueImages[0]?.url || null,
         ...pageInfo
       };
 
@@ -2966,6 +2965,50 @@ RESPOND WITH VALID JSON ONLY. NO OTHER TEXT.`;
         success: false,
         message: `Failed to fetch Wikipedia images: ${error.message}`
       };
+    }
+  }
+
+  /**
+   * Get just the main Wikipedia image URL for a species (quick lookup)
+   * @param {string} scientificName - Scientific name of the species
+   * @returns {Object} - Object with imageUrl and wikipediaUrl
+   */
+  static async getWikipediaMainImage(scientificName) {
+    try {
+      if (!scientificName) return { success: false, imageUrl: null };
+
+      const searchTerm = scientificName.trim();
+      const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(searchTerm)}`;
+
+      const response = await axios.get(summaryUrl, {
+        headers: {
+          'User-Agent': 'SHB-Survey-Assistant/1.0 (Wildlife Identification Bot)'
+        },
+        timeout: 8000
+      });
+
+      if (response.data) {
+        // Prefer original image, fallback to thumbnail
+        const imageUrl = response.data.originalimage?.source || 
+                        response.data.thumbnail?.source || 
+                        null;
+        
+        return {
+          success: true,
+          imageUrl: imageUrl,
+          thumbnailUrl: response.data.thumbnail?.source || null,
+          originalUrl: response.data.originalimage?.source || null,
+          wikipediaUrl: response.data.content_urls?.desktop?.page || null,
+          title: response.data.title,
+          description: response.data.description,
+          extract: response.data.extract
+        };
+      }
+
+      return { success: false, imageUrl: null };
+    } catch (error) {
+      console.log(`Could not fetch Wikipedia image for ${scientificName}:`, error.message);
+      return { success: false, imageUrl: null };
     }
   }
 
@@ -3501,17 +3544,30 @@ RESPOND WITH VALID JSON ONLY. NO OTHER TEXT.`;
         });
       }
 
+      // Get the main Wikipedia image URL for display
+      const mainPhotoUrl = primaryWikipediaData?.mainImageUrl || 
+                          primaryWikipediaData?.images?.[0]?.url ||
+                          allPrimaryImages[0]?.url ||
+                          null;
+
       // Combine results
       const finalResult = {
         success: true,
         identification: {
           primaryMatch: {
             ...finalIdentification.primaryMatch,
+            // Use Wikipedia image as the main photo
+            photoUrl: mainPhotoUrl,
+            wikipediaUrl: primaryWikipediaData?.wikipediaUrl || null,
             verification: verificationData,
             referenceImages: allPrimaryImages.slice(0, maxImages),
             wikipediaData: primaryWikipediaData
           },
-          alternatives: alternativesWithImages,
+          alternatives: alternativesWithImages.map(alt => ({
+            ...alt,
+            // Use Wikipedia image for alternatives too
+            photoUrl: alt.wikipediaData?.mainImageUrl || alt.wikipediaData?.images?.[0]?.url || null
+          })),
           identificationNotes: finalIdentification.identificationNotes,
           imageQuality: finalIdentification.imageQuality,
           uncertaintyFactors: finalIdentification.uncertaintyFactors,
