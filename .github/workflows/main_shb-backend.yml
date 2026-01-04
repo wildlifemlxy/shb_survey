@@ -128,7 +128,7 @@ jobs:
                 "name": "TELEGRAM_BOT_TOKEN",
                 "value": "${{ secrets.TELEGRAM_BOT_TOKEN }}",
                 "slotSetting": false
-              },
+              }
             ]
 
       - name: 'Deploy to Azure Web App'
