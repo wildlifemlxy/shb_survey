@@ -138,26 +138,30 @@ class RegistrationBot {
   async handleMessage(message) {
     const { chat, text, from } = message;
     const chatId = chat.id;
+    const chatType = chat.type; // 'private', 'group', or 'supergroup'
     const userName = `${from.first_name || ''} ${from.last_name || ''}`.trim() || from.username || from.id;
     const botToken = this.config?.BOT_TOKEN || null;
     
-    console.log(`Message from ${userName}: ${text}`);
+    console.log(`Message from ${userName} in ${chatType}: ${text}`);
 
     // Store user message in chat history
     if (botToken) {
       await this.telegramController.storeChatHistory(botToken, chatId, text, 'user', userName);
     }
 
+    // Extract command from text (handles both /command and /command@botusername in groups)
+    const command = text.split(' ')[0].split('@')[0].toLowerCase();
+
     // Handle /start command
-    if (text === '/start' || text.startsWith('/start ')) {
-      await this.handleStartCommand(chatId, userName);
+    if (command === '/start') {
+      await this.handleStartCommand(chatId, userName, chatType);
     }
     // Handle /help command
-    else if (text === '/help') {
-      await this.handleHelpCommand(chatId);
+    else if (command === '/help') {
+      await this.handleHelpCommand(chatId, chatType);
     }
     // Handle /upcoming command - show upcoming events
-    else if (text === '/upcoming') {
+    else if (command === '/upcoming') {
       await this.handleUpcomingCommand(chatId);
     }
   }
@@ -165,13 +169,29 @@ class RegistrationBot {
   /**
    * Handle /start command
    */
-  async handleStartCommand(chatId, userName) {
-    // Save user as subscriber so they receive future announcements
+  async handleStartCommand(chatId, userName, chatType = 'private') {
+    // Save user/group as subscriber so they receive future announcements
     // Pass the bot token to link subscriber to this specific bot
     const botToken = this.config?.BOT_TOKEN || null;
     await this.telegramController.addSubscriber(chatId, userName, botToken);
     
-    const welcomeMessage = `👋 Welcome <b>${userName}</b>!
+    const isGroup = chatType === 'group' || chatType === 'supergroup';
+    
+    let welcomeMessage;
+    if (isGroup) {
+      // Group welcome message
+      welcomeMessage = `👋 Hello everyone!
+
+I'm the <b>SHB Survey Registration Bot</b>.
+
+I'll post upcoming Straw-headed Bulbul survey events here. When a survey is posted, you can click the <b>✅ Join</b> or <b>❌ Leave</b> buttons to register.
+
+<b>Commands:</b>
+/upcoming - View upcoming survey events
+/help - Show available commands`;
+    } else {
+      // Private chat welcome message
+      welcomeMessage = `👋 Welcome <b>${userName}</b>!
 
 I'm the <b>SHB Survey Registration Bot</b>.
 
@@ -182,10 +202,11 @@ I help you register for upcoming Straw-headed Bulbul survey events.
 /upcoming - View upcoming survey events
 
 When a survey is posted, you can click the <b>✅ Join</b> or <b>❌ Leave</b> buttons to register or unregister.`;
+    }
 
     try {
       await this.telegramApi.sendMessage(chatId, welcomeMessage);
-      console.log(`Sent welcome message to ${chatId}`);
+      console.log(`Sent welcome message to ${chatType} chat ${chatId}`);
     } catch (error) {
       console.error('Error sending welcome message:', error.message);
     }
