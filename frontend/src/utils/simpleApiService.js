@@ -208,6 +208,79 @@ class SimpleApiService {
     }
   }
 
+  async getAllChatHistory(token) {
+    try {
+      const response = await axios.post(`${this.baseURL}/telegram`, {
+        purpose: 'getAllChatHistory',
+        token: token
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get all chat history error:', error);
+      throw error;
+    }
+  }
+
+  // Send a message using a bot
+  async sendTelegramMessage(token, chatId, message, options = {}) {
+    try {
+      const response = await axios.post(`${this.baseURL}/telegram`, {
+        purpose: 'sendMessage',
+        token: token,
+        chatId: chatId,
+        message: message,
+        options: options
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Send Telegram message error:', error);
+      throw error;
+    }
+  }
+
+  // Delete a bot
+  async deleteBot(botId) {
+    try {
+      const response = await axios.post(`${this.baseURL}/telegram`, {
+        purpose: 'deleteBot',
+        botId: botId
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Delete bot error:', error);
+      throw error;
+    }
+  }
+
+  // Update bot status
+  async updateBotStatus(botId, isActive) {
+    try {
+      const response = await axios.post(`${this.baseURL}/telegram`, {
+        purpose: 'updateBotStatus',
+        botId: botId,
+        isActive: isActive
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Update bot status error:', error);
+      throw error;
+    }
+  }
+
+  // Get bot by ID
+  async getBotById(botId) {
+    try {
+      const response = await axios.post(`${this.baseURL}/telegram`, {
+        purpose: 'getBotById',
+        botId: botId
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get bot by ID error:', error);
+      throw error;
+    }
+  }
+
   // MFA - Request mobile approval
   async requestMobileApproval(userData) {
     try {

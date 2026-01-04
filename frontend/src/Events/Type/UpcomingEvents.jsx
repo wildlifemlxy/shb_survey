@@ -145,6 +145,32 @@ class UpcomingEvents extends Component {
     });
   };
 
+  // Update popup data when events prop changes (for live updates)
+  // But NOT when user is editing (editingEventId is set)
+  componentDidUpdate(prevProps) {
+    // Skip live updates when user is actively editing
+    if (this.state.editingEventId) {
+      return;
+    }
+    
+    if (this.state.showEventPopup && prevProps.events !== this.props.events) {
+      // Update selectedDateEvents with fresh data from props
+      const updatedSelectedEvents = this.state.selectedDateEvents.map(selectedEvent => {
+        const freshEvent = this.props.events.find(e => e._id === selectedEvent._id);
+        return freshEvent || selectedEvent;
+      });
+      
+      // Only update if there are actual changes
+      const hasChanges = updatedSelectedEvents.some((event, idx) => 
+        JSON.stringify(event) !== JSON.stringify(this.state.selectedDateEvents[idx])
+      );
+      
+      if (hasChanges) {
+        this.setState({ selectedDateEvents: updatedSelectedEvents });
+      }
+    }
+  }
+
   closeEventPopup = () => {
     this.setState({
       showEventPopup: false,
@@ -918,7 +944,7 @@ class UpcomingEvents extends Component {
                         </div>
                         
                         {isEditing ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'auto', position: 'relative', zIndex: 10 }}>
                             <div style={{ display: 'flex', gap: 8 }}>
                               <div style={{ flex: 1 }}>
                                 <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' }}>Location:</label>
@@ -933,12 +959,17 @@ class UpcomingEvents extends Component {
                                   }}
                                   style={{
                                     width: '100%',
-                                    padding: '4px 8px',
-                                    border: '1px solid #e5e7eb',
+                                    padding: '8px 12px',
+                                    border: '2px solid #3b82f6',
                                     borderRadius: 4,
-                                    fontSize: 14
+                                    fontSize: 14,
+                                    outline: 'none',
+                                    backgroundColor: '#fff',
+                                    color: '#000',
+                                    pointerEvents: 'auto'
                                   }}
                                   placeholder="Event location"
+                                  autoFocus
                                 />
                               </div>
                               <div style={{ flex: 1 }}>
@@ -954,10 +985,14 @@ class UpcomingEvents extends Component {
                                   }}
                                   style={{
                                     width: '100%',
-                                    padding: '4px 8px',
-                                    border: '1px solid #e5e7eb',
+                                    padding: '8px 12px',
+                                    border: '2px solid #3b82f6',
                                     borderRadius: 4,
-                                    fontSize: 14
+                                    fontSize: 14,
+                                    outline: 'none',
+                                    backgroundColor: '#fff',
+                                    color: '#000',
+                                    pointerEvents: 'auto'
                                   }}
                                   placeholder="Event time"
                                 />

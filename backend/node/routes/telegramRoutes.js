@@ -75,46 +75,37 @@ router.post('/', async function(req, res, next) {
                 return res.status(400).json({ error: 'Bot token is required.' });
             }
             
-            const telegramRes = await axios.get(`https://api.telegram.org/bot${token}/getUpdates`);
+            const telegramController = new TelegramController();
             
-            // Check if response is valid
-            if (!telegramRes.data || !telegramRes.data.ok) {
-                console.log('Telegram API returned error:', telegramRes.data);
-                return res.status(200).json({ groups: [], message: 'No updates available from Telegram.' });
-            }
+            // Get subscribers from database as groups/users
+            const result = await telegramController.getSubscribersAsGroups(token);
             
-            const updates = telegramRes.data.result || [];
+            // Also get any stored bot groups
+            const botGroups = await telegramController.getBotGroups(token);
             
-            // If no updates, return empty groups
-            if (!updates || updates.length === 0) {
-                console.log('No updates found for bot');
-                return res.status(200).json({ groups: [], message: 'Bot has no recent updates. Add the bot to a group and send a message to see it here.' });
-            }
+            // Combine subscribers and bot groups, avoiding duplicates
+            const allGroups = [...(result.groups || [])];
+            const existingIds = new Set(allGroups.map(g => g.id));
             
-            // Include every chat the bot has seen in its updates
-            const chats = {};
-            for (const update of updates) {
-                console.log('Processing update:', update);
-                const msg = update.message || update.channel_post || update.my_chat_member || update.chat_member;
-                if (msg && msg.chat && msg.chat.id) {
-                    const chat = msg.chat;
-                    chats[chat.id] = {
-                        id: chat.id,
-                        title: chat.title || chat.username || chat.first_name || String(chat.id),
-                        type: chat.type || 'unknown'
-                    };
+            for (const group of (botGroups.groups || [])) {
+                if (!existingIds.has(group.id)) {
+                    allGroups.push(group);
+                    existingIds.add(group.id);
                 }
             }
-            console.log('Telegram getUpdates response:', chats);
-            const groups = Object.values(chats);
-            return res.status(200).json({ groups });
+            
+            return res.status(200).json({ 
+                groups: allGroups,
+                message: allGroups.length > 0 
+                    ? `Found ${allGroups.length} users/groups` 
+                    : 'No users found. Users will appear here when they start a chat with the bot.'
+            });
         } catch (err) {
-            console.error('Error in getBotGroups:', err.response?.data || err.message);
-            // Return empty groups with error message instead of 500
+            console.error('Error in getBotGroups:', err.message);
             return res.status(200).json({ 
                 groups: [], 
-                error: err.response?.data?.description || err.message || 'Failed to retrieve group info.',
-                message: 'Could not fetch bot groups. Make sure the bot token is valid and the bot has been added to groups.'
+                error: err.message || 'Failed to retrieve users/groups.',
+                message: 'Could not fetch users/groups.'
             });
         }
     }
@@ -127,7 +118,7 @@ router.post('/', async function(req, res, next) {
             
             const telegramController = new TelegramController();
             const result = await telegramController.getChatHistory(token, chatId);
-            console.log('Chat history result:', result);
+            console.log(`Chat history result: ${result.data?.length || 0} messages`);
             
             if (result.success) {
                 return res.status(200).json({ data: result.data, success: true });
@@ -136,6 +127,28 @@ router.post('/', async function(req, res, next) {
             }
         } catch (err) {
             console.error('Error in getChatHistory:', err);
+            return res.status(500).json({ error: err.message || 'Failed to retrieve chat history.' });
+        }
+    }
+    // Get all chat history for a bot (all chats combined)
+    else if (purpose === 'getAllChatHistory') {
+        try {
+            const { token } = req.body;
+            if (!token) {
+                return res.status(400).json({ error: 'Bot token is required.' });
+            }
+            
+            const telegramController = new TelegramController();
+            const result = await telegramController.getAllChatHistoryForBot(token);
+            console.log(`All chat history result: ${result.data?.length || 0} messages`);
+            
+            if (result.success) {
+                return res.status(200).json({ data: result.data, success: true });
+            } else {
+                return res.status(500).json({ error: result.error || 'Failed to retrieve chat history.' });
+            }
+        } catch (err) {
+            console.error('Error in getAllChatHistory:', err);
             return res.status(500).json({ error: err.message || 'Failed to retrieve chat history.' });
         }
     }

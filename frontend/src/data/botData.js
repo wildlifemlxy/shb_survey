@@ -83,6 +83,16 @@ export class BotDataService {
     }
   }
 
+  // Get all chat history for a bot
+  async getAllChatHistory(token) {
+    try {
+      return await simpleApiService.getAllChatHistory(token);
+    } catch (error) {
+      console.error('Error getting all chat history:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   // Get current bot data
   getBots() {
     return {

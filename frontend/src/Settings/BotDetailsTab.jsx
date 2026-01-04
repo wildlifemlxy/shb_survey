@@ -1,6 +1,11 @@
 import React from 'react';
 import BotChatTabs from './BotChatTabs'; // Adjust the import path as necessary
 import botDataService from '../data/botData';
+import { io } from 'socket.io-client';
+
+const SOCKET_URL = window.location.hostname === 'localhost'
+  ? 'http://localhost:3001'
+  : 'https://shb-backend.azurewebsites.net';
 
 class BotDetailsTab extends React.Component {
   state = {
@@ -14,6 +19,102 @@ class BotDetailsTab extends React.Component {
     chatHistoryError: null,
   };
 
+  componentDidMount() {
+    // Connect to Socket.IO for real-time updates
+    this.socket = io(SOCKET_URL, {
+      transports: ['websocket', 'polling']
+    });
+
+    // Listen for new chat messages
+    this.socket.on('newChatMessage', (message) => {
+      console.log('🔔 newChatMessage received:', message);
+      const { chatHistory, shownBot } = this.state;
+      const bots = this.props.botData || [];
+      const currentBot = bots.find(b => b.name === shownBot);
+      
+      console.log('Current bot:', currentBot?.name, 'Message token:', message.token);
+      
+      // Only process if it's for the currently selected bot
+      if (currentBot && message.token === currentBot.token) {
+        console.log('✅ Adding new message to chat history');
+        this.setState({ chatHistory: [...(chatHistory || []), message] });
+      }
+    });
+
+    // Listen for chat message updates (e.g., survey participant list changes)
+    this.socket.on('chatMessageUpdated', (message) => {
+      console.log('🔔 chatMessageUpdated received:', message);
+      const { chatHistory, shownBot } = this.state;
+      const bots = this.props.botData || [];
+      const currentBot = bots.find(b => b.name === shownBot);
+      
+      console.log('Current bot:', currentBot?.name, 'Message token:', message.token);
+      
+      // Only process if it's for the currently selected bot
+      if (currentBot && message.token === currentBot.token && chatHistory) {
+        console.log('✅ Updating existing message in chat history');
+        // Find and update the existing message by _id
+        const updatedHistory = chatHistory.map(msg => {
+          if (msg._id === message._id) {
+            return { ...msg, message: message.message, sentAt: message.sentAt };
+          }
+          return msg;
+        });
+        this.setState({ chatHistory: updatedHistory });
+      }
+    });
+
+    // Listen for chat message deletions (e.g., when event is deleted)
+    this.socket.on('chatMessageDeleted', (data) => {
+      const { chatHistory, shownBot } = this.state;
+      const bots = this.props.botData || [];
+      const currentBot = bots.find(b => b.name === shownBot);
+      
+      // Only process if it's for the currently selected bot
+      if (currentBot && data.token === currentBot.token && chatHistory) {
+        // Remove messages for the deleted event
+        const filteredHistory = chatHistory.filter(msg => {
+          const eventDateMatch = msg.message && msg.message.match(/details for.*?<b>([^<]+)<\/b>.*?survey below/);
+          if (eventDateMatch && eventDateMatch[1] === data.eventDate) {
+            return false; // Remove this message
+          }
+          return true;
+        });
+        this.setState({ chatHistory: filteredHistory });
+      }
+    });
+
+    // Listen for new subscribers
+    this.socket.on('newSubscriber', (subscriber) => {
+      const { groupData, shownBot } = this.state;
+      const bots = this.props.botData || [];
+      const currentBot = bots.find(b => b.name === shownBot);
+      
+      // Only add if it's for the currently selected bot
+      if (currentBot && subscriber.botToken === currentBot.token) {
+        // Check if subscriber already exists
+        const exists = (groupData || []).some(g => g.id === subscriber.id);
+        if (!exists) {
+          this.setState({
+            groupData: [...(groupData || []), {
+              id: subscriber.id,
+              title: subscriber.title,
+              type: subscriber.type,
+              subscribedAt: subscriber.subscribedAt
+            }]
+          });
+        }
+      }
+    });
+  }
+
+  componentWillUnmount() {
+    // Disconnect socket when component unmounts
+    if (this.socket) {
+      this.socket.disconnect();
+    }
+  }
+
   handleSelect = async (e) => {
     const selectedBot = e.target.value;
     const bots = this.props.botData || [];
@@ -23,22 +124,29 @@ class BotDetailsTab extends React.Component {
       return;
     }
     const token = bot.token;
-    this.setState({ selectedBot, shownBot: selectedBot, groupData: null, groupLoading: true, groupError: null });
+    this.setState({ selectedBot, shownBot: selectedBot, groupData: null, groupLoading: true, groupError: null, chatHistory: null, chatHistoryLoading: true });
     
     try {
-      const result = await botDataService.getBotGroups(token);
-      console.log('getBotGroups result:', result);
+      // Fetch both groups/users and chat history in parallel
+      const [groupResult, chatResult] = await Promise.all([
+        botDataService.getBotGroups(token),
+        botDataService.getAllChatHistory(token)
+      ]);
       
-      if (result.groups !== undefined) {
+      console.log('getBotGroups result:', groupResult);
+      console.log('getAllChatHistory result:', chatResult);
+      
+      // Handle groups result
+      if (groupResult.groups !== undefined) {
         this.setState({ 
-          groupData: result.groups || [], 
+          groupData: groupResult.groups || [], 
           groupLoading: false
         });
-      } else if (result.error) {
+      } else if (groupResult.error) {
         this.setState({ 
           groupData: [], 
           groupLoading: false,
-          groupError: result.error || 'Failed to fetch group info.'
+          groupError: groupResult.error || 'Failed to fetch group info.'
         });
       } else {
         this.setState({ 
@@ -47,9 +155,24 @@ class BotDetailsTab extends React.Component {
           groupError: 'No groups found or bot has not been added to any groups.'
         });
       }
+      
+      // Handle chat history result
+      console.log('📥 Chat history API result:', chatResult);
+      console.log('📥 Chat history data:', chatResult?.data);
+      if (chatResult.success && chatResult.data) {
+        console.log('✅ Setting chatHistory state with', chatResult.data.length, 'messages');
+        this.setState({ chatHistory: chatResult.data, chatHistoryLoading: false });
+      } else {
+        console.log('⚠️ No chat history data, setting empty array');
+        this.setState({ chatHistory: [], chatHistoryLoading: false });
+      }
     } catch (err) {
       console.error('Error in handleSelect:', err);
-      this.setState({ groupError: err.message || 'Failed to fetch group info.', groupLoading: false });
+      this.setState({ 
+        groupError: err.message || 'Failed to fetch data.', 
+        groupLoading: false,
+        chatHistoryLoading: false 
+      });
     }
   };
 

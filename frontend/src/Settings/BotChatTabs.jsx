@@ -102,9 +102,13 @@ class BotChatTabs extends React.Component {
   };
 
   setInitialDate = () => {
-    // Get the first date from messages if available
-    if (this.state.chatMessages && this.state.chatMessages.length > 0) {
-      const sortedMessages = this.sortMessagesByDateTime(this.state.chatMessages);
+    // Get the first date from chat history (from props)
+    const chatMessages = this.props.chatHistory || [];
+    const botMessages = chatMessages.filter(msg => msg.senderType !== 'user');
+    
+    if (botMessages.length > 0) {
+      // Sort by sentAt ascending
+      const sortedMessages = [...botMessages].sort((a, b) => new Date(a.sentAt) - new Date(b.sentAt));
       const firstMsg = sortedMessages[0];
       if (firstMsg.sentAt) {
         const sentDate = new Date(firstMsg.sentAt);
@@ -113,9 +117,9 @@ class BotChatTabs extends React.Component {
         this.setState({ currentVisibleDate: formattedDate });
       }
     } else {
-      // Fallback to sample date
-      console.log('Setting fallback date');
-      this.setState({ currentVisibleDate: 'Saturday, 28/06/2025' });
+      // No messages, clear the date
+      console.log('No bot messages, clearing date');
+      this.setState({ currentVisibleDate: null });
     }
   };
 
@@ -181,6 +185,15 @@ class BotChatTabs extends React.Component {
   };
 
   async componentDidUpdate(prevProps) {
+    // If chat history changes, update initial date
+    if (this.props.chatHistory !== prevProps.chatHistory) {
+      this.setInitialDate();
+      // Re-setup scroll listener after data update
+      setTimeout(() => {
+        this.setupScrollListener();
+      }, 200);
+    }
+    
     // If token or chatId changes, refetch
     if (this.props.botToken !== prevProps.botToken || this.props.chatId !== prevProps.chatId) {
       const { botToken, chatId } = this.props;
@@ -228,35 +241,18 @@ class BotChatTabs extends React.Component {
     const { groupData = [], groupLoading, groupError, chatHistory, chatHistoryLoading, chatHistoryError } = this.props;
     const { activeTab, currentVisibleDate, selectedChatId } = this.state;
 
+    // Debug logging
+    console.log('🔍 BotChatTabs render - chatHistory:', chatHistory);
+    console.log('🔍 BotChatTabs render - chatHistoryLoading:', chatHistoryLoading);
+
     let displayData = groupData;
     let chatMessages = chatHistory || [];
 
-    // Add sample chat messages for demonstration if no real data
-    if (activeTab === 'Chats' && (!chatMessages || chatMessages.length === 0)) {
-      chatMessages = [
-        {
-          _id: 'sample1',
-          message: 'Hi everyone!\n\nPlease find the details for <b>Sunday, Date 30 June 2025</b> survey below:\n\n<b>Survey Details</b>\nLocation: Sungei Buloh Wetland Reserve\nMeeting Point: <a href="https://www.google.com/maps/search/?api=1&query=Sungei+Buloh+Wetland+Reserve+Main+Entrance">Sungei Buloh Wetland Reserve Main Entrance</a>\nTime: 7:00 AM\n\n<b>Participant List</b>\n1. Alice Chen\n2. Bob Tan\n3. Charlie Lim\n\n<a href="https://drive.google.com/drive/folders/1aztfMfCVlNGqro492FS-3gvdaRA6kCGk?usp=drive_link">Training Material</a>',
-          sentAt: new Date('2025-06-30T07:00:00Z').toISOString(),
-          token: 'sample',
-          chatId: 'sample'
-        },
-        {
-          _id: 'sample2',
-          message: 'Survey reminder: Tomorrow\'s bird survey at MacRitchie Reservoir starts at 6:30 AM. Please bring your binoculars and field notebooks!',
-          sentAt: new Date('2025-06-29T19:00:00Z').toISOString(),
-          token: 'sample',
-          chatId: 'sample'
-        },
-        {
-          _id: 'sample3',
-          message: 'Great work everyone on today\'s survey! We recorded 23 different bird species including 2 Straw-headed Bulbuls. Photos and data have been uploaded to the shared drive.',
-          sentAt: new Date('2025-06-28T12:30:00Z').toISOString(),
-          token: 'sample',
-          chatId: 'sample'
-        }
-      ];
-    }
+    // Show placeholder message if no chat history OR if there are no bot messages
+    const botMessages = chatMessages.filter(msg => msg.senderType !== 'user');
+    console.log('🔍 BotChatTabs render - botMessages after filter:', botMessages);
+    const noChatHistory = !chatMessages || chatMessages.length === 0 || botMessages.length === 0;
+    console.log('🔍 BotChatTabs render - noChatHistory:', noChatHistory);
 
     return (
       <div className="bot-chat-tabs-container bot-chat-tabs-theme">
@@ -330,17 +326,97 @@ class BotChatTabs extends React.Component {
 
               {/* Chat Messages */}
               {!chatHistoryLoading && !chatHistoryError && (
-                <div className="telegram-chat-messages" ref={this.chatMessagesRef}>
-                  {chatMessages && chatMessages.length === 0 && (
-                    <div className="no-messages" style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
-                      <p>No messages found for this chat</p>
+                <div className="telegram-chat-messages" ref={this.chatMessagesRef} style={{ position: 'relative', overflow: 'auto' }}>
+                  {/* Floating Sticky Date Badge - stays at top while scrolling */}
+                  {!noChatHistory && currentVisibleDate && (
+                    <div style={{
+                      position: 'sticky',
+                      top: '10px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: 'rgba(0, 0, 0, 0.6)',
+                      padding: '5px 14px',
+                      borderRadius: '14px',
+                      fontSize: '13px',
+                      color: '#ffffff',
+                      width: 'fit-content',
+                      textAlign: 'center',
+                      fontWeight: 500,
+                      zIndex: 100,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                      backdropFilter: 'blur(10px)',
+                      WebkitBackdropFilter: 'blur(10px)',
+                      marginLeft: 'auto',
+                      marginRight: 'auto',
+                      marginBottom: '10px'
+                    }}>
+                      {currentVisibleDate}
+                    </div>
+                  )}
+                  
+                  {noChatHistory && (
+                    <div className="no-messages" style={{ padding: '40px 20px', textAlign: 'center', color: '#666' }}>
+                      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" style={{ margin: '0 auto 16px', display: 'block', opacity: 0.5 }}>
+                        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z" fill="currentColor"/>
+                      </svg>
+                      <p style={{ fontWeight: 500, marginBottom: 8 }}>No chat history yet</p>
+                      <p style={{ fontSize: 14 }}>Messages will appear here when users interact with the bot.</p>
                     </div>
                   )}
                   
                   {chatMessages && chatMessages.length > 0 ? (
                   (() => {
+                    // Filter bot messages only and deduplicate - keep only latest version of similar messages
+                    const botMessages = chatMessages.filter(msg => msg.senderType !== 'user');
+                    
+                    // If no bot messages after filtering, show nothing
+                    if (botMessages.length === 0) {
+                      return null;
+                    }
+                    
+                    // Deduplicate messages
+                    const deduplicatedMessages = [];
+                    const seenEventDates = new Map();
+                    let latestUpcomingMsg = null;
+                    
+                    // Sort by sentAt descending (newest first) for deduplication
+                    const sortedForDedup = [...botMessages].sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt));
+                    
+                    for (const msg of sortedForDedup) {
+                      // Check if this is an "Upcoming Survey Events" message - keep only the latest one
+                      if (msg.message && msg.message.includes('Upcoming Survey Events')) {
+                        if (!latestUpcomingMsg) {
+                          latestUpcomingMsg = msg;
+                          deduplicatedMessages.push(msg);
+                        }
+                        // Skip older "Upcoming Survey Events" messages
+                        continue;
+                      }
+                      
+                      // Check if this is an event survey message
+                      const eventDateMatch = msg.message && msg.message.match(/details for.*?<b>([^<]+)<\/b>.*?survey below/);
+                      if (eventDateMatch) {
+                        const eventDate = eventDateMatch[1];
+                        if (!seenEventDates.has(eventDate)) {
+                          seenEventDates.set(eventDate, msg);
+                          deduplicatedMessages.push(msg);
+                        }
+                      } else {
+                        // Non-event messages, keep all
+                        deduplicatedMessages.push(msg);
+                      }
+                    }
+                    
+                    // If no messages after deduplication, show nothing
+                    if (deduplicatedMessages.length === 0) {
+                      return null;
+                    }
+                    
+                    // Sort back by sentAt ascending for display
+                    deduplicatedMessages.sort((a, b) => new Date(a.sentAt) - new Date(b.sentAt));
+                    
                     // Group messages by date
-                    const groupedMessages = this.groupMessagesByDate(chatMessages);
+                    const groupedMessages = this.groupMessagesByDate(deduplicatedMessages);
                     const sortedDates = Object.keys(groupedMessages).sort((a, b) => new Date(a) - new Date(b));
                     
                     return sortedDates.map((dateKey) => {
@@ -351,136 +427,70 @@ class BotChatTabs extends React.Component {
                       
                       return (
                         <React.Fragment key={dateKey}>
-                          {/* Date header for each group */}
-                          <div className="telegram-date-header" data-date={formattedDate}>
+                          {/* Hidden date marker for scroll detection */}
+                          <div 
+                            className="telegram-date-header" 
+                            data-date={formattedDate}
+                            style={{
+                              height: '1px',
+                              margin: '16px 0 8px 0',
+                              visibility: 'hidden'
+                            }}
+                          >
                             {formattedDate}
                           </div>
                           
                           {/* Messages for this date */}
-                          {messagesForDate.map((msg, idx) => (
-                            <div key={msg._id || `${dateKey}-${idx}`} className="telegram-message-wrapper">
-                              <div className="telegram-message bot-message">
-                                <div className="telegram-message-avatar">
-                                  <div className="bot-avatar-circle">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#ffffff"/>
-                                    </svg>
+                          {messagesForDate.map((msg, idx) => {
+                            const senderName = 'SHB Survey Bot';
+                            const timeStr = msg.sentAt ? new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+                            
+                            return (
+                            <div key={msg._id || `${dateKey}-${idx}`} style={{ display: 'flex', flexDirection: 'column', marginBottom: '4px', padding: '0 16px', alignItems: 'flex-start' }}>
+                              <div style={{
+                                maxWidth: '65%'
+                              }}>
+                                <div style={{
+                                  background: '#ffffff',
+                                  borderRadius: '18px 18px 18px 4px',
+                                  padding: '8px 12px',
+                                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
+                                }}>
+                                  <div style={{ 
+                                    fontWeight: 600, 
+                                    fontSize: '13px', 
+                                    color: '#0088cc',
+                                    marginBottom: '2px'
+                                  }}>
+                                    {senderName}
+                                  </div>
+                                  <div style={{
+                                    fontSize: '14.5px',
+                                    lineHeight: '1.4',
+                                    color: '#000000',
+                                    whiteSpace: 'pre-line'
+                                  }}>
+                                    <span dangerouslySetInnerHTML={{ __html: msg.message }} />
                                   </div>
                                 </div>
-                                <div className="telegram-message-bubble">
-                                  <div className="telegram-message-header">
-                                    <span className="message-sender">SHB Survey Bot</span>
-                                    <span className="message-timestamp">
-                                      {msg.sentAt ? new Date(msg.sentAt).toLocaleTimeString([], { 
-                                        hour: '2-digit', 
-                                        minute: '2-digit' 
-                                      }) : ''}
-                                    </span>
-                                  </div>
-                                  <div className="telegram-message-content">
-                                    <div className="message-text">
-                                      <span dangerouslySetInnerHTML={{ __html: msg.message }} />
-                                    </div>
-                                    
-                                    {/* Google Maps preview */}
-                                    {(() => {
-                                      const match = msg.message && msg.message.match(/https:\/\/www\.google\.com\/maps\/search\/?api=1&query=([^"'>\s]+)/);
-                                      if (match && match[1]) {
-                                        const mapQuery = decodeURIComponent(match[1]);
-                                        const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}`;
-                                        let mapTitle = 'Location';
-                                        const titleMatch = msg.message.match(/<a [^>]*href=["']https:\/\/www\.google\.com\/maps\/search\/?api=1&query=[^"']+["'][^>]*>([^<]+)<\/a>/);
-                                        if (titleMatch && titleMatch[1]) mapTitle = titleMatch[1];
-                                        
-                                        return (
-                                          <div className="telegram-map-preview">
-                                            <div className="map-info">
-                                              <div className="map-title">{mapTitle}</div>
-                                              <div className="map-description">Location details</div>
-                                              <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="map-link">
-                                                View on Google Maps
-                                              </a>
-                                            </div>
-                                            <div className="map-icon">📍</div>
-                                          </div>
-                                        );
-                                      }
-                                      return null;
-                                    })()}
-                                  </div>
-                                  <div className="message-footer group-chat">
-                                    <div className="message-info">
-                                      <span className="message-time">
-                                        {msg.sentAt ? new Date(msg.sentAt).toLocaleTimeString([], { 
-                                          hour: '2-digit', 
-                                          minute: '2-digit' 
-                                        }) : ''}
-                                      </span>
-                                      <div className="message-status">
-                                        {/* Dynamic Status Based on Message State */}
-                                        {(() => {
-                                          // Simulate different status states based on message age
-                                          const messageAge = msg.sentAt ? (Date.now() - new Date(msg.sentAt).getTime()) / 1000 / 60 : 0; // minutes
-                                          const isRecent = messageAge < 5;
-                                          const isRead = messageAge > 1;
-                                          
-                                          if (isRecent && !isRead) {
-                                            return (
-                                              <>
-                                                <div className="status-indicator delivered" title="Delivered">
-                                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="#4CAF50"/>
-                                                  </svg>
-                                                </div>
-                                                <span className="status-text delivered">Delivered</span>
-                                              </>
-                                            );
-                                          } else {
-                                            const readCount = Math.floor(Math.random() * 5) + 1; // Simulate read count
-                                            return (
-                                              <>
-                                                <div className="status-indicator delivered" title="Delivered">
-                                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="#4CAF50"/>
-                                                  </svg>
-                                                </div>
-                                                <div className="status-indicator read" title="Read">
-                                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="#2196F3"/>
-                                                  </svg>
-                                                </div>
-                                                <span className="read-by-count">
-                                                  👁 {readCount}
-                                                </span>
-                                                <div className="read-by-avatars">
-                                                  <div className="reader-avatar" title="Alice">A</div>
-                                                  {readCount > 1 && <div className="reader-avatar" title="Bob">B</div>}
-                                                  {readCount > 2 && <div className="reader-avatar" title="Charlie">C</div>}
-                                                  {readCount > 3 && <div className="reader-avatar more" title={`+${readCount - 3} more`}>+</div>}
-                                                </div>
-                                              </>
-                                            );
-                                          }
-                                        })()}
-                                      </div>
-                                    </div>
-                                  </div>
+                                <div style={{
+                                  fontSize: '11px',
+                                  color: '#000000',
+                                  marginTop: '2px',
+                                  textAlign: 'right',
+                                  paddingRight: '4px'
+                                }}>
+                                  {timeStr}
                                 </div>
                               </div>
                             </div>
-                          ))}
+                            );
+                          })}
                         </React.Fragment>
                       );
                     });
                   })()
                 ) : null}
-                </div>
-              )}
-
-              {/* Floating Date Badge - positioned to overlay messages, only show if there are messages */}
-              {activeTab === 'Chats' && chatMessages && chatMessages.length > 0 && (
-                <div className="telegram-floating-date-badge visible">
-                  {currentVisibleDate || 'Saturday, 28/06/2025'}
                 </div>
               )}
 

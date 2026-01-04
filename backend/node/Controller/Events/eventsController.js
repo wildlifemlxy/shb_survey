@@ -1,4 +1,5 @@
 const DatabaseConnectivity = require("../../Database/databaseConnectivity");
+const { ObjectId } = require('mongodb');
 
 class EventsController {
   async getAllEvents() {
@@ -23,6 +24,37 @@ class EventsController {
         error: err.message
       };
     }
+    }
+
+    async getEventById(eventId) {
+      const db = DatabaseConnectivity.getInstance();
+      try {
+        await db.initialize();
+        const collectionName = "Survey Events";
+        // Convert string eventId to ObjectId if needed
+        const query = { _id: ObjectId.isValid(eventId) ? new ObjectId(eventId) : eventId };
+        const documents = await db.find(collectionName, query);
+        const event = documents.length > 0 ? documents[0] : null;
+        
+        // Convert ObjectId to string for response
+        if (event && event._id) {
+          event._id = event._id.toString();
+        }
+        
+        return {
+          success: true,
+          event: event,
+          message: event ? 'Event retrieved successfully' : 'Event not found'
+        };
+      } catch (err) {
+        console.error('Error retrieving event:', err);
+        return {
+          success: false,
+          event: null,
+          message: 'Error retrieving event',
+          error: err.message
+        };
+      }
     }
 
     async updateEventParticipants(eventId, participants) {

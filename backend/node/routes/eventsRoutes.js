@@ -1,9 +1,21 @@
 var express = require('express');
 var router = express.Router();
 var EventsController = require('../Controller/Events/eventsController');
+var TelegramController = require('../Controller/Telegram/telegramController');
+var { updateTelegramEventMessage, setSocketIO } = require('../Telegram/utils/updateEventMessage');
+var { deleteTelegramEventMessages } = require('../Telegram/utils/deleteEventMessage');
+var { updateAllPinnedUpcomingMessages } = require('../Telegram/utils/updatePinnedUpcoming');
+var parseCustomDate = require('../cron/parseCustomDate');
+var botConfig = require('../Telegram/config/botConfig');
 
 router.post('/', async function(req, res, next) {
     const io = req.app.get('io'); // Get the Socket.IO instance
+    
+    // Set Socket.IO for updateEventMessage to enable live updates
+    if (io) {
+      setSocketIO(io);
+    }
+    
     console.log('Events route request received:', req.body);
     
     // Initialize requestData
@@ -28,6 +40,17 @@ router.post('/', async function(req, res, next) {
             
             var controller = new EventsController();
             var result = await controller.updateEventParticipants(eventId, participants);
+            
+            // Update Telegram message with new participant list
+            try {
+                const eventResult = await controller.getEventById(eventId);
+                if (eventResult.event) {
+                    await updateTelegramEventMessage(eventId, eventResult.event, participants);
+                }
+            } catch (telegramError) {
+                console.error('Error updating Telegram message:', telegramError.message);
+                // Don't fail the request if Telegram update fails
+            }
             
             if (io) {
                 // Emit specific event for participant update
@@ -63,6 +86,27 @@ router.post('/', async function(req, res, next) {
             var controller = new EventsController();
             var result = await controller.updateEventFields(eventId, eventFields);
             
+            // Update Telegram message with new event fields (Location, Time, etc.)
+            try {
+                const eventResult = await controller.getEventById(eventId);
+                if (eventResult.event) {
+                    const participants = eventResult.event.Participants || [];
+                    await updateTelegramEventMessage(eventId, eventResult.event, participants);
+                    console.log('✅ Telegram message updated for event field changes');
+                }
+            } catch (telegramError) {
+                console.error('Error updating Telegram message:', telegramError.message);
+                // Don't fail the request if Telegram update fails
+            }
+            
+            // Update all pinned upcoming events messages (for Time, Location, etc. changes)
+            try {
+                await updateAllPinnedUpcomingMessages(io);
+                console.log('✅ Updated pinned upcoming events messages');
+            } catch (pinnedError) {
+                console.error('Error updating pinned messages:', pinnedError.message);
+            }
+            
             if (io) {
                 // Emit specific event for event update
                 io.emit('eventUpdated', {
@@ -96,6 +140,14 @@ router.post('/', async function(req, res, next) {
             var controller = new EventsController();
             var result = await controller.addEvents(events);
             console.log('Events added successfully:', result);
+            
+            // Update all pinned upcoming events messages
+            try {
+                await updateAllPinnedUpcomingMessages(io);
+                console.log('✅ Updated pinned upcoming events messages');
+            } catch (pinnedError) {
+                console.error('Error updating pinned messages:', pinnedError.message);
+            }
             
             if (io) {
                 // Emit specific event for event addition
@@ -140,13 +192,64 @@ router.post('/', async function(req, res, next) {
             }
             
             var controller = new EventsController();
+            var telegramController = new TelegramController();
+            // Set Socket.IO so chatMessageDeleted event can be emitted
+            if (io) {
+                telegramController.setSocketIO(io);
+            }
             let deletedCount = 0;
             
             // Handle array of eventIds
             for (const eventId of eventIdsArray) {
                 console.log('Deleting event:', eventId);
+                
+                // Get event details BEFORE deleting
+                let eventDateStr = null;
+                try {
+                    const eventResult = await controller.getEventById(eventId);
+                    console.log('🔍 Event result:', eventResult.event?.Date);
+                    if (eventResult.event) {
+                        // Delete Telegram messages
+                        await deleteTelegramEventMessages(eventResult.event);
+                        console.log('✅ Telegram messages deleted for event:', eventId);
+                        
+                        // Get the formatted event date for chat history deletion
+                        const parsedDate = parseCustomDate(eventResult.event.Date);
+                        console.log('🔍 Parsed date:', parsedDate);
+                        if (parsedDate) {
+                            const eventDay = parsedDate.toLocaleDateString('en-US', { weekday: 'short' });
+                            const eventDayNum = parsedDate.getDate();
+                            const eventMonth = parsedDate.toLocaleDateString('en-US', { month: 'long' });
+                            const eventYear = parsedDate.getFullYear();
+                            eventDateStr = `${eventDay}, Date ${eventDayNum} ${eventMonth} ${eventYear}`;
+                            console.log('🔍 Generated eventDateStr for deletion:', eventDateStr);
+                        }
+                    }
+                } catch (telegramError) {
+                    console.error('Error deleting Telegram messages:', telegramError.message);
+                    // Don't fail the request if Telegram deletion fails
+                }
+                
                 await controller.deleteEvent(eventId);
                 deletedCount++;
+                
+                // Delete chat history for this event
+                if (eventDateStr) {
+                    try {
+                        await telegramController.deleteChatHistoryForEventDate(botConfig.BOT_TOKEN, eventDateStr);
+                        console.log('✅ Chat history deleted for event date:', eventDateStr);
+                    } catch (chatError) {
+                        console.error('Error deleting chat history:', chatError.message);
+                    }
+                }
+            }
+            
+            // Update all pinned upcoming events messages after deletion
+            try {
+                await updateAllPinnedUpcomingMessages(io);
+                console.log('✅ Updated pinned upcoming events messages after deletion');
+            } catch (pinnedError) {
+                console.error('Error updating pinned messages:', pinnedError.message);
             }
             
             if (io) {

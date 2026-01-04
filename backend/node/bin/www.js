@@ -97,10 +97,10 @@ app.set('io', io); // Make io available in routes
 
 // Register Telegram scheduler/webhook and event type updater concurrently, both robust to errors
 try {
-  const setupTelegramFeatures = require('../cron/telegramBot');
+  const setupTelegramFeatures = require('../cron/telegramBotService');
   setupTelegramFeatures(app, io); // node-schedule is non-blocking, no await needed
 } catch (err) {
-  console.error('Error in telegramBot:', err && (err.stack || err));
+  console.error('Error in telegramBotService:', err && (err.stack || err));
 }
 
 try {
