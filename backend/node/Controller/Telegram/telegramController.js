@@ -588,12 +588,16 @@ class TelegramController {
   }
 
   // Add a subscriber (user who clicked /start)
-  async addSubscriber(chatId, userName, botToken = null) {
+  // chatType can be 'private', 'group', or 'supergroup'
+  async addSubscriber(chatId, userName, botToken = null, chatType = 'private') {
     const db = DatabaseConnectivity.getInstance();
     try {
       await db.initialize();
       const databaseName = "Straw-Headed-Bulbul";
       const collectionName = "Telegram Subscribers";
+      
+      // Determine if it's a group or private chat
+      const isGroup = chatType === 'group' || chatType === 'supergroup';
       
       // Check if subscriber already exists for this bot
       const query = { chatId: chatId.toString() };
@@ -606,7 +610,12 @@ class TelegramController {
         console.log(`Subscriber ${chatId} already exists for this bot`);
         // Update the subscriber info if needed
         await db.updateDocument(databaseName, collectionName, query, {
-          $set: { userName: userName, isActive: true, updatedAt: new Date() }
+          $set: { 
+            userName: userName, 
+            chatType: chatType,
+            isActive: true, 
+            updatedAt: new Date() 
+          }
         });
         return { success: true, message: 'Subscriber updated.' };
       }
@@ -615,6 +624,7 @@ class TelegramController {
       const subscriberData = {
         chatId: chatId.toString(),
         userName: userName,
+        chatType: chatType,
         botToken: botToken,
         subscribedAt: new Date(),
         isActive: true
@@ -627,14 +637,13 @@ class TelegramController {
         this.io.emit('newSubscriber', {
           ...subscriberData,
           _id: result.insertedId,
-          // Format as group for display
           id: chatId.toString(),
-          title: userName || `User ${chatId}`,
-          type: 'private'
+          title: userName || (isGroup ? `Group ${chatId}` : `User ${chatId}`),
+          type: chatType
         });
       }
       
-      console.log(`New subscriber added: ${chatId} (${userName})`);
+      console.log(`New subscriber added: ${chatId} (${userName}) - ${chatType}`);
       return { success: true, message: 'Subscriber added.' };
     } catch (err) {
       console.error('Error adding subscriber:', err);

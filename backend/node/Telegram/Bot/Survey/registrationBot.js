@@ -154,7 +154,7 @@ class RegistrationBot {
 
     // Handle /start command
     if (command === '/start') {
-      await this.handleStartCommand(chatId, userName, chatType);
+      await this.handleStartCommand(chatId, userName, chatType, chat.title);
     }
     // Handle /help command
     else if (command === '/help') {
@@ -169,11 +169,16 @@ class RegistrationBot {
   /**
    * Handle /start command
    */
-  async handleStartCommand(chatId, userName, chatType = 'private') {
+  async handleStartCommand(chatId, userName, chatType = 'private', chatTitle = null) {
     // Save user/group as subscriber so they receive future announcements
     // Pass the bot token to link subscriber to this specific bot
     const botToken = this.config?.BOT_TOKEN || null;
-    await this.telegramController.addSubscriber(chatId, userName, botToken);
+    
+    // For groups, use the group title; for private chats, use the user name
+    const isGroup = chatType === 'group' || chatType === 'supergroup';
+    const displayName = isGroup ? (chatTitle || `Group ${chatId}`) : userName;
+    
+    await this.telegramController.addSubscriber(chatId, displayName, botToken, chatType);
     
     const isGroup = chatType === 'group' || chatType === 'supergroup';
     
