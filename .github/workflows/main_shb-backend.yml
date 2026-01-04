@@ -123,7 +123,12 @@ jobs:
                 "name": "GEMINI_API_KEY",
                 "value": "${{ secrets.GEMINI_API_KEY }}",
                 "slotSetting": false
-              }
+              },
+              {
+                "name": "TELEGRAM_BOT_TOKEN",
+                "value": "${{ secrets.TELEGRAM_BOT_TOKEN }}",
+                "slotSetting": false
+              },
             ]
 
       - name: 'Deploy to Azure Web App'
