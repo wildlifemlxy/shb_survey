@@ -1042,6 +1042,19 @@ RESPOND WITH VALID JSON ONLY.`;
 
       if (response.data && response.data.results && response.data.results.length > 0) {
         const taxon = response.data.results[0];
+        
+        // Log default photo data for debugging
+        console.log('📷 iNaturalist taxon default_photo:', taxon.default_photo);
+        
+        const defaultPhotoData = taxon.default_photo ? {
+          url: AnimalIdentificationController.convertToStaticUrl(taxon.default_photo.medium_url || taxon.default_photo.url),
+          largeUrl: AnimalIdentificationController.convertToStaticUrl(taxon.default_photo.large_url || taxon.default_photo.url),
+          originalUrl: AnimalIdentificationController.convertToStaticUrl(taxon.default_photo.original_url),
+          attribution: taxon.default_photo.attribution
+        } : null;
+        
+        console.log('📷 Processed defaultPhoto:', defaultPhotoData);
+        
         return {
           success: true,
           taxonId: taxon.id,
@@ -1057,11 +1070,7 @@ RESPOND WITH VALID JSON ONLY.`;
             originalUrl: AnimalIdentificationController.convertToStaticUrl(p.photo?.original_url),
             attribution: p.photo?.attribution
           })) || [],
-          defaultPhoto: taxon.default_photo ? {
-            url: AnimalIdentificationController.convertToStaticUrl(taxon.default_photo.medium_url),
-            largeUrl: AnimalIdentificationController.convertToStaticUrl(taxon.default_photo.large_url),
-            attribution: taxon.default_photo.attribution
-          } : null,
+          defaultPhoto: defaultPhotoData,
           ancestorNames: taxon.ancestors?.map(a => a.name) || [],
           iconicTaxonName: taxon.iconic_taxon_name
         };
@@ -3544,11 +3553,12 @@ RESPOND WITH VALID JSON ONLY. NO OTHER TEXT.`;
         });
       }
 
-      // Get the main Wikipedia image URL for display
+      // Get the main photo URL for display - PRIORITIZE Wikipedia images (iNaturalist blocks requests)
       const mainPhotoUrl = primaryWikipediaData?.mainImageUrl || 
                           primaryWikipediaData?.images?.[0]?.url ||
-                          allPrimaryImages[0]?.url ||
                           null;
+      
+      console.log('📷 Main photo URL selected (Wikipedia):', mainPhotoUrl);
 
       // Combine results
       const finalResult = {

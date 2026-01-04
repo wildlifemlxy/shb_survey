@@ -657,15 +657,30 @@ class SHBSurveyAssistant extends Component {
         const identification = result.identification;
         const primary = identification.primaryMatch;
 
-        // Get the best reference image URL
+        // Log the full primary match for debugging
+        console.log('Full primary match:', JSON.stringify(primary, null, 2));
+        
+        // Get the best reference image URL - prioritize Wikipedia images (iNaturalist blocks requests)
+        // Log all available URLs for debugging
+        console.log('Primary match image sources:', {
+          photoUrl: primary.photoUrl,
+          wikipediaMainImage: primary.wikipediaData?.mainImageUrl,
+          wikipediaImages: primary.wikipediaData?.images?.[0]
+        });
+        
         let referenceImageUrl = null;
-        if (primary.referenceImages && primary.referenceImages.length > 0) {
-          referenceImageUrl = primary.referenceImages[0].url || primary.referenceImages[0].largeUrl;
+        if (primary.photoUrl) {
+          referenceImageUrl = primary.photoUrl;
+          console.log('Using primary.photoUrl');
+        } else if (primary.wikipediaData?.mainImageUrl) {
+          referenceImageUrl = primary.wikipediaData.mainImageUrl;
+          console.log('Using wikipediaData.mainImageUrl');
         } else if (primary.wikipediaData?.images && primary.wikipediaData.images.length > 0) {
           referenceImageUrl = primary.wikipediaData.images[0].url;
-        } else if (primary.verification?.defaultPhoto?.url) {
-          referenceImageUrl = primary.verification.defaultPhoto.url;
+          console.log('Using wikipediaData.images[0]');
         }
+        
+        console.log('Selected reference image URL:', referenceImageUrl);
 
         const resultMessage = {
           id: Date.now() + 2,
@@ -947,15 +962,16 @@ class SHBSurveyAssistant extends Component {
                     {/* Identification Result Card - two column layout */}
                     {message.type === 'identification-result' && (
                       <div className="identification-card">
-                        {message.referenceImageUrl && (
-                          <div className="identification-image">
-                            <img 
-                              src={message.referenceImageUrl} 
-                              alt={message.commonName}
-                              onClick={() => window.open(message.referenceImageUrl, '_blank')}
-                            />
-                          </div>
-                        )}
+                        <div className="identification-image">
+                          <img 
+                            src={message.referenceImageUrl || 'https://static.inaturalist.org/photos/6903515/medium.jpg'} 
+                            alt={message.commonName}
+                            onClick={() => window.open(message.referenceImageUrl, '_blank')}
+                            onError={(e) => {
+                              console.error('Image failed to load:', message.referenceImageUrl);
+                            }}
+                          />
+                        </div>
                         <div className="identification-info">
                           <div className="identification-common-name">{message.commonName}</div>
                           <div className="identification-scientific-name">{message.scientificName}</div>

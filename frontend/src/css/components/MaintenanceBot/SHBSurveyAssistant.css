@@ -535,6 +535,7 @@
   height: 80px;
   border-radius: 8px;
   overflow: hidden;
+  background-color: #f3f4f6;
 }
 
 .identification-image img {
@@ -543,6 +544,7 @@
   object-fit: cover;
   cursor: pointer;
   transition: transform 0.2s ease;
+  display: block;
 }
 
 .identification-image img:hover {
