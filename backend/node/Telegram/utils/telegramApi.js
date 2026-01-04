@@ -249,7 +249,15 @@ class TelegramApi {
    * @param {Function} saveMessageId - Optional function to save message ID to event
    */
   async sendMessageWithButtons(message, eventId, config, storeChatHistory = null, saveMessageId = null) {
-    const CHAT_IDS = config.CHAT_IDS;
+    // Get subscribers from database, fallback to config
+    const TelegramController = require('../../Controller/Telegram/telegramController');
+    const telegramController = new TelegramController();
+    const subscriberResult = await telegramController.getAllSubscribers();
+    const CHAT_IDS = subscriberResult.chatIds.length > 0 
+      ? subscriberResult.chatIds 
+      : config.CHAT_IDS;
+    
+    console.log(`sendMessageWithButtons: Sending to ${CHAT_IDS.length} subscriber(s)`);
     
     // Create inline keyboard with Join/Leave buttons
     const inlineKeyboard = {

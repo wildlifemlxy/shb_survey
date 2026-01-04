@@ -504,8 +504,16 @@ Your name will be automatically added/removed from the participant list.`;
     const messageText = buildSurveyMessage(eventData, this.config.TRAINING_LINK);
     const buttons = this.telegramApi.createRegistrationButtons(event._id, this.config);
 
+    // Get subscribers from database, fallback to config
+    const subscriberResult = await this.telegramController.getAllSubscribers();
+    const chatIds = subscriberResult.chatIds.length > 0 
+      ? subscriberResult.chatIds 
+      : this.config.CHAT_IDS;
+    
+    console.log(`sendEventMessage: Sending to ${chatIds.length} subscriber(s)`);
+
     const results = [];
-    for (const chatId of this.config.CHAT_IDS) {
+    for (const chatId of chatIds) {
       try {
         const result = await this.telegramApi.sendMessage(chatId, messageText, {
           inlineKeyboard: buttons
