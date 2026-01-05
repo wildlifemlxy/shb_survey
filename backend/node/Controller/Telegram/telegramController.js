@@ -600,8 +600,11 @@ class TelegramController {
       // Determine if it's a group or private chat
       const isGroup = chatType === 'group' || chatType === 'supergroup';
       
-      // Query by chatId only - ensures one entry per chatId (no duplicates)
+      // Query to find existing subscriber
       const query = { chatId: chatId.toString() };
+      if (botToken) {
+        query.botToken = botToken;
+      }
       
       // Use upsert to atomically update or insert (prevents race condition duplicates)
       const updateData = {
