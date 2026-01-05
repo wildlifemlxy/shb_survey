@@ -77,6 +77,9 @@ class RegistrationBot {
     console.log('Registration Bot initialized');
     console.log('Environment:', this.isAzureEnvironment() ? 'Azure' : 'Local');
     
+    // Set bot commands (shows menu when user types /)
+    await this.setBotCommands();
+    
     // Use webhook on Azure, polling locally
     if (this.isAzureEnvironment()) {
       console.log('Azure environment detected - using webhook');
@@ -107,6 +110,24 @@ class RegistrationBot {
     process.removeAllListeners('SIGTERM');
     process.on('SIGINT', cleanup);
     process.on('SIGTERM', cleanup);
+  }
+
+  /**
+   * Set bot commands (shows in menu when user types /)
+   */
+  async setBotCommands() {
+    try {
+      const commands = [
+        { command: 'start', description: 'Start the bot and subscribe to updates' },
+        { command: 'help', description: 'Show available commands' },
+        { command: 'upcoming', description: 'View upcoming survey events' }
+      ];
+      
+      await this.telegramApi.setMyCommands(commands);
+      console.log('✅ Bot commands menu set');
+    } catch (error) {
+      console.error('Failed to set bot commands:', error.message);
+    }
   }
 
   /**
@@ -225,10 +246,17 @@ class RegistrationBot {
     
     console.log(`✅ Webhook route registered: POST ${fullWebhookPath}`);
     
-    // Set webhook with Telegram
+    // Delete existing webhook and set fresh one
     try {
+      console.log('Deleting existing webhook...');
+      await this.telegramApi.deleteWebhook(true);
+      console.log('Setting new webhook...');
       const result = await this.telegramApi.setWebhook(webhookUrl);
       console.log('Webhook setup result:', result);
+      
+      // Verify webhook was set correctly
+      const info = await this.telegramApi.getWebhookInfo();
+      console.log('Webhook info:', info);
     } catch (error) {
       console.error('Failed to set webhook:', error.message);
     }

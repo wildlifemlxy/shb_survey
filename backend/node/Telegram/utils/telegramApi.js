@@ -275,6 +275,22 @@ class TelegramApi {
   }
 
   /**
+   * Set bot commands (shows command menu when user types /)
+   */
+  async setMyCommands(commands) {
+    try {
+      const response = await axios.post(`${this.baseUrl}/setMyCommands`, {
+        commands: commands
+      });
+      console.log('Bot commands set:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error setting bot commands:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Create inline keyboard buttons for Join/Leave
    */
   createRegistrationButtons(eventId, config) {
