@@ -27,14 +27,26 @@ class RegistrationBot {
    * Check if running on Azure (production)
    */
   isAzureEnvironment() {
-    return !!process.env.WEBSITE_HOSTNAME;
+    // Check multiple Azure environment indicators
+    const isAzure = !!(
+      process.env.WEBSITE_HOSTNAME || 
+      process.env.WEBSITE_SITE_NAME ||
+      process.env.WEBSITE_INSTANCE_ID
+    );
+    console.log('Azure environment check:', {
+      WEBSITE_HOSTNAME: process.env.WEBSITE_HOSTNAME || 'not set',
+      WEBSITE_SITE_NAME: process.env.WEBSITE_SITE_NAME || 'not set',
+      isAzure: isAzure
+    });
+    return isAzure;
   }
 
   /**
    * Get the webhook base URL for Azure
    */
   getWebhookBaseUrl() {
-    return `https://${process.env.WEBSITE_HOSTNAME}`;
+    const hostname = process.env.WEBSITE_HOSTNAME || `${process.env.WEBSITE_SITE_NAME}.azurewebsites.net`;
+    return `https://${hostname}`;
   }
 
   /**
