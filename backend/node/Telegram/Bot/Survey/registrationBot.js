@@ -180,8 +180,6 @@ class RegistrationBot {
     
     await this.telegramController.addSubscriber(chatId, displayName, botToken, chatType);
     
-    const isGroup = chatType === 'group' || chatType === 'supergroup';
-    
     let welcomeMessage;
     if (isGroup) {
       // Group welcome message
