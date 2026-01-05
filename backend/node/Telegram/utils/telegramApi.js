@@ -276,13 +276,17 @@ class TelegramApi {
 
   /**
    * Set bot commands (shows command menu when user types /)
+   * @param {Array} commands - Array of {command, description}
+   * @param {Object} scope - Optional scope object (e.g., {type: 'all_group_chats'})
    */
-  async setMyCommands(commands) {
+  async setMyCommands(commands, scope = null) {
     try {
-      const response = await axios.post(`${this.baseUrl}/setMyCommands`, {
-        commands: commands
-      });
-      console.log('Bot commands set:', response.data);
+      const payload = { commands };
+      if (scope) {
+        payload.scope = scope;
+      }
+      const response = await axios.post(`${this.baseUrl}/setMyCommands`, payload);
+      console.log('Bot commands set:', scope ? scope.type : 'default', response.data);
       return response.data;
     } catch (error) {
       console.error('Error setting bot commands:', error.response?.data || error.message);

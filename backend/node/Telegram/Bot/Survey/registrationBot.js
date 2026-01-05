@@ -123,8 +123,16 @@ class RegistrationBot {
         { command: 'upcoming', description: 'View upcoming survey events' }
       ];
       
+      // Set commands for all private chats (default)
       await this.telegramApi.setMyCommands(commands);
-      console.log('✅ Bot commands menu set');
+      
+      // Set commands for all group chats
+      await this.telegramApi.setMyCommands(commands, { type: 'all_group_chats' });
+      
+      // Set commands for all chat administrators in groups
+      await this.telegramApi.setMyCommands(commands, { type: 'all_chat_administrators' });
+      
+      console.log('✅ Bot commands menu set for all chat types');
     } catch (error) {
       console.error('Failed to set bot commands:', error.message);
     }
