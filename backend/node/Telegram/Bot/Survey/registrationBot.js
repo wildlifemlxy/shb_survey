@@ -201,8 +201,8 @@ I'm the <b>SHB Survey Registration Bot</b>.
 I help you register for upcoming Straw-headed Bulbul survey events.
 
 <b>Commands:</b>
-/start - Show this welcome message
 /upcoming - View upcoming survey events
+/help - Show available commands
 
 When a survey is posted, you can click the <b>✅ Join</b> or <b>❌ Leave</b> buttons to register or unregister.`;
     }
