@@ -185,26 +185,37 @@ class RegistrationBot {
     const webhookUrl = `${baseUrl}${webhookPath}`;
     
     console.log(`Setting up webhook at: ${webhookUrl}`);
+    console.log(`Webhook path: ${webhookPath}`);
     
     // Register webhook route
     app.post(webhookPath, async (req, res) => {
+      console.log('📨 Webhook received update:', JSON.stringify(req.body).substring(0, 200));
       try {
         const update = req.body;
         
+        if (!update || Object.keys(update).length === 0) {
+          console.log('⚠️ Empty webhook body');
+          return res.sendStatus(200);
+        }
+        
         if (update.callback_query) {
+          console.log('📨 Processing callback_query');
           await this.handleCallbackQuery(update.callback_query);
         }
         
         if (update.message && update.message.text) {
+          console.log('📨 Processing message:', update.message.text);
           await this.handleMessage(update.message);
         }
         
         res.sendStatus(200);
       } catch (error) {
-        console.error('Webhook error:', error.message);
+        console.error('Webhook error:', error.message, error.stack);
         res.sendStatus(200);
       }
     });
+    
+    console.log(`✅ Webhook route registered: POST ${webhookPath}`);
     
     // Set webhook with Telegram
     try {
