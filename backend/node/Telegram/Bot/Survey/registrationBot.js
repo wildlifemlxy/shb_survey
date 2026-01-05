@@ -27,15 +27,16 @@ class RegistrationBot {
    * Check if running on Azure (production)
    */
   isAzureEnvironment() {
-    // Check multiple Azure environment indicators
+    // Check multiple Azure environment indicators OR NODE_ENV=production
     const isAzure = !!(
       process.env.WEBSITE_HOSTNAME || 
       process.env.WEBSITE_SITE_NAME ||
-      process.env.WEBSITE_INSTANCE_ID
+      process.env.WEBSITE_INSTANCE_ID ||
+      process.env.NODE_ENV === 'production'
     );
     console.log('Azure environment check:', {
       WEBSITE_HOSTNAME: process.env.WEBSITE_HOSTNAME || 'not set',
-      WEBSITE_SITE_NAME: process.env.WEBSITE_SITE_NAME || 'not set',
+      NODE_ENV: process.env.NODE_ENV || 'not set',
       isAzure: isAzure
     });
     return isAzure;
@@ -45,7 +46,8 @@ class RegistrationBot {
    * Get the webhook base URL for Azure
    */
   getWebhookBaseUrl() {
-    const hostname = process.env.WEBSITE_HOSTNAME || `${process.env.WEBSITE_SITE_NAME}.azurewebsites.net`;
+    // Use WEBSITE_HOSTNAME if available, otherwise use hardcoded Azure URL
+    const hostname = process.env.WEBSITE_HOSTNAME || 'shb-backend.azurewebsites.net';
     return `https://${hostname}`;
   }
 
