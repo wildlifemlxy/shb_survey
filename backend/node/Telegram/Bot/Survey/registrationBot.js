@@ -41,6 +41,12 @@ class RegistrationBot {
    * Initialize the bot with config
    */
   async initialize(app, io, config) {
+    // Check if bot token is available
+    if (!config.BOT_TOKEN) {
+      console.error('❌ TELEGRAM_BOT_TOKEN not set - Telegram bot disabled');
+      return;
+    }
+    
     this.config = config;
     this.app = app;
     this.telegramApi = new TelegramApi(config.BOT_TOKEN);
@@ -55,6 +61,7 @@ class RegistrationBot {
     );
     
     console.log('Registration Bot initialized');
+    console.log('Environment:', this.isAzureEnvironment() ? 'Azure' : 'Local');
     
     // Use webhook on Azure, polling locally
     if (this.isAzureEnvironment()) {

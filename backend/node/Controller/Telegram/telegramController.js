@@ -600,11 +600,8 @@ class TelegramController {
       // Determine if it's a group or private chat
       const isGroup = chatType === 'group' || chatType === 'supergroup';
       
-      // Query to find existing subscriber
+      // Query by chatId only - ensures one entry per chatId (no duplicates)
       const query = { chatId: chatId.toString() };
-      if (botToken) {
-        query.botToken = botToken;
-      }
       
       // Use upsert to atomically update or insert (prevents race condition duplicates)
       const updateData = {
@@ -643,10 +640,10 @@ class TelegramController {
         }
         
         console.log(`New subscriber added: ${chatId} (${userName}) - ${chatType}`);
-        return { success: true, message: 'Subscriber added.' };
+        return { success: true, message: 'Subscriber added.', isNew: true };
       } else {
-        console.log(`Subscriber ${chatId} already exists, updated info`);
-        return { success: true, message: 'Subscriber updated.' };
+        // Silently update existing subscriber - no log needed
+        return { success: true, message: 'Subscriber updated.', isNew: false };
       }
     } catch (err) {
       console.error('Error adding subscriber:', err);
