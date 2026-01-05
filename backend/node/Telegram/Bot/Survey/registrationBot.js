@@ -180,15 +180,23 @@ class RegistrationBot {
    */
   async setupWebhook(app) {
     const tokenHash = require('crypto').createHash('sha256').update(this.config.BOT_TOKEN).digest('hex').substring(0, 16);
-    const webhookPath = `/telegram/webhook/${tokenHash}`;
+    const webhookPath = `/${tokenHash}`; // Just the hash, router handles /telegram/webhook prefix
+    const fullWebhookPath = `/telegram/webhook/${tokenHash}`;
     const baseUrl = this.getWebhookBaseUrl();
-    const webhookUrl = `${baseUrl}${webhookPath}`;
+    const webhookUrl = `${baseUrl}${fullWebhookPath}`;
     
     console.log(`Setting up webhook at: ${webhookUrl}`);
-    console.log(`Webhook path: ${webhookPath}`);
+    console.log(`Webhook path: ${fullWebhookPath}`);
     
-    // Register webhook route
-    app.post(webhookPath, async (req, res) => {
+    // Use the pre-registered router from app.js to avoid 404 handler issue
+    const webhookRouter = app.telegramWebhookRouter;
+    if (!webhookRouter) {
+      console.error('❌ telegramWebhookRouter not found in app - webhook will not work');
+      return;
+    }
+    
+    // Register webhook route on the router
+    webhookRouter.post(webhookPath, async (req, res) => {
       console.log('📨 Webhook received update:', JSON.stringify(req.body).substring(0, 200));
       try {
         const update = req.body;
@@ -215,7 +223,7 @@ class RegistrationBot {
       }
     });
     
-    console.log(`✅ Webhook route registered: POST ${webhookPath}`);
+    console.log(`✅ Webhook route registered: POST ${fullWebhookPath}`);
     
     // Set webhook with Telegram
     try {

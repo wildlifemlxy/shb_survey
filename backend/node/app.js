@@ -51,6 +51,10 @@ app.use('/mfa', mfaRoutes);
 app.use('/gallery', galleryRoutes);
 app.use('/animal-identification', animalIdentificationRoutes);
 
+// Telegram webhook routes will be registered dynamically
+// This placeholder allows dynamic route registration before 404 handler
+app.telegramWebhookRouter = require('express').Router();
+app.use('/telegram/webhook', app.telegramWebhookRouter);
 
 //
 // catch 404 and forward to error handler
