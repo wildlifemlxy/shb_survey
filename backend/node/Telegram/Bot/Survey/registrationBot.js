@@ -21,6 +21,7 @@ class RegistrationBot {
     this.lastUpdateId = 0;
     this.eventsController = new EventsController();
     this.telegramController = new TelegramController();
+    this.botUsername = null; // Store bot username for command filtering
   }
 
   /**
@@ -65,6 +66,17 @@ class RegistrationBot {
     this.app = app;
     this.telegramApi = new TelegramApi(config.BOT_TOKEN);
     this.io = io;
+    
+    // Fetch and store the bot's username for command filtering
+    try {
+      const botInfo = await this.telegramApi.getMe();
+      if (botInfo.ok && botInfo.result?.username) {
+        this.botUsername = botInfo.result.username;
+        console.log(`Bot username: @${this.botUsername}`);
+      }
+    } catch (err) {
+      console.error('Failed to fetch bot info:', err.message);
+    }
     
     // Set Socket.IO on the controller for real-time updates
     this.telegramController.setSocketIO(io);
@@ -287,8 +299,18 @@ class RegistrationBot {
       await this.telegramController.storeChatHistory(botToken, chatId, text, 'user', userName);
     }
 
-    // Extract command from text (handles both /command and /command@botusername in groups)
-    const command = text.split(' ')[0].split('@')[0].toLowerCase();
+    // Extract command and bot username from text (handles both /command and /command@botusername in groups)
+    const commandParts = text.split(' ')[0].split('@');
+    const command = commandParts[0].toLowerCase();
+    const targetBotUsername = commandParts[1]?.toLowerCase(); // e.g., 'wwf_animal_id_bot'
+    
+    // If command targets a specific bot, check if it's for this bot
+    if (targetBotUsername && this.botUsername) {
+      if (targetBotUsername !== this.botUsername.toLowerCase()) {
+        console.log(`Ignoring command for different bot: @${targetBotUsername} (this bot: @${this.botUsername})`);
+        return; // Ignore commands meant for other bots
+      }
+    }
 
     // Handle /start command
     if (command === '/start') {
