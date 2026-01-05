@@ -217,7 +217,59 @@ class TelegramApi {
       });
       return response.data;
     } catch (error) {
-      console.error('Error getting updates:', error.response?.data || error.message);
+      const errorData = error.response?.data;
+      // Silently handle 409 Conflict errors (another bot instance is polling)
+      if (errorData?.error_code === 409) {
+        // Don't log - this is expected when Azure instance is also running
+        throw new Error('409 Conflict');
+      }
+      console.error('Error getting updates:', errorData || error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Set webhook URL (for production/Azure mode)
+   */
+  async setWebhook(webhookUrl) {
+    try {
+      const response = await axios.post(`${this.baseUrl}/setWebhook`, {
+        url: webhookUrl,
+        allowed_updates: ['message', 'callback_query']
+      });
+      console.log('Webhook set:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error setting webhook:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete webhook (to switch back to polling mode)
+   */
+  async deleteWebhook(dropPendingUpdates = true) {
+    try {
+      const response = await axios.post(`${this.baseUrl}/deleteWebhook`, {
+        drop_pending_updates: dropPendingUpdates
+      });
+      console.log('Webhook deleted:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting webhook:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get current webhook info
+   */
+  async getWebhookInfo() {
+    try {
+      const response = await axios.get(`${this.baseUrl}/getWebhookInfo`);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting webhook info:', error.response?.data || error.message);
       throw error;
     }
   }

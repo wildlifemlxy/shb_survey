@@ -133,8 +133,10 @@ function setupTelegramFeatures(app, io) {
   const registrationBot = require('../Telegram/Bot/Survey/registrationBot');
   const botConfig = require('../Telegram/config/botConfig');
   
-  // Initialize registration bot with app and io
-  registrationBot.initialize(app, io, botConfig);
+  // Initialize registration bot with app and io (async for webhook setup)
+  registrationBot.initialize(app, io, botConfig).catch(err => {
+    console.error('Failed to initialize registration bot:', err.message);
+  });
 
 }
 

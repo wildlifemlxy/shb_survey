@@ -16,20 +16,33 @@ class RegistrationBot {
   constructor() {
     this.telegramApi = null;
     this.config = null;
-    this.eventsController = new EventsController();
-    this.telegramController = new TelegramController();
+    this.app = null;
     this.pollingInterval = null;
     this.lastUpdateId = 0;
+    this.eventsController = new EventsController();
+    this.telegramController = new TelegramController();
+  }
+
+  /**
+   * Check if running on Azure (production)
+   */
+  isAzureEnvironment() {
+    return !!process.env.WEBSITE_HOSTNAME;
+  }
+
+  /**
+   * Get the webhook base URL for Azure
+   */
+  getWebhookBaseUrl() {
+    return `https://${process.env.WEBSITE_HOSTNAME}`;
   }
 
   /**
    * Initialize the bot with config
    */
-  initialize(app, io, config) {
-    // Stop any existing polling first
-    this.stopPolling();
-    
+  async initialize(app, io, config) {
     this.config = config;
+    this.app = app;
     this.telegramApi = new TelegramApi(config.BOT_TOKEN);
     this.io = io;
     
@@ -43,12 +56,28 @@ class RegistrationBot {
     
     console.log('Registration Bot initialized');
     
-    // Start polling for updates (button clicks)
-    this.startPolling();
+    // Use webhook on Azure, polling locally
+    if (this.isAzureEnvironment()) {
+      console.log('Azure environment detected - using webhook');
+      await this.setupWebhook(app);
+    } else {
+      console.log('Local environment detected - using polling');
+      // Delete any existing webhook before starting polling
+      try {
+        await this.telegramApi.deleteWebhook(true); // drop pending updates
+        console.log('Webhook deleted, waiting for Telegram to process...');
+        // Small delay to ensure Telegram has processed the webhook deletion
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log('Starting polling mode');
+      } catch (err) {
+        console.log('No webhook to delete or error:', err.message);
+      }
+      this.startPolling();
+    }
     
     // Proper cleanup when server stops
-    const cleanup = () => {
-      console.log('Stopping bot polling...');
+    const cleanup = async () => {
+      console.log('Stopping bot...');
       this.stopPolling();
       process.exit(0);
     };
@@ -60,10 +89,9 @@ class RegistrationBot {
   }
 
   /**
-   * Start polling for Telegram updates
+   * Start polling for Telegram updates (local development)
    */
   startPolling() {
-    // Clear any existing interval first
     if (this.pollingInterval) {
       clearInterval(this.pollingInterval);
     }
@@ -74,14 +102,13 @@ class RegistrationBot {
       try {
         await this.processUpdates();
       } catch (error) {
-        // Handle conflict error - another instance is running
+        // Silently ignore 409 conflicts (Azure instance running)
         if (error.message && error.message.includes('409')) {
-          console.log('Another bot instance detected, waiting...');
           return;
         }
         console.error('Polling error:', error.message);
       }
-    }, 3000); // Poll every 3 seconds
+    }, 3000);
   }
 
   /**
@@ -96,7 +123,7 @@ class RegistrationBot {
   }
 
   /**
-   * Process Telegram updates (button clicks)
+   * Process Telegram updates (for polling mode)
    */
   async processUpdates() {
     try {
@@ -109,26 +136,61 @@ class RegistrationBot {
       for (const update of result.result) {
         this.lastUpdateId = update.update_id;
         
-        // Handle callback query (button click)
         if (update.callback_query) {
           await this.handleCallbackQuery(update.callback_query);
         }
         
-        // Handle text messages (commands like /start)
         if (update.message && update.message.text) {
           await this.handleMessage(update.message);
         }
       }
     } catch (error) {
-      // Silently handle timeout errors during polling
       if (!error.message.includes('timeout')) {
-        // Handle 409 Conflict - another bot instance is polling, just skip this cycle
         if (error.message.includes('409') || error.message.includes('Conflict')) {
-          // Silently continue - conflict will resolve itself
           return;
         }
         console.error('Error processing updates:', error.message);
       }
+    }
+  }
+
+  /**
+   * Setup webhook for receiving Telegram updates (Azure)
+   */
+  async setupWebhook(app) {
+    const tokenHash = require('crypto').createHash('sha256').update(this.config.BOT_TOKEN).digest('hex').substring(0, 16);
+    const webhookPath = `/telegram/webhook/${tokenHash}`;
+    const baseUrl = this.getWebhookBaseUrl();
+    const webhookUrl = `${baseUrl}${webhookPath}`;
+    
+    console.log(`Setting up webhook at: ${webhookUrl}`);
+    
+    // Register webhook route
+    app.post(webhookPath, async (req, res) => {
+      try {
+        const update = req.body;
+        
+        if (update.callback_query) {
+          await this.handleCallbackQuery(update.callback_query);
+        }
+        
+        if (update.message && update.message.text) {
+          await this.handleMessage(update.message);
+        }
+        
+        res.sendStatus(200);
+      } catch (error) {
+        console.error('Webhook error:', error.message);
+        res.sendStatus(200);
+      }
+    });
+    
+    // Set webhook with Telegram
+    try {
+      const result = await this.telegramApi.setWebhook(webhookUrl);
+      console.log('Webhook setup result:', result);
+    } catch (error) {
+      console.error('Failed to set webhook:', error.message);
     }
   }
 

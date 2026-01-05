@@ -589,6 +589,7 @@ class TelegramController {
 
   // Add a subscriber (user who clicked /start)
   // chatType can be 'private', 'group', or 'supergroup'
+  // Uses upsert to prevent duplicate entries from race conditions
   async addSubscriber(chatId, userName, botToken = null, chatType = 'private') {
     const db = DatabaseConnectivity.getInstance();
     try {
@@ -599,52 +600,54 @@ class TelegramController {
       // Determine if it's a group or private chat
       const isGroup = chatType === 'group' || chatType === 'supergroup';
       
-      // Check if subscriber already exists for this bot
+      // Query to find existing subscriber
       const query = { chatId: chatId.toString() };
       if (botToken) {
         query.botToken = botToken;
       }
       
-      const existing = await db.getDocument(databaseName, collectionName, query);
-      if (existing) {
-        console.log(`Subscriber ${chatId} already exists for this bot`);
-        // Update the subscriber info if needed
-        await db.updateDocument(databaseName, collectionName, query, {
-          $set: { 
-            userName: userName, 
-            chatType: chatType,
-            isActive: true, 
-            updatedAt: new Date() 
-          }
-        });
-        return { success: true, message: 'Subscriber updated.' };
-      }
-      
-      // Add new subscriber
-      const subscriberData = {
-        chatId: chatId.toString(),
-        userName: userName,
-        chatType: chatType,
-        botToken: botToken,
-        subscribedAt: new Date(),
-        isActive: true
+      // Use upsert to atomically update or insert (prevents race condition duplicates)
+      const updateData = {
+        $set: { 
+          userName: userName, 
+          chatType: chatType,
+          botToken: botToken,
+          isActive: true, 
+          updatedAt: new Date() 
+        },
+        $setOnInsert: {
+          chatId: chatId.toString(),
+          subscribedAt: new Date()
+        }
       };
       
-      const result = await db.insertDocument(databaseName, collectionName, subscriberData);
+      const result = await db.update(collectionName, query, updateData, { upsert: true });
       
-      // Emit real-time update via Socket.IO
-      if (this.io) {
-        this.io.emit('newSubscriber', {
-          ...subscriberData,
-          _id: result.insertedId,
-          id: chatId.toString(),
-          title: userName || (isGroup ? `Group ${chatId}` : `User ${chatId}`),
-          type: chatType
-        });
+      const isNewSubscriber = result.upsertedCount > 0;
+      
+      if (isNewSubscriber) {
+        // Emit real-time update via Socket.IO for new subscribers only
+        if (this.io) {
+          this.io.emit('newSubscriber', {
+            chatId: chatId.toString(),
+            userName: userName,
+            chatType: chatType,
+            botToken: botToken,
+            subscribedAt: new Date(),
+            isActive: true,
+            _id: result.upsertedId,
+            id: chatId.toString(),
+            title: userName || (isGroup ? `Group ${chatId}` : `User ${chatId}`),
+            type: chatType
+          });
+        }
+        
+        console.log(`New subscriber added: ${chatId} (${userName}) - ${chatType}`);
+        return { success: true, message: 'Subscriber added.' };
+      } else {
+        console.log(`Subscriber ${chatId} already exists, updated info`);
+        return { success: true, message: 'Subscriber updated.' };
       }
-      
-      console.log(`New subscriber added: ${chatId} (${userName}) - ${chatType}`);
-      return { success: true, message: 'Subscriber added.' };
     } catch (err) {
       console.error('Error adding subscriber:', err);
       return { success: false, message: 'Error adding subscriber', error: err.message };
