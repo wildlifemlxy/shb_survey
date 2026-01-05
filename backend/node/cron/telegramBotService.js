@@ -6,7 +6,7 @@ const TelegramController = require('../Controller/Telegram/telegramController');
 const botConfig = require('../Telegram/config/botConfig');
 const { sendTelegramMessage } = require('../Telegram/utils/sendMessage');
 
-function setupTelegramFeatures(app, io) {
+async function setupTelegramFeatures(app, io) {
   const telegramController = new TelegramController();
   // Set Socket.IO instance for real-time chat updates
   if (io) {
@@ -133,10 +133,12 @@ function setupTelegramFeatures(app, io) {
   const registrationBot = require('../Telegram/Bot/Survey/registrationBot');
   const botConfig = require('../Telegram/config/botConfig');
   
-  // Initialize registration bot with app and io (async for webhook setup)
-  registrationBot.initialize(app, io, botConfig).catch(err => {
+  // Initialize registration bot with app and io - await to ensure webhook route is registered
+  try {
+    await registrationBot.initialize(app, io, botConfig);
+  } catch (err) {
     console.error('Failed to initialize registration bot:', err.message);
-  });
+  }
 
 }
 
