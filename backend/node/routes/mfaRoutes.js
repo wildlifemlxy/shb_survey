@@ -140,8 +140,8 @@ async function handleRequestApproval(req, res) {
   
   console.log('Requesting Mobile Approval:', { userId, email, sessionId });
   
-  // Send approval request to Android app via Socket.IO (for real-time communication once app is open)
-  const io = req.app.get('io'); // Get the Socket.IO instance
+  // Send approval request to Android app via Socket.IO (in-app notification)
+  const io = req.app.get('io');
   if (io) {
     const roomName = `session_${sessionId}`;
     console.log(`📤 Emitting mobile-approval-request to room: ${roomName}`);
@@ -152,72 +152,14 @@ async function handleRequestApproval(req, res) {
       email,
       sessionId,
       message: 'Login approval required',
-      timestamp: Date.now(),
-      // Include OneSignal notification data
-      oneSignalNotification: {
-        title: 'SHB Survey Login Request',
-        message: `Someone wants to login to your account. Please tap this notification to approve or deny.`,
-        data: {
-          userId,
-          email,
-          sessionId,
-          type: 'login_approval'
-        },
-        type: 'mfa_approval'
-      }
+      timestamp: Date.now()
     });
-    console.log('Mobile approval request sent to Android app via Socket.IO with OneSignal data');
-    
-    // Also send OneSignal notification directly from server
-    try {
-      const notificationResult = await sendOneSignalNotification({
-        title: 'SHB Survey Login Request',
-        message: `Someone wants to login to your account. Please tap this notification to approve or deny.`,
-        data: {
-          userId,
-          email,
-          sessionId,
-          type: 'login_approval'
-        },
-        type: 'mfa_approval',
-        // Android notification category for better organization
-        androidNotificationCategory: {
-          category: 'CATEGORY_SECURITY',
-          channel_id: 'login_approval_channel',
-          priority: 10,
-          visibility: 1, // VISIBILITY_PUBLIC
-          importance: 4, // IMPORTANCE_HIGH
-          sound: 'default',
-          vibration_pattern: [0, 250, 250, 250],
-          led_color: 'FF0000FF', // Blue color
-          small_icon: 'ic_notification',
-          large_icon: 'ic_large_notification'
-        }
-      });
-      
-      console.log('OneSignal push notification sent:', notificationResult);
-      
-      // Emit OneSignal result to SPECIFIC session room
-      io.to(roomName).emit('onesignal-notification-sent', {
-        sessionId,
-        result: notificationResult,
-        timestamp: Date.now()
-      });
-    } catch (notificationError) {
-      console.error('Failed to send OneSignal notification:', notificationError);
-      
-      // Emit error to SPECIFIC session room
-      io.to(roomName).emit('onesignal-notification-error', {
-        sessionId,
-        error: notificationError.message,
-        timestamp: Date.now()
-      });
-    }
+    console.log('✅ Mobile approval request sent to Android app via Socket.IO');
   }
   
   return res.json({
     success: true,
-    message: 'Mobile approval request sent via Socket.IO with OneSignal integration',
+    message: 'Mobile approval request sent via Socket.IO',
     sessionId: sessionId,
     timestamp: Date.now()
   });

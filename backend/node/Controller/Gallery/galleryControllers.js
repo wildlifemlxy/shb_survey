@@ -325,7 +325,7 @@ class GalleryController {
       });
 
       response.data.on('data', (chunk) => {
-        console.log(`📥 Streaming chunk: ${chunk.length} bytes`);
+      //  console.log(`📥 Streaming chunk: ${chunk.length} bytes`);
       });
 
       response.data.on('end', () => {
