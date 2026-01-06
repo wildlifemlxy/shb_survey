@@ -731,9 +731,10 @@ class LoginPopup extends Component {
 
   // Initialize Socket.IO connection for real-time mobile communication
   initializeSocket = () => {
-    const backendUrl = window.location.hostname === 'localhost' 
+    /*const backendUrl = window.location.hostname === 'localhost' 
       ? 'http://localhost:3001' 
-      : 'https://shb-backend.azurewebsites.net';
+      : 'https://shb-backend.azurewebsites.net';*/
+    const backendUrl = 'https://shb-backend.azurewebsites.net';
     
     const socket = io(backendUrl, {
       transports: ['websocket', 'polling'],
