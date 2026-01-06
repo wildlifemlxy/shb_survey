@@ -1,10 +1,9 @@
 import axios from 'axios';
 
-/*const API_BASE_URL = 
+const API_BASE_URL = 
   window.location.hostname === 'localhost'
     ? 'http://localhost:3001'
-    : 'https://shb-backend.azurewebsites.net';*/
-const API_BASE_URL = 'https://shb-backend.azurewebsites.net';
+    : 'https://shb-backend.azurewebsites.net';
 
 // Simple API service for public data operations only
 class SimpleApiService {
