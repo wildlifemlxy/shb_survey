@@ -47,7 +47,7 @@ class NewSurveyModal extends Component {
     newSurvey: {
       'Observer name': [''],
       'SHB individual ID': '',
-      'Number of Birds': '',
+      'Number of Birds': 0,
       'Number of Observation': '', // <-- Add this line
       'Location': '',
       'Lat': '',
@@ -245,7 +245,7 @@ class NewSurveyModal extends Component {
             const birdIds = birdIdValue.split(',').map(id => id.trim()).filter(id => id.length > 0);
             numberOfBirds = birdIds.length;
           }
-          return { ...row, 'Number of Birds': numberOfBirds.toString() };
+          return { ...row, 'Number of Birds': numberOfBirds };
         }
         return row;
       });
@@ -485,7 +485,7 @@ class NewSurveyModal extends Component {
       newSurvey: {
         'Observer name': [''],
         'SHB individual ID': '',
-        'Number of Birds': '',
+        'Number of Birds': 0,
         'Number of Observation': '', // <-- Reset this line
         'Location': '',
         'Lat': '',
