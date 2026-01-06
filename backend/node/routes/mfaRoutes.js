@@ -143,14 +143,15 @@ async function handleRequestApproval(req, res) {
   // Send approval request to Android app via Socket.IO (in-app notification)
   const io = req.app.get('io');
   if (io) {
-    const roomName = `session_${sessionId}`;
-    console.log(`📤 Emitting mobile-approval-request to room: ${roomName}`);
+    // Emit to USER room (Android app joins this room when logged in)
+    const userRoom = `user_${email}`;
+    console.log(`📤 Emitting mobile-approval-request to user room: ${userRoom}`);
     
-    // Emit to SPECIFIC session room (not broadcast to all)
-    io.to(roomName).emit('mobile-approval-request', {
+    // Emit to user's room so their Android app receives it
+    io.to(userRoom).emit('mobile-approval-request', {
       userId,
       email,
-      sessionId,
+      sessionId,  // Include sessionId so Android can send it back with approval
       message: 'Login approval required',
       timestamp: Date.now()
     });

@@ -122,13 +122,32 @@ io.on('connection', (socket) => {
   });
 
   // ========== MOBILE APPROVAL ROOM MANAGEMENT ==========
-  // Web client joins a session room when requesting mobile approval
+  
+  // Android app joins USER room when logged in (so it can receive approval requests)
+  socket.on('join-user-room', (data) => {
+    const { email, deviceType } = data;
+    if (email) {
+      const userRoom = `user_${email}`;
+      socket.join(userRoom);
+      console.log(`📱 ${deviceType || 'Android'} joined user room: ${userRoom} (socket: ${socket.id})`);
+      
+      // Acknowledge the join
+      socket.emit('user-room-joined', { 
+        email,
+        userRoom,
+        socketId: socket.id,
+        success: true 
+      });
+    }
+  });
+
+  // Web client joins a SESSION room when requesting mobile approval
   socket.on('join-session', (data) => {
     const { sessionId, deviceType } = data;
     if (sessionId) {
       const roomName = `session_${sessionId}`;
       socket.join(roomName);
-      console.log(`📱 ${deviceType || 'Client'} joined room: ${roomName} (socket: ${socket.id})`);
+      console.log(`🌐 ${deviceType || 'Web'} joined session room: ${roomName} (socket: ${socket.id})`);
       
       // Acknowledge the join
       socket.emit('session-joined', { 
@@ -140,13 +159,23 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Leave session room
+  // Leave session room (web browser)
   socket.on('leave-session', (data) => {
     const { sessionId } = data;
     if (sessionId) {
       const roomName = `session_${sessionId}`;
       socket.leave(roomName);
-      console.log(`👋 Client left room: ${roomName} (socket: ${socket.id})`);
+      console.log(`👋 Web left session room: ${roomName} (socket: ${socket.id})`);
+    }
+  });
+
+  // Leave user room (Android app on logout)
+  socket.on('leave-user-room', (data) => {
+    const { email } = data;
+    if (email) {
+      const userRoom = `user_${email}`;
+      socket.leave(userRoom);
+      console.log(`👋 Android left user room: ${userRoom} (socket: ${socket.id})`);
     }
   });
 
