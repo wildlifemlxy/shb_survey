@@ -97,6 +97,13 @@ class LoginPopup extends Component {
     
     // Clean up socket connection and timeouts
     if (this.state.socket) {
+      // Leave the session room before disconnecting
+      if (this.state.mobileApprovalSessionId) {
+        this.state.socket.emit('leave-session', {
+          sessionId: this.state.mobileApprovalSessionId
+        });
+        console.log('👋 Leaving session room:', this.state.mobileApprovalSessionId);
+      }
       this.state.socket.disconnect();
     }
     if (this.state.mobileApprovalTimeout) {
@@ -737,7 +744,20 @@ class LoginPopup extends Component {
     });
 
     socket.on('connect', () => {
-      console.log('Socket connected for mobile authentication');
+      console.log('✅ Socket connected for mobile authentication, socketId:', socket.id);
+      
+      // If we have a sessionId, join the session room for targeted messages
+      if (this.state.mobileApprovalSessionId) {
+        socket.emit('join-session', {
+          sessionId: this.state.mobileApprovalSessionId,
+          deviceType: 'web-browser'
+        });
+        console.log('📱 Requested to join session room:', this.state.mobileApprovalSessionId);
+      }
+    });
+
+    socket.on('session-joined', (data) => {
+      console.log('✅ Successfully joined session room:', data);
     });
 
     socket.on('mobile-auth-response', (data) => {
@@ -940,6 +960,16 @@ class LoginPopup extends Component {
           loginMethod: 'mobile-approval',
           userData: result.data,
           isLoading: false
+        }, () => {
+          // IMPORTANT: Join the session room AFTER we have the sessionId
+          // This ensures we receive messages targeted to this specific session
+          if (this.state.socket && this.state.socket.connected) {
+            this.state.socket.emit('join-session', {
+              sessionId: approvalCode,
+              deviceType: 'web-browser'
+            });
+            console.log('📱 Web browser joining session room:', approvalCode);
+          }
         });
         
         // Set timeout for mobile approval (2 minutes)

@@ -143,8 +143,11 @@ async function handleRequestApproval(req, res) {
   // Send approval request to Android app via Socket.IO (for real-time communication once app is open)
   const io = req.app.get('io'); // Get the Socket.IO instance
   if (io) {
-    // Emit to Socket.IO with OneSignal notification included
-    io.emit('mobile-approval-request', {
+    const roomName = `session_${sessionId}`;
+    console.log(`📤 Emitting mobile-approval-request to room: ${roomName}`);
+    
+    // Emit to SPECIFIC session room (not broadcast to all)
+    io.to(roomName).emit('mobile-approval-request', {
       userId,
       email,
       sessionId,
@@ -194,8 +197,8 @@ async function handleRequestApproval(req, res) {
       
       console.log('OneSignal push notification sent:', notificationResult);
       
-      // Emit OneSignal result to connected clients
-      io.emit('onesignal-notification-sent', {
+      // Emit OneSignal result to SPECIFIC session room
+      io.to(roomName).emit('onesignal-notification-sent', {
         sessionId,
         result: notificationResult,
         timestamp: Date.now()
@@ -203,8 +206,8 @@ async function handleRequestApproval(req, res) {
     } catch (notificationError) {
       console.error('Failed to send OneSignal notification:', notificationError);
       
-      // Emit error to connected clients
-      io.emit('onesignal-notification-error', {
+      // Emit error to SPECIFIC session room
+      io.to(roomName).emit('onesignal-notification-error', {
         sessionId,
         error: notificationError.message,
         timestamp: Date.now()
@@ -227,14 +230,19 @@ async function handleApproval(req, res) {
   
   console.log('Mobile Approval:', { userId, email, approved, sessionId });
   
-  // Emit approval response to web browser
-  const io = req.app.get('io'); // Get the Socket.IO instance ok
-  if (io) {
-    io.emit('mobile-auth-response', {
+  // Emit approval response to SPECIFIC web browser session room (not broadcast)
+  const io = req.app.get('io'); // Get the Socket.IO instance
+  if (io && sessionId) {
+    const roomName = `session_${sessionId}`;
+    console.log(`📤 Emitting mobile-auth-response to room: ${roomName}`);
+    
+    io.to(roomName).emit('mobile-auth-response', {
       approved: approved,
-      sessionId: sessionId, // Include sessionId in the response
-      userData: approved ? { userId, email } : null
+      sessionId: sessionId,
+      userData: approved ? { userId, email } : null,
+      timestamp: Date.now()
     });
+    console.log(`✅ Mobile auth response sent to room: ${roomName}`);
   }
   
   return res.json({

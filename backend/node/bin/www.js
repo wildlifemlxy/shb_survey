@@ -121,6 +121,53 @@ io.on('connection', (socket) => {
     socket.emit('message', 'Hello from Node.js backend!');
   });
 
+  // ========== MOBILE APPROVAL ROOM MANAGEMENT ==========
+  // Web client joins a session room when requesting mobile approval
+  socket.on('join-session', (data) => {
+    const { sessionId, deviceType } = data;
+    if (sessionId) {
+      const roomName = `session_${sessionId}`;
+      socket.join(roomName);
+      console.log(`📱 ${deviceType || 'Client'} joined room: ${roomName} (socket: ${socket.id})`);
+      
+      // Acknowledge the join
+      socket.emit('session-joined', { 
+        sessionId, 
+        roomName,
+        socketId: socket.id,
+        success: true 
+      });
+    }
+  });
+
+  // Leave session room
+  socket.on('leave-session', (data) => {
+    const { sessionId } = data;
+    if (sessionId) {
+      const roomName = `session_${sessionId}`;
+      socket.leave(roomName);
+      console.log(`👋 Client left room: ${roomName} (socket: ${socket.id})`);
+    }
+  });
+
+  // Mobile app sends approval response - forward to specific web client
+  socket.on('mobile-approval-response', (data) => {
+    const { sessionId, approved, userId, email } = data;
+    console.log(`📲 Mobile approval response received:`, { sessionId, approved, userId, email });
+    
+    if (sessionId) {
+      const roomName = `session_${sessionId}`;
+      // Send ONLY to the web client in this session room
+      io.to(roomName).emit('mobile-auth-response', {
+        sessionId,
+        approved,
+        userData: approved ? { userId, email } : null,
+        timestamp: Date.now()
+      });
+      console.log(`✅ Sent approval response to room: ${roomName}`);
+    }
+  });
+
   // Listen for gallery request from frontend
   socket.on('request_gallery', () => {
     console.log('📥 Gallery request received from client:', socket.id);
