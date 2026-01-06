@@ -341,8 +341,11 @@ class RegistrationBot {
     await this.telegramController.addSubscriber(chatId, displayName, botToken, chatType);
     
     let welcomeMessage;
+    // Build commands list with @bot suffix for group chats
+    const botSuffix = this.botUsername ? `@${this.botUsername}` : '';
+    
     if (isGroup) {
-      // Group welcome message
+      // Group welcome message - show commands with @bot format for groups
       welcomeMessage = `👋 Hello everyone!
 
 I'm the <b>SHB Survey Registration Bot</b>.
@@ -350,10 +353,10 @@ I'm the <b>SHB Survey Registration Bot</b>.
 I'll post upcoming Straw-headed Bulbul survey events here. When a survey is posted, you can click the <b>✅ Join</b> or <b>❌ Leave</b> buttons to register.
 
 <b>Commands:</b>
-/upcoming - View upcoming survey events
-/help - Show available commands`;
+/upcoming${botSuffix} - View upcoming survey events
+/help${botSuffix} - Show available commands`;
     } else {
-      // Private chat welcome message
+      // Private chat welcome message - no @bot suffix needed for private chats
       welcomeMessage = `👋 Welcome <b>${userName}</b>!
 
 I'm the <b>SHB Survey Registration Bot</b>.
@@ -378,12 +381,15 @@ When a survey is posted, you can click the <b>✅ Join</b> or <b>❌ Leave</b> b
   /**
    * Handle /help command
    */
-  async handleHelpCommand(chatId) {
+  async handleHelpCommand(chatId, chatType) {
+    const isGroup = chatType === 'group' || chatType === 'supergroup';
+    const botSuffix = isGroup && this.botUsername ? `@${this.botUsername}` : '';
+    
     const helpMessage = `<b>📋 Available Commands:</b>
 
-/start - Show welcome message
-/help - Show this help message
-/upcoming - View upcoming survey events
+/start${botSuffix} - Show welcome message
+/help${botSuffix} - Show this help message
+/upcoming${botSuffix} - View upcoming survey events
 
 <b>How to register:</b>
 When a survey is posted, click:
