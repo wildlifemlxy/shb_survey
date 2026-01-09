@@ -125,8 +125,8 @@ async function setupTelegramFeatures(app, io) {
     await sendEventReminders('10:00 UTC (18:00 Singapore time)');
   });*/
 
-  schedule.scheduleJob('10 9 * * *', async () => {
-    await sendEventReminders('09:10 Singapore time');
+  schedule.scheduleJob('39 14 * * *', async () => {
+    await sendEventReminders('14:39 Singapore time');
   });
 
   // --- Import Registration Bot from Telegram folder ---
