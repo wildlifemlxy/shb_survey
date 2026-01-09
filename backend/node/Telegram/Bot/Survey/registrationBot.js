@@ -470,16 +470,19 @@ Your name will be automatically added/removed from the participant list.`;
       const message = this.buildUpcomingMessage(upcomingEvents, monthYear);
       const sentMessage = await this.telegramApi.sendMessage(chatId, message);
       
-      // Auto-pin the message (silently, without notification)
+      // Store the message ID for future updates (regardless of pin success)
       if (sentMessage.ok && sentMessage.result && sentMessage.result.message_id) {
+        // Store the message ID first so live updates work even if pinning fails
+        await this.telegramController.updatePinnedMessageId(chatId, sentMessage.result.message_id);
+        console.log(`Stored message ID ${sentMessage.result.message_id} for chat ${chatId}`);
+        
+        // Try to auto-pin the message (silently, without notification)
         try {
           await this.telegramApi.pinChatMessage(chatId, sentMessage.result.message_id, true);
           console.log(`Pinned new upcoming events message in chat ${chatId}`);
-          
-          // Store the pinned message ID for future updates
-          await this.telegramController.updatePinnedMessageId(chatId, sentMessage.result.message_id);
         } catch (pinError) {
           console.error('Error pinning message (bot may need admin rights):', pinError.message);
+          // Message ID is already stored, so live updates will still work
         }
       }
     } catch (error) {
