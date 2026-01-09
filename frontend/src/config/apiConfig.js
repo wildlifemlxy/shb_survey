@@ -2,9 +2,9 @@
 /*export const BASE_URL =
   window.location.hostname === 'localhost'
     ? 'http://localhost:3001'
-    : 'https://shb-backend.azurewebsites.net';
+    : 'https://shb-backend.azurewebsites.net';*/
 
-//export const BASE_URL = 'https://shb-backend.azurewebsites.net';*/
+export const BASE_URL = 'https://shb-backend.azurewebsites.net';
 
 // All backend API endpoints
 export const API_ENDPOINTS = {

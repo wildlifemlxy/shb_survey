@@ -106,6 +106,9 @@ class App extends Component {
     // Setup socket connection
     this.socket = io(BASE_URL);
     
+    // Expose socket globally for child components (like UpcomingEventCard)
+    window.socket = this.socket;
+    
     // Listen for survey insertion events
     this.socket.on('surveyInserted', (data) => {
       console.log("Socket event - Survey inserted:", data);
@@ -158,6 +161,7 @@ class App extends Component {
   componentWillUnmount() {
     if (this.socket) {
       this.socket.disconnect();
+      window.socket = null; // Clean up global socket reference
     }
     window.removeEventListener('resize', this.handleWindowResize);
   }

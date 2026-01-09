@@ -627,9 +627,16 @@ Your name will be automatically added/removed from the participant list.`;
       // Acknowledge button press
       await this.telegramApi.answerCallbackQuery(callbackQueryId, `✅ ${userName} joined!`);
       
-      // Emit socket event
+      // Emit socket event with full event data for frontend card update
       if (this.io) {
-        this.io.emit('survey-updated', { message: 'Participant joined' });
+        const updatedEvent = { ...event, _id: eventId, Participants: participants };
+        this.io.emit('survey-updated', { 
+          message: 'Participant joined',
+          event: updatedEvent,
+          eventId: eventId,
+          participants: participants,
+          timestamp: new Date().toISOString()
+        });
       }
       
       console.log(`${userName} joined event ${eventId}`);
@@ -671,9 +678,16 @@ Your name will be automatically added/removed from the participant list.`;
       // Acknowledge button press
       await this.telegramApi.answerCallbackQuery(callbackQueryId, `❌ ${userName} left.`);
       
-      // Emit socket event
+      // Emit socket event with full event data for frontend card update
       if (this.io) {
-        this.io.emit('survey-updated', { message: 'Participant left' });
+        const updatedEvent = { ...event, _id: eventId, Participants: participants };
+        this.io.emit('survey-updated', { 
+          message: 'Participant left',
+          event: updatedEvent,
+          eventId: eventId,
+          participants: participants,
+          timestamp: new Date().toISOString()
+        });
       }
       
       console.log(`${userName} left event ${eventId}`);
