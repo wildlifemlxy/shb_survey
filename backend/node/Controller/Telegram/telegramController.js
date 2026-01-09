@@ -654,6 +654,35 @@ class TelegramController {
     }
   }
 
+  // Update the pinned upcoming events message ID for a subscriber
+  async updatePinnedMessageId(chatId, pinnedMessageId, botToken = null) {
+    const db = DatabaseConnectivity.getInstance();
+    try {
+      await db.initialize();
+      const databaseName = "Straw-Headed-Bulbul";
+      const collectionName = "Telegram Subscribers";
+      
+      const query = { chatId: chatId.toString() };
+      if (botToken) {
+        query.botToken = botToken;
+      }
+      
+      const updateData = {
+        $set: {
+          pinnedUpcomingMessageId: pinnedMessageId,
+          updatedAt: new Date()
+        }
+      };
+      
+      await db.update(collectionName, query, updateData);
+      console.log(`Updated pinned message ID for chat ${chatId}: ${pinnedMessageId}`);
+      return { success: true };
+    } catch (err) {
+      console.error('Error updating pinned message ID:', err);
+      return { success: false, error: err.message };
+    }
+  }
+
   // Get all active subscribers (optionally filtered by bot token)
   async getAllSubscribers(botToken = null) {
     const db = DatabaseConnectivity.getInstance();

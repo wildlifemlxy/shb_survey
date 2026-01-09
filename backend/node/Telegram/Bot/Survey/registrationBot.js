@@ -437,6 +437,9 @@ Your name will be automatically added/removed from the participant list.`;
           if (pinnedText.includes(expectedHeader)) {
             console.log(`Found existing pinned upcoming events message for ${monthYear} (ID: ${pinnedMessage.message_id})`);
             
+            // Store the pinned message ID for future updates
+            await this.telegramController.updatePinnedMessageId(chatId, pinnedMessage.message_id);
+            
             // Build the new message content
             const newMessage = this.buildUpcomingMessage(upcomingEvents, monthYear);
             
@@ -472,6 +475,9 @@ Your name will be automatically added/removed from the participant list.`;
         try {
           await this.telegramApi.pinChatMessage(chatId, sentMessage.result.message_id, true);
           console.log(`Pinned new upcoming events message in chat ${chatId}`);
+          
+          // Store the pinned message ID for future updates
+          await this.telegramController.updatePinnedMessageId(chatId, sentMessage.result.message_id);
         } catch (pinError) {
           console.error('Error pinning message (bot may need admin rights):', pinError.message);
         }

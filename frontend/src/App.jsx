@@ -31,8 +31,6 @@ import { fetchSurveyDataForHomePage, fetchSurveyData } from './data/shbData.js';
 import { getAllEvents } from './data/surveyData.js';
 import { BASE_URL } from './config/apiConfig.js';
 
-const API_BASE_URL = BASE_URL;
-
 // Dynamically import the components with explicit file extensions
 const Dashboard = lazy(() => import('./components/Dashboard/Dashboard.jsx'));
 const Home = lazy(() => import('./components/Home/Home.jsx'));
@@ -106,7 +104,7 @@ class App extends Component {
     this.loadBotData();
     
     // Setup socket connection
-    this.socket = io(API_BASE_URL);
+    this.socket = io(BASE_URL);
     
     // Listen for survey insertion events
     this.socket.on('surveyInserted', (data) => {

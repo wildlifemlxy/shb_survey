@@ -1,18 +1,16 @@
 import axios from 'axios';
 import { BASE_URL } from '../config/apiConfig.js';
 
-const API_BASE_URL = BASE_URL;
-
 // Simple API service for public data operations only
 class SimpleApiService {
   constructor() {
-    this.baseURL = API_BASE_URL;
+    this.baseURL = BASE_URL;
   }
 
   // Public survey operations only
   async getPublicStats() {
     try {
-      const response = await axios.post(`${this.baseURL}/surveys`, {
+      const response = await axios.post(`${BASE_URL}/surveys`, {
         purpose: 'getPublicStatistics'
       });
       console.log("Get public stats response:", response.data);

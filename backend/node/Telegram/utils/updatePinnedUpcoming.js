@@ -87,18 +87,42 @@ async function updateAllPinnedUpcomingMessages(io = null) {
     
     console.log(`Upcoming events count: ${upcomingEvents.length}`);
     
-    // Get all subscribers
+    // Get all subscribers (now includes pinnedUpcomingMessageId)
     const subscriberResult = await telegramController.getAllSubscribers();
-    const chatIds = subscriberResult.chatIds || [];
+    const subscribers = subscriberResult.subscribers || [];
     
-    console.log(`Checking ${chatIds.length} chats for pinned upcoming events messages`);
+    console.log(`Checking ${subscribers.length} subscribers for pinned upcoming events messages`);
     console.log(`Looking for header: "${expectedHeader}"`);
     
     let updatedCount = 0;
     
-    for (const chatId of chatIds) {
+    for (const subscriber of subscribers) {
+      const chatId = subscriber.chatId;
+      const storedMessageId = subscriber.pinnedUpcomingMessageId;
+      
       try {
-        // Get chat info to find pinned message
+        // First, try to update using stored message ID if available
+        if (storedMessageId) {
+          try {
+            await telegramApi.editMessageText(chatId, storedMessageId, newMessage);
+            console.log(`✅ Updated pinned upcoming message in chat ${chatId} using stored ID ${storedMessageId}`);
+            updatedCount++;
+            continue; // Successfully updated, move to next subscriber
+          } catch (editError) {
+            if (editError.response?.data?.description?.includes('message is not modified')) {
+              console.log(`Pinned message unchanged in chat ${chatId}`);
+              continue;
+            } else if (editError.response?.data?.description?.includes('message to edit not found')) {
+              console.log(`Stored message ID ${storedMessageId} no longer valid for chat ${chatId}, will try getChat`);
+              // Fall through to getChat method
+            } else {
+              console.error(`Error updating pinned message in chat ${chatId}:`, editError.message);
+              // Fall through to getChat method
+            }
+          }
+        }
+        
+        // Fallback: Get chat info to find pinned message (only returns most recent pinned)
         const chatInfo = await telegramApi.getChat(chatId);
         
         console.log(`Chat ${chatId} info:`, JSON.stringify(chatInfo.result?.pinned_message?.text?.substring(0, 100) || 'no pinned message'));
@@ -115,9 +139,14 @@ async function updateAllPinnedUpcomingMessages(io = null) {
               await telegramApi.editMessageText(chatId, pinnedMessage.message_id, newMessage);
               console.log(`✅ Updated pinned upcoming message in chat ${chatId}`);
               updatedCount++;
+              
+              // Store the message ID for future updates
+              await telegramController.updatePinnedMessageId(chatId, pinnedMessage.message_id);
             } catch (editError) {
               if (editError.response?.data?.description?.includes('message is not modified')) {
                 console.log(`Pinned message unchanged in chat ${chatId}`);
+                // Still store the message ID for future updates
+                await telegramController.updatePinnedMessageId(chatId, pinnedMessage.message_id);
               } else {
                 console.error(`Error updating pinned message in chat ${chatId}:`, editError.message);
               }
