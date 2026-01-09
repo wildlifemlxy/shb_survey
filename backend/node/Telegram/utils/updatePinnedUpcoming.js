@@ -24,8 +24,24 @@ function buildUpcomingMessage(upcomingEvents, monthYear) {
 
   let message = `<b>📅 Upcoming Survey Events - ${monthYear}</b>\n`;
   
-  // Build message grouped by organizer
-  for (const [organizer, organizerEvents] of Object.entries(eventsByOrganizer)) {
+  // Define the preferred order of organizers (WWF-led first, then Volunteer-led, then others)
+  const preferredOrder = ['WWF-led', 'Volunteer-led'];
+  const sortedOrganizers = Object.keys(eventsByOrganizer).sort((a, b) => {
+    const indexA = preferredOrder.indexOf(a);
+    const indexB = preferredOrder.indexOf(b);
+    // If both are in preferred order, sort by their position
+    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+    // If only a is in preferred order, a comes first
+    if (indexA !== -1) return -1;
+    // If only b is in preferred order, b comes first
+    if (indexB !== -1) return 1;
+    // Otherwise, sort alphabetically
+    return a.localeCompare(b);
+  });
+  
+  // Build message grouped by organizer in sorted order
+  for (const organizer of sortedOrganizers) {
+    const organizerEvents = eventsByOrganizer[organizer];
     message += `\n<b>👤 ${organizer}</b>\n`;
     message += '─────────────────\n';
     
