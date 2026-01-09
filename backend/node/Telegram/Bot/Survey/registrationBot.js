@@ -492,6 +492,24 @@ Your name will be automatically added/removed from the participant list.`;
   }
 
   /**
+   * Parse date string to Date object for sorting
+   * Handles formats like "17/1/2026", "19/01/2026", etc.
+   */
+  parseEventDate(dateStr) {
+    if (!dateStr || dateStr === 'TBD') return new Date(9999, 11, 31); // TBD goes to end
+    
+    // Handle DD/MM/YYYY or D/M/YYYY format
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // JS months are 0-indexed
+      const year = parseInt(parts[2], 10);
+      return new Date(year, month, day);
+    }
+    return new Date(dateStr);
+  }
+
+  /**
    * Build the upcoming events message grouped by organizer
    */
   buildUpcomingMessage(upcomingEvents, monthYear) {
@@ -525,6 +543,14 @@ Your name will be automatically added/removed from the participant list.`;
     // Build message grouped by organizer in sorted order
     for (const organizer of sortedOrganizers) {
       const organizerEvents = eventsByOrganizer[organizer];
+      
+      // Sort events chronologically by date
+      organizerEvents.sort((a, b) => {
+        const dateA = this.parseEventDate(a.Date);
+        const dateB = this.parseEventDate(b.Date);
+        return dateA - dateB;
+      });
+      
       message += `\n<b>👤 ${organizer}</b>\n`;
       message += '─────────────────\n';
       
@@ -534,10 +560,12 @@ Your name will be automatically added/removed from the participant list.`;
         const date = event.Date || 'TBD';
         const time = event.Time || 'TBD';
         
-        message += `${eventNum}) ${location}, ${date} • ${time}\n`;
+        message += `\n<b>${eventNum}.</b>\n`;
+        message += `   📍 <b>Location:</b> ${location}\n`;
+        message += `   📅 <b>Date:</b> ${date}\n`;
+        message += `   ⏰ <b>Time:</b> ${time}\n`;
         eventNum++;
       }
-      message += '\n';
     }
     
     return message;
