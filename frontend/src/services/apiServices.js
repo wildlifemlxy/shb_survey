@@ -1,11 +1,6 @@
 // src/services/apiService.js
 import axios from 'axios';
-
-// dynamically choose between your local and prod backends
-const BASE_URL =
-  window.location.hostname === 'localhost'
-    ? 'http://localhost:3001'
-    : 'https://shb-backend.azurewebsites.net';
+import { BASE_URL } from '../config/apiConfig.js';
 
 // create a single axios instance
 const api = axios.create({

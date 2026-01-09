@@ -4,6 +4,7 @@ import axios from 'axios';
 import '../../css/components/Dashboard/ObserverInfoSection.css'; // Import styles for location dropdown
 import '../../css/components/Dashboard/ObservationDetailsSection.css'; // Import styles for time dropdown
 import '../../css/components/Dashboard/NewSurveyModal.css'; // Import enhanced dropdown overlapping styles
+import { BASE_URL } from '../../config/apiConfig.js';
 
 const DEFAULT_TIME_START = '07:30';
 const DEFAULT_TIME_END = '09:30';
@@ -12,11 +13,6 @@ const ORGANIZER_OPTIONS = [
   'WWF-led',
   'Volunteer-led'
 ];
-
-const BASE_URL =
-  window.location.hostname === 'localhost'
-    ? 'http://localhost:3001'
-    : 'https://shb-backend.azurewebsites.net';
 
 class AddEventModal extends Component {
   constructor(props) {

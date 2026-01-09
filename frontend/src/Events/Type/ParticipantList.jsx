@@ -1,5 +1,6 @@
 import React, { Component, createRef } from 'react';
 import axios from 'axios';
+import { BASE_URL } from '../../config/apiConfig.js';
 
 class ParticipantList extends Component {
   constructor(props) {
@@ -277,10 +278,6 @@ class ParticipantList extends Component {
       }
       
       // Fallback to old method if onUpdateParticipants is not available
-      const BASE_URL =
-        window.location.hostname === 'localhost'
-          ? 'http://localhost:3001'
-          : 'https://shb-backend.azurewebsites.net';
       
       // Make direct API request
       const response = await axios.post(`${BASE_URL}/events`, {

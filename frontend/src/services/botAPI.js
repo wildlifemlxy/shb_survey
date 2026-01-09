@@ -1,8 +1,5 @@
 import axios from 'axios';
-
-const BASE_URL = window.location.hostname === 'localhost'
-  ? 'http://localhost:3001'
-  : 'https://shb-backend.azurewebsites.net';
+import { BASE_URL } from '../config/apiConfig.js';
 
 // Bot management API functions
 export const botAPI = {

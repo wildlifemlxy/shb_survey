@@ -2,11 +2,7 @@ import React, { Component } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import '../../css/components/ResetPassword/ResetPassword.css';
-
-const BASE_URL =
-  window.location.hostname === 'localhost'
-    ? 'http://localhost:3001'
-    : 'https://shb-backend.azurewebsites.net';
+import { BASE_URL } from '../../config/apiConfig.js';
 
 class ResetPassword extends Component {
   constructor(props) {

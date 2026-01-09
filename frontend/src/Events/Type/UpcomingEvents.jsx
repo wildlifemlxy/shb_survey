@@ -4,6 +4,7 @@ import UpcomingEventCard from './UpcomingEventCard';
 import axios from 'axios';
 import AddEventModal from './AddEventModal';
 import { deleteEvents, updateEvents, updateParticipants } from '../../data/surveyData';
+import { BASE_URL } from '../../config/apiConfig.js';
 
 // Helper to group events by organizer type and remove duplicates
 function groupByOrganizer(events) {
@@ -82,11 +83,6 @@ function getMonthYear(dateStr) {
   if (isNaN(date)) return dateStr;
   return date.toLocaleString('default', { month: 'long', year: 'numeric' });
 }
-
-const BASE_URL =
-  window.location.hostname === 'localhost'
-    ? 'http://localhost:3001'
-    : 'https://shb-backend.azurewebsites.net';
 
 class UpcomingEvents extends Component {
   constructor(props) {

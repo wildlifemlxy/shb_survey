@@ -29,11 +29,9 @@ import OAuthCallback from './components/Auth/OAuthCallback.jsx';
 
 import { fetchSurveyDataForHomePage, fetchSurveyData } from './data/shbData.js';
 import { getAllEvents } from './data/surveyData.js';
+import { BASE_URL } from './config/apiConfig.js';
 
-const API_BASE_URL =
-  window.location.hostname === 'localhost'
-    ? 'http://localhost:3001'
-    : 'https://shb-backend.azurewebsites.net';
+const API_BASE_URL = BASE_URL;
 
 // Dynamically import the components with explicit file extensions
 const Dashboard = lazy(() => import('./components/Dashboard/Dashboard.jsx'));

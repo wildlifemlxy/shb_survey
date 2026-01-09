@@ -1,5 +1,6 @@
 import React from 'react';
 import './FullScreenMediaViewer.css';
+import { BASE_URL } from '../../config/apiConfig.js';
 
 const FullScreenMediaViewer = ({ isOpen, imageData, onClose, galleryFiles = [] }) => {
   const [currentIndex, setCurrentIndex] = React.useState(0);
@@ -33,9 +34,7 @@ const FullScreenMediaViewer = ({ isOpen, imageData, onClose, galleryFiles = [] }
     
     const fetchBlob = async (fileId) => {
       const response = await fetch(
-        window.location.hostname === 'localhost' 
-          ? 'http://localhost:3001/gallery'
-          : 'https://shb-backend.azurewebsites.net/gallery',
+        `${BASE_URL}/gallery`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -204,9 +203,7 @@ const FullScreenMediaViewer = ({ isOpen, imageData, onClose, galleryFiles = [] }
     if (!freshVideoSource && currentMedia?.fileId && isOpen) {
       try {
         const response = await fetch(
-          window.location.hostname === 'localhost' 
-            ? 'http://localhost:3001/gallery'
-            : 'https://shb-backend.azurewebsites.net/gallery',
+          `${BASE_URL}/gallery`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -287,9 +284,7 @@ const FullScreenMediaViewer = ({ isOpen, imageData, onClose, galleryFiles = [] }
       if (!currentMedia.src || !currentMedia.src.startsWith('blob:')) {
         console.log('📥 Fetching blob from backend for:', currentMedia.fileId);
         const response = await fetch(
-          window.location.hostname === 'localhost' 
-            ? 'http://localhost:3001/gallery'
-            : 'https://shb-backend.azurewebsites.net/gallery',
+          `${BASE_URL}/gallery`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

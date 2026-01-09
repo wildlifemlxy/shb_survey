@@ -5,6 +5,7 @@ import ObserverInfoSection from './ObserverInfoSection';
 import ObservationDetailsSection from './ObservationDetailsSection';
 import SubmissionSummarySection from './SubmissionSummarySection';
 import simpleApiService from '../../utils/simpleApiService';
+import { BASE_URL } from '../../config/apiConfig.js';
 
 const SECTIONS = [
   {
@@ -643,9 +644,7 @@ class NewSurveyModal extends Component {
       googleDriveUploadProgress: {},
     });
 
-    const baseUrl = window.location.hostname === 'localhost'
-      ? 'http://localhost:3001'
-      : 'https://shb-backend.azurewebsites.net';
+    const baseUrl = BASE_URL;
 
     const uploadProgress = {};
 

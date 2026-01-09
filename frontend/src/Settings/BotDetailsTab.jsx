@@ -2,10 +2,9 @@ import React from 'react';
 import BotChatTabs from './BotChatTabs'; // Adjust the import path as necessary
 import botDataService from '../data/botData';
 import { io } from 'socket.io-client';
+import { BASE_URL } from '../config/apiConfig.js';
 
-const SOCKET_URL = window.location.hostname === 'localhost'
-  ? 'http://localhost:3001'
-  : 'https://shb-backend.azurewebsites.net';
+const SOCKET_URL = BASE_URL;
 
 class BotDetailsTab extends React.Component {
   state = {

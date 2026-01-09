@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import axios from 'axios';
 import '../../css/components/UploadModal/UploadModal.css';
+import { BASE_URL } from '../../config/apiConfig.js';
 
 class UploadModal extends Component {
   constructor(props) {
@@ -138,9 +139,7 @@ class UploadModal extends Component {
 
     this.setState({ isUploading: true, totalFiles: selectedFiles.length, currentFileIndex: selectedFiles.length });
 
-    const baseUrl = window.location.hostname === 'localhost'
-      ? 'http://localhost:3001'
-      : 'https://shb-backend.azurewebsites.net';
+    const baseUrl = BASE_URL;
 
     const uploadProgress = {};
     const uploadStatus = {};

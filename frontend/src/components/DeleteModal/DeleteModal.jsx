@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import axios from 'axios';
 import '../../css/components/DeleteModal/DeleteModal.css';
+import { BASE_URL } from '../../config/apiConfig.js';
 
 class DeleteModal extends Component {
   constructor(props) {
@@ -93,9 +94,7 @@ class DeleteModal extends Component {
     this.setState({ isDeleting: true, totalFiles: fileIds.length, currentFileIndex: 0 });
 
     try {
-      const baseUrl = window.location.hostname === 'localhost'
-        ? 'http://localhost:3001'
-        : 'https://shb-backend.azurewebsites.net';
+      const baseUrl = BASE_URL;
 
       console.log('📤 Sending bulk delete request with fileIds:', fileIds.map(f => f.id || f));
 

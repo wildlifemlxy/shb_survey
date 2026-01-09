@@ -10,11 +10,7 @@ import QuickActionsPanel from './QuickActionsPanel';
 import StatusMessages from './StatusMessages';
 import LastMaintenanceInfo from './LastMaintenanceInfo';
 import SHBSurveyAssistant from './SHBSurveyAssistant';
-
-const BASE_URL =
-  window.location.hostname === 'localhost'
-    ? 'http://localhost:3001'
-    : 'https://shb-backend.azurewebsites.net';
+import { BASE_URL } from '../../config/apiConfig.js';
 
 class MaintenanceBotButton extends Component {
   constructor(props) {

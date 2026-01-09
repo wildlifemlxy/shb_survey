@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { BASE_URL } from '../../config/apiConfig.js';
 
 const OAuthCallback = () => {
   const [searchParams] = useSearchParams();
@@ -10,7 +11,7 @@ const OAuthCallback = () => {
   const [error, setError] = useState(null);
 
   const GOOGLE_CLIENT_ID = '389626720765-84tdf20hilcfeg3us8pvh3m5085d12jc.apps.googleusercontent.com';
-  const GOOGLE_REDIRECT_URI = 'http://localhost:3001/images';
+  const GOOGLE_REDIRECT_URI = `${BASE_URL}/images`;
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -47,7 +48,7 @@ const OAuthCallback = () => {
 
         // Use axios POST to send code to backend
         console.log('Sending POST request to /images with code...');
-        const response = await axios.post('http://localhost:3001/images', {
+        const response = await axios.post(`${BASE_URL}/images`, {
           purpose: 'auth-callback',
           code
         });

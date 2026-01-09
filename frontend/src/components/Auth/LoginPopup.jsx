@@ -5,6 +5,7 @@ import simpleApiService from '../../utils/simpleApiService';
 import QRCode from 'qrcode';
 import botDetectionService from '../../services/botDetection';
 import io from 'socket.io-client';
+import { BASE_URL } from '../../config/apiConfig.js';
 // Note: Since we're using a class component, we can't directly use the useAuth hook
 // We'll pass the login function as a prop from a parent component that uses the hook
 
@@ -731,9 +732,7 @@ class LoginPopup extends Component {
 
   // Initialize Socket.IO connection for real-time mobile communication
   initializeSocket = () => {
-    const backendUrl = window.location.hostname === 'localhost' 
-      ? 'http://localhost:3001' 
-      : 'https://shb-backend.azurewebsites.net';
+    const backendUrl = BASE_URL;
     
     const socket = io(backendUrl, {
       transports: ['websocket', 'polling'],

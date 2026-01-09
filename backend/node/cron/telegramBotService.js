@@ -121,13 +121,13 @@ async function setupTelegramFeatures(app, io) {
   }
 
   // --- Event Reminders Scheduler (17:02 UTC = 01:02 Singapore time) ---
-  schedule.scheduleJob('0 10 * * *', async () => {
+  /*schedule.scheduleJob('0 10 * * *', async () => {
     await sendEventReminders('10:00 UTC (18:00 Singapore time)');
-  });
-
-  /*schedule.scheduleJob('0 4 * * *', async () => {
-    await sendEventReminders('17:02 UTC (01:02 Singapore time)');
   });*/
+
+  schedule.scheduleJob('10 9 * * *', async () => {
+    await sendEventReminders('09:10 Singapore time');
+  });
 
   // --- Import Registration Bot from Telegram folder ---
   const registrationBot = require('../Telegram/Bot/Survey/registrationBot');

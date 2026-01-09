@@ -1,10 +1,5 @@
 import axios from 'axios';
-
-// API base URL configuration
-const BASE_URL = 
-  window.location.hostname === 'localhost'
-    ? 'http://localhost:3001'
-    : 'https://shb-backend.azurewebsites.net';
+import { BASE_URL } from '../config/apiConfig.js';
 
 // Retrieve all events
 export async function getAllEvents() {

@@ -2,6 +2,7 @@ import React from 'react';
 import io from 'socket.io-client';
 import apiService from '../../services/apiServices';
 import '../../css/components/Gallery/Gallery.css';
+import { BASE_URL } from '../../config/apiConfig.js';
 
 // Component to stream and display images and videos
 const StreamImage = ({ fileId, title, alt, mimeType, onImageClick, onItemReady, onMediaSourceReady, onSelectToggle, isSelectMode, isVisible = true }) => {
@@ -320,9 +321,7 @@ class Gallery extends React.Component {
   setupSocketListener = () => {
     console.log('🔌 Setting up socket listener...');
     
-    const socketURL = window.location.hostname === 'localhost' 
-      ? 'http://localhost:3001'
-      : 'https://shb-backend.azurewebsites.net';
+    const socketURL = BASE_URL;
     
     console.log('📍 Socket URL:', socketURL);
     
