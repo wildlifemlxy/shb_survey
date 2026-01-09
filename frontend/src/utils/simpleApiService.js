@@ -4,7 +4,6 @@ import { BASE_URL } from '../config/apiConfig.js';
 // Simple API service for public data operations only
 class SimpleApiService {
   constructor() {
-    this.baseURL = BASE_URL;
   }
 
   // Public survey operations only
@@ -24,7 +23,7 @@ class SimpleApiService {
   // Login method
   async login(credentials) {
     try {
-      const response = await axios.post(`${this.baseURL}/users`, {
+      const response = await axios.post(`${BASE_URL}/users`, {
         purpose: 'login',
         email: credentials.email,
         password: credentials.password
@@ -39,7 +38,7 @@ class SimpleApiService {
   // Logout method
   async logout() {
     try {
-      const response = await axios.post(`${this.baseURL}/users`, {
+      const response = await axios.post(`${BASE_URL}/users`, {
         purpose: 'logout'
       });
       return response.data;
@@ -53,7 +52,7 @@ class SimpleApiService {
   async resetPassword(data) {
     try {
       console.log('Reset password request data:', data);
-      const response = await axios.post(`${this.baseURL}/users`, {
+      const response = await axios.post(`${BASE_URL}/users`, {
         purpose: 'reset-password',
         email: data.email
       });
@@ -67,7 +66,7 @@ class SimpleApiService {
   // Change password method
   async changePassword(data) {
     try {
-      const response = await axios.post(`${this.baseURL}/users`, {
+      const response = await axios.post(`${BASE_URL}/users`, {
         purpose: 'change-password',
         email: data.email,
         newPassword: data.newPassword
@@ -83,7 +82,7 @@ class SimpleApiService {
   // Public survey operations only
   async getStats() {
     try {
-      const response = await axios.post(`${this.baseURL}/surveys`, {
+      const response = await axios.post(`${BASE_URL}/surveys`, {
         purpose: 'retrieve'
       });
       return response.data.surveyResult.surveys;
@@ -96,7 +95,7 @@ class SimpleApiService {
   // Submit new survey
   async submitSurvey(surveyData) {
     try {
-      const response = await axios.post(`${this.baseURL}/surveys`, {
+      const response = await axios.post(`${BASE_URL}/surveys`, {
         purpose: 'insert',
         ...surveyData
       });
@@ -110,7 +109,7 @@ class SimpleApiService {
   // Update survey
   async updateSurvey(recordId, updatedData) {
     try {
-      const response = await axios.post(`${this.baseURL}/surveys`, {
+      const response = await axios.post(`${BASE_URL}/surveys`, {
         purpose: 'update',
         recordId: recordId,
         ...updatedData
@@ -125,7 +124,7 @@ class SimpleApiService {
   // Delete survey
   async deleteSurvey(surveyId) {
     try {
-      const response = await axios.post(`${this.baseURL}/surveys`, {
+      const response = await axios.post(`${BASE_URL}/surveys`, {
         purpose: 'delete',
         surveyId: surveyId
       });
@@ -139,7 +138,7 @@ class SimpleApiService {
   // Bot-related methods
   async getAllBots() {
     try {
-      const response = await axios.post(`${this.baseURL}/telegram`, {
+      const response = await axios.post(`${BASE_URL}/telegram`, {
         purpose: 'retrieve'
       });
       return response.data;
@@ -151,7 +150,7 @@ class SimpleApiService {
 
   async getBotInfo(token) {
     try {
-      const response = await axios.post(`${this.baseURL}/telegram`, {
+      const response = await axios.post(`${BASE_URL}/telegram`, {
         purpose: 'getBotInfo',
         token: token
       });
@@ -164,7 +163,7 @@ class SimpleApiService {
 
   async createBot(name, description, token) {
     try {
-      const response = await axios.post(`${this.baseURL}/telegram`, {
+      const response = await axios.post(`${BASE_URL}/telegram`, {
         purpose: 'createBot',
         name: name,
         description: description,
@@ -179,7 +178,7 @@ class SimpleApiService {
 
   async getBotGroups(token) {
     try {
-      const response = await axios.post(`${this.baseURL}/telegram`, {
+      const response = await axios.post(`${BASE_URL}/telegram`, {
         purpose: 'getBotGroups',
         token: token
       });
@@ -192,7 +191,7 @@ class SimpleApiService {
 
   async getChatHistory(token, chatId) {
     try {
-      const response = await axios.post(`${this.baseURL}/telegram`, {
+      const response = await axios.post(`${BASE_URL}/telegram`, {
         purpose: 'getChatHistory',
         token: token,
         chatId: chatId
@@ -206,7 +205,7 @@ class SimpleApiService {
 
   async getAllChatHistory(token) {
     try {
-      const response = await axios.post(`${this.baseURL}/telegram`, {
+      const response = await axios.post(`${BASE_URL}/telegram`, {
         purpose: 'getAllChatHistory',
         token: token
       });
@@ -220,7 +219,7 @@ class SimpleApiService {
   // Send a message using a bot
   async sendTelegramMessage(token, chatId, message, options = {}) {
     try {
-      const response = await axios.post(`${this.baseURL}/telegram`, {
+      const response = await axios.post(`${BASE_URL}/telegram`, {
         purpose: 'sendMessage',
         token: token,
         chatId: chatId,
@@ -237,7 +236,7 @@ class SimpleApiService {
   // Delete a bot
   async deleteBot(botId) {
     try {
-      const response = await axios.post(`${this.baseURL}/telegram`, {
+      const response = await axios.post(`${BASE_URL}/telegram`, {
         purpose: 'deleteBot',
         botId: botId
       });
@@ -251,7 +250,7 @@ class SimpleApiService {
   // Update bot status
   async updateBotStatus(botId, isActive) {
     try {
-      const response = await axios.post(`${this.baseURL}/telegram`, {
+      const response = await axios.post(`${BASE_URL}/telegram`, {
         purpose: 'updateBotStatus',
         botId: botId,
         isActive: isActive
@@ -266,7 +265,7 @@ class SimpleApiService {
   // Get bot by ID
   async getBotById(botId) {
     try {
-      const response = await axios.post(`${this.baseURL}/telegram`, {
+      const response = await axios.post(`${BASE_URL}/telegram`, {
         purpose: 'getBotById',
         botId: botId
       });
@@ -280,7 +279,7 @@ class SimpleApiService {
   // MFA - Request mobile approval
   async requestMobileApproval(userData) {
     try {
-      const response = await axios.post(`${this.baseURL}/mfa`, {
+      const response = await axios.post(`${BASE_URL}/mfa`, {
         purpose: 'request_approval',
         userId: userData.id || userData.userId,
         email: userData.email,
