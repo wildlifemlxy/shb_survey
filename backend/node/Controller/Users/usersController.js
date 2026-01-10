@@ -173,6 +173,53 @@ class UsersController {
             throw error;
         }
     }
+
+    async updateUserByEmail(email, updateData) {
+        try {
+            console.log('Updating user by email:', email, 'with data:', updateData);
+            await this.dbConnection.initialize();
+            
+            // First check if user exists
+            const user = await this.dbConnection.findDocument(
+                'Straw-Headed-Bulbul',
+                'Accounts',
+                { email: email }
+            );
+
+            if (!user) {
+                return {
+                    success: false,
+                    message: 'User not found with this email address'
+                };
+            }
+            
+            const result = await this.dbConnection.updateDocument(
+                'Straw-Headed-Bulbul',
+                'Accounts',
+                { email: email },
+                { $set: updateData }
+            );
+            console.log('Update user by email result:', result);
+            
+            if (result.modifiedCount > 0) {
+                return {
+                    success: true,
+                    message: 'User updated successfully'
+                };
+            } else {
+                return {
+                    success: false,
+                    message: 'No changes made to user'
+                };
+            }
+        } catch (error) {
+            console.error('Error updating user by email:', error);
+            return {
+                success: false,
+                message: 'Failed to update user'
+            };
+        }
+    }
     
     async changePassword(userId, email, newPassword) {
         try {

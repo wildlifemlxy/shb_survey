@@ -142,12 +142,12 @@ async function handleResetPassword(req, res) {
 
 // Update user handler function
 async function handleUpdateUser(req, res) {
-    const { userId, updateData } = req.body;
+    const { email, updateData } = req.body;
     
-    if (!userId) {
+    if (!email) {
         return res.status(400).json({
             success: false,
-            message: 'User ID is required'
+            message: 'Email is required'
         });
     }
 
@@ -160,12 +160,12 @@ async function handleUpdateUser(req, res) {
 
     try {
         const controller = new UsersController();
-        const result = await controller.updateUser(userId, updateData);
-        console.log('Update user result for', userId, ':', result);
+        const result = await controller.updateUserByEmail(email, updateData);
+        console.log('Update user result for', email, ':', result);
         
         return res.json({
-            success: true,
-            message: 'User updated successfully',
+            success: result.success,
+            message: result.message || 'User updated successfully',
             result: result
         });
     } catch (error) {
