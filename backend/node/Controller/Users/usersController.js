@@ -149,12 +149,24 @@ class UsersController {
     async updateUser(userId, updateData) {
         try {
             await this.dbConnection.initialize();
+            
+            // If userId is a string, convert to ObjectId for MongoDB
+            let filter = { _id: userId };
+            if (typeof userId === 'string' && userId.length === 24) {
+                try {
+                    filter = { _id: new mongoose.Types.ObjectId(userId) };
+                } catch (e) {
+                    console.warn('Could not convert userId to ObjectId:', e);
+                }
+            }
+            
             const result = await this.dbConnection.updateDocument(
-                'StrawHeadedBulbul',
-                'users',
-                { _id: userId },
+                'Straw-Headed-Bulbul',
+                'Accounts',
+                filter,
                 { $set: updateData }
             );
+            console.log('Update user result:', result);
             return result;
         } catch (error) {
             console.error('Error updating user:', error);

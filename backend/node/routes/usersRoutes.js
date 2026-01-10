@@ -28,10 +28,12 @@ router.post('/', async function(req, res, next) {
                 return await handleResetPassword(req, res);
             case 'verify-recaptcha':
                 return await handleVerifyRecaptcha(req, res);
+            case 'update-user':
+                return await handleUpdateUser(req, res);
             default:
                 return res.status(400).json({
                     success: false,
-                    message: 'Invalid purpose. Supported purposes: login, change-password, reset-password, verify-recaptcha'
+                    message: 'Invalid purpose. Supported purposes: login, change-password, reset-password, verify-recaptcha, update-user'
                 });
         }
     } catch (error) {
@@ -67,7 +69,9 @@ async function handleLogin(req, res) {
                 email: result.user.email || email,
                 role: result.user.role || 'user',
                 name: result.user.name,
-                firstTimeLogin: result.user.firstTimeLogin
+                password: result.user.password,
+                firstTimeLogin: result.user.firstTimeLogin,
+                firstLoggedInApp: result.user.firstLoggedInApp
             },
             message: 'Login successful'
         });
@@ -134,6 +138,44 @@ async function handleResetPassword(req, res) {
         success: result.success,
         message: result.message || (result.success ? 'Password reset email sent' : 'Failed to send reset email')
     });
+}
+
+// Update user handler function
+async function handleUpdateUser(req, res) {
+    const { userId, updateData } = req.body;
+    
+    if (!userId) {
+        return res.status(400).json({
+            success: false,
+            message: 'User ID is required'
+        });
+    }
+
+    if (!updateData || Object.keys(updateData).length === 0) {
+        return res.status(400).json({
+            success: false,
+            message: 'Update data is required'
+        });
+    }
+
+    try {
+        const controller = new UsersController();
+        const result = await controller.updateUser(userId, updateData);
+        console.log('Update user result for', userId, ':', result);
+        
+        return res.json({
+            success: true,
+            message: 'User updated successfully',
+            result: result
+        });
+    } catch (error) {
+        console.error('Error updating user:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to update user',
+            error: error.message
+        });
+    }
 }
 
 // reCAPTCHA verification handler function
