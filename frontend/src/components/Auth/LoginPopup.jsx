@@ -840,11 +840,6 @@ class LoginPopup extends Component {
       
       console.log('MFA Complete via mobile approval - sending user data:', enhancedUserData);
       
-      // Send user data to parent component to complete login FIRST
-      if (this.props.onLoginSuccess) {
-        this.props.onLoginSuccess(enhancedUserData);
-      }
-      
       // Reset ALL modal states to close everything
       this.setState({ 
         mobileApprovalStatus: 'approved',
@@ -858,10 +853,12 @@ class LoginPopup extends Component {
         password: '',
         error: ''
       }, () => {
-        console.log('State reset complete, calling onClose');
-        // Close the popup after state is reset
-        if (this.props.onClose) {
-          this.props.onClose();
+        console.log('State reset complete, calling onLoginSuccess');
+        // Send user data to parent component to complete login
+        // NOTE: onLoginSuccess in Home.jsx already sets isLoginPopupOpen: false
+        // So we should NOT call onClose() after this (it would toggle it back to true!)
+        if (this.props.onLoginSuccess) {
+          this.props.onLoginSuccess(enhancedUserData);
         }
       });
     } else {
