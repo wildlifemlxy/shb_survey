@@ -797,26 +797,51 @@ class LoginPopup extends Component {
     if (sessionMatches && this.state.showMobileApproval) {
       if (approved) {
         console.log('✅ Mobile approval APPROVED - updating state and closing popup');
-        this.setState({ 
-          mobileApprovalStatus: 'approved',
-          isWaitingForMobileApproval: false,
-          userData: userData || this.state.userData
-        });
         
-        // Clear timeout
+        // Use the userData from the response, or fall back to state userData
+        const finalUserData = userData || this.state.userData;
+        console.log('Final userData for login:', finalUserData);
+        
+        // Clear timeout first
         if (this.state.mobileApprovalTimeout) {
           clearTimeout(this.state.mobileApprovalTimeout);
         }
         
-        // Immediately complete login and close popup for mobile approval
-        console.log('Mobile approval confirmed - completing login immediately');
-        this.handleMFAComplete();
-        
-        // Force close the popup immediately
-        if (this.props.onClose) {
-          console.log('Force closing popup after mobile approval');
-          this.props.onClose();
-        }
+        // Update state and then complete login in the callback to avoid race condition
+        this.setState({ 
+          mobileApprovalStatus: 'approved',
+          isWaitingForMobileApproval: false,
+          userData: finalUserData
+        }, () => {
+          // Now complete login after state is updated
+          console.log('Mobile approval confirmed - completing login immediately');
+          console.log('userData in state after update:', this.state.userData);
+          
+          // Prepare enhanced user data for login
+          const enhancedUserData = {
+            ...this.state.userData,
+            isAuthenticated: true,
+            loginTime: new Date().toISOString()
+          };
+          
+          console.log('MFA Complete via mobile approval - sending user data:', enhancedUserData);
+          
+          // Send user data to parent component to complete login
+          if (this.props.onLoginSuccess) {
+            this.props.onLoginSuccess(enhancedUserData);
+          }
+          
+          // Close the popup
+          if (this.props.onClose) {
+            console.log('Closing popup after mobile approval');
+            this.props.onClose();
+          }
+          
+          // Clear the form after a short delay
+          setTimeout(() => {
+            this.clearForm();
+          }, 100);
+        });
       } else {
         this.setState({ 
           mobileApprovalStatus: 'denied',
