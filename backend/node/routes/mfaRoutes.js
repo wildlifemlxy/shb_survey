@@ -140,7 +140,7 @@ async function handleRequestApproval(req, res) {
   
   console.log('Requesting Mobile Approval:', { userId, email, sessionId });
   
-  // Send approval request to Android app via Socket.IO (in-app notification)
+  // Send approval request to Android app via Socket.IO
   const io = req.app.get('io');
   if (io) {
     // Emit to USER room (Android app joins this room when logged in)
@@ -151,11 +151,24 @@ async function handleRequestApproval(req, res) {
     io.to(userRoom).emit('mobile-approval-request', {
       userId,
       email,
-      sessionId,  // Include sessionId so Android can send it back with approval
+      sessionId,
       message: 'Login approval required',
       timestamp: Date.now()
     });
     console.log('✅ Mobile approval request sent to Android app via Socket.IO');
+    
+    // Also broadcast to all connected clients as fallback
+    console.log('📤 Broadcasting mobile-approval-request to all connected clients');
+    io.emit('mobile-approval-request', {
+      userId,
+      email,
+      sessionId,
+      message: 'Login approval required',
+      timestamp: Date.now()
+    });
+    console.log('✅ Broadcast sent to all clients');
+  } else {
+    console.error('❌ Socket.IO instance not available');
   }
   
   return res.json({
