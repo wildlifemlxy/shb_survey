@@ -184,21 +184,44 @@ async function handleRequestApproval(req, res) {
 async function handleApproval(req, res) {
   const { userId, email, approved, sessionId } = req.body;
   
-  console.log('Mobile Approval:', { userId, email, approved, sessionId });
+  console.log('🔐 Mobile Approval Request:', { userId, email, approved, sessionId });
   
-  // Emit approval response to SPECIFIC web browser session room (not broadcast)
   const io = req.app.get('io'); // Get the Socket.IO instance
-  if (io && sessionId) {
-    const roomName = `session_${sessionId}`;
-    console.log(`📤 Emitting mobile-auth-response to room: ${roomName}`);
+  
+  if (io) {
+    // Log all connected sockets and their rooms for debugging
+    const sockets = await io.fetchSockets();
+    console.log(`📊 Total connected sockets: ${sockets.length}`);
+    sockets.forEach(s => {
+      console.log(`  Socket ${s.id} rooms:`, Array.from(s.rooms));
+    });
     
-    io.to(roomName).emit('mobile-auth-response', {
+    if (sessionId) {
+      const roomName = `session_${sessionId}`;
+      console.log(`📤 Emitting mobile-auth-response to room: ${roomName}`);
+      
+      // Emit to specific session room
+      io.to(roomName).emit('mobile-auth-response', {
+        approved: approved,
+        sessionId: sessionId,
+        userData: approved ? { userId, email } : null,
+        timestamp: Date.now()
+      });
+      console.log(`✅ Mobile auth response sent to room: ${roomName}`);
+    }
+    
+    // ALSO broadcast to ALL connected clients as fallback
+    // The frontend will filter by sessionId
+    console.log('📤 Broadcasting mobile-auth-response to ALL connected clients as fallback');
+    io.emit('mobile-auth-response', {
       approved: approved,
       sessionId: sessionId,
       userData: approved ? { userId, email } : null,
       timestamp: Date.now()
     });
-    console.log(`✅ Mobile auth response sent to room: ${roomName}`);
+    console.log('✅ Broadcast sent to all clients');
+  } else {
+    console.error('❌ Socket.IO instance not available!');
   }
   
   return res.json({

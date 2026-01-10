@@ -744,6 +744,7 @@ class LoginPopup extends Component {
 
     socket.on('connect', () => {
       console.log('✅ Socket connected for mobile authentication, socketId:', socket.id);
+      console.log('🔗 Connected to backend:', backendUrl);
       
       // If we have a sessionId, join the session room for targeted messages
       if (this.state.mobileApprovalSessionId) {
@@ -755,12 +756,18 @@ class LoginPopup extends Component {
       }
     });
 
+    socket.on('connect_error', (error) => {
+      console.error('❌ Socket connection error:', error);
+    });
+
     socket.on('session-joined', (data) => {
       console.log('✅ Successfully joined session room:', data);
     });
 
     socket.on('mobile-auth-response', (data) => {
-      console.log('Socket received mobile-auth-response:', data);
+      console.log('🔔 Socket received mobile-auth-response:', data);
+      console.log('🔔 Current state - showMobileApproval:', this.state.showMobileApproval);
+      console.log('🔔 Current state - mobileApprovalSessionId:', this.state.mobileApprovalSessionId);
       this.handleMobileAuthResponse(data);
     });
 

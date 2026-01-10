@@ -182,11 +182,11 @@ io.on('connection', (socket) => {
   // Mobile app sends approval response - forward to specific web client
   socket.on('mobile-approval-response', (data) => {
     const { sessionId, approved, userId, email } = data;
-    console.log(`📲 Mobile approval response received:`, { sessionId, approved, userId, email });
+    console.log(`📲 Mobile approval response received via Socket:`, { sessionId, approved, userId, email });
     
     if (sessionId) {
       const roomName = `session_${sessionId}`;
-      // Send ONLY to the web client in this session room
+      // Send to the web client in this session room
       io.to(roomName).emit('mobile-auth-response', {
         sessionId,
         approved,
@@ -195,6 +195,16 @@ io.on('connection', (socket) => {
       });
       console.log(`✅ Sent approval response to room: ${roomName}`);
     }
+    
+    // ALSO broadcast to ALL connected clients as fallback
+    console.log('📤 Broadcasting mobile-auth-response to ALL clients as fallback');
+    io.emit('mobile-auth-response', {
+      sessionId,
+      approved,
+      userData: approved ? { userId, email } : null,
+      timestamp: Date.now()
+    });
+    console.log('✅ Broadcast sent');
   });
 
   // Listen for gallery request from frontend
