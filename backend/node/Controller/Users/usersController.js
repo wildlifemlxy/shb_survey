@@ -73,12 +73,14 @@ class UsersController {
             {
                 console.log('User authenticated successfully:', user);
                 const isFirstTimeLogin = user.firstTimeLogin;
+                const isFirstLoggedInApp = user.firstLoggedInApp;
 
                 return {
                     success: true,
                     user: {
                         ...user,
-                        firstTimeLogin: isFirstTimeLogin
+                        firstTimeLogin: isFirstTimeLogin,
+                        firstLoggedInApp: isFirstLoggedInApp
                     },
                     message: 'Authentication successful'
                 };
