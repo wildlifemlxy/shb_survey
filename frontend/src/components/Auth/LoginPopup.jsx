@@ -785,15 +785,20 @@ class LoginPopup extends Component {
 
   // Handle mobile authentication response
   handleMobileAuthResponse = (data) => {
-    console.log('Received mobile auth response:', data);
-    console.log('Current session ID:', this.state.mobileApprovalSessionId);
+    console.log('🔔 Received mobile auth response:', data);
+    console.log('🔔 Current state:', {
+      mobileApprovalSessionId: this.state.mobileApprovalSessionId,
+      showMobileApproval: this.state.showMobileApproval,
+      showMobileVerification: this.state.showMobileVerification,
+      userData: this.state.userData
+    });
     
     const { sessionId, approved, userData } = data;
     
     // Check if sessionId matches or if no sessionId is provided (for backward compatibility)
     const sessionMatches = !sessionId || sessionId === this.state.mobileApprovalSessionId;
     
-    console.log('Mobile auth response validation:', {
+    console.log('🔔 Mobile auth response validation:', {
       sessionMatches,
       showMobileApproval: this.state.showMobileApproval,
       approved,
@@ -801,79 +806,84 @@ class LoginPopup extends Component {
       expectedSessionId: this.state.mobileApprovalSessionId
     });
     
-    if (sessionMatches && this.state.showMobileApproval) {
-      if (approved) {
-        console.log('✅ Mobile approval APPROVED - updating state and closing popup');
-        
-        // Use the userData from the response, or fall back to state userData
-        const finalUserData = userData || this.state.userData;
-        console.log('Final userData for login:', finalUserData);
-        
-        // Clear timeout first
-        if (this.state.mobileApprovalTimeout) {
-          clearTimeout(this.state.mobileApprovalTimeout);
-        }
-        
-        // Update state and then complete login in the callback to avoid race condition
-        this.setState({ 
-          mobileApprovalStatus: 'approved',
-          isWaitingForMobileApproval: false,
-          userData: finalUserData
-        }, () => {
-          // Now complete login after state is updated
-          console.log('Mobile approval confirmed - completing login immediately');
-          console.log('userData in state after update:', this.state.userData);
-          
-          // Prepare enhanced user data for login
-          const enhancedUserData = {
-            ...this.state.userData,
-            isAuthenticated: true,
-            loginTime: new Date().toISOString()
-          };
-          
-          console.log('MFA Complete via mobile approval - sending user data:', enhancedUserData);
-          
-          // Send user data to parent component to complete login
-          if (this.props.onLoginSuccess) {
-            this.props.onLoginSuccess(enhancedUserData);
-          }
-          
-          // Close the popup
-          if (this.props.onClose) {
-            console.log('Closing popup after mobile approval');
-            this.props.onClose();
-          }
-          
-          // Clear the form after a short delay
-          setTimeout(() => {
-            this.clearForm();
-          }, 100);
-        });
-      } else {
-        this.setState({ 
-          mobileApprovalStatus: 'denied',
-          isWaitingForMobileApproval: false,
-          error: 'Login denied on mobile device'
-        });
-        
-        // Clear timeout
-        if (this.state.mobileApprovalTimeout) {
-          clearTimeout(this.state.mobileApprovalTimeout);
-        }
-        
-        // Close popup and return to home page (before login state)
-        console.log('Mobile approval denied - closing popup and returning to home page');
-        this.clearForm();
+    // Accept if session matches AND (showMobileApproval OR showMobileVerification OR we have userData)
+    const shouldProcess = sessionMatches && (this.state.showMobileApproval || this.state.showMobileVerification || this.state.userData);
+    
+    if (!shouldProcess) {
+      console.log('❌ Not processing - conditions not met:', { 
+        sessionMatches,
+        showMobileApproval: this.state.showMobileApproval,
+        showMobileVerification: this.state.showMobileVerification,
+        hasUserData: !!this.state.userData
+      });
+      return;
+    }
+    
+    if (approved) {
+      console.log('✅ Mobile approval APPROVED - updating state and closing popup');
+      
+      // Use the userData from the response, or fall back to state userData
+      const finalUserData = userData || this.state.userData;
+      console.log('Final userData for login:', finalUserData);
+      
+      // Clear timeout first
+      if (this.state.mobileApprovalTimeout) {
+        clearTimeout(this.state.mobileApprovalTimeout);
+      }
+      
+      // Prepare enhanced user data for login
+      const enhancedUserData = {
+        ...finalUserData,
+        isAuthenticated: true,
+        loginTime: new Date().toISOString()
+      };
+      
+      console.log('MFA Complete via mobile approval - sending user data:', enhancedUserData);
+      
+      // Send user data to parent component to complete login FIRST
+      if (this.props.onLoginSuccess) {
+        this.props.onLoginSuccess(enhancedUserData);
+      }
+      
+      // Reset ALL modal states to close everything
+      this.setState({ 
+        mobileApprovalStatus: 'approved',
+        isWaitingForMobileApproval: false,
+        showMobileApproval: false,
+        showMobileVerification: false,
+        showMFAPin: false,
+        showQRLogin: false,
+        userData: null,
+        email: '',
+        password: '',
+        error: ''
+      }, () => {
+        console.log('State reset complete, calling onClose');
+        // Close the popup after state is reset
         if (this.props.onClose) {
           this.props.onClose();
         }
-      }
-    } else {
-      console.log('Session ID mismatch or not in mobile approval state:', { 
-        received: sessionId, 
-        expected: this.state.mobileApprovalSessionId,
-        showMobileApproval: this.state.showMobileApproval 
       });
+    } else {
+      // Denied
+      console.log('❌ Mobile approval DENIED');
+      this.setState({ 
+        mobileApprovalStatus: 'denied',
+        isWaitingForMobileApproval: false,
+        error: 'Login denied on mobile device'
+      });
+      
+      // Clear timeout
+      if (this.state.mobileApprovalTimeout) {
+        clearTimeout(this.state.mobileApprovalTimeout);
+      }
+      
+      // Close popup and return to home page (before login state)
+      console.log('Mobile approval denied - closing popup and returning to home page');
+      this.clearForm();
+      if (this.props.onClose) {
+        this.props.onClose();
+      }
     }
   };
 
