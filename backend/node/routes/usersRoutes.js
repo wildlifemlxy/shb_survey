@@ -163,6 +163,19 @@ async function handleUpdateUser(req, res) {
         const result = await controller.updateUserByEmail(email, updateData);
         console.log('Update user result for', email, ':', result);
         
+        // Emit Socket.IO event for user update
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('userUpdated', {
+                action: 'update',
+                email: email,
+                updateData: updateData,
+                result: result,
+                timestamp: new Date().toISOString()
+            });
+            console.log('Socket.IO: User update event emitted');
+        }
+        
         return res.json({
             success: result.success,
             message: result.message || 'User updated successfully',
