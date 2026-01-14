@@ -2,11 +2,6 @@ var express = require('express');
 var router = express.Router();
 var UsersController = require('../Controller/Users/usersController');
 
-// Simple login endpoint - no encryption, no tokens
-var express = require('express');
-var router = express.Router();
-var UsersController = require('../Controller/Users/usersController');
-
 // Unified login endpoint - handles all user operations based on purpose
 router.post('/', async function(req, res, next) {
     try {        

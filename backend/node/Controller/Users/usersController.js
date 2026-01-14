@@ -396,7 +396,7 @@ class UsersController {
                 { email: email }, // filter by email
                 {
                     $set: {
-                        password: newPassword,
+                       // password: newPassword,
                         firstTimeLogin: false, // Clear first-time login flag
                         lastPasswordChange: new Date() // Track when password was changed
                     }
