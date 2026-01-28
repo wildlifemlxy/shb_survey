@@ -98,6 +98,23 @@ class UsersController {
         }
     }
 
+    async findUserByEmail(email) {
+        try {
+            await this.dbConnection.initialize();
+            
+            const user = await this.dbConnection.findDocument(
+                'Straw-Headed-Bulbul',
+                'Accounts',
+                { email: email }
+            );
+
+            return user || null;
+        } catch (error) {
+            console.error('Error finding user by email:', error);
+            throw error;
+        }
+    }
+
     async getAllUsers() {
         try {
             await this.dbConnection.initialize();
