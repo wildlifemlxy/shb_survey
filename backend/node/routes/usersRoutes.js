@@ -292,6 +292,7 @@ async function handleVerifyRecaptcha(req, res) {
 
 // Google Sign-In handler function
 async function handleGoogleSignIn(req, res) {
+    console.log('Google sign-in request received:', req.body);
     const { email } = req.body;
     
     if (!email) {
