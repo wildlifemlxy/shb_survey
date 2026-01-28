@@ -25,10 +25,12 @@ router.post('/', async function(req, res, next) {
                 return await handleVerifyRecaptcha(req, res);
             case 'update-user':
                 return await handleUpdateUser(req, res);
+            case 'googleSignIn':
+                return await handleGoogleSignIn(req, res);
             default:
                 return res.status(400).json({
                     success: false,
-                    message: 'Invalid purpose. Supported purposes: login, change-password, reset-password, verify-recaptcha, update-user'
+                    message: 'Invalid purpose. Supported purposes: login, change-password, reset-password, verify-recaptcha, update-user, googleSignIn'
                 });
         }
     } catch (error) {
@@ -284,6 +286,55 @@ async function handleVerifyRecaptcha(req, res) {
             message: errorMessage,
             errors: errorCodes,
             debug: verificationResult
+        });
+    }
+}
+
+// Google Sign-In handler function
+async function handleGoogleSignIn(req, res) {
+    const { email } = req.body;
+    
+    if (!email) {
+        return res.status(400).json({
+            success: false,
+            message: 'Email is required for Google sign-in'
+        });
+    }
+
+    try {
+        // Find user by email
+        const controller = new UsersController();
+        const user = await controller.findUserByEmail(email.toLowerCase());
+
+        if (!user) {
+            return res.status(200).json({
+                success: false,
+                message: 'No account found for this email. Please contact your administrator.',
+                error: 'Account not found'
+            });
+        }
+
+        // User found - return user data (no password verification needed)
+        // Google has already verified the user's identity
+        return res.status(200).json({
+            success: true,
+            message: 'Google sign-in successful',
+            data: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                telegram: user.telegram,
+                firstLoggedInApp: user.firstLoggedInApp || false
+            }
+        });
+
+    } catch (error) {
+        console.error('Google sign-in error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Server error during Google sign-in',
+            error: error.message
         });
     }
 }
