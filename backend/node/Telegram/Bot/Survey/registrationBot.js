@@ -17,7 +17,7 @@ class RegistrationBot {
     this.telegramApi = null;
     this.config = null;
     this.app = null;
-    this.pollingInterval = null;
+    this.isPolling = false;
     this.lastUpdateId = 0;
     this.eventsController = new EventsController();
     this.telegramController = new TelegramController();
@@ -132,7 +132,8 @@ class RegistrationBot {
       const commands = [
         { command: 'start', description: 'Start the bot and subscribe to updates' },
         { command: 'help', description: 'Show available commands' },
-        { command: 'upcoming', description: 'View upcoming survey events' }
+        { command: 'upcoming', description: 'View upcoming survey events' },
+        { command: 'checkreminders', description: 'Check pending reminders (admin)' }
       ];
       
       // Set commands for all private chats (default)
@@ -154,34 +155,49 @@ class RegistrationBot {
    * Start polling for Telegram updates (local development)
    */
   startPolling() {
-    if (this.pollingInterval) {
-      clearInterval(this.pollingInterval);
+    if (this.isPolling) {
+      return; // Already polling
     }
     
+    this.isPolling = true;
     console.log('Starting Telegram polling for button responses...');
     
-    this.pollingInterval = setInterval(async () => {
+    // Use recursive polling instead of setInterval for long polling
+    this.pollLoop();
+  }
+
+  /**
+   * Continuous polling loop using long polling
+   */
+  async pollLoop() {
+    console.log('Poll loop started, isPolling:', this.isPolling);
+    while (this.isPolling) {
       try {
         await this.processUpdates();
       } catch (error) {
         // Silently ignore 409 conflicts (Azure instance running)
         if (error.message && error.message.includes('409')) {
-          return;
+          console.log('409 Conflict detected - Azure instance may be running. Retrying in 5s...');
+          // Wait a bit before retrying on conflict
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          continue;
         }
-        console.error('Polling error:', error.message);
+        if (!error.message.includes('timeout')) {
+          console.error('Polling error:', error.message);
+        }
+        // Small delay before retrying on error
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
-    }, 3000);
+    }
+    console.log('Poll loop ended');
   }
 
   /**
    * Stop polling
    */
   stopPolling() {
-    if (this.pollingInterval) {
-      clearInterval(this.pollingInterval);
-      this.pollingInterval = null;
-      console.log('Polling stopped');
-    }
+    this.isPolling = false;
+    console.log('Polling stopped');
   }
 
   /**
@@ -189,27 +205,33 @@ class RegistrationBot {
    */
   async processUpdates() {
     try {
-      const result = await this.telegramApi.getUpdates(this.lastUpdateId + 1, 1);
+      // Use 30 second timeout for long polling (Telegram recommended)
+      const result = await this.telegramApi.getUpdates(this.lastUpdateId + 1, 30);
       
       if (!result.ok || !result.result || result.result.length === 0) {
         return;
       }
 
+      console.log(`📥 Received ${result.result.length} update(s) from Telegram`);
+      
       for (const update of result.result) {
         this.lastUpdateId = update.update_id;
+        console.log(`Processing update ${update.update_id}`);
         
         if (update.callback_query) {
+          console.log('📥 Processing callback_query:', update.callback_query.data);
           await this.handleCallbackQuery(update.callback_query);
         }
         
         if (update.message && update.message.text) {
+          console.log('📥 Processing message:', update.message.text);
           await this.handleMessage(update.message);
         }
       }
     } catch (error) {
       if (!error.message.includes('timeout')) {
         if (error.message.includes('409') || error.message.includes('Conflict')) {
-          return;
+          throw error; // Re-throw to handle in pollLoop
         }
         console.error('Error processing updates:', error.message);
       }
@@ -324,6 +346,10 @@ class RegistrationBot {
     else if (command === '/upcoming') {
       await this.handleUpcomingCommand(chatId);
     }
+    // Handle /checkreminders command - check and optionally send pending reminders
+    else if (command === '/checkreminders') {
+      await this.handleCheckRemindersCommand(chatId, text);
+    }
   }
 
   /**
@@ -390,13 +416,17 @@ When a survey is posted, you can click the <b>✅ Join</b> or <b>❌ Leave</b> b
 /start${botSuffix} - Show welcome message
 /help${botSuffix} - Show this help message
 /upcoming${botSuffix} - View upcoming survey events
+/checkreminders${botSuffix} - Check pending reminders
 
 <b>How to register:</b>
 When a survey is posted, click:
 • <b>✅ Join</b> - to register for the survey
 • <b>❌ Leave</b> - to unregister from the survey
 
-Your name will be automatically added/removed from the participant list.`;
+Your name will be automatically added/removed from the participant list.
+
+<b>Admin:</b>
+Use <code>/checkreminders send</code> to send all pending reminders.`;
 
     try {
       await this.telegramApi.sendMessage(chatId, helpMessage);
@@ -569,6 +599,74 @@ Your name will be automatically added/removed from the participant list.`;
     }
     
     return message;
+  }
+
+  /**
+   * Handle /checkreminders command - check and optionally send pending reminders
+   * Usage: /checkreminders - list pending reminders
+   *        /checkreminders send - send all pending reminders
+   */
+  async handleCheckRemindersCommand(chatId, fullText) {
+    try {
+      // Check if 'send' argument was provided
+      const args = fullText.split(' ');
+      const shouldSend = args.length > 1 && args[1].toLowerCase() === 'send';
+      
+      // Get the functions from app.locals (set in telegramBotService)
+      const getPendingReminders = this.app?.locals?.getPendingReminders;
+      const sendPendingReminders = this.app?.locals?.sendPendingReminders;
+      
+      if (!getPendingReminders) {
+        await this.telegramApi.sendMessage(chatId, '❌ Reminder check not available. Server may need restart.');
+        return;
+      }
+      
+      const pending = await getPendingReminders();
+      
+      if (pending.length === 0) {
+        await this.telegramApi.sendMessage(chatId, '✅ No pending reminders. All reminders have been sent!');
+        return;
+      }
+      
+      if (shouldSend) {
+        // Send all pending reminders
+        await this.telegramApi.sendMessage(chatId, `📤 Sending ${pending.length} pending reminder(s)...`);
+        
+        const results = await sendPendingReminders();
+        const successCount = results.filter(r => r.success).length;
+        const failCount = results.filter(r => !r.success).length;
+        
+        let resultMessage = `✅ Sent ${successCount}/${results.length} reminder(s) successfully.`;
+        if (failCount > 0) {
+          resultMessage += `\n⚠️ ${failCount} reminder(s) failed to send.`;
+        }
+        
+        await this.telegramApi.sendMessage(chatId, resultMessage);
+      } else {
+        // List pending reminders
+        let message = `📋 <b>Pending Reminders (${pending.length})</b>\n\n`;
+        
+        for (const event of pending) {
+          const daysText = event.daysUntilEvent > 0 
+            ? `in ${event.daysUntilEvent} day(s)` 
+            : event.daysUntilEvent === 0 
+              ? 'TODAY!' 
+              : `${Math.abs(event.daysUntilEvent)} day(s) ago`;
+          
+          message += `• <b>${event.Location || 'Unknown Location'}</b>\n`;
+          message += `  📅 Date: ${event.Date}\n`;
+          message += `  ⏰ Event ${daysText}\n`;
+          message += `  🔔 Reminder was due: ${event.reminderDueDate}\n\n`;
+        }
+        
+        message += `\nTo send all pending reminders, use:\n<code>/checkreminders send</code>`;
+        
+        await this.telegramApi.sendMessage(chatId, message);
+      }
+    } catch (error) {
+      console.error('Error checking reminders:', error.message);
+      await this.telegramApi.sendMessage(chatId, '❌ Error checking reminders. Please try again later.');
+    }
   }
 
   /**

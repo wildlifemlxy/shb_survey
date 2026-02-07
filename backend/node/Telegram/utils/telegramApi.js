@@ -213,7 +213,9 @@ class TelegramApi {
           offset: offset,
           timeout: timeout,
           allowed_updates: ['message', 'callback_query']
-        }
+        },
+        // Set axios timeout slightly longer than Telegram timeout to handle network latency
+        timeout: (timeout + 5) * 1000
       });
       return response.data;
     } catch (error) {

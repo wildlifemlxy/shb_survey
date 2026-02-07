@@ -152,6 +152,35 @@ class EventsController {
         };
       }
     }
+
+    /**
+     * Mark reminder as sent for an event
+     * @param {string} eventId - Event ID
+     * @returns {Promise<Object>} Result with success status
+     */
+    async markReminderSent(eventId) {
+      const db = DatabaseConnectivity.getInstance();
+      try {
+        await db.initialize();
+        const databaseName = "Straw-Headed-Bulbul";
+        const collectionName = "Survey Events";
+        const filter = { _id: eventId };
+        const update = { $set: { reminderSentAt: new Date().toISOString() } };
+        const result = await db.updateDocument(databaseName, collectionName, filter, update);
+        return {
+          success: true,
+          result,
+          message: 'Reminder marked as sent'
+        };
+      } catch (err) {
+        console.error('Error marking reminder as sent:', err);
+        return {
+          success: false,
+          message: 'Error marking reminder as sent',
+          error: err.message
+        };
+      }
+    }
 }
 
 module.exports = EventsController;

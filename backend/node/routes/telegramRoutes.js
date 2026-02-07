@@ -142,4 +142,57 @@ router.post('/', async function(req, res, next) {
     return res.status(400).json({ error: 'Invalid purpose.' });
 });
 
+// GET /telegram/pending-reminders - check for pending reminders
+router.get('/pending-reminders', async function(req, res) {
+    try {
+        const getPendingReminders = req.app.locals.getPendingReminders;
+        
+        if (!getPendingReminders) {
+            return res.status(503).json({ 
+                success: false, 
+                error: 'Reminder service not initialized. Server may need restart.' 
+            });
+        }
+        
+        const pending = await getPendingReminders();
+        return res.status(200).json({ 
+            success: true, 
+            count: pending.length, 
+            pendingReminders: pending 
+        });
+    } catch (err) {
+        console.error('Error getting pending reminders:', err);
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// POST /telegram/send-pending-reminders - send all pending reminders
+router.post('/send-pending-reminders', async function(req, res) {
+    try {
+        const sendPendingReminders = req.app.locals.sendPendingReminders;
+        
+        if (!sendPendingReminders) {
+            return res.status(503).json({ 
+                success: false, 
+                error: 'Reminder service not initialized. Server may need restart.' 
+            });
+        }
+        
+        const results = await sendPendingReminders();
+        const successCount = results.filter(r => r.success).length;
+        const failCount = results.filter(r => !r.success).length;
+        
+        return res.status(200).json({ 
+            success: true, 
+            totalSent: results.length,
+            successCount,
+            failCount,
+            results 
+        });
+    } catch (err) {
+        console.error('Error sending pending reminders:', err);
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 module.exports = router;
