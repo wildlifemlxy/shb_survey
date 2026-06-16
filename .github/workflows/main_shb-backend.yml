@@ -135,6 +135,21 @@ jobs:
                 "slotSetting": false
               },
               {
+                "name": "EMAIL_USER",
+                "value": "${{ secrets.EMAIL_USER }}",
+                "slotSetting": false
+              },
+              {
+                "name": "EMAIL_PASS",
+                "value": "${{ secrets.EMAIL_PASS }}",
+                "slotSetting": false
+              },
+              {
+                "name": "EMAIL_FROM",
+                "value": "${{ secrets.EMAIL_FROM }}",
+                "slotSetting": false
+              },
+              {
                 "name": "NODE_ENV",
                 "value": "production",
                 "slotSetting": false
