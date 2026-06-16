@@ -97,24 +97,25 @@ const nodemailer = require('nodemailer');
 
 class EmailService {
     constructor() {
-        // Create a transporter using Brevo SMTP
+        // Create a transporter using Gmail SMTP with App Password
         this.transporter = nodemailer.createTransport({
-            host: 'smtp-relay.brevo.com', // Brevo's SMTP server
-            port: 587, // TLS
-            secure: false, // Use false for TLS
+            service: 'gmail',
+            host: 'smtp.gmail.com',
+            port: 587,
+            secure: false, // Use TLS, not SSL
             auth: {
-                user: "92044d001@smtp-brevo.com", // Your email address
-                pass: "Qf18IPhmdSB5YaA9", // Your app password or normal password
-            },
+                user: process.env.EMAIL_USER || 'mossleegermany@gmail.com',
+                pass: process.env.EMAIL_PASS || 'your-16-char-app-password-here' // Gmail App Password
+            }
         });
     }
 
     async sendEmail(to, subject, htmlContent, textContent = '') {
         try {
-            console.log('Sending email to:', to);
+            console.log('📧 Sending email to:', to);
             
             const mailOptions = {
-                from: 'wildlifemlxy@gmail.com',
+                from: process.env.EMAIL_FROM || 'mossleegermany@gmail.com',
                 to: to,
                 subject: subject,
                 text: textContent,
@@ -122,7 +123,7 @@ class EmailService {
             };
 
             const result = await this.transporter.sendMail(mailOptions);
-            console.log('Email sent successfully:', result.messageId);
+            console.log('✅ Email sent successfully:', result.messageId);
             
             return {
                 success: true,
@@ -130,7 +131,7 @@ class EmailService {
                 message: 'Email sent successfully'
             };
         } catch (error) {
-            console.error('Error sending email:', error);
+            console.error('❌ Error sending email:', error);
             return {
                 success: false,
                 error: error.message,

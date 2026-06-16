@@ -127,14 +127,30 @@ async function handleResetPassword(req, res) {
         });
     }
 
-    const controller = new UsersController();
-    const result = await controller.resetPassword(email, newPassword);
-    console.log('Password reset request result for', email, ':', result);
-    
-    return res.json({
-        success: result.success,
-        message: result.message || (result.success ? 'Password reset email sent' : 'Failed to send reset email')
-    });
+    try {
+        const controller = new UsersController();
+        const result = await controller.resetPassword(email, newPassword);
+        console.log('Password reset request result for', email, ':', result);
+        
+        if (!result) {
+            return res.status(500).json({
+                success: false,
+                message: 'Password reset failed - no response from controller'
+            });
+        }
+        
+        return res.json({
+            success: result.success,
+            message: result.message || (result.success ? 'Password reset email sent' : 'Failed to send reset email')
+        });
+    } catch (error) {
+        console.error('Error in handleResetPassword:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to process password reset request',
+            error: error.message
+        });
+    }
 }
 
 // Update user handler function
