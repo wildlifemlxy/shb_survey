@@ -149,7 +149,6 @@ class DataViewTab extends Component {
         
         // Show success feedback to user
         console.log('✅ Record deleted successfully');
-        alert('✅ Record deleted successfully!');
         
         return response;
       } else {
