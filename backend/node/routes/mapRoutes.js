@@ -10,20 +10,26 @@ router.get('/config', (req, res) => {
   try {
     const apiKey = process.env.GOOGLE_MAPS_API_KEY || '';
     
+    console.log('📍 Map config endpoint called');
+    console.log('  API Key exists:', !!apiKey);
+    console.log('  API Key length:', apiKey.length);
+    
     if (!apiKey) {
+      console.warn('  ⚠️ Google Maps API key not configured in environment');
       return res.status(500).json({
         success: false,
         error: 'Google Maps API key not configured'
       });
     }
 
+    console.log('  ✅ Returning API key successfully');
     res.json({
       success: true,
       apiKey: apiKey,
       useGoogleMaps: process.env.USE_GOOGLE_MAPS !== 'false'
     });
   } catch (error) {
-    console.error('Error fetching map config:', error);
+    console.error('❌ Error fetching map config:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch map configuration'

@@ -27,7 +27,7 @@ jobs:
         working-directory: ./backend/node
         run: |
           rm -f package-lock.json
-          rm -rf node_modules --if-present
+          rm -rf node_modules || true
 
       - name: npm install and build
         working-directory: ./backend/node
