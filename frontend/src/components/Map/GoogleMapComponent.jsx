@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { GOOGLE_MAPS_API_KEY, SINGAPORE_CENTER, SINGAPORE_ZOOM, DEFAULT_MAP_TYPE } from '../../config/mapConfig';
+import { fetchMapConfig, SINGAPORE_CENTER, SINGAPORE_ZOOM, DEFAULT_MAP_TYPE } from '../../config/mapConfig';
 
 class GoogleMapComponent extends Component {
   constructor(props) {
@@ -59,7 +59,17 @@ class GoogleMapComponent extends Component {
       }
     }, 15000); // 15 second timeout
 
-    this.loadGoogleMapsScript();
+    // Fetch map config from backend and then load Google Maps
+    fetchMapConfig().then(config => {
+      this.googleMapsApiKey = config.apiKey;
+      this.loadGoogleMapsScript();
+    }).catch(error => {
+      console.error('Failed to fetch map config:', error);
+      this.setState({
+        error: 'Failed to initialize map. Please refresh the page.',
+        isLoadingMaps: false
+      });
+    });
   }
 
   componentDidUpdate(prevProps) {
@@ -118,7 +128,7 @@ class GoogleMapComponent extends Component {
 
     // Create script element with improved loading
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=geometry&callback=initGoogleMaps`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${this.googleMapsApiKey}&libraries=geometry&callback=initGoogleMaps`;
     script.async = true;
     script.defer = true;
     

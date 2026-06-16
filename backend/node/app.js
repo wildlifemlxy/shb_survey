@@ -14,6 +14,7 @@ var userRoutes = require('./routes/usersRoutes'); // Import MongoDB user routes
 var mfaRoutes = require('./routes/mfaRoutes'); // Import MFA routes
 var galleryRoutes = require('./routes/galleryRoutes'); // Import images routes
 var animalIdentificationRoutes = require('./routes/animalIdentificationRoutes'); // Import animal identification routes
+var mapRoutes = require('./routes/mapRoutes'); // Import map configuration routes
 
 app.use(cors()); // Enable CORS
 app.use(logger('dev')); // HTTP request logger
@@ -74,6 +75,7 @@ app.use('/users', userRoutes);
 app.use('/mfa', mfaRoutes);
 app.use('/gallery', galleryRoutes);
 app.use('/animal-identification', animalIdentificationRoutes);
+app.use('/api/map', mapRoutes);
 
 // Telegram webhook routes will be registered dynamically
 // This placeholder allows dynamic route registration before 404 handler

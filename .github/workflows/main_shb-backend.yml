@@ -27,7 +27,7 @@ jobs:
         working-directory: ./backend/node
         run: |
           rm -f package-lock.json
-          rm -rf node_modules
+          rm -rf node_modules --if-present
 
       - name: npm install and build
         working-directory: ./backend/node
@@ -127,6 +127,11 @@ jobs:
               {
                 "name": "TELEGRAM_BOT_TOKEN",
                 "value": "${{ secrets.TELEGRAM_BOT_TOKEN }}",
+                "slotSetting": false
+              },
+              {
+                "name": "GOOGLE_MAPS_API_KEY",
+                "value": "${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}",
                 "slotSetting": false
               },
               {
