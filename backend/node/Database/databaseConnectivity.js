@@ -307,11 +307,28 @@ class DatabaseConnectivity {
       const db = client.db('Straw-Headed-Bulbul');
       const coll = db.collection(collection);
       
+      console.log(`[DB] Updating collection: ${collection}`);
+      console.log(`[DB] Query:`, JSON.stringify(query, null, 2));
+      console.log(`[DB] UpdateData:`, JSON.stringify(updateData, null, 2));
+      
+      let result;
       if (options.multi || options.updateMany) {
-        return await coll.updateMany(query, updateData, options);
+        console.log(`[DB] Using updateMany...`);
+        result = await coll.updateMany(query, updateData, options);
       } else {
-        return await coll.updateOne(query, updateData, options);
+        console.log(`[DB] Using updateOne...`);
+        result = await coll.updateOne(query, updateData, options);
       }
+      
+      console.log(`[DB] Update result:`, {
+        acknowledged: result.acknowledged,
+        matchedCount: result.matchedCount,
+        modifiedCount: result.modifiedCount,
+        upsertedCount: result.upsertedCount,
+        upsertedId: result.upsertedId
+      });
+      
+      return result;
     }, `update ${collection}`);
   }
 

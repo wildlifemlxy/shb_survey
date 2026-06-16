@@ -62,6 +62,12 @@ class RegistrationBot {
       return;
     }
     
+    // Check if Telegram bot is explicitly disabled (e.g., to avoid 409 conflict with Azure)
+    if (process.env.DISABLE_TELEGRAM_BOT === 'true') {
+      console.log('⏸️  DISABLE_TELEGRAM_BOT environment variable set - Telegram bot polling disabled');
+      return;
+    }
+    
     this.config = config;
     this.app = app;
     this.telegramApi = new TelegramApi(config.BOT_TOKEN);

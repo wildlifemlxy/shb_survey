@@ -33,12 +33,36 @@ app.use(cookieParser());
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 
-app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3002', 'https://gentle-dune-0405ec500.1.azurestaticapps.net', "android-app://"],
+// CORS configuration with debug logging
+const corsOptions = {
+  origin: function (origin, callback) {
+    console.log('\n🔐 CORS CHECK:');
+    console.log('  Request origin:', origin);
+    
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3002',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3002',
+      'https://gentle-dune-0405ec500.1.azurestaticapps.net',
+      'android-app://'
+    ];
+    
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin || allowedOrigins.includes(origin)) {
+      console.log('  ✅ CORS ALLOWED');
+      callback(null, true);
+    } else {
+      console.log('  ⚠️ CORS BLOCKED - origin not in whitelist');
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Content-Disposition'],
   exposedHeaders: ['Content-Disposition'],
-}));
+};
+
+app.use(cors(corsOptions));
 
 app.use(express.static(path.join(__dirname, 'public')));
 

@@ -26,6 +26,7 @@ var server = http.createServer(app);
  * Listen on provided port, on all network interfaces.
  */
 
+console.log('🔧 Starting backend server...');
 server.listen(port);
 server.on('error', onError);
 server.on('listening', onListening);
@@ -229,5 +230,5 @@ function onListening() {
   var bind = typeof addr === 'string'
     ? 'pipe ' + addr
     : 'port ' + addr.port;
-  debug('Listening on ' + bind);
+  console.log('🚀 Backend server listening on ' + bind);
 }

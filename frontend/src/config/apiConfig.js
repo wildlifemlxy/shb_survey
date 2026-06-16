@@ -1,8 +1,14 @@
 // API Configuration - Single source of truth for backend URL
-export const BASE_URL =
-  window.location.hostname === 'localhost'
-    ? 'http://localhost:3001'
-    : 'https://shb-backend.azurewebsites.net';
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('192.168');
+console.log('🔍 API Config Debug:', {
+  hostname: window.location.hostname,
+  isLocalhost: isLocalhost,
+  selectedURL: isLocalhost ? 'http://localhost:3001' : 'https://shb-backend.azurewebsites.net'
+});
+
+export const BASE_URL = isLocalhost
+  ? 'http://localhost:3001'
+  : 'https://shb-backend.azurewebsites.net';
 
 //export const BASE_URL = 'https://shb-backend.azurewebsites.net';
 

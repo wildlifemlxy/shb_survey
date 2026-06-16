@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { BASE_URL } from '../config/apiConfig.js';
+import { logger } from './diagnosticLogger.js';
 
 // Simple API service for public data operations only
 class SimpleApiService {
@@ -108,15 +109,79 @@ class SimpleApiService {
 
   // Update survey
   async updateSurvey(recordId, updatedData) {
+    logger.section('🚀 UPDATE SURVEY - STARTING REQUEST');
+    
     try {
-      const response = await axios.post(`${BASE_URL}/surveys`, {
+      // Step 1: Validate inputs
+      logger.section('STEP 1: INPUT VALIDATION');
+      logger.info('recordId', recordId);
+      logger.info('recordId type', typeof recordId);
+      logger.info('updatedData keys', Object.keys(updatedData));
+      
+      if (!recordId) {
+        logger.error('recordId is empty', recordId);
+        throw new Error('recordId cannot be empty');
+      }
+      logger.success('recordId is not empty', '✓');
+      
+      if (typeof recordId !== 'string') {
+        logger.error('recordId type is wrong', typeof recordId);
+        throw new Error('recordId must be a string');
+      }
+      logger.success('recordId is a string', '✓');
+      
+      // Step 2: Build payload
+      logger.section('STEP 2: BUILD PAYLOAD');
+      const payload = {
         purpose: 'update',
         recordId: recordId,
         ...updatedData
-      });
-      return response.data;
+      };
+      logger.json('Payload to send', payload);
+      logger.info('API endpoint', `${BASE_URL}/surveys`);
+      
+      // Step 3: Send request
+      logger.section('STEP 3: SEND HTTP REQUEST');
+      logger.pending('Sending POST request');
+      
+      const response = await axios.post(`${BASE_URL}/surveys`, payload);
+      
+      // Step 4: Handle response
+      logger.section('STEP 4: HANDLE RESPONSE');
+      logger.info('HTTP Status', response.status);
+      logger.json('Response data', response.data);
+      
+      if (response.data && response.data.success) {
+        logger.section('STEP 5: SUCCESS');
+        logger.success('Backend confirmed update', response.data.message);
+        logger.info('Modified count', response.data.modifiedCount);
+        logger.complete(true);
+        return response.data;
+      } else {
+        logger.section('STEP 5: BACKEND ERROR');
+        logger.error('Backend success flag', response.data?.success);
+        logger.error('Backend error message', response.data?.error);
+        logger.complete(false);
+        return response.data;
+      }
     } catch (error) {
-      console.error('Update survey error:', error);
+      logger.section('⚠️ EXCEPTION CAUGHT');
+      logger.error('Error type', error.constructor.name);
+      logger.error('Error message', error.message);
+      
+      if (error.response) {
+        logger.section('HTTP ERROR DETAILS');
+        logger.error('Response status', error.response.status);
+        logger.json('Response data', error.response.data);
+      } else if (error.request) {
+        logger.section('NETWORK ERROR');
+        logger.error('No response received', 'Request was made but server did not respond');
+      } else {
+        logger.section('REQUEST SETUP ERROR');
+        logger.error('Error', error.message);
+      }
+      
+      logger.complete(false);
       throw error;
     }
   }

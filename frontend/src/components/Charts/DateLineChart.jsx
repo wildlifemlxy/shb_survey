@@ -941,6 +941,7 @@ class DateLineChart extends Component {
                 if (isAnomaly) {
                   return (
                     <circle 
+                      key={`anomaly-${cx}-${cy}-${payload.monthYear}`}
                       cx={cx} 
                       cy={cy} 
                       r={6} 
@@ -952,6 +953,7 @@ class DateLineChart extends Component {
                 } else if (isPrediction) {
                   return (
                     <circle 
+                      key={`prediction-${cx}-${cy}-${payload.monthYear}`}
                       cx={cx} 
                       cy={cy} 
                       r={5} 
@@ -964,6 +966,7 @@ class DateLineChart extends Component {
                 }
                 return (
                   <circle 
+                    key={`dot-${cx}-${cy}-${payload.monthYear}`}
                     cx={cx} 
                     cy={cy} 
                     r={4} 

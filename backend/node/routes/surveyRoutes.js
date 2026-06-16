@@ -12,6 +12,12 @@ router.post('/', async function(req, res, next) {
     var requestData = req.body;
     const io = req.app.get('io'); // Get the Socket.IO instance
     
+    // DEBUG: Log all incoming requests
+    console.log('\n📨 INCOMING POST REQUEST');
+    console.log('Purpose:', requestData.purpose);
+    console.log('Full requestData:', JSON.stringify(requestData, null, 2));
+    console.log('---');
+    
     // Start cron job once when needed
     if (!cronJobsStarted) {
         try {
@@ -174,18 +180,38 @@ router.post('/', async function(req, res, next) {
     else if(req.body.purpose === "update")
     {
         try {
-            console.log("Received request to update survey with ID:", requestData.recordId || requestData._id);
+            console.log('\n╔════════════════════════════════════════════╗');
+            console.log('║  UPDATE REQUEST RECEIVED                   ║');
+            console.log('╚════════════════════════════════════════════╝');
+            console.log("📥 Received request to update survey");
+            console.log("Request body:", JSON.stringify(req.body, null, 2));
+            
             var controller = new SurveyController();
             
             // Extract record ID and updated data
-            const recordId = requestData.recordId || requestData._id;
-            const updatedData = { ...requestData };
+            const recordId = req.body.recordId || req.body._id;
+            console.log("\n🔍 Extracted recordId:", recordId);
+            console.log("recordId type:", typeof recordId);
+            
+            if (!recordId) {
+                console.error('❌ NO RECORD ID PROVIDED');
+                return res.status(400).json({
+                    success: false,
+                    error: 'Record ID is required for update'
+                });
+            }
+            
+            const updatedData = { ...req.body };
             delete updatedData.purpose;
             delete updatedData.recordId;
+            console.log("\n📦 Sanitized data to update:", JSON.stringify(updatedData, null, 2));
             
+            console.log("\n🔄 Calling controller.updateSurvey()...");
             var result = await controller.updateSurvey(recordId, updatedData);
+            console.log("\n📋 Controller result:", JSON.stringify(result, null, 2));
             
             if (result.success) {
+                console.log('✅ Update SUCCESSFUL');
                 // Emit real-time update for survey update
                 if (io) {
                     io.emit('surveyUpdated', {
@@ -195,6 +221,8 @@ router.post('/', async function(req, res, next) {
                         timestamp: new Date().toISOString()
                     });
                     console.log('Socket.IO: Survey update event emitted for ID:', recordId);
+                } else {
+                    console.log('⚠️ WARNING: io is null or undefined');
                 }
                 
                 return res.json({
@@ -203,14 +231,20 @@ router.post('/', async function(req, res, next) {
                     modifiedCount: result.modifiedCount
                 });
             } else {
+                console.log('❌ Update failed:', result.message);
                 return res.status(400).json({
                     success: false,
-                    error: result.message || 'Failed to update survey'
+                    error: result.message || 'Failed to update survey',
+                    details: result.error || 'No additional details available'
                 });
             }
         } catch (error) {
-            console.error('Error updating survey:', error);
-            return res.status(500).json({ error: 'Failed to update survey.' });
+            console.error('❌ EXCEPTION in update handler:', error);
+            console.error('Error stack:', error.stack);
+            return res.status(500).json({ 
+                error: error.message || 'Failed to update survey',
+                details: 'An unexpected error occurred while updating the survey'
+            });
         }
     }
     else if(req.body.purpose === "delete")

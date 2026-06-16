@@ -139,6 +139,28 @@ router.post('/', async function(req, res, next) {
             return res.status(500).json({ error: err.message || 'Failed to retrieve chat history.' });
         }
     }
+    else if (purpose === 'getMaintenanceStatus') {
+        try {
+            // Return maintenance status information
+            const maintenanceStatus = {
+                status: {
+                    lastMaintenance: new Date().toISOString(),
+                    activeTasks: [],
+                    systemHealth: {
+                        database: 'healthy',
+                        api: 'healthy',
+                        storage: 'healthy',
+                        cpu: 'normal',
+                        memory: 'normal'
+                    }
+                }
+            };
+            return res.status(200).json(maintenanceStatus);
+        } catch (err) {
+            console.error('Error in getMaintenanceStatus:', err);
+            return res.status(500).json({ error: err.message || 'Failed to get maintenance status.' });
+        }
+    }
     return res.status(400).json({ error: 'Invalid purpose.' });
 });
 

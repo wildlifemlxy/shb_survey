@@ -32,13 +32,28 @@ class SurveyController
   async updateSurvey(recordId, updatedData) {
       const db = DatabaseConnectivity.getInstance();
       try {
+          console.log('\n========== UPDATE SURVEY CALLED ==========');
+          console.log('recordId received:', recordId);
+          console.log('recordId type:', typeof recordId);
+          console.log('updatedData:', JSON.stringify(updatedData, null, 2));
+          
           // Validate recordId
+          if (!recordId) {
+              console.error('❌ recordId is empty/null/undefined');
+              throw new Error('Record ID is required');
+          }
+          
           if (!ObjectId.isValid(recordId)) {
+              console.error('❌ Invalid ObjectId format:', recordId);
               throw new Error('Invalid record ID format');
           }
           
+          console.log('✅ recordId is valid ObjectId format');
+          
           // Initialize database connection
           await db.initialize();
+          console.log('✅ Database connected');
+          
           const databaseName = "Straw-Headed-Bulbul";
           const collectionName = "Wildlife Survey";
           
@@ -46,22 +61,37 @@ class SurveyController
           const sanitizedData = { ...updatedData };
           delete sanitizedData._id; // Don't allow updating the _id field
           
+          console.log('Sanitized data for update:', JSON.stringify(sanitizedData, null, 2));
+          
+          const query = { _id: new ObjectId(recordId) };
+          console.log('Query filter:', JSON.stringify(query, null, 2));
+          
+          const updateOp = { $set: sanitizedData };
+          console.log('Update operation:', JSON.stringify(updateOp, null, 2));
+          
           // Update the document using db.updateDocument
+          console.log('Calling db.updateDocument...');
           const result = await db.updateDocument(
               databaseName, 
               collectionName, 
-              { _id: new ObjectId(recordId) }, 
-              { $set: sanitizedData }
+              query, 
+              updateOp
           );
           
+          console.log('Update result received:', JSON.stringify(result, null, 2));
+          console.log('matchedCount:', result.matchedCount);
+          console.log('modifiedCount:', result.modifiedCount);
+          
           if (result.matchedCount === 0) {
+              console.error('❌ No document found with ID:', recordId);
               throw new Error('Survey record not found');
           }
           
           if (result.modifiedCount === 0) {
-              console.log('No changes were made to the survey record');
+              console.log('⚠️ No changes were made to the survey record (may be same values)');
           }
           
+          console.log('✅ Update successful');
           return {
               success: true,
               matchedCount: result.matchedCount,
@@ -70,7 +100,8 @@ class SurveyController
           };
           
       } catch (error) {
-          console.error('Error in updateSurvey:', error);
+          console.error('❌ Error in updateSurvey:', error.message);
+          console.error('Full error:', error);
           return {
               success: false,
               message: 'Error updating survey',
@@ -138,8 +169,6 @@ class SurveyController
         message: 'Error deleting survey',
         error: error.message
       };
-    } finally {
-      await db.close();
     }
   }
 }

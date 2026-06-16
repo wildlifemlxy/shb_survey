@@ -25,7 +25,7 @@ router.post('/', async function(req, res, next) {
         try {
             var controller = new EventsController();
             var result = await controller.getAllEvents();
-            console.log('Events retrieved successfully:', result);
+            //console.log('Events retrieved successfully:', result);
             return res.json({"result": { success: true, events: result }}); 
         } catch (error) {
             console.error('Error retrieving events:', error);

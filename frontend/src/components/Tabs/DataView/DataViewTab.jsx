@@ -8,6 +8,7 @@ import simpleApiService from '../../../utils/simpleApiService';
 import { getCurrentUser, isLoggedIn } from '../../../data/loginData';
 import { io } from 'socket.io-client';
 import { BASE_URL } from '../../../config/apiConfig.js';
+import { logger } from '../../../utils/diagnosticLogger';
 
 class DataViewTab extends Component {
   constructor(props) {
@@ -72,6 +73,56 @@ class DataViewTab extends Component {
     }
   }
 
+  // Handle adding new observation
+  handleAddObservation = async (newObservationData) => {
+    try {
+      console.log('\n📥 handleAddObservation() RECEIVED CALL');
+      console.log('newObservationData:', JSON.stringify(newObservationData, null, 2));
+      
+      // Call the API to insert new survey
+      console.log('Calling simpleApiService.submitSurvey()...');
+      const response = await simpleApiService.submitSurvey(newObservationData);
+      
+      console.log('✅ simpleApiService response:', JSON.stringify(response, null, 2));
+      
+      if (response && response.success) {
+        console.log('Response marked as success, adding to local state...');
+        
+        // Add the new record with the returned insertedId
+        const newRecord = {
+          ...newObservationData,
+          _id: response.insertedId
+        };
+        
+        const updatedDataArray = [...this.state.data, newRecord];
+        this.setState({ data: updatedDataArray });
+        
+        // Notify parent component to refresh
+        if (this.props.onDataRefresh) {
+          console.log('🔄 Calling onDataRefresh after insert');
+          this.props.onDataRefresh();
+        }
+        
+        // Also notify parent component if there's an onDataChange callback
+        if (this.props.onDataChange) {
+          console.log('📡 Calling onDataChange with updated data after insert');
+          this.props.onDataChange(updatedDataArray);
+        }
+        
+        // Show success feedback to user
+        console.log('✅ New observation added successfully');
+        alert('✅ New observation added successfully!');
+        return response;
+      } else {
+        throw new Error(response?.message || 'Failed to add new observation');
+      }
+    } catch (error) {
+      console.error('❌ Error adding new observation:', error);
+      alert('Error adding new observation. Please try again.');
+      throw error;
+    }
+  }
+
 
   // Handle data deletion (when rows are deleted)
   handleDataDelete = async (recordId) => {
@@ -81,14 +132,24 @@ class DataViewTab extends Component {
       
       if (response && response.success) {
         // Remove the deleted record from the local state
-        this.setState(prevState => ({
-          data: prevState.data.filter(row => row._id !== recordId)
-        }));
+        const updatedData = this.state.data.filter(row => row._id !== recordId);
+        this.setState({ data: updatedData });
+        
+        // Notify parent component to refresh
+        if (this.props.onDataRefresh) {
+          console.log('🔄 Calling onDataRefresh after delete');
+          this.props.onDataRefresh();
+        }
         
         // Also notify parent component if there's an onDataChange callback
         if (this.props.onDataChange) {
-          this.props.onDataChange(this.state.data.filter(row => row._id !== recordId));
+          console.log('📡 Calling onDataChange with updated data after delete');
+          this.props.onDataChange(updatedData);
         }
+        
+        // Show success feedback to user
+        console.log('✅ Record deleted successfully');
+        alert('✅ Record deleted successfully!');
         
         return response;
       } else {
@@ -103,34 +164,70 @@ class DataViewTab extends Component {
 
   // Handle data update (for edits or other changes)
   handleDataUpdate = async (recordId, updatedData) => {
+    logger.section('🎯 HANDLE DATA UPDATE - PARENT COMPONENT');
+    logger.info('recordId', recordId);
+    logger.info('updatedData', JSON.stringify(updatedData, null, 2));
+    
     try {
-      // Always allow updates in public mode using simple API service
+      logger.pending('Calling simpleApiService.updateSurvey()');
       const response = await simpleApiService.updateSurvey(recordId, updatedData);
       
+      logger.section('📋 UPDATE RESPONSE RECEIVED');
+      logger.info('Response success', response?.success);
+      logger.json('Full response', response);
+      
       if (response && response.success) {
+        logger.section('✅ UPDATE SUCCESSFUL');
+        logger.success('Backend confirmed update', response.message);
+        
         // Update the specific record in local state
-        this.setState(prevState => ({
-          data: prevState.data.map(row => 
-            row._id === recordId ? { ...row, ...updatedData } : row
-          )
-        }));
+        const recordIdStr = recordId.toString ? recordId.toString() : String(recordId);
+        logger.info('recordIdStr for matching', recordIdStr);
+        
+        const updatedDataArray = this.state.data.map(row => {
+          const rowIdStr = row._id && row._id.toString ? row._id.toString() : String(row._id || '');
+          if (rowIdStr === recordIdStr) {
+            logger.success('Found matching row', `rowIdStr: ${rowIdStr}`);
+            return { ...row, ...updatedData };
+          }
+          return row;
+        });
+        
+        this.setState({ data: updatedDataArray });
+        
+        // Notify parent component to refresh
+        if (this.props.onDataRefresh) {
+          logger.pending('Calling onDataRefresh callback');
+          this.props.onDataRefresh();
+        }
         
         // Also notify parent component if there's an onDataChange callback
         if (this.props.onDataChange) {
-          const updatedDataArray = this.state.data.map(row => 
-            row._id === recordId ? { ...row, ...updatedData } : row
-          );
+          logger.pending('Calling onDataChange callback');
           this.props.onDataChange(updatedDataArray);
         }
         
-        console.log('Survey updated successfully:', recordId);
+        // Show success feedback to user
+        console.log('✅ Record updated successfully');
+        alert('✅ Record updated successfully!');
+        
+        logger.complete(true);
         return response;
       } else {
-        throw new Error(response?.message || 'Failed to update record');
+        const errorMsg = response?.error || response?.message || 'Failed to update record';
+        logger.section('❌ UPDATE FAILED');
+        logger.error('Backend error message', errorMsg);
+        alert(`Update failed: ${errorMsg}`);
+        throw new Error(errorMsg);
       }
     } catch (error) {
-      console.error('Error updating record:', error);
-      alert('Error updating record. Please try again.');
+      logger.section('⚠️ EXCEPTION IN HANDLE DATA UPDATE');
+      logger.error('Error message', error.message);
+      logger.error('Error type', error.constructor.name);
+      const errorMessage = error.response?.data?.error || error.message || 'Unknown error';
+      logger.error('Error details', errorMessage);
+      alert(`Error updating record: ${errorMessage}`);
+      logger.complete(false);
       throw error;
     }
   }
@@ -158,6 +255,7 @@ class DataViewTab extends Component {
               data={data} 
               onDataUpdate={this.handleDataUpdate}
               onDataDelete={this.handleDataDelete}
+              onDataAdd={this.handleAddObservation}
             />
           ) : (
             <PivotTable data={data} />

@@ -13,7 +13,7 @@ const apiService = {
   // Survey related endpoints
   getSurveys: async () => {
     try {
-      const { data } = await api.get('/surveys');
+      const { data } = await api.post('/surveys', { purpose: 'retrieve' });
       return data;
     } catch (error) {
       console.error('Error fetching surveys:', error);
@@ -23,7 +23,7 @@ const apiService = {
 
   refreshSurveys: async () => {
     try {
-      const { data } = await api.post('/surveys/refresh');
+      const { data } = await api.post('/surveys', { purpose: 'refresh' });
       return data;
     } catch (error) {
       console.error('Error refreshing surveys:', error);
@@ -33,7 +33,11 @@ const apiService = {
 
   updateWwfLedSurvey: async (index, survey) => {
     try {
-      const { data } = await api.put(`/surveys/wwf-led/${index}`, survey);
+      const { data } = await api.post('/surveys', { 
+        purpose: 'updateWwfLedSurvey',
+        index,
+        survey 
+      });
       return data;
     } catch (error) {
       console.error('Error updating WWF-led survey:', error);
@@ -43,7 +47,11 @@ const apiService = {
 
   updateVolunteerLedSurvey: async (index, survey) => {
     try {
-      const { data } = await api.put(`/surveys/volunteer-led/${index}`, survey);
+      const { data } = await api.post('/surveys', { 
+        purpose: 'updateVolunteerLedSurvey',
+        index,
+        survey 
+      });
       return data;
     } catch (error) {
       console.error('Error updating volunteer-led survey:', error);
