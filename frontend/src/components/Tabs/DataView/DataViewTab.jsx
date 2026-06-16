@@ -205,12 +205,7 @@ class DataViewTab extends Component {
         if (this.props.onDataChange) {
           logger.pending('Calling onDataChange callback');
           this.props.onDataChange(updatedDataArray);
-        }
-        
-        // Show success feedback to user
-        console.log('✅ Record updated successfully');
-        alert('✅ Record updated successfully!');
-        
+        }  
         logger.complete(true);
         return response;
       } else {
