@@ -7,6 +7,7 @@ import { initializeTheme } from './utils/themeUtils.js';
 import DetailedAnalysisPopup from './components/DetailedAnalysisPopup.jsx';
 import ThemeToggle from './components/ThemeToggle/index.js';
 import NewSurveyModal from './components/Dashboard/NewSurveyModal.jsx';
+import AnomalyDetectionModal from './components/Dashboard/AnomalyDetectionModal.jsx';
 import MaintenanceBotButton from './components/MaintenanceBot/MaintenanceBotButton.jsx';
 import InteractiveGuide from './components/MaintenanceBot/InteractiveGuide.jsx';
 import UploadModal from './components/UploadModal/UploadModal.jsx';
@@ -55,6 +56,8 @@ class App extends Component {
       detailedAnalysisData: null,
       showNewSurveyModal: false,
       shouldOpenNewEventModal: false,
+      showAnomalyModal: false,
+      anomalyModalData: [],
       isAuthenticated: false,
       currentUser: null,
       socket: null,
@@ -108,6 +111,10 @@ class App extends Component {
     
     // Expose socket globally for child components (like UpcomingEventCard)
     window.socket = this.socket;
+    
+    // Expose anomaly modal handler globally for child components
+    window.openAnomalyModal = this.handleOpenAnomalyModal;
+    window.closeAnomalyModal = this.handleCloseAnomalyModal;
     
     // Listen for survey insertion events
     this.socket.on('surveyInserted', (data) => {
@@ -320,6 +327,15 @@ class App extends Component {
 
   handleCloseNewSurveyModal = () => {
     this.setState({ showNewSurveyModal: false });
+  };
+
+  handleOpenAnomalyModal = (data = []) => {
+    console.log('Opening anomaly detection modal with data:', data);
+    this.setState({ showAnomalyModal: true, anomalyModalData: data });
+  };
+
+  handleCloseAnomalyModal = () => {
+    this.setState({ showAnomalyModal: false, anomalyModalData: [] });
   };
 
   handleOpenNewEventModal = () => {
@@ -733,6 +749,11 @@ class App extends Component {
               onClose={this.handleCloseNewSurveyModal} 
               onSubmit={this.handleAddSurvey}
               onUploadSuccess={this.handleOpenUploadSuccessModal}
+            />
+            <AnomalyDetectionModal 
+              show={this.state.showAnomalyModal}
+              data={this.state.anomalyModalData}
+              onClose={this.handleCloseAnomalyModal}
             />
             <DetailedAnalysisPopup
               isOpen={showDetailedAnalysis}

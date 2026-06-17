@@ -271,10 +271,12 @@ class OverviewTab extends Component {
     return (
       <div className="overview-tab">
           <div className="section-header">
-            <h2>📊 Key Statistics Overview</h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0.5rem 0 0 0' }}>
-              Click on any card to see detailed breakdown and insights
-            </p>
+            <div>
+              <h2>📊 Key Statistics Overview</h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0.5rem 0 0 0' }}>
+                Click on any card to see detailed breakdown and insights
+              </p>
+            </div>
             <button 
               className="view-all-btn"
               onClick={this.toggleShowAllStats}

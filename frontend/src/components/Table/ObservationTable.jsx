@@ -1313,7 +1313,7 @@ getEmptyObservation() {
             params.value ? `${params.value}` : '',
           width: 300,
           editable: isEditable,
-          cellEditor: 'LocationCellEditor',
+          cellEditor: 'agSelectCellEditor',
           cellEditorParams: {
             values: LOCATION_OPTIONS
           }
@@ -1330,15 +1330,14 @@ getEmptyObservation() {
           field: "Height of tree/m",
           cellRenderer: (params) => 
             params.value != null && params.value !== '' && !isNaN(params.value) ? `${params.value}m` : '',
-          editable: isEditable,
+          editable: isEditable
         },
         {
           headerName: "Height of Bird",
           field: "Height of bird/m",
           cellRenderer: (params) => 
             params.value != null && params.value !== '' && !isNaN(params.value) ? `${params.value}m` : '',
-          editable: isEditable,
-          cellEditor: 'agNumberCellEditor'
+          editable: isEditable
         },
         { 
           headerName: "Date", 

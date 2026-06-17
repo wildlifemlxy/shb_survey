@@ -43,7 +43,8 @@ class ObservationDetailsSection extends Component {
       activityOptions: ["Calling", "Feeding", "Perching", "Preening"],
       seenHeardOptions: ["Seen", "Heard", "Not Found"],
       hourOptions: Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')),
-      minuteOptions: Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
+      minuteOptions: Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')),
+      heightValidationError: null // Real-time height validation error
     };
   }
   
@@ -128,6 +129,46 @@ class ObservationDetailsSection extends Component {
     }
     
     onObservationDetailChange(currentObservationIndex, field, value);
+    
+    // Validate heights in real-time if height field changed
+    if (field === 'HeightOfTree' || field === 'HeightOfBird') {
+      this.validateHeightsRealTime(field, value);
+    }
+  };
+
+  validateHeightsRealTime = (changedField, changedValue) => {
+    const { newSurvey } = this.props;
+    const { currentObservationIndex } = this.state;
+    
+    const observationDetails = Array.isArray(newSurvey['Observation Details']) 
+      ? newSurvey['Observation Details'] 
+      : [];
+    
+    if (!observationDetails[currentObservationIndex]) {
+      this.setState({ heightValidationError: null });
+      return;
+    }
+    
+    const currentObs = observationDetails[currentObservationIndex];
+    const treeHeight = changedField === 'HeightOfTree' ? changedValue : currentObs['HeightOfTree'];
+    const birdHeight = changedField === 'HeightOfBird' ? changedValue : currentObs['HeightOfBird'];
+    
+    let error = null;
+    
+    // Only validate if both values are filled
+    if (treeHeight && birdHeight) {
+      const treeHeightNum = parseFloat(treeHeight);
+      const birdHeightNum = parseFloat(birdHeight);
+      
+      // Check for valid numbers
+      if (!isNaN(treeHeightNum) && !isNaN(birdHeightNum)) {
+        if (birdHeightNum >= treeHeightNum) {
+          error = 'Bird height must be less than tree height';
+        }
+      }
+    }
+    
+    this.setState({ heightValidationError: error });
   };
 
   handleTimeFieldFocus = (e) => {
@@ -410,7 +451,7 @@ class ObservationDetailsSection extends Component {
           marginTop: '4px',
           fontWeight: '500'
         }}>
-          {COLUMN_LABELS[field] || field} is required
+          {fieldErrors[currentObservationIndex][field]}
         </div>
       );
     }
@@ -651,30 +692,41 @@ class ObservationDetailsSection extends Component {
                 {/* Row 2: Height of Tree, Height of Bird */}
                 <div className="observation-form-row">
                   <div className="observation-form-field">
-                    <label className="observation-form-label" htmlFor={`treeHeight-${currentIndex}`}>
+                    <label className={`observation-form-label ${this.getErrorClass('HeightOfTree')}`} htmlFor={`treeHeight-${currentIndex}`}>
                       Height of Tree
                     </label>
                     <input
                       id={`treeHeight-${currentIndex}`}
                       type="text"
-                      className="observation-form-input"
+                      className={`observation-form-input ${this.props.fieldErrors?.[this.state.currentObservationIndex]?.['HeightOfTree'] ? 'input-error' : ''}`}
                       value={currentObservation.HeightOfTree || ''}
                       onChange={e => this.handleFieldChange('HeightOfTree', e.target.value)}
-                      placeholder="Enter height"
+                      placeholder="Enter height in meters"
                     />
+                    {this.renderFieldError('HeightOfTree')}
                   </div>
                   <div className="observation-form-field">
-                    <label className="observation-form-label" htmlFor={`birdHeight-${currentIndex}`}>
+                    <label className={`observation-form-label ${this.getErrorClass('HeightOfBird')}`} htmlFor={`birdHeight-${currentIndex}`}>
                       Height of Bird
                     </label>
                     <input
                       id={`birdHeight-${currentIndex}`}
                       type="text"
-                      className="observation-form-input"
+                      className={`observation-form-input ${(this.props.fieldErrors?.[this.state.currentObservationIndex]?.['HeightOfBird'] || this.state.heightValidationError) ? 'input-error' : ''}`}
                       value={currentObservation.HeightOfBird || ''}
                       onChange={e => this.handleFieldChange('HeightOfBird', e.target.value)}
-                      placeholder="Enter height"
+                      placeholder="Enter height in meters (must be < tree height)"
                     />
+                    {this.state.heightValidationError ? (
+                      <div className="observer-error-message" style={{
+                        color: '#dc3545',
+                        fontSize: '0.85rem',
+                        marginTop: '4px',
+                        fontWeight: '500'
+                      }}>
+                        {this.state.heightValidationError}
+                      </div>
+                    ) : this.renderFieldError('HeightOfBird')}
                   </div>
                 </div>
                 {/* Row 3: Latitude, Longitude */}

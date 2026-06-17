@@ -71,7 +71,18 @@ class DataViewTab extends Component {
     if (typeof window !== 'undefined') {
       window.dataViewCurrentView = viewType;
     }
-  }
+  };
+
+  canViewAnomalyButton = () => {
+    const currentUser = getCurrentUser();
+    if (!currentUser) return false;
+    
+    const userRole = currentUser.role || localStorage.getItem('userRole');
+    const restrictedRoles = ['WWF-Volunteer', 'Website Maintenance Assistance'];
+    
+    // Show button only if user role is NOT in restricted roles
+    return !restrictedRoles.includes(userRole);
+  };
 
   // Handle adding new observation
   handleAddObservation = async (newObservationData) => {
@@ -244,6 +255,24 @@ class DataViewTab extends Component {
           />
         </div>
         <div className="table-container">
+          <div className="table-header-with-buttons">
+            {this.canViewAnomalyButton() && (
+              <button 
+                className="btn-anomaly-detection"
+                onClick={() => window.openAnomalyModal && window.openAnomalyModal(data)}
+                title="Check for data anomalies"
+              >
+                🔍 Anomaly Detection
+              </button>
+            )}
+            <button 
+              className="btn-add-new-entry"
+              onClick={() => onOpenNewSurveyModal && onOpenNewSurveyModal()}
+              title="Add a new survey entry"
+            >
+              <span className="plus-icon">+</span> Add New Entry
+            </button>
+          </div>
           {currentView === 'table' ? (
             <ObservationTable 
               data={data} 

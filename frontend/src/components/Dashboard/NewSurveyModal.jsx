@@ -138,6 +138,48 @@ class NewSurveyModal extends Component {
     return errors;
   };
 
+  validateHeightFields = () => {
+    const { newSurvey } = this.state;
+    const errors = {};
+    const details = Array.isArray(newSurvey['Observation Details']) ? newSurvey['Observation Details'] : [];
+    
+    // Validate each observation row
+    details.forEach((row, idx) => {
+      const treeHeight = row['HeightOfTree'];
+      const birdHeight = row['HeightOfBird'];
+      
+      // Both heights should be filled in if we're validating
+      if (treeHeight || birdHeight) {
+        // Check if tree height is provided
+        if (!treeHeight || (typeof treeHeight === 'string' && treeHeight.trim() === '')) {
+          if (!errors[idx]) errors[idx] = {};
+          errors[idx]['HeightOfTree'] = 'Height of tree is required';
+        }
+        
+        // Check if bird height is provided
+        if (!birdHeight || (typeof birdHeight === 'string' && birdHeight.trim() === '')) {
+          if (!errors[idx]) errors[idx] = {};
+          errors[idx]['HeightOfBird'] = 'Height of bird is required';
+        }
+        
+        // Check if bird height is less than tree height
+        if (treeHeight && birdHeight) {
+          const treeHeightNum = parseFloat(treeHeight);
+          const birdHeightNum = parseFloat(birdHeight);
+          
+          if (!isNaN(treeHeightNum) && !isNaN(birdHeightNum)) {
+            if (birdHeightNum >= treeHeightNum) {
+              if (!errors[idx]) errors[idx] = {};
+              errors[idx]['HeightOfBird'] = 'Bird height must be less than tree height';
+            }
+          }
+        }
+      }
+    });
+    
+    return errors;
+  };
+
   handleObserverNameChange = (idx, value) => {
     this.setState((prevState) => {
       const names = [...prevState.newSurvey['Observer name']];
@@ -351,6 +393,19 @@ class NewSurveyModal extends Component {
         }
         return; // Prevent navigation
       }
+      
+      // Also validate height fields when leaving observation section
+      const heightErrors = this.validateHeightFields();
+      if (Object.keys(heightErrors).length > 0) {
+        this.setState({ errorMessages: heightErrors });
+        console.log('Validation failed for height fields:', heightErrors);
+        // Scroll to show error messages
+        const modalContent = document.querySelector('.modal-content');
+        if (modalContent) {
+          modalContent.scrollTop = modalContent.scrollHeight;
+        }
+        return; // Prevent navigation
+      }
     }
     
     // If we get here, validation passed - proceed to next section
@@ -411,6 +466,15 @@ class NewSurveyModal extends Component {
 
   handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate height fields before submission
+    const heightErrors = this.validateHeightFields();
+    if (Object.keys(heightErrors).length > 0) {
+      this.setState({ errorMessages: heightErrors });
+      alert('Please fix the height validation errors before submitting.');
+      return;
+    }
+    
     const summary = JSON.parse(this.formatSubmissionSummaryAsJson());
     console.log('Submitting survey data:', summary);
     

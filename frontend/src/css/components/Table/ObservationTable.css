@@ -125,3 +125,72 @@
 .ag-center-cols-container {
   width: 100% !important;
 }
+
+/* ===== AG SELECT CELL EDITOR STYLING ===== */
+
+/* Style for the select editor input */
+.ag-cell-editor input[type="text"] {
+  background-color: #f0f4f8 !important;
+  border: 2px solid #1e88e5 !important;
+  border-radius: 4px !important;
+  padding: 8px 12px !important;
+  font-size: 14px !important;
+  color: #333 !important;
+}
+
+.ag-cell-editor input[type="text"]:focus {
+  outline: none !important;
+  background-color: #ffffff !important;
+  border-color: #1565c0 !important;
+  box-shadow: 0 0 8px rgba(21, 101, 192, 0.3) !important;
+}
+
+/* Style for the select editor dropdown list */
+.ag-select-cell-editor-option {
+  padding: 10px 12px !important;
+  background-color: #ffffff !important;
+  color: #333 !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+  font-size: 14px !important;
+  cursor: pointer !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.ag-select-cell-editor-option:hover {
+  background-color: #e3f2fd !important;
+  color: #1565c0 !important;
+}
+
+.ag-select-cell-editor-option.selected {
+  background-color: #2196f3 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+/* Style for the select editor popup/dropdown container */
+.ag-select-cell-editor {
+  border: 1px solid #ddd !important;
+  border-radius: 4px !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Option list styling */
+.ag-select-list {
+  border-radius: 4px !important;
+  max-height: 250px !important;
+  overflow-y: auto !important;
+}
+
+/* First option styling */
+.ag-select-cell-editor-option:first-child {
+  border-top-left-radius: 4px !important;
+  border-top-right-radius: 4px !important;
+}
+
+/* Last option styling */
+.ag-select-cell-editor-option:last-child {
+  border-bottom: none !important;
+  border-bottom-left-radius: 4px !important;
+  border-bottom-right-radius: 4px !important;
+}
