@@ -119,19 +119,19 @@ class App extends Component {
     // Listen for survey insertion events
     this.socket.on('surveyInserted', (data) => {
       console.log("Socket event - Survey inserted:", data);
-      this.loadData(); // Reload data when new survey is added
+      this.loadData().then(() => this.updateAnomalyModalDataIfOpen());
     });
     
     // Listen for survey update events
     this.socket.on('surveyUpdated', (data) => {
       console.log("Socket event - Survey updated:", data);
-      this.loadData(); // Reload data when survey is updated
+      this.loadData().then(() => this.updateAnomalyModalDataIfOpen());
     });
     
     // Listen for survey deletion events
     this.socket.on('surveyDeleted', (data) => {
       console.log("Socket event - Survey deleted:", data);
-      this.loadData(); // Reload data when survey is deleted
+      this.loadData().then(() => this.updateAnomalyModalDataIfOpen());
     });
 
     // Listen for event-specific real-time updates
@@ -258,6 +258,24 @@ class App extends Component {
       eventData: events,
       isLoading: false
     });
+  };
+
+  // Update anomaly modal data if modal is open
+  updateAnomalyModalDataIfOpen = () => {
+    if (this.state.showAnomalyModal) {
+      console.log("Updating anomaly modal data with fresh survey data");
+      this.setState({ anomalyModalData: this.state.shbData });
+    }
+  };
+
+  // Handle data changes from DataViewTab (e.g., when a cell is edited)
+  handleDataChange = (updatedData) => {
+    console.log("📊 App.handleDataChange triggered with updated data:", updatedData);
+    
+    // Update the anomaly modal data in real-time if the modal is open
+    if (this.state.showAnomalyModal) {
+      this.setState({ anomalyModalData: updatedData });
+    }
   };
 
   // Load bot data
@@ -704,6 +722,7 @@ class App extends Component {
                         onCloseNewSurveyModal={this.handleCloseNewSurveyModal}
                         openObservationPopup={this.openObservationPopup}
                         closeObservationPopup={this.closeObservationPopup}
+                        onDataChange={this.handleDataChange}
                       />
                     } 
                   />

@@ -456,6 +456,7 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
             <DataViewTab 
               data={standardizedFilteredData}
               onOpenNewSurveyModal={this.props.onOpenNewSurveyModal}
+              onDataChange={this.props.onDataChange}
             />
           )}
         </div>

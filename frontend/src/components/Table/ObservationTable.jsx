@@ -502,33 +502,26 @@ getEmptyObservation() {
 }
 
   // Custom Date Cell Editor Component
-  // Format bird ID to ensure consistent SHBx format
+  // Format bird ID to enforce "SHB X" format with space
   formatBirdId(birdId) {
     if (!birdId || birdId === '') return '';
     
-    // Handle multiple bird IDs separated by commas or spaces
-    const ids = birdId.split(/[,\s]+/).filter(id => id.trim() !== '');
+    birdId = birdId.trim();
+    
+    // Handle multiple bird IDs separated by commas only
+    const ids = birdId.split(',').filter(id => id.trim() !== '');
     
     const formattedIds = ids.map(id => {
-      // Remove extra spaces and normalize
       id = id.trim();
       
-      // If it already starts with SHB, ensure proper format
-      if (id.toLowerCase().startsWith('shb')) {
-        // Extract the number part
-        const numberMatch = id.match(/\d+/);
-        if (numberMatch) {
-          return `SHB${numberMatch[0]}`;
-        }
-        return id; // Return as is if no number found
+      // Match "SHB" followed by optional spaces and then numbers
+      const match = id.match(/^SHB\s*(\d+)$/i);
+      if (match) {
+        // Format as "SHB X" with space
+        return `SHB ${match[1]}`;
       }
       
-      // If it's just a number, add SHB prefix
-      if (/^\d+$/.test(id)) {
-        return `SHB${id}`;
-      }
-      
-      // Return as is for other formats
+      // Return as-is if doesn't match pattern (will be invalid)
       return id;
     });
     
@@ -1302,8 +1295,8 @@ getEmptyObservation() {
           editable: isEditable,
           cellRenderer: (params) => {
             if (!params.value || params.value === '') return '';
-            // Format bird IDs to ensure they follow SHBx format
-            return this.formatBirdId(params.value);
+            // Display Bird ID as-is without formatting
+            return params.value;
           }
         },
         {

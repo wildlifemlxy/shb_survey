@@ -25,19 +25,18 @@ class AnomalyDetectionModal extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      anomalies: [],
-      isLoading: false
+      anomalies: []
     };
   }
 
   componentDidMount() {
-    if (this.props.show) {
-      this.detectAnomalies();
-    }
+    this.detectAnomalies();
   }
 
   componentDidUpdate(prevProps) {
-    if (this.props.show && !prevProps.show) {
+    // Use deep comparison to detect data changes (handles array content changes)
+    const dataChanged = JSON.stringify(this.props.data) !== JSON.stringify(prevProps.data);
+    if (dataChanged) {
       this.detectAnomalies();
     }
   }
@@ -76,18 +75,26 @@ class AnomalyDetectionModal extends Component {
         // Check if Bird ID follows format: SHB followed by space and numbers (e.g., SHB 1, SHB 2)
         const validBirdIdPattern = /^SHB\s\d+$/;
         if (!validBirdIdPattern.test(birdId)) {
-          errors.push(`Bird ID "${birdId}" should be in format "SHB" followed by space and numbers (e.g., SHB 1, SHB 2)`);
+          errors.push(`Bird ID wrong format - "${birdId}" should be "SHB" followed by space and numbers (e.g., SHB 1, SHB 2)`);
         }
       }
 
       // Validate Height fields
-      if (row['Height of tree/m'] && row['Height of bird/m']) {
-        const treeHeight = parseFloat(row['Height of tree/m']);
-        const birdHeight = parseFloat(row['Height of bird/m']);
+      if (row['Height of tree/m'] || row['Height of bird/m']) {
+        // Convert string values to float, handling "m" suffix and empty strings
+        const treeHeightStr = row['Height of tree/m']?.toString().trim().replace(/m$/i, '') || '';
+        const birdHeightStr = row['Height of bird/m']?.toString().trim().replace(/m$/i, '') || '';
         
+        const treeHeight = treeHeightStr ? parseFloat(treeHeightStr) : NaN;
+        const birdHeight = birdHeightStr ? parseFloat(birdHeightStr) : NaN;
+        
+        console.log(`Row ${rowNumber} - Tree Height: "${row['Height of tree/m']}" → ${treeHeight}, Bird Height: "${row['Height of bird/m']}" → ${birdHeight}`);
+        
+        // Only validate if both values are present and valid numbers
         if (!isNaN(treeHeight) && !isNaN(birdHeight)) {
-          if (birdHeight >= treeHeight) {
-            errors.push('Bird height must be less than tree height');
+          if (birdHeight < treeHeight) {
+            console.log(`Row ${rowNumber} - ERROR: ${birdHeight} < ${treeHeight}`);
+            errors.push('Bird height must be >= tree height');
           }
         }
       }
@@ -119,6 +126,13 @@ class AnomalyDetectionModal extends Component {
           {/* Header */}
           <div className="anomaly-modal-header">
             <h2>🔍 Anomaly Detection Report</h2>
+            <button 
+              className="anomaly-modal-close"
+              onClick={onClose}
+              aria-label="Close modal"
+            >
+              ×
+            </button>
           </div>
 
           {/* Body */}
@@ -167,13 +181,6 @@ class AnomalyDetectionModal extends Component {
 
           {/* Footer */}
           <div className="anomaly-modal-footer">
-            <button
-              type="button"
-              className="anomaly-modal-close-btn"
-              onClick={onClose}
-            >
-              Close
-            </button>
           </div>
         </div>
       </div>
