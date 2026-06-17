@@ -373,22 +373,15 @@ class UpcomingEvents extends Component {
         {/* Only show view toggles and content if there are events */}
         {hasEvents && (
           <>
-            {/* Header with View Toggle buttons */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'flex-start',
-          alignItems: 'center',
-          marginBottom: 20,
-          paddingLeft: 16,
-          paddingRight: 16
-        }}>
-          {/* View Mode Toggle */}
-          <div style={{
-            display: 'flex',
-            backgroundColor: '#f3f4f6',
-            borderRadius: 8,
-            padding: 4
-          }}>
+            {/* View Mode Toggle */}
+            <div style={{
+              display: 'flex',
+              backgroundColor: '#f3f4f6',
+              borderRadius: 8,
+              padding: 4,
+              width: 'fit-content',
+              marginLeft: 16
+            }}>
             <button
               onClick={this.toggleViewMode}
               style={{
@@ -403,7 +396,7 @@ class UpcomingEvents extends Component {
                 boxShadow: this.state.viewMode === 'list' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
               }}
             >
-              📋 List View
+              � List View
             </button>
             <button
               onClick={this.toggleViewMode}
@@ -422,7 +415,6 @@ class UpcomingEvents extends Component {
               📅 Calendar View
             </button>
           </div>
-        </div>
 
         {/* Content Area - List or Calendar View */}
         {this.state.viewMode === 'list' ? (
@@ -687,6 +679,27 @@ class UpcomingEvents extends Component {
         
         {/* End of conditional content */}
         </>
+        )}
+
+        {/* Empty State - No Events */}
+        {!hasEvents && (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '60px 20px',
+            gap: '20px',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '48px', color: '#d1d5db' }}>📭</div>
+            <div style={{ fontSize: '18px', fontWeight: '600', color: '#374151' }}>
+              No Upcoming Events
+            </div>
+            <div style={{ fontSize: '14px', color: '#6b7280', maxWidth: '400px' }}>
+              Get started by creating your first survey walk event. Click the button below to add a new event.
+            </div>
+          </div>
         )}
 
         {/* Add Event Modal */}

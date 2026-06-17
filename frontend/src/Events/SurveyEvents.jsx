@@ -138,7 +138,36 @@ class SurveyEvents extends Component {
             ))}
           </div>
         </div>
-        <div className="dashboard-content">
+        <div className="dashboard-content" style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '20px' }}>
+          {/* Create New Event Button */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
+            <button
+              onClick={this.handleAddNewEvent}
+              style={{
+                padding: '10px 20px',
+                borderRadius: 6,
+                border: '2px solid #059669',
+                cursor: 'pointer',
+                fontWeight: '600',
+                backgroundColor: 'transparent',
+                color: '#059669',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.15s',
+                width: 'fit-content'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#f0fdf4';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+              }}
+            >
+              <span style={{ fontSize: '18px' }}>+</span> New Event
+            </button>
+          </div>
           {isLoading ? (
             <div className="loading">Loading events...</div>
           ) : (
