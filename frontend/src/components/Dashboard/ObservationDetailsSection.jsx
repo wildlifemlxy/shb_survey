@@ -162,8 +162,8 @@ class ObservationDetailsSection extends Component {
       
       // Check for valid numbers
       if (!isNaN(treeHeightNum) && !isNaN(birdHeightNum)) {
-        if (birdHeightNum >= treeHeightNum) {
-          error = 'Bird height must be less than tree height';
+        if (birdHeightNum > treeHeightNum) {
+          error = 'Height of Tree must be higher than Height of Bird';
         }
       }
     }
@@ -715,7 +715,7 @@ class ObservationDetailsSection extends Component {
                       className={`observation-form-input ${(this.props.fieldErrors?.[this.state.currentObservationIndex]?.['HeightOfBird'] || this.state.heightValidationError) ? 'input-error' : ''}`}
                       value={currentObservation.HeightOfBird || ''}
                       onChange={e => this.handleFieldChange('HeightOfBird', e.target.value)}
-                      placeholder="Enter height in meters (must be < tree height)"
+                      placeholder="Enter height in meters (cannot exceed tree height)"
                     />
                     {this.state.heightValidationError ? (
                       <div className="observer-error-message" style={{

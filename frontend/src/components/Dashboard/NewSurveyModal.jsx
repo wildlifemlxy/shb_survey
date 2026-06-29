@@ -168,9 +168,9 @@ class NewSurveyModal extends Component {
           const birdHeightNum = parseFloat(birdHeight);
           
           if (!isNaN(treeHeightNum) && !isNaN(birdHeightNum)) {
-            if (birdHeightNum < treeHeightNum) {
+            if (birdHeightNum > treeHeightNum) {
               if (!errors[idx]) errors[idx] = {};
-              errors[idx]['HeightOfBird'] = 'Bird height must be >= tree height';
+              errors[idx]['HeightOfBird'] = 'Height of Tree must be higher than Height of Bird';
             }
           }
         }

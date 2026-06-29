@@ -92,9 +92,9 @@ class AnomalyDetectionModal extends Component {
         
         // Only validate if both values are present and valid numbers
         if (!isNaN(treeHeight) && !isNaN(birdHeight)) {
-          if (birdHeight < treeHeight) {
-            console.log(`Row ${rowNumber} - ERROR: ${birdHeight} < ${treeHeight}`);
-            errors.push('Bird height must be >= tree height');
+          if (birdHeight > treeHeight) {
+            console.log(`Row ${rowNumber} - ERROR: ${birdHeight} > ${treeHeight}`);
+            errors.push('Height of Tree must be higher than Height of Bird');
           }
         }
       }
