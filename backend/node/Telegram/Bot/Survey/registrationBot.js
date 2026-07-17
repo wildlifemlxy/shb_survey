@@ -7,7 +7,7 @@
  */
 
 const TelegramApi = require('../../utils/telegramApi');
-const { buildSurveyMessage, formatEventDate } = require('../../utils/messageTemplates');
+const { buildSurveyMessage, formatEventDate, buildGoogleCalendarLink, buildLocationLink } = require('../../utils/messageTemplates');
 const EventsController = require('../../../Controller/Events/eventsController');
 const TelegramController = require('../../../Controller/Telegram/telegramController');
 const parseCustomDate = require('../../../cron/parseCustomDate');
@@ -22,6 +22,24 @@ class RegistrationBot {
     this.eventsController = new EventsController();
     this.telegramController = new TelegramController();
     this.botUsername = null; // Store bot username for command filtering
+    // Tracks the message_id of each join-confirmation DM, keyed by "userId_eventId",
+    // so it can be deleted again if the user later leaves the event.
+    this.joinConfirmationMessages = new Map();
+  }
+
+  /**
+   * Build a clean display name from a Telegram `from` object.
+   * Some Telegram profiles have a purely-numeric first name (e.g. a self-assigned
+   * number/rank like "95"), which looks odd standalone in messages ("95 Moses").
+   * In that case, skip it and prefer the last name instead.
+   */
+  getDisplayName(from) {
+    const firstName = (from.first_name || '').trim();
+    const lastName = (from.last_name || '').trim();
+    const isNumeric = /^\d+$/.test(firstName);
+    const nameParts = isNumeric ? [lastName] : [firstName, lastName];
+    const fullName = nameParts.filter(Boolean).join(' ').trim();
+    return fullName || from.username || from.id;
   }
 
   /**
@@ -135,21 +153,27 @@ class RegistrationBot {
    */
   async setBotCommands() {
     try {
-      const commands = [
+      const groupCommands = [
         { command: 'start', description: 'Start the bot and subscribe to updates' },
         { command: 'help', description: 'Show available commands' },
         { command: 'upcoming', description: 'View upcoming survey events' },
         { command: 'checkreminders', description: 'Check pending reminders (admin)' }
       ];
+
+      // DM is broadcast-only (channel-style) - only /start does anything there
+      // (silently subscribes), so that's the only command shown in private chats.
+      const privateCommands = [
+        { command: 'start', description: 'Subscribe to survey announcements' }
+      ];
       
       // Set commands for all private chats (default)
-      await this.telegramApi.setMyCommands(commands);
+      await this.telegramApi.setMyCommands(privateCommands);
       
       // Set commands for all group chats
-      await this.telegramApi.setMyCommands(commands, { type: 'all_group_chats' });
+      await this.telegramApi.setMyCommands(groupCommands, { type: 'all_group_chats' });
       
       // Set commands for all chat administrators in groups
-      await this.telegramApi.setMyCommands(commands, { type: 'all_chat_administrators' });
+      await this.telegramApi.setMyCommands(groupCommands, { type: 'all_chat_administrators' });
       
       console.log('✅ Bot commands menu set for all chat types');
     } catch (error) {
@@ -317,7 +341,7 @@ class RegistrationBot {
     const { chat, text, from } = message;
     const chatId = chat.id;
     const chatType = chat.type; // 'private', 'group', or 'supergroup'
-    const userName = `${from.first_name || ''} ${from.last_name || ''}`.trim() || from.username || from.id;
+    const userName = this.getDisplayName(from);
     const botToken = this.config?.BOT_TOKEN || null;
     
     console.log(`Message from ${userName} in ${chatType}: ${text}`);
@@ -340,12 +364,26 @@ class RegistrationBot {
       }
     }
 
-    // Handle /start command
+    const isGroup = chatType === 'group' || chatType === 'supergroup';
+
+    // Handle /start command (may carry a deep-link payload, e.g. "/start joined").
+    // Always handled (even in DM) since it's what registers the subscriber.
     if (command === '/start') {
-      await this.handleStartCommand(chatId, userName, chatType, chat.title);
+      const startPayload = text.split(' ')[1];
+      await this.handleStartCommand(chatId, userName, chatType, chat.title, startPayload);
+      return;
     }
+
+    // DM behaves like a channel - broadcast/confirmation messages only, no command
+    // replies. Interaction only happens through the buttons on bot-sent messages
+    // (e.g. Join/Leave in the group, Add to Calendar in the DM confirmation).
+    if (!isGroup) {
+      console.log(`Ignoring command ${command} in private chat ${chatId} (DM is broadcast-only)`);
+      return;
+    }
+
     // Handle /help command
-    else if (command === '/help') {
+    if (command === '/help') {
       await this.handleHelpCommand(chatId, chatType);
     }
     // Handle /upcoming command - show upcoming events
@@ -360,8 +398,12 @@ class RegistrationBot {
 
   /**
    * Handle /start command
+   * @param {string} [startPayload] - Optional deep-link payload (e.g. "joined" from the
+   *   Join button's t.me/<bot>?start=joined redirect). When set to "joined", the normal
+   *   welcome message is skipped since the user already has a join confirmation message
+   *   waiting in the chat - we just needed Telegram to open the chat for them.
    */
-  async handleStartCommand(chatId, userName, chatType = 'private', chatTitle = null) {
+  async handleStartCommand(chatId, userName, chatType = 'private', chatTitle = null, startPayload = null) {
     // Save user/group as subscriber so they receive future announcements
     // Pass the bot token to link subscriber to this specific bot
     const botToken = this.config?.BOT_TOKEN || null;
@@ -372,13 +414,25 @@ class RegistrationBot {
     
     await this.telegramController.addSubscriber(chatId, displayName, botToken, chatType);
     
-    let welcomeMessage;
+    // DM is broadcast-only (channel-style) - just silently subscribe, never send a
+    // welcome/tutorial reply. Only the group gets the full interactive welcome message.
+    if (!isGroup) {
+      console.log(`Subscribed ${chatId} silently (DM is broadcast-only, no welcome message)`);
+      return;
+    }
+
+    // Deep-linked in from the Join button - the confirmation message is already in the
+    // chat, so there's nothing more to send. Just let Telegram bring them into the chat.
+    if (startPayload === 'joined') {
+      console.log(`Skipped welcome message for ${chatId} (opened via join deep link)`);
+      return;
+    }
+    
     // Build commands list with @bot suffix for group chats
     const botSuffix = this.botUsername ? `@${this.botUsername}` : '';
     
-    if (isGroup) {
-      // Group welcome message - show commands with @bot format for groups
-      welcomeMessage = `👋 Hello everyone!
+    // Group welcome message - show commands with @bot format for groups
+    const welcomeMessage = `👋 Hello everyone!
 
 I'm the <b>SHB Survey Registration Bot</b>.
 
@@ -387,20 +441,6 @@ I'll post upcoming Straw-headed Bulbul survey events here. When a survey is post
 <b>Commands:</b>
 /upcoming${botSuffix} - View upcoming survey events
 /help${botSuffix} - Show available commands`;
-    } else {
-      // Private chat welcome message - no @bot suffix needed for private chats
-      welcomeMessage = `👋 Welcome <b>${userName}</b>!
-
-I'm the <b>SHB Survey Registration Bot</b>.
-
-I help you register for upcoming Straw-headed Bulbul survey events.
-
-<b>Commands:</b>
-/upcoming - View upcoming survey events
-/help - Show available commands
-
-When a survey is posted, you can click the <b>✅ Join</b> or <b>❌ Leave</b> buttons to register or unregister.`;
-    }
 
     try {
       await this.telegramApi.sendMessage(chatId, welcomeMessage);
@@ -680,7 +720,7 @@ Use <code>/checkreminders send</code> to send all pending reminders.`;
    */
   async handleCallbackQuery(callbackQuery) {
     const { id, from, message, data } = callbackQuery;
-    const userName = `${from.first_name || ''} ${from.last_name || ''}`.trim() || from.username || from.id;
+    const userName = this.getDisplayName(from);
     
     console.log(`Button clicked by ${userName}: ${data}`);
 
@@ -688,10 +728,10 @@ Use <code>/checkreminders send</code> to send all pending reminders.`;
       // Parse callback data
       if (data.startsWith(this.config.CALLBACK.JOIN)) {
         const eventId = data.replace(this.config.CALLBACK.JOIN, '');
-        await this.handleJoin(eventId, userName, message, id);
+        await this.handleJoin(eventId, userName, message, id, from.id);
       } else if (data.startsWith(this.config.CALLBACK.LEAVE)) {
         const eventId = data.replace(this.config.CALLBACK.LEAVE, '');
-        await this.handleLeave(eventId, userName, message, id);
+        await this.handleLeave(eventId, userName, message, id, from.id);
       }
     } catch (error) {
       console.error('Error handling callback:', error.message);
@@ -702,7 +742,7 @@ Use <code>/checkreminders send</code> to send all pending reminders.`;
   /**
    * Handle Join button click
    */
-  async handleJoin(eventId, userName, message, callbackQueryId) {
+  async handleJoin(eventId, userName, message, callbackQueryId, userId) {
     try {
       // Get event from database
       const result = await this.eventsController.getEventById(eventId);
@@ -728,12 +768,31 @@ Use <code>/checkreminders send</code> to send all pending reminders.`;
       // Update the message with new participant list (pass eventId explicitly)
       await this.updateEventMessage(eventId, event, participants, message.chat.id, message.message_id);
       
-      // Acknowledge button press
-      await this.telegramApi.answerCallbackQuery(callbackQueryId, `✅ ${userName} joined!`);
+      // event with the up-to-date participant list, used for the DM confirmation and socket emit below
+      const updatedEvent = { ...event, _id: eventId, Participants: participants };
+      
+      // Send a persistent DM confirmation directly to the user who joined
+      if (userId) {
+        await this.sendJoinConfirmationDM(userId, updatedEvent, eventId);
+      }
+      
+      // Acknowledge button press, and jump the user straight into their DM with the bot.
+      // Telegram only allows `url` in answerCallbackQuery if it's a Game URL, or a
+      // t.me/<bot>?start=XXXX deep link (a bare t.me/<bot> link is rejected as URL_INVALID).
+      // Opening this link makes Telegram's client auto-send a "/start joined" message into
+      // the chat - that bubble can't be suppressed (it's the client's own behavior). Always
+      // redirect regardless of subscription status, per request.
+      const deepLink = this.botUsername ? `https://t.me/${this.botUsername}?start=joined` : null;
+      try {
+        await this.telegramApi.answerCallbackQuery(callbackQueryId, `✅ ${userName} joined!`, false, deepLink);
+      } catch (ackError) {
+        // Don't let a bad deep link break the whole join flow - fall back to a plain toast.
+        console.error('Error answering callback with deep link, retrying without url:', ackError.message);
+        await this.telegramApi.answerCallbackQuery(callbackQueryId, `✅ ${userName} joined!`);
+      }
       
       // Emit socket event with full event data for frontend card update
       if (this.io) {
-        const updatedEvent = { ...event, _id: eventId, Participants: participants };
         this.io.emit('survey-updated', { 
           message: 'Participant joined',
           event: updatedEvent,
@@ -751,9 +810,60 @@ Use <code>/checkreminders send</code> to send all pending reminders.`;
   }
 
   /**
+   * Send a private DM confirming the user's registration for an event.
+   * This is sent to the user's private chat with the bot, separate from
+   * wherever they clicked the Join button (e.g. a group/channel copy of the message).
+   * Fails silently (logged only) if the user has never started a private
+   * chat with the bot, since Telegram bots cannot initiate DMs.
+   */
+  async sendJoinConfirmationDM(userId, event, eventId) {
+    try {
+      const parsedDate = parseCustomDate(event.Date);
+      const dateText = event.formattedDate || (parsedDate ? formatEventDate(parsedDate) : event.Date);
+      const calendarUrl = buildGoogleCalendarLink(event);
+
+      const buttons = [];
+      if (calendarUrl) buttons.push([{ text: '📅 Add to Google Calendar', url: calendarUrl }]);
+
+      // Link the location to a Google Maps search so Telegram renders a map preview
+      // image beneath the message (Telegram auto-generates this from the link itself).
+      const meetingPoint = event.Location || '';
+      const locationHtml = buildLocationLink(meetingPoint) || meetingPoint;
+
+      // Show who's registered so far - names only (no emails/Telegram IDs available)
+      let participantsText = 'No participants yet.';
+      if (Array.isArray(event.Participants) && event.Participants.length > 0) {
+        participantsText = event.Participants.map((name, idx) => `${idx + 1}. ${name}`).join('\n');
+      }
+
+      const confirmationText = `✅ <b>You're registered!</b>
+
+Date: ${dateText}
+Location: ${locationHtml}
+Time: ${event.Time || ''}
+
+<b>Participants:</b>
+${participantsText}
+
+See you there!`;
+
+      const options = buttons.length > 0 ? { inlineKeyboard: buttons } : {};
+
+      const sendResult = await this.telegramApi.sendMessage(userId, confirmationText, options);
+      const sentMessageId = sendResult?.result?.message_id;
+      if (sentMessageId && eventId) {
+        this.joinConfirmationMessages.set(`${userId}_${eventId}`, sentMessageId);
+      }
+      console.log(`Sent join confirmation DM to user ${userId}`);
+    } catch (error) {
+      console.error(`Could not send join confirmation DM to user ${userId}:`, error.response?.data || error.message);
+    }
+  }
+
+  /**
    * Handle Leave button click
    */
-  async handleLeave(eventId, userName, message, callbackQueryId) {
+  async handleLeave(eventId, userName, message, callbackQueryId, userId) {
     try {
       // Get event from database
       const result = await this.eventsController.getEventById(eventId);
@@ -778,6 +888,20 @@ Use <code>/checkreminders send</code> to send all pending reminders.`;
       
       // Update the message with new participant list (pass eventId explicitly)
       await this.updateEventMessage(eventId, event, participants, message.chat.id, message.message_id);
+      
+      // Delete the earlier join-confirmation DM, if we sent one
+      if (userId) {
+        const key = `${userId}_${eventId}`;
+        const confirmationMessageId = this.joinConfirmationMessages.get(key);
+        if (confirmationMessageId) {
+          try {
+            await this.telegramApi.deleteMessage(userId, confirmationMessageId);
+          } catch (deleteError) {
+            console.error(`Could not delete join confirmation DM for user ${userId}:`, deleteError.response?.data || deleteError.message);
+          }
+          this.joinConfirmationMessages.delete(key);
+        }
+      }
       
       // Acknowledge button press
       await this.telegramApi.answerCallbackQuery(callbackQueryId, `❌ ${userName} left.`);

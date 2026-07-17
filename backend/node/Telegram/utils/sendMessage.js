@@ -23,9 +23,16 @@ async function sendTelegramMessage(message, eventId, botConfig, options = {}) {
   // Get all subscribers from database
   const telegramController = new TelegramController();
   const subscriberResult = await telegramController.getAllSubscribers();
-  const CHAT_IDS = subscriberResult.chatIds.length > 0 
-    ? subscriberResult.chatIds 
-    : botConfig.CHAT_IDS; // Fallback to config if no subscribers
+
+  // Only broadcast to group/supergroup chats - private 1:1 chats shouldn't get
+  // unsolicited event reminders for surveys the user may not have joined.
+  const groupChatIds = (subscriberResult.subscribers || [])
+    .filter(s => s.chatType === 'group' || s.chatType === 'supergroup')
+    .map(s => s.chatId);
+
+  const CHAT_IDS = groupChatIds.length > 0
+    ? groupChatIds
+    : botConfig.CHAT_IDS; // Fallback to config if no group subscribers found
   
   console.log(`Sending to ${CHAT_IDS.length} subscriber(s):`, CHAT_IDS);
   

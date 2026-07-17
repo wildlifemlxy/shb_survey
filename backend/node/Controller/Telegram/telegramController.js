@@ -587,6 +587,19 @@ class TelegramController {
     }
   }
 
+  // Check whether a chat is already an active subscriber (i.e. has used /start before)
+  async isSubscriber(chatId) {
+    const db = DatabaseConnectivity.getInstance();
+    try {
+      await db.initialize();
+      const docs = await db.find('Telegram Subscribers', { chatId: chatId.toString(), isActive: true });
+      return Array.isArray(docs) && docs.length > 0;
+    } catch (err) {
+      console.error('Error checking subscriber status:', err);
+      return false;
+    }
+  }
+
   // Add a subscriber (user who clicked /start)
   // chatType can be 'private', 'group', or 'supergroup'
   // Uses upsert to prevent duplicate entries from race conditions

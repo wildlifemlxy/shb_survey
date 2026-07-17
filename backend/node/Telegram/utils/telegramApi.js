@@ -111,14 +111,21 @@ class TelegramApi {
 
   /**
    * Answer callback query (acknowledge button press)
+   * @param {string} url - Optional. A t.me/<bot_username> deep link that the
+   *   user's Telegram client will open automatically after the toast is shown
+   *   (used to jump the user into their private chat with the bot).
    */
-  async answerCallbackQuery(callbackQueryId, text = '', showAlert = false) {
+  async answerCallbackQuery(callbackQueryId, text = '', showAlert = false, url = null) {
     try {
-      const response = await axios.post(`${this.baseUrl}/answerCallbackQuery`, {
+      const payload = {
         callback_query_id: callbackQueryId,
         text: text,
         show_alert: showAlert
-      });
+      };
+      if (url) {
+        payload.url = url;
+      }
+      const response = await axios.post(`${this.baseUrl}/answerCallbackQuery`, payload);
       return response.data;
     } catch (error) {
       console.error('Error answering callback:', error.response?.data || error.message);

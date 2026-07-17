@@ -5,6 +5,7 @@ const parseCustomDate = require('./parseCustomDate');
 const TelegramController = require('../Controller/Telegram/telegramController');
 const botConfig = require('../Telegram/config/botConfig');
 const { sendTelegramMessage } = require('../Telegram/utils/sendMessage');
+const { buildLocationLink } = require('../Telegram/utils/messageTemplates');
 
 async function setupTelegramFeatures(app, io) {
   const telegramController = new TelegramController();
@@ -87,11 +88,7 @@ async function setupTelegramFeatures(app, io) {
           const eventDateStr = `${eventDay}, Date ${eventDayNum} ${eventMonth} ${eventYear}`;
           const location = event.Location || '';
           const meetingPoint = event.Location || '';
-          let meetingPointHtml = meetingPoint;
-          if (meetingPoint) {
-            const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meetingPoint)}`;
-            meetingPointHtml = `<a href=\"${mapsUrl}\">${meetingPoint}</a>`;
-          }
+          const meetingPointHtml = buildLocationLink(meetingPoint) || meetingPoint;
           const time = event.Time || '';
           const trainingLink = 'https://drive.google.com/drive/folders/1aztfMfCVlNGqro492FS-3gvdaRA6kCGk?usp=drive_link';
 
@@ -198,11 +195,7 @@ async function setupTelegramFeatures(app, io) {
         const eventDateStr = `${eventDay}, Date ${eventDayNum} ${eventMonth} ${eventYear}`;
         const location = event.Location || '';
         const meetingPoint = event.Location || '';
-        let meetingPointHtml = meetingPoint;
-        if (meetingPoint) {
-          const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meetingPoint)}`;
-          meetingPointHtml = `<a href="${mapsUrl}">${meetingPoint}</a>`;
-        }
+        const meetingPointHtml = buildLocationLink(meetingPoint) || meetingPoint;
         const time = event.Time || '';
         const trainingLink = 'https://drive.google.com/drive/folders/1aztfMfCVlNGqro492FS-3gvdaRA6kCGk?usp=drive_link';
         
