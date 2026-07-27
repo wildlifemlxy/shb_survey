@@ -6,7 +6,7 @@ var router = express.Router();
  * Returns Google Maps configuration including API key
  * This endpoint should be called from the frontend to get the API key securely
  */
-router.get('/config', (req, res) => {
+router.post('/config', (req, res) => {
   try {
     const apiKey = process.env.GOOGLE_MAPS_API_KEY || '';
     

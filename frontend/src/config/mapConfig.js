@@ -1,3 +1,6 @@
+import axios from 'axios';
+import { BASE_URL } from '../config/apiConfig.js';
+
 // Map Configuration
 // API key is now fetched from the backend at runtime for security
 // The backend endpoint /api/map/config provides the Google Maps API key
@@ -19,13 +22,14 @@ export const fetchMapConfig = async () => {
     apiKeyPromise = (async () => {
       try {
         // Determine the backend URL based on environment
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-        const response = await fetch(`${backendUrl}/api/map/config`);
+        const response = await axios.post(`${BASE_URL}/api/map/config`);
+        console.log('Map config response:', response.data);
         
-        if (!response.ok) {
+        if (!response.data.success) {
           throw new Error(`Backend returned ${response.status}`);
         }
-        const data = await response.json();
+        const data = await response.data;
+
         if (data.success) {
           cachedApiKey = data.apiKey;
           cachedUseGoogleMaps = data.useGoogleMaps !== false;
