@@ -7,6 +7,7 @@ const axios = require('axios');
 router.post('/', async function(req, res, next) {
     const io = req.app.get('io'); // Get the Socket.IO instance
     const { purpose, token, name, description } = req.body;
+const botConfig = require('../Telegram/config/botConfig');
 
     if (purpose === 'createBot') {
         try {
@@ -169,6 +170,43 @@ router.get('/pending-reminders', async function(req, res) {
     try {
         const getPendingReminders = req.app.locals.getPendingReminders;
         
+// GET /telegram/health - verify the configured bot and Azure webhook status
+router.get('/health', async function(req, res) {
+    if (!botConfig.BOT_TOKEN) {
+        return res.status(503).json({
+            ok: false,
+            status: 'disabled',
+            error: 'TELEGRAM_BOT_TOKEN is not configured'
+        });
+    }
+
+    try {
+        const apiBase = `https://api.telegram.org/bot${botConfig.BOT_TOKEN}`;
+        const [botResponse, webhookResponse] = await Promise.all([
+            axios.get(`${apiBase}/getMe`),
+            axios.get(`${apiBase}/getWebhookInfo`)
+        ]);
+        const webhook = webhookResponse.data?.result || {};
+
+        return res.status(200).json({
+            ok: botResponse.data?.ok === true && webhookResponse.data?.ok === true,
+            status: webhook.url ? 'webhook-active' : 'webhook-not-configured',
+            bot: botResponse.data?.result?.username || null,
+            webhook: {
+                configured: Boolean(webhook.url),
+                pendingUpdates: webhook.pending_update_count || 0,
+                lastError: webhook.last_error_message || null,
+                lastErrorDate: webhook.last_error_date || null
+            }
+        });
+    } catch (err) {
+        return res.status(503).json({
+            ok: false,
+            status: 'unreachable',
+            error: err.response?.data?.description || err.message
+        });
+    }
+});
         if (!getPendingReminders) {
             return res.status(503).json({ 
                 success: false, 

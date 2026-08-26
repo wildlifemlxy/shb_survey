@@ -1240,7 +1240,7 @@ class LoginPopup extends Component {
             </button>
             
             <div className="login-header">
-              <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF Logo" className="login-logo" />
+              <img src="/WWF%20Logo/WWF%20Logo%20Medium.jpg" alt="WWF Logo" className="login-logo" />
               <h1>Choose Verification Method</h1>
               <p>Complete your login using your mobile device</p>
             </div>
@@ -1364,7 +1364,7 @@ class LoginPopup extends Component {
               x
             </button>
             <div className="login-header">
-              <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF Logo" className="login-logo" />
+              <img src="/WWF%20Logo/WWF%20Logo%20Medium.jpg" alt="WWF Logo" className="login-logo" />
               <h1>Select a Project</h1>
               <p>Choose a project to continue</p>
             </div>
@@ -1425,7 +1425,7 @@ class LoginPopup extends Component {
             </button>
             
             <div className="login-header">
-              <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF Logo" className="login-logo" />
+              <img src="/WWF%20Logo/WWF%20Logo%20Medium.jpg" alt="WWF Logo" className="login-logo" />
               <h1>Mobile Approval</h1>
               <p>Check your mobile device for the approval request</p>
             </div>
@@ -1485,7 +1485,7 @@ class LoginPopup extends Component {
             </button>
             
             <div className="login-header">
-              <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF Logo" className="login-logo" />
+              <img src="/WWF%20Logo/WWF%20Logo%20Medium.jpg" alt="WWF Logo" className="login-logo" />
               <h1>Multi-Factor Authentication</h1>
               <p>Scan the QR code and enter the 8-digit PIN</p>
             </div>
@@ -1723,7 +1723,7 @@ class LoginPopup extends Component {
             </button>
             
             <div className="login-header">
-              <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF Logo" className="login-logo" />
+              <img src="/WWF%20Logo/WWF%20Logo%20Medium.jpg" alt="WWF Logo" className="login-logo" />
               <h1>Change Your Password</h1>
               <p>Please set a new password for your account</p>
             </div>
@@ -1858,7 +1858,7 @@ class LoginPopup extends Component {
             </button>
             
             <div className="login-header">
-              <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF Logo" className="login-logo" />
+              <img src="/WWF%20Logo/WWF%20Logo%20Medium.jpg" alt="WWF Logo" className="login-logo" />
               <h1>Reset Password</h1>
               {(!resetPasswordSuccess && !resetPasswordError)&& (
                 <p>Enter your email to receive password reset instructions</p>
@@ -1935,7 +1935,7 @@ class LoginPopup extends Component {
           </button>
           
           <div className="login-header">
-            <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF Logo" className="login-logo" />
+            <img src="/WWF%20Logo/WWF%20Logo%20Medium.jpg" alt="WWF Logo" className="login-logo" />
             <h1>WWF SG Project Management Platform</h1>
             <p>Please sign in to continue</p>
           </div>

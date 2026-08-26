@@ -406,7 +406,7 @@ class Home extends React.Component {
             {/* WWF Logo */}
             <div className="hero-logo-enhanced">
               <img 
-                src="/WWF Logo/WWF Logo Large.jpg" 
+                src="/WWF%20Logo/WWF%20Logo%20Large.jpg"
                 alt="WWF Logo"
                 onError={(e) => {
                   console.error('WWF logo failed to load:', e.target.src);

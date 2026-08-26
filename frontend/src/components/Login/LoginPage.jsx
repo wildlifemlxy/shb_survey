@@ -64,7 +64,7 @@ function LoginPage({ onLoginSuccess }) {
           </div>
           <div className="hero-logo-enhanced">
             <img 
-              src="/WWF Logo/WWF Logo Large.jpg" 
+              src="/WWF%20Logo/WWF%20Logo%20Large.jpg"
               alt="WWF Logo"
               onError={(e) => { e.target.style.display = 'none'; }}
             />
