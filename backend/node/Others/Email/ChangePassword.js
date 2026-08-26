@@ -1,6 +1,6 @@
 class ResetPasswordTemplate {
     constructor() {
-        this.companyName = 'WWF SHB Survey System';
+        this.companyName = 'WWF SG Project Management Platform';
         this.supportEmail = 'wildlifemlxy@gmail.com';
         this.websiteUrl = process.env.FRONTEND_URL || 'https://gentle-dune-0405ec500.1.azurestaticapps.net';
         this.backendUrl = process.env.BACKEND_URL || 'https://shb-backend.azurewebsites.net';

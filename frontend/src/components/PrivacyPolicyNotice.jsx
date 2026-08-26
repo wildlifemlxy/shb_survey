@@ -37,7 +37,7 @@ class PrivacyPolicyNotice extends Component {
               <h1>Privacy Policy</h1>
             </div>
             <div className="header-actions">
-              <Link to="/" className="home-link">
+              <Link to="/StrawheadedBulbul" state={{ viaAppNavigation: true }} className="home-link">
                 <FontAwesomeIcon icon={faHome} />
                 <span>Home</span>
               </Link>

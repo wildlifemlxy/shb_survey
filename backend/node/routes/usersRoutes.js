@@ -67,6 +67,7 @@ async function handleLogin(req, res) {
                 role: result.user.role || 'user',
                 name: result.user.name,
                 password: result.user.password,
+                project: Array.isArray(result.user.project) ? result.user.project : [],
                 firstTimeLogin: result.user.firstTimeLogin,
                 firstLoggedInApp: result.user.firstLoggedInApp
             },

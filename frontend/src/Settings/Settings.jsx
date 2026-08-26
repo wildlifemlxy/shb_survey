@@ -79,7 +79,7 @@ class Settings extends Component {
               <p>Manage your survey platform preferences and integrations for Telegram bots</p>
             </div>
             <div className="header-actions">
-              <Link to="/" className="home-link settings-home-button">
+              <Link to="/StrawheadedBulbul" state={{ viaAppNavigation: true }} className="home-link settings-home-button">
                 <FontAwesomeIcon icon={faHome} />
                 <span>Home</span>
               </Link>

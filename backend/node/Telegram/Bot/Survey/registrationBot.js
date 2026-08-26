@@ -19,6 +19,7 @@ class RegistrationBot {
     this.app = null;
     this.isPolling = false;
     this.lastUpdateId = 0;
+    this.pollRetryDelayMs = 1000;
     this.eventsController = new EventsController();
     this.telegramController = new TelegramController();
     this.botUsername = null; // Store bot username for command filtering
@@ -204,6 +205,7 @@ class RegistrationBot {
     while (this.isPolling) {
       try {
         await this.processUpdates();
+        this.pollRetryDelayMs = 1000;
       } catch (error) {
         // Silently ignore 409 conflicts (Azure instance running)
         if (error.message && error.message.includes('409')) {
@@ -212,11 +214,9 @@ class RegistrationBot {
           await new Promise(resolve => setTimeout(resolve, 5000));
           continue;
         }
-        if (!error.message.includes('timeout')) {
-          console.error('Polling error:', error.message);
-        }
-        // Small delay before retrying on error
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.error('Polling error:', error.message);
+        await new Promise(resolve => setTimeout(resolve, this.pollRetryDelayMs));
+        this.pollRetryDelayMs = Math.min(this.pollRetryDelayMs * 2, 30000);
       }
     }
     console.log('Poll loop ended');
@@ -263,7 +263,8 @@ class RegistrationBot {
         if (error.message.includes('409') || error.message.includes('Conflict')) {
           throw error; // Re-throw to handle in pollLoop
         }
-        console.error('Error processing updates:', error.message);
+        // Let pollLoop apply backoff so temporary network failures do not spin.
+        throw error;
       }
     }
   }

@@ -33,7 +33,7 @@ class NotFound extends Component {
     const { countdown, shouldRedirect } = this.state;
 
     if (shouldRedirect) {
-      return <Navigate to="/" replace />;
+      return <Navigate to="/StrawheadedBulbul" state={{ viaAppNavigation: true }} replace />;
     }
 
     return (

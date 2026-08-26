@@ -374,7 +374,7 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
               <p>Comprehensive Bird Observation Analytics</p>
             </div>
             <div className="header-actions">
-              <Link to="/" className="home-link">
+              <Link to="/StrawheadedBulbul" state={{ viaAppNavigation: true }} className="home-link">
                 <FontAwesomeIcon icon={faHome} />
                 <span>Home</span>
               </Link>

@@ -117,7 +117,7 @@ class SurveyEvents extends Component {
               <p>Organize and track all survey walk events</p>
             </div>
             <div className="header-actions">
-              <Link to="/" className="home-link">
+              <Link to="/StrawheadedBulbul" state={{ viaAppNavigation: true }} className="home-link">
                 <FontAwesomeIcon icon={faHome} />
                 <span>Home</span>
               </Link>

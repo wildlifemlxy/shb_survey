@@ -46,7 +46,7 @@ class AccessDenied extends Component {
     const userRole = this.getUserRole();
 
     if (shouldRedirect) {
-      return <Navigate to="/dashboard" replace />;
+      return <Navigate to="/StrawheadedBulbul/dashboard" replace />;
     }
 
     return (
@@ -118,7 +118,7 @@ class AccessDenied extends Component {
           
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
             <Link 
-              to="/dashboard" 
+              to="/StrawheadedBulbul/dashboard" 
               style={{
                 backgroundColor: '#007bff',
                 color: 'white',
@@ -136,7 +136,8 @@ class AccessDenied extends Component {
             </Link>
             
             <Link 
-              to="/" 
+              to="/StrawheadedBulbul" 
+              state={{ viaAppNavigation: true }}
               style={{
                 backgroundColor: '#6c757d',
                 color: 'white',

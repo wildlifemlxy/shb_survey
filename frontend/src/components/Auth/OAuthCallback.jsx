@@ -169,7 +169,7 @@ const OAuthCallback = () => {
           <strong>✓ Google Drive Authorization Successful!</strong>
           <p style={{ marginTop: '15px' }}>You can now upload images to Google Drive. Go back to the Dashboard and try uploading an image.</p>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/StrawheadedBulbul/dashboard')}
             style={{
               marginTop: '15px',
               padding: '10px 20px',

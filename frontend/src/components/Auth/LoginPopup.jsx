@@ -6,6 +6,7 @@ import QRCode from 'qrcode';
 import botDetectionService from '../../services/botDetection';
 import io from 'socket.io-client';
 import { BASE_URL } from '../../config/apiConfig.js';
+import { getAccessibleProjects } from '../../data/projects.js';
 // Note: Since we're using a class component, we can't directly use the useAuth hook
 // We'll pass the login function as a prop from a parent component that uses the hook
 
@@ -70,6 +71,7 @@ class LoginPopup extends Component {
       mobileApprovalSessionId: '',
       mobileApprovalStatus: 'pending', // 'pending', 'approved', 'denied', 'timeout'
       isWaitingForMobileApproval: false,
+      showProjectSelection: false,
       socket: null,
       mobileApprovalTimeout: null
     };
@@ -192,7 +194,8 @@ class LoginPopup extends Component {
       showMobileApproval: false,
       mobileApprovalSessionId: '',
       mobileApprovalStatus: 'pending',
-      isWaitingForMobileApproval: false
+      isWaitingForMobileApproval: false,
+      showProjectSelection: false,
     });
     
     // Clear timeouts
@@ -677,8 +680,7 @@ class LoginPopup extends Component {
           loginTime: new Date().toISOString()
         };
         
-        console.log('MFA Complete - using recovered user data:', recoveredUserData);
-        this.props.onLoginSuccess(recoveredUserData);
+        this.completeProjectStep(recoveredUserData);
         return;
       }
       
@@ -712,22 +714,33 @@ class LoginPopup extends Component {
       loginTime: new Date().toISOString()
     };
     
-    console.log('MFA Complete - sending user data:', {
-      userData: enhancedUserData
-    });
-    
-    // Close the popup first to avoid showing login form during clearForm
-    if (this.props.onClose) {
-      this.props.onClose();
-    }
-    
-    // Send user data to parent component
-    this.props.onLoginSuccess(enhancedUserData);
-    
-    // Clear the form after closing popup
-    setTimeout(() => {
+    this.completeProjectStep(enhancedUserData);
+  };
+
+  completeProjectStep = (userData) => {
+    const accountProjectNames = Array.isArray(userData?.project)
+      ? userData.project.filter(projectName => String(projectName).trim())
+      : [];
+    const accessibleProjects = getAccessibleProjects(userData?.project);
+
+    if (accountProjectNames.length === 1 && accessibleProjects.length === 1) {
+      this.props.onLoginSuccess({
+        ...userData,
+        selectedProject: accessibleProjects[0].id
+      });
       this.clearForm();
-    }, 100);
+      return;
+    }
+
+    this.setState({ userData, showProjectSelection: true });
+  };
+
+  handleProjectSelection = (project) => {
+    const { userData } = this.state;
+    if (!userData || !project || !this.props.onLoginSuccess) return;
+
+    this.props.onLoginSuccess({ ...userData, selectedProject: project.id });
+    this.clearForm();
   };
 
   // Initialize Socket.IO connection for real-time mobile communication
@@ -838,15 +851,6 @@ class LoginPopup extends Component {
         loginTime: new Date().toISOString()
       };
       
-      console.log('MFA Complete via mobile approval - calling onLoginSuccess NOW:', enhancedUserData);
-      
-      // Call onLoginSuccess IMMEDIATELY - this will close the popup via Home.jsx
-      // Home.jsx onLoginSuccess sets isLoginPopupOpen: false
-      if (this.props.onLoginSuccess) {
-        this.props.onLoginSuccess(enhancedUserData);
-      }
-      
-      // Also reset local state (but this is secondary since popup should be closed by parent)
       this.setState({ 
         mobileApprovalStatus: 'approved',
         isWaitingForMobileApproval: false,
@@ -854,10 +858,9 @@ class LoginPopup extends Component {
         showMobileVerification: false,
         showMFAPin: false,
         showQRLogin: false,
-        userData: null,
-        email: '',
-        password: '',
         error: ''
+      }, () => {
+        this.completeProjectStep(enhancedUserData);
       });
     } else {
       // Denied
@@ -1118,18 +1121,14 @@ class LoginPopup extends Component {
         console.log('Password changed successfully');
         // Update userData to remove firstTimeLogin flag
         const updatedUserData = { ...userData, firstTimeLogin: false };
-        
-        // Complete the login process and store consistent authentication data
-        localStorage.setItem('currentUser', JSON.stringify(updatedUserData));
-        localStorage.setItem('user', JSON.stringify(updatedUserData)); // Fallback compatibility
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('isAuthenticated', 'true');
-        localStorage.setItem('userRole', updatedUserData.role || 'user');
-        localStorage.setItem('loginTimestamp', Date.now().toString());
-        
-        // Clear the form and close popup
-        this.clearForm();
-        this.props.onLoginSuccess(updatedUserData);
+
+        // Keep the session pending until the user selects a project.
+        this.setState({
+          showPasswordChange: false,
+          isChangingPassword: false
+        }, () => {
+          this.completeProjectStep(updatedUserData);
+        });
       } else {
         this.setState({ 
           passwordChangeError: result?.message || 'Failed to change password. Please try again.' 
@@ -1224,7 +1223,8 @@ class LoginPopup extends Component {
       showMFAPin, mfaPin, qrCodeDataUrl, isGeneratingMFA, mfaError, userInputPin, userData,
       showBotChallenge, botChallenge, challengeAnswer, isPerformingBotDetection,
       // Mobile authentication states
-      loginMethod, showMobileVerification, showQRLogin, showMobileApproval, mobileApprovalStatus, isWaitingForMobileApproval
+      loginMethod, showMobileVerification, showQRLogin, showMobileApproval, mobileApprovalStatus, isWaitingForMobileApproval,
+      showProjectSelection
     } = this.state;
     const { isOpen } = this.props;
 
@@ -1338,6 +1338,76 @@ class LoginPopup extends Component {
                     {isLoading ? 'Sending Request...' : 'Send App Notification'}
                   </button>
                 </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (showProjectSelection) {
+      const accountProjectNames = Array.isArray(userData?.project) ? userData.project : [];
+      const accessibleProjects = getAccessibleProjects(accountProjectNames);
+      const projectOptions = accountProjectNames.map(projectName => ({
+        title: String(projectName).trim(),
+        project: accessibleProjects.find(accessibleProject =>
+          accessibleProject.accountProjectNames.some(name =>
+            name.toLowerCase() === String(projectName).trim().toLowerCase()
+          )
+        ) || null
+      })).filter(project => project.title);
+
+      return (
+        <div className="login-popup-overlay">
+          <div className="login-card">
+            <button className="login-close-button" onClick={this.handleCloseButton}>
+              x
+            </button>
+            <div className="login-header">
+              <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF Logo" className="login-logo" />
+              <h1>Select a Project</h1>
+              <p>Choose a project to continue</p>
+            </div>
+            <div style={{ display: 'grid', gap: '12px', padding: '20px' }}>
+              {projectOptions.map(({ title, project }) => (
+                project ? (
+                  <button
+                    key={title}
+                    type="button"
+                    onClick={() => this.handleProjectSelection(project)}
+                    style={{
+                      padding: '16px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      background: 'white',
+                      color: '#374151',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      fontWeight: '600'
+                    }}
+                  >
+                    {title}
+                  </button>
+                ) : (
+                  <div
+                    key={title}
+                    style={{
+                      padding: '16px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      color: '#374151',
+                      textAlign: 'left',
+                      fontWeight: '600'
+                    }}
+                  >
+                    {title}
+                  </div>
+                )
+              ))}
+              {projectOptions.length === 0 && (
+                <p style={{ color: '#6b7280', textAlign: 'center' }}>
+                  No projects are assigned to this account.
+                </p>
               )}
             </div>
           </div>
@@ -1866,7 +1936,7 @@ class LoginPopup extends Component {
           
           <div className="login-header">
             <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF Logo" className="login-logo" />
-            <h1>WWF SHB Survey System</h1>
+            <h1>WWF SG Project Management Platform</h1>
             <p>Please sign in to continue</p>
           </div>
 

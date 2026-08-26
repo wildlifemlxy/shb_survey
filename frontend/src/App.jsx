@@ -27,6 +27,7 @@ import { io } from 'socket.io-client';
 import { AuthProvider } from './components/Auth/AuthContext.jsx';
 import { getCurrentUser, isLoggedIn, clearSession } from './data/loginData.js';
 import OAuthCallback from './components/Auth/OAuthCallback.jsx';
+import HomeRouteGuard from './components/Auth/HomeRouteGuard.jsx';
 
 import { fetchSurveyDataForHomePage, fetchSurveyData } from './data/shbData.js';
 import { getAllEvents } from './data/surveyData.js';
@@ -38,6 +39,7 @@ const Home = lazy(() => import('./components/Home/Home.jsx'));
 const SurveyEvents = lazy(() => import('./Events/SurveyEvents.jsx'));
 const Settings = lazy(() => import('./Settings/Settings.jsx'));
 const ResetPassword = lazy(() => import('./components/ResetPassword/ResetPassword.jsx'));
+const LoginPage = lazy(() => import('./components/Login/LoginPage.jsx'));
 
 // Import bot data service
 import botDataService from './data/botData';
@@ -646,8 +648,9 @@ class App extends Component {
   };
 
   handleNavigateToGallery = () => {
-    // Navigate to home page gallery
-    window.location.href = '/';
+    // Full page navigation loses location.state, so use a one-time flag the route guard also accepts
+    sessionStorage.setItem('viaAppNavigation', 'true');
+    window.location.href = '/StrawheadedBulbul';
   };
 
   render() {
@@ -680,21 +683,10 @@ class App extends Component {
             <Suspense fallback={<div className="spinner-container"><ClipLoader color="#3498db" size={50} /></div>}>
               <Routes>
                 
-                {/* Public Routes */}
+                {/* Login is now the top-level entry point */}
                 <Route 
                   path="/" 
-                  element={
-                    <Home 
-                      shbDataForPublic={shbDataForPublic}
-                      isLoading={isLoading} 
-                      isAuthenticated={isAuthenticated}
-                      onLoginSuccess={this.onLoginSuccess}
-                      openObservationPopup={this.openObservationPopup}
-                      closeObservationPopup={this.closeObservationPopup}
-                      onImageClick={this.openImageViewer}
-                      onOpenDeleteModal={this.handleOpenDeleteModal}
-                    />
-                  } 
+                  element={<LoginPage onLoginSuccess={this.onLoginSuccess} />} 
                 />
                 
                 <Route 
@@ -706,11 +698,30 @@ class App extends Component {
                   path="/reset-password" 
                   element={<ResetPassword />} 
                 />
+
+                {/* Straw-Headed Bulbul project's home page - only reachable via in-app navigation while logged in */}
+                <Route 
+                  path="/StrawheadedBulbul" 
+                  element={
+                    <HomeRouteGuard>
+                      <Home 
+                        shbDataForPublic={shbDataForPublic}
+                        isLoading={isLoading} 
+                        isAuthenticated={isAuthenticated}
+                        onLoginSuccess={this.onLoginSuccess}
+                        openObservationPopup={this.openObservationPopup}
+                        closeObservationPopup={this.closeObservationPopup}
+                        onImageClick={this.openImageViewer}
+                        onOpenDeleteModal={this.handleOpenDeleteModal}
+                      />
+                    </HomeRouteGuard>
+                  } 
+                />
                 
                 {/* Protected Routes */}
                 <Route element={<ProtectedRoute />}>
                   <Route 
-                    path="/dashboard" 
+                    path="/StrawheadedBulbul/dashboard" 
                     element={
                       <Dashboard 
                         shbDataForPublic={shbDataForPublic}
@@ -727,7 +738,7 @@ class App extends Component {
                     } 
                   />
                   <Route 
-                    path="/surveyEvents" 
+                    path="/StrawheadedBulbul/surveyEvents" 
                     element={
                       <SurveyEvents 
                         eventData={this.state.eventData}
@@ -739,7 +750,7 @@ class App extends Component {
                     } 
                   />
                   <Route 
-                    path="/settings" 
+                    path="/StrawheadedBulbul/settings" 
                     element={
                       <Settings 
                         currentUser={this.state.currentUser}

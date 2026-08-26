@@ -422,18 +422,18 @@ class Home extends React.Component {
             </div>
            <p className="hero-subtitle">
               Empowering conservation through advanced data visualization and automated survey management. 
-              Join us in protecting the critically endangered Straw-headed Bulbul and preserving Singapore's biodiversity.
+              Join us in protecting Singapore's biodiversity and endangered wildlife.
             </p>
             {/* CTA buttons - Only show when authenticated */}
             {isAuthenticated ? (
               <div className="hero-cta">
-                <Link to="/dashboard" className="btn btn-primary btn-primary-cta">
+                <Link to="/StrawheadedBulbul/dashboard" className="btn btn-primary btn-primary-cta">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M3 13H11V3H3V13ZM3 21H11V15H3V21ZM13 21H21V11H13V21ZM13 3V9H21V3H13Z"/>
                   </svg>
                   Explore Dashboard
                 </Link>
-                <Link to="/surveyEvents" className="btn btn-accent btn-accent-cta">
+                <Link to="/StrawheadedBulbul/surveyEvents" className="btn btn-accent btn-accent-cta">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2Z"/>
                   </svg>
@@ -443,7 +443,7 @@ class Home extends React.Component {
                   // Only show Settings link if user is not a WWF-Volunteer (using same logic as render method)
                   if (!isWWFVolunteer) {
                     return (
-                      <Link to="/settings" className="btn btn-secondary btn-secondary-cta">
+                      <Link to="/StrawheadedBulbul/settings" className="btn btn-secondary btn-secondary-cta">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M12 2L3.09 8.26L4 21L12 17L20 21L20.91 8.26L12 2Z"/>
                         </svg>
@@ -476,6 +476,15 @@ class Home extends React.Component {
                   Logout
                 </button>
               </div>
+            ) : this.props.isPublicPreview ? (
+              <div className="hero-cta">
+                <Link to="/" className="btn btn-login">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12,4A4,4 0 1,0 16,8A4,4 0 0,0 12,4M12,14C7.58,14 4,15.79 4,18V20H20V18C20,15.79 16.42,14 12,14Z"/>
+                  </svg>
+                  Go to Login
+                </Link>
+              </div>
             ) : (
               <div className="hero-cta">
                 <button onClick={this.toggleLoginPopup} className="btn btn-login" style={{
@@ -501,16 +510,6 @@ class Home extends React.Component {
                 </button>
               </div>
             )}
-          {/* Legal Policy Links - Move directly below CTA buttons */}
-          <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1.5rem', justifyContent: 'center', fontSize: '0.98rem' }}>
-            <Link to="/privacy-policy" style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: 500 }}>
-              Privacy Policy
-            </Link>
-            <span style={{ color: '#64748b' }}>|</span>
-            <Link to="/terms-of-service" style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: 500 }}>
-              Terms of Service
-            </Link>
-          </div>
           </div>
         </section>
 
@@ -536,19 +535,19 @@ class Home extends React.Component {
                     <li><span className="feature-bullet dashboard-bullet">&#8226;</span>Comprehensive conservation reports</li>
                   </ul>
                   {isAuthenticated ? (
-                    <Link to="/dashboard" className="feature-button dashboard-button">
+                    <Link to="/StrawheadedBulbul/dashboard" className="feature-button dashboard-button">
                       View Dashboard
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 4L10.59 5.41L16.17 11H4V13H16.17L10.59 18.59L12 20L20 12L12 4Z"/>
                       </svg>
                     </Link>
                   ) : (
-                    <button onClick={this.toggleLoginPopup} className="feature-button dashboard-button">
-                      Login to Access
+                    <Link to="/" className="feature-button dashboard-button">
+                      Go to Login
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 4L10.59 5.41L16.17 11H4V13H16.17L10.59 18.59L12 20L20 12L12 4Z"/>
                       </svg>
-                    </button>
+                    </Link>
                   )}
                 </div>
                 {/* Survey System Card */}
@@ -566,19 +565,19 @@ class Home extends React.Component {
                     <li><span className="feature-bullet survey-bullet">&#8226;</span>Live updates for upcoming events</li>
                   </ul>
                   {isAuthenticated ? (
-                    <Link to="/surveyEvents" className="feature-button survey-button">
+                    <Link to="/StrawheadedBulbul/surveyEvents" className="feature-button survey-button">
                       Manage Surveys
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 4L10.59 5.41L16.17 11H4V13H16.17L10.59 18.59L12 20L20 12L12 4Z"/>
                       </svg>
                     </Link>
                   ) : (
-                    <button onClick={this.toggleLoginPopup} className="feature-button survey-button">
-                      Login to Access
+                    <Link to="/" className="feature-button survey-button">
+                      Go to Login
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 4L10.59 5.41L16.17 11H4V13H16.17L10.59 18.59L12 20L20 12L12 4Z"/>
                       </svg>
-                    </button>
+                    </Link>
                   )}
                 </div>
                 {/* Telegram Settings Card - Only show if not WWF-Volunteer */}
@@ -600,19 +599,19 @@ class Home extends React.Component {
                           <li><span className="feature-bullet telegram-bullet">&#8226;</span>Manage Telegram access and permissions</li>
                         </ul>
                         {isAuthenticated ? (
-                          <Link to="/settings" className="feature-button telegram-button">
+                          <Link to="/StrawheadedBulbul/settings" className="feature-button telegram-button">
                             Telegram Settings
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                               <path d="M12 4L10.59 5.41L16.17 11H4V13H16.17L10.59 18.59L12 20L20 12L12 4Z"/>
                             </svg>
                           </Link>
                         ) : (
-                          <button onClick={this.toggleLoginPopup} className="feature-button telegram-button">
-                            Login to Access
+                          <Link to="/" className="feature-button telegram-button">
+                            Go to Login
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                               <path d="M12 4L10.59 5.41L16.17 11H4V13H16.17L10.59 18.59L12 20L20 12L12 4Z"/>
                             </svg>
-                          </button>
+                          </Link>
                         )}
                       </div>
                     );

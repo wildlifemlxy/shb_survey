@@ -3,7 +3,7 @@ const { google } = require('googleapis');
 class GalleryController {
   // Google Drive API Configuration
   static GOOGLE_DRIVE_CONFIG = {
-    targetFolderId: '1bjcOdnLRtxIdcIub-hD9RMXMfQyz2JMX',
+    targetFolderId: '1mOWQVyHGkPz1v3eLU1ISEUiFiSbhZ2Cr', // StrawheadedBulbul project's gallery folder
     clientId: '389626720765-84tdf20hilcfeg3us8pvh3m5085d12jc.apps.googleusercontent.com',
     clientSecret: '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',
     redirectUri: 'http://localhost:3001/images'

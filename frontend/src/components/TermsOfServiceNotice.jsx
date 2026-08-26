@@ -37,7 +37,7 @@ class TermsOfServiceNotice extends Component {
               <h1>Terms of Service</h1>
             </div>
             <div className="header-actions">
-              <Link to="/" className="home-link">
+              <Link to="/StrawheadedBulbul" state={{ viaAppNavigation: true }} className="home-link">
                 <FontAwesomeIcon icon={faHome} />
                 <span>Home</span>
               </Link>

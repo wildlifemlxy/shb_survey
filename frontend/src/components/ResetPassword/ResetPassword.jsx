@@ -102,8 +102,8 @@ class ResetPassword extends Component {
         <div className="reset-password-container">
           <div className="reset-password-card">
             <div className="reset-password-header">
-              <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF SHB Survey System" className="reset-password-logo" />
-              <h1>WWF SHB Survey System</h1>
+              <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF SG Project Management Platform" className="reset-password-logo" />
+              <h1>WWF SG Project Management Platform</h1>
               <h2>Password Reset Successful</h2>
               <p>Your password has been successfully reset.</p>
             </div>
@@ -132,8 +132,8 @@ class ResetPassword extends Component {
       <div className="reset-password-container">
         <div className="reset-password-card">
           <div className="reset-password-header">
-            <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF SHB Survey System" className="reset-password-logo" />
-            <h1>WWF SHB Survey System</h1>
+            <img src="/WWF Logo/WWF Logo Medium.jpg" alt="WWF SG Project Management Platform" className="reset-password-logo" />
+            <h1>WWF SG Project Management Platform</h1>
             <h2>Reset Your Password</h2>
             <p>Enter your new password below</p>
           </div>

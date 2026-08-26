@@ -9,17 +9,11 @@ export async function fetchLoginData(email, password) {
     console.log('Login response:', result);
     
     if (result.success) {
-      // Store user info in localStorage for persistence - use consistent keys
-      localStorage.setItem('currentUser', JSON.stringify(result.data));
-      localStorage.setItem('user', JSON.stringify(result.data)); // Fallback compatibility
-      localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('isAuthenticated', 'true'); // Consistency with other parts
-      localStorage.setItem('userRole', result.data.role || 'user');
-      localStorage.setItem('loginTimestamp', Date.now().toString());
-      
+      // The caller persists the session only after MFA has completed.
+      const userData = result.data || result.user;
       return {
         success: true,
-        data: result.data,
+        data: userData,
         message: result.message || 'Login successful'
       };
     } else {
