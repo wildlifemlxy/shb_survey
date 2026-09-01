@@ -4,7 +4,7 @@
  */
 
 const axios = require('axios');
-const TelegramController = require('../../Controller/Telegram/telegramController');
+const TelegramController = require('../../Controller/strawHeadedBulbul/telegramController');
 
 /**
  * Send a Telegram message with inline keyboard buttons to all subscribers

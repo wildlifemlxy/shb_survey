@@ -2,10 +2,11 @@ import axios from 'axios';
 import { BASE_URL } from '../config/apiConfig.js';
 
 // Retrieve all events
-export async function getAllEvents() {
+export async function getAllEvents(databaseName = 'StrawHeadedBulbul') {
   try {
     const response = await axios.post(`${BASE_URL}/events`, {
-      purpose: 'retrieve'
+      purpose: 'retrieve',
+      databaseName
     });
     console.log('Events API response:', response.data.result.events.events);
     return response.data.result.events.events;

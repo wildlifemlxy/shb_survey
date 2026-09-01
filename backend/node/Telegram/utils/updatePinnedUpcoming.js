@@ -4,8 +4,8 @@
  */
 
 const TelegramApi = require('./telegramApi');
-const TelegramController = require('../../Controller/Telegram/telegramController');
-const EventsController = require('../../Controller/Events/eventsController');
+const TelegramController = require('../../Controller/strawHeadedBulbul/telegramController');
+const EventsController = require('../../Controller/strawHeadedBulbul/eventsController');
 const botConfig = require('../config/botConfig');
 
 /**

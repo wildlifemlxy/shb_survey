@@ -331,7 +331,7 @@ class TelegramApi {
    */
   async sendMessageWithButtons(message, eventId, config, storeChatHistory = null, saveMessageId = null) {
     // Get subscribers from database, fallback to config
-    const TelegramController = require('../../Controller/Telegram/telegramController');
+    const TelegramController = require('../../Controller/strawHeadedBulbul/telegramController');
     const telegramController = new TelegramController();
     const subscriberResult = await telegramController.getAllSubscribers();
     const CHAT_IDS = subscriberResult.chatIds.length > 0 

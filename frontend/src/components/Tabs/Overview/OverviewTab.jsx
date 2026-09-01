@@ -35,7 +35,8 @@ class OverviewTab extends Component {
   };
 
   render() {
-    const { data, filteredData } = this.props;
+    const { data, filteredData, surveyCount, isRifleRangeRoad = false } = this.props;
+    const projectName = isRifleRangeRoad ? 'Rifle Range Road Project' : 'Straw Headed Bulbul';
     const { expandedCards, showAllStats, showDataQualityPercent } = this.state;
 
     // If data is not loaded or empty, render blank
@@ -44,13 +45,20 @@ class OverviewTab extends Component {
     }
 
     // Defensive: filter out any rows where SHB individual ID is missing or invalid
-    const safeFilteredData = filteredData.filter(obs => {
+    const safeFilteredData = isRifleRangeRoad ? filteredData : filteredData.filter(obs => {
       const id = obs["SHB individual ID"];
       return id !== undefined && id !== null && id !== '';
     });
 
+    const getCount = observation => {
+      const parsed = parseInt(observation.Count ?? observation['Number of Birds'], 10);
+      return Number.isFinite(parsed) && parsed > 0 && parsed < 1000 ? parsed : 0;
+    };
+
     // Calculate comprehensive statistics
-    const totalBirds = safeFilteredData.reduce((sum, obs) => {
+    const totalBirds = isRifleRangeRoad
+      ? safeFilteredData.reduce((sum, obs) => sum + getCount(obs), 0)
+      : safeFilteredData.reduce((sum, obs) => {
       if (
         obs["Seen/Heard"] &&
         (obs["Seen/Heard"] === "Seen" || obs["Seen/Heard"] === "Heard")
@@ -63,7 +71,7 @@ class OverviewTab extends Component {
         }
       }
       return sum;
-    }, 0);
+      }, 0);
 
     const totalSeenBirds = safeFilteredData.reduce((sum, obs) => {
       if (obs["Seen/Heard"] === "Seen") {
@@ -102,15 +110,27 @@ class OverviewTab extends Component {
     }, 0);
 
     // Additional comprehensive statistics
-    const uniqueLocations = new Set(filteredData.map(item => item.Location)).size;
-    const successfulLocations = new Set(filteredData.filter(item => item["Seen/Heard"] !== "Not found").map(item => item.Location)).size;
+    const getLocationKey = item => {
+      if (item.Location) return item.Location;
+      if (item['Co-ordinates/Nearest Landmarks']) return item['Co-ordinates/Nearest Landmarks'];
+      if (item.Lat && item.Lon) return `${item.Lat},${item.Lon}`;
+      return item['Which side of the road is it on? (N/S/On road)'];
+    };
+    const uniqueLocations = new Set(filteredData.map(getLocationKey).filter(Boolean)).size;
+    const successfulLocations = new Set(filteredData.filter(item => isRifleRangeRoad ? item['Roadkill?'] !== 'Yes' : item["Seen/Heard"] !== "Not found").map(getLocationKey).filter(Boolean)).size;
     const validCoordinates = getValidCoordinates(filteredData);
-    const uniqueActivities = getUniqueActivity(filteredData);
-    const successRate = filteredData.length > 0 ? Math.round(((filteredData.filter(item => item["Seen/Heard"] !== "Not found").length) / filteredData.length) * 100) : 0;
+    const uniqueActivities = isRifleRangeRoad
+      ? [...new Set(filteredData.map(item => item.Taxa).filter(Boolean))]
+      : getUniqueActivity(filteredData);
+    const uniqueTaxa = isRifleRangeRoad
+      ? new Set(filteredData.map(item => String(item.Taxa || '').trim()).filter(Boolean)).size
+      : 0;
+    const successRate = filteredData.length > 0 ? Math.round(((filteredData.filter(item => isRifleRangeRoad ? item['Roadkill?'] !== 'Yes' : item["Seen/Heard"] !== "Not found").length) / filteredData.length) * 100) : 0;
+    const detectedRecords = filteredData.filter(item => isRifleRangeRoad ? item['Roadkill?'] !== 'Yes' : item["Seen/Heard"] !== 'Not found');
     const visualDetectionRate = filteredData.length > 0 ? Math.round(((filteredData.filter(item => item["Seen/Heard"] === "Seen").length) / filteredData.length) * 100) : 0;
     
     // Time-based statistics with proper date handling
-    const surveyDates = filteredData.map(item => item.Date).filter(date => date);
+    const surveyDates = filteredData.map(item => item['Survey Date'] || item.Date).filter(date => date);
     const uniqueDates = new Set(surveyDates).size;
     
     // Helper function to convert Excel serial date to proper date
@@ -209,7 +229,9 @@ class OverviewTab extends Component {
     // Activity analysis (split comma-separated behaviors and count each individually)
     const behaviorStats = {};
     filteredData.forEach(item => {
-      const activity = item["Activity (foraging, preening, calling, perching, others)"];
+      const activity = isRifleRangeRoad
+        ? item.Taxa
+        : item["Activity (foraging, preening, calling, perching, others)"];
       if (activity) {
         activity.split(',').forEach(raw => {
           const behavior = raw.trim();
@@ -234,9 +256,9 @@ class OverviewTab extends Component {
       }
     });
 
-    // Data quality: percent of records with a valid 'Number of Birds' value
+    // Data quality: percent of records with a valid count value.
     const validBirdCountRecords = safeFilteredData.filter(obs => {
-      let count = obs["Number of Birds"];
+      let count = isRifleRangeRoad ? obs.Count : obs["Number of Birds"];
       if (typeof count === 'string') count = count.trim();
       const parsed = parseInt(count, 10);
       return !isNaN(parsed) && isFinite(parsed) && parsed > 0 && parsed < 1000;
@@ -272,7 +294,7 @@ class OverviewTab extends Component {
       <div className="overview-tab">
           <div className="section-header">
             <div>
-              <h2>📊 Key Statistics Overview</h2>
+              <h2>📊 Statistics Overview</h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0.5rem 0 0 0' }}>
                 Click on any card to see detailed breakdown and insights
               </p>
@@ -310,7 +332,7 @@ class OverviewTab extends Component {
                 <div className="stat-header">
                   <h3>Number of Surveys</h3>
                 </div>
-                <div className="stat-value">{filteredData.length} Data Points</div>
+                <div className="stat-value">{surveyCount ?? filteredData.length} Surveys</div>
                 {!expandedCards.overview && (
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.5rem 0 0 0' }}>
                     {successRate}% success rate • {uniqueLocations} locations • {uniqueDates} survey days
@@ -320,10 +342,10 @@ class OverviewTab extends Component {
                   <>
                     <div className="stat-breakdown">
                       <span className="breakdown-item seen">
-                        ✓ Detected: {filteredData.filter(item => item["Seen/Heard"] !== "Not found").length} ({successRate}%)
+                        ✓ Detected: {detectedRecords.length} ({successRate}%)
                       </span>
                       <span className="breakdown-item not-found">
-                        ✗ Not Found: {filteredData.filter(item => item["Seen/Heard"] === "Not found").length}
+                        ✗ {isRifleRangeRoad ? 'Roadkill' : 'Not Found'}: {filteredData.length - detectedRecords.length}
                       </span>
                     </div>
                     <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(0,0,0,0.02)', borderRadius: '8px' }}>
@@ -346,7 +368,7 @@ class OverviewTab extends Component {
             >
               <div className="stat-content">
                 <div className="stat-header">
-                  <h3>Total Birds Counted</h3>
+                  <h3>{isRifleRangeRoad ? 'Total Individuals Counted' : 'Total Birds Counted'}</h3>
                 </div>
                 <div className="stat-value">{totalBirds}</div>
                 {!expandedCards.birds && (
@@ -520,27 +542,27 @@ class OverviewTab extends Component {
                     </div>
                     {!expandedCards.quality && (
                       <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.5rem 0 0 0' }}>
-                        Records with valid bird count {showDataQualityPercent ? `(${dataQualityPercent}%)` : `(${validBirdCountRecords.length})`}
+                        {isRifleRangeRoad ? 'Records with valid count' : 'Records with valid bird count'} {showDataQualityPercent ? `(${dataQualityPercent}%)` : `(${validBirdCountRecords.length})`}
                       </p>
                     )}
                     {expandedCards.quality && (
                       <>
-                        <p>Records with valid bird count</p>
+                        <p>{isRifleRangeRoad ? 'Records with valid count' : 'Records with valid bird count'}</p>
                         <div className="stat-breakdown">
                           <span className="breakdown-item seen">
-                            Valid bird count: {showDataQualityPercent ? `${dataQualityPercent}%` : validBirdCountRecords.length}
+                            Valid {isRifleRangeRoad ? 'count' : 'bird count'}: {showDataQualityPercent ? `${dataQualityPercent}%` : validBirdCountRecords.length}
                           </span>
                           <span className="breakdown-item not-found">
-                            Invalid bird count: {showDataQualityPercent ? `${safeFilteredData.length > 0 ? 100 - dataQualityPercent : 0}%` : safeFilteredData.length - validBirdCountRecords.length}
+                            Invalid {isRifleRangeRoad ? 'count' : 'bird count'}: {showDataQualityPercent ? `${safeFilteredData.length > 0 ? 100 - dataQualityPercent : 0}%` : safeFilteredData.length - validBirdCountRecords.length}
                           </span>
                         </div>
                         <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(0,0,0,0.02)', borderRadius: '8px' }}>
                           <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>Data Completeness</h4>
                           <p style={{ margin: '0.25rem 0', fontSize: '0.8rem' }}>
-                            <strong>Valid Bird Count:</strong> {showDataQualityPercent ? `${dataQualityPercent}%` : validBirdCountRecords.length}
+                            <strong>Valid {isRifleRangeRoad ? 'Count' : 'Bird Count'}:</strong> {showDataQualityPercent ? `${dataQualityPercent}%` : validBirdCountRecords.length}
                           </p>
                           <p style={{ margin: '0.25rem 0', fontSize: '0.8rem' }}>
-                            <strong>Invalid Bird Count:</strong> {showDataQualityPercent ? `${safeFilteredData.length > 0 ? 100 - dataQualityPercent : 0}%` : safeFilteredData.length - validBirdCountRecords.length}
+                            <strong>Invalid {isRifleRangeRoad ? 'Count' : 'Bird Count'}:</strong> {showDataQualityPercent ? `${safeFilteredData.length > 0 ? 100 - dataQualityPercent : 0}%` : safeFilteredData.length - validBirdCountRecords.length}
                           </p>
                           <p style={{ margin: '0.25rem 0', fontSize: '0.8rem' }}>
                             <strong>Total Records:</strong> {safeFilteredData.length}
@@ -559,10 +581,10 @@ class OverviewTab extends Component {
                 >
                   <div className="stat-content">
                     <div className="stat-header">
-                      <h3>Activity Types</h3>
+                      <h3>{isRifleRangeRoad ? 'Taxa Types' : 'Activity Types'}</h3>
                     </div>
                     {/* Tab state */}
-                    <div style={{ display: 'flex', gap: '1rem', margin: '0.5rem 0' }}>
+                    {!isRifleRangeRoad && <div style={{ display: 'flex', gap: '1rem', margin: '0.5rem 0' }}>
                       <button
                         className={`activity-tab-btn${this.state.activityTab === 'behavior' ? ' active' : ''}`}
                         style={{ padding: '0.3rem 1rem', border: 'none', background: this.state.activityTab === 'behavior' ? '#e0e0e0' : '#f7f7f7', borderRadius: 4, cursor: 'pointer', fontWeight: this.state.activityTab === 'behavior' ? 'bold' : 'normal' }}
@@ -573,20 +595,22 @@ class OverviewTab extends Component {
                         style={{ padding: '0.3rem 1rem', border: 'none', background: this.state.activityTab === 'type' ? '#e0e0e0' : '#f7f7f7', borderRadius: 4, cursor: 'pointer', fontWeight: this.state.activityTab === 'type' ? 'bold' : 'normal' }}
                         onClick={e => { e.stopPropagation(); this.setState({ activityTab: 'type' }); }}
                       >Type</button>
-                    </div>
+                    </div>}
                     <div className="stat-value">
-                      {this.state.activityTab === 'behavior'
-                        ? Object.values(behaviorStats).reduce((a, b) => a + b, 0)
-                        : Object.keys(behaviorStats).length}
+                      {isRifleRangeRoad
+                        ? uniqueTaxa
+                        : this.state.activityTab === 'behavior'
+                          ? Object.values(behaviorStats).reduce((a, b) => a + b, 0)
+                          : Object.keys(behaviorStats).length}
                     </div>
                     {!expandedCards.activities && (
                       <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.5rem 0 0 0' }}>
-                        {this.state.activityTab === 'behavior' ? 'Different behaviors recorded' : 'Different types recorded'}
+                        {isRifleRangeRoad ? 'Different taxa recorded' : this.state.activityTab === 'behavior' ? 'Different behaviors recorded' : 'Different types recorded'}
                       </p>
                     )}
                     {expandedCards.activities && (
                       <>
-                        <p>{this.state.activityTab === 'behavior' ? 'Different behaviors recorded' : 'Different types recorded'}</p>
+                        <p>{isRifleRangeRoad ? 'Different taxa recorded' : this.state.activityTab === 'behavior' ? 'Different behaviors recorded' : 'Different types recorded'}</p>
                         <div className="stat-breakdown">
                           {this.state.activityTab === 'behavior'
                             ? (() => {

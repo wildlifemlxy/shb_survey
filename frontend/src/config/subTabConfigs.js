@@ -1,6 +1,7 @@
 import DateLineChart from '../components/Charts/DateLineChart';
 import LocationStats from '../components/Charts/LocationStats';
 import D3TreeHeightChart from '../components/Charts/TreeChart/HabitatChart';
+import RifleFieldChart from '../components/Charts/RifleFieldChart';
 import { 
   createSubTabConfig, 
   createChartSection, 
@@ -53,6 +54,22 @@ export const subTabConfigs = {
 // Helper function to get all sub-tab configurations
 export const getAllSubTabConfigs = () => {
   return Object.values(subTabConfigs);
+};
+
+export const rifleRangeRoadSubTabConfigs = {
+  observations: createSubTabConfig({
+    key: 'observations',
+    title: 'Observations Over Time',
+    icon: createIcon(iconPaths.timeline),
+    layout: 'grid',
+    sections: [createChartSection({ id: 'observations-over-time', title: 'Observations Over Time', component: RifleFieldChart, size: 'full', props: { date: true, sectionColor: '#2563eb' } })]
+  }),
+  sideOfRoad: createSubTabConfig({ key: 'sideOfRoad', title: 'Side of the Road', sections: [createChartSection({ id: 'side-of-road', title: 'Side of the Road', component: RifleFieldChart, props: { field: 'sideOfRoad', sectionColor: '#16a34a' } })] }),
+  roadkill: createSubTabConfig({ key: 'roadkill', title: 'Roadkill?', sections: [createChartSection({ id: 'roadkill', title: 'Roadkill?', component: RifleFieldChart, props: { field: 'Roadkill?', sectionColor: '#dc2626' } })] }),
+  targetSpecies: createSubTabConfig({ key: 'targetSpecies', title: 'Target Species?', sections: [createChartSection({ id: 'target-species', title: 'Target Species?', component: RifleFieldChart, props: { field: 'targetSpecies', sectionColor: '#ea580c' } })] }),
+  identified: createSubTabConfig({ key: 'identified', title: 'Identified?', sections: [createChartSection({ id: 'identified', title: 'Identified?', component: RifleFieldChart, props: { field: 'identified', sectionColor: '#9333ea' } })] }),
+  weather: createSubTabConfig({ key: 'weather', title: 'Weather Conditions', sections: [createChartSection({ id: 'weather', title: 'Weather Conditions', component: RifleFieldChart, props: { field: 'Weather Conditions', sectionColor: '#0891b2' } })] }),
+  taxonomy: createSubTabConfig({ key: 'taxonomy', title: 'Taxonomy', sections: [createChartSection({ id: 'taxonomy', title: 'Taxonomy', component: RifleFieldChart, props: { field: 'taxonomy', sectionColor: '#db2777' } })] })
 };
 
 // Helper function to get specific sub-tab configuration

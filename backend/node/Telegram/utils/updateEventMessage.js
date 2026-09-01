@@ -7,7 +7,7 @@ const TelegramApi = require('./telegramApi');
 const { buildSurveyMessage, formatEventDate } = require('./messageTemplates');
 const botConfig = require('../config/botConfig');
 const parseCustomDate = require('../../cron/parseCustomDate');
-const TelegramController = require('../../Controller/Telegram/telegramController');
+const TelegramController = require('../../Controller/strawHeadedBulbul/telegramController');
 
 // Singleton reference for Socket.IO
 let socketIOInstance = null;

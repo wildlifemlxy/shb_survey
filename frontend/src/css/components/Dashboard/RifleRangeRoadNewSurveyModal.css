@@ -1,0 +1,35 @@
+/* Scoped overrides so the native time picker is always reachable in this modal */
+.rrr-new-survey-modal input[type="time"] {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23007bff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'%3E%3C/circle%3E%3Cpolyline points='12 6 12 12 16 14'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 16px;
+  padding-right: 32px !important;
+  position: relative;
+  cursor: pointer;
+}
+
+/* Stretch the (invisible) native indicator across the whole field so clicking anywhere opens the picker */
+.rrr-new-survey-modal input[type="time"]::-webkit-calendar-picker-indicator {
+  opacity: 0 !important;
+  display: block !important;
+  position: absolute !important;
+  left: 0;
+  top: 0;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0;
+  cursor: pointer;
+  background: transparent;
+  z-index: 2;
+}
+
+.rrr-new-survey-modal input[type="time"]::-webkit-datetime-edit {
+  position: relative;
+  z-index: 1;
+}
+
+.rrr-new-survey-modal .section-nav-btn {
+  position: static;
+  flex-shrink: 0;
+}

@@ -1048,13 +1048,107 @@ class MaintenanceBotButton extends Component {
       throw new Error('Excel export only available on Dashboard');
     }
 
+    if (window.location.pathname.startsWith('/RifleRangeRoad')) {
+      return this.exportRifleRangeRoadExcel();
+    }
+
+    return this.exportShbExcel();
+  };
+
+  // Rifle Range Road export: one tab per survey type (Regular/Rope Bridge/External).
+  exportRifleRangeRoadExcel = async () => {
+    console.log('Preparing to export Rifle Range Road data to Excel...');
+
+    let allRecords = [];
+    try {
+      const { getRifleRangeRoadSurveyData } = await import('../../data/riflerangeroad/surveyData.js');
+      allRecords = await getRifleRangeRoadSurveyData();
+    } catch (error) {
+      console.error('Error fetching Rifle Range Road survey data:', error);
+      allRecords = [];
+    }
+
+    const SHEET_TYPES = ['Data (Regular) cleaned', 'Data (Rope Bridge) cleaned', 'Data (External) cleaned'];
+    const EXCLUDED_KEYS = new Set(['_id', '__v', 'createdAt', 'updatedAt', 'type']);
+
+    const workbook = new ExcelJS.Workbook();
+
+    SHEET_TYPES.forEach(sheetType => {
+      const records = allRecords.filter(record => String(record?.type || '').trim() === sheetType);
+      const worksheet = workbook.addWorksheet(sheetType);
+
+      // Dynamically derive headers from the union of keys across this type's records.
+      const headers = [];
+      const seenHeaders = new Set();
+      records.forEach(record => {
+        Object.keys(record).forEach(key => {
+          if (!EXCLUDED_KEYS.has(key) && !seenHeaders.has(key)) {
+            seenHeaders.add(key);
+            headers.push(key);
+          }
+        });
+      });
+
+      worksheet.columns = headers.map(header => ({ header, key: header, width: 22 }));
+
+      records.forEach(record => {
+        worksheet.addRow(headers.map(header => record[header] ?? ''));
+      });
+
+      const headerRow = worksheet.getRow(1);
+      headerRow.eachCell(cell => {
+        cell.font = { bold: true, color: { argb: 'FF333333' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFB3B3B3' } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
+      });
+
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        row.eachCell(cell => {
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        });
+      });
+    });
+
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const timestamp = `as of ${day}${month}${year} at ${hours}${minutes}${seconds} hrs`;
+    const fileName = `Rifle Range Road Observation Data ${timestamp}.xlsx`;
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), fileName);
+  };
+
+  exportShbExcel = async () => {
+    console.log('Preparing to export data to Excel...');
+    // Only works for dashboard with data
+    if (this.state.currentPage !== 'dashboard') {
+      throw new Error('Excel export only available on Dashboard');
+    }
+
     console.log('Starting Excel export...', this.state.currentPage);
 
     // Fetch the actual observation data
     let observationData = [];
     try {
       // Import the fetchSurveyData function
-      const { fetchSurveyData } = await import('../../data/shbData.js');
+      const { fetchSurveyData } = await import('../../data/strawheadedbulbul/shbData.js');
       observationData = await fetchSurveyData();
       console.log('Fetched observation data:', observationData);
       
@@ -1699,7 +1793,7 @@ class MaintenanceBotButton extends Component {
           >
             {/* Modern robot image icon */}
             <img
-              src={'./robot.png'}
+              src="/robot.png"
               alt="Maintenance Bot"
               style={{ width: 36, height: 36, objectFit: 'contain', display: 'block' }}
             />
@@ -1734,7 +1828,7 @@ class MaintenanceBotButton extends Component {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
                     <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <img src={'./robot.png'} alt="Maintenance Bot" style={{ width: 24, height: 24, objectFit: 'contain', display: 'inline-block' }} />
+                      <img src="/robot.png" alt="Maintenance Bot" style={{ width: 24, height: 24, objectFit: 'contain', display: 'inline-block' }} />
                       <span>Dashboard Tools & Settings</span>
                     </h3>
                     <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#6b7280' }}>

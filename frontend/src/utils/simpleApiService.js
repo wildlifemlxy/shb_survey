@@ -8,10 +8,11 @@ class SimpleApiService {
   }
 
   // Public survey operations only
-  async getPublicStats() {
+  async getPublicStats(databaseName = 'WWFSG') {
     try {
       const response = await axios.post(`${BASE_URL}/surveys`, {
-        purpose: 'getPublicStatistics'
+        purpose: 'getPublicStatistics',
+        databaseName
       });
       console.log("Get public stats response:", response.data);
       return response.data;
@@ -81,10 +82,11 @@ class SimpleApiService {
   }
 
   // Public survey operations only
-  async getStats() {
+  async getStats(databaseName = 'WWFSG') {
     try {
       const response = await axios.post(`${BASE_URL}/surveys`, {
-        purpose: 'retrieve'
+        purpose: 'retrieve',
+        databaseName
       });
       return response.data.surveyResult.surveys;
     } catch (error) {
@@ -196,6 +198,49 @@ class SimpleApiService {
       return response.data;
     } catch (error) {
       console.error('Delete survey error:', error);
+      throw error;
+    }
+  }
+
+  // Delete Rifle Range Road survey
+  async deleteRifleRangeRoadSurvey(surveyId) {
+    try {
+      const response = await axios.post(`${BASE_URL}/rifleRangeRoad/surveys`, {
+        purpose: 'delete',
+        surveyId: surveyId
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Delete Rifle Range Road survey error:', error);
+      throw error;
+    }
+  }
+
+  // Submit new Rifle Range Road survey
+  async submitRifleRangeRoadSurvey(surveyData) {
+    try {
+      const response = await axios.post(`${BASE_URL}/rifleRangeRoad/surveys`, {
+        purpose: 'insert',
+        ...surveyData
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Submit Rifle Range Road survey error:', error);
+      throw error;
+    }
+  }
+
+  // Update Rifle Range Road survey
+  async updateRifleRangeRoadSurvey(recordId, updatedData) {
+    try {
+      const response = await axios.post(`${BASE_URL}/rifleRangeRoad/surveys`, {
+        purpose: 'update',
+        recordId,
+        ...updatedData
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Update Rifle Range Road survey error:', error);
       throw error;
     }
   }

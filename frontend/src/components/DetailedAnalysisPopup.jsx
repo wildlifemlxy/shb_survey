@@ -343,7 +343,7 @@ class DetailedAnalysisPopup extends Component {
   };
 
   render() {
-    const { isOpen, onClose } = this.props;
+    const { isOpen, onClose, projectName = 'Straw Headed Bulbul' } = this.props;
     const { activeSection, exportLoading } = this.state;
 
     const sections = [
@@ -375,7 +375,11 @@ class DetailedAnalysisPopup extends Component {
                 <div className="flex justify-between items-center">
                   <div>
                     <h2 className="text-2xl font-bold">Detailed Analysis</h2>
-                    <p className="text-primary-100 mt-1">Comprehensive bird observation insights</p>
+                    <p className="text-primary-100 mt-1">
+                      {projectName === 'Rifle Range Road'
+                        ? 'Comprehensive Wildlife Survey Analytics'
+                        : 'Comprehensive Bird Observation Analytics'}
+                    </p>
                   </div>
                   <div className="flex gap-2">
                     <motion.button

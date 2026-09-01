@@ -1,5 +1,5 @@
 const schedule = require('node-schedule');
-const EventsController = require('../Controller/Events/eventsController');
+const EventsController = require('../Controller/strawHeadedBulbul/eventsController');
 const parseCustomDate = require('./parseCustomDate');
 const e = require('express');
 

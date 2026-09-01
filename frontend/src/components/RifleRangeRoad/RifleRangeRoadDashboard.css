@@ -1,0 +1,224 @@
+.rifle-dashboard {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #effcf2 0%, #f6fbff 100%);
+  color: #243b32;
+}
+
+.rifle-dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px clamp(24px, 8vw, 120px);
+  background: #ffffff;
+  box-shadow: 0 5px 18px rgba(24, 53, 43, 0.12);
+}
+
+.rifle-dashboard-header h1 {
+  margin: 0;
+  color: #16854b;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+}
+
+.rifle-dashboard-header p {
+  margin: 8px 0 0;
+  color: #60766b;
+}
+
+.rifle-dashboard-home {
+  padding: 11px 18px;
+  border-radius: 7px;
+  background: #078b59;
+  color: #ffffff;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.rifle-dashboard-content {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 30px 24px 70px;
+}
+
+.rifle-dashboard-toolbar,
+.rifle-dashboard-tabs,
+.rifle-dashboard-subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.rifle-dashboard-toolbar {
+  padding: 18px;
+  border: 1px solid #dbeae0;
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.rifle-dashboard-filter-heading {
+  width: 100%;
+  margin-bottom: 2px;
+  color: #243b32;
+  font-weight: 800;
+}
+
+.rifle-dashboard-toolbar label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 150px;
+  color: #536b60;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.rifle-dashboard-toolbar select,
+.rifle-dashboard-toolbar input {
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid #cbded1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #30463b;
+  font: inherit;
+}
+
+.rifle-dashboard-tabs,
+.rifle-dashboard-subtabs {
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.rifle-dashboard-tabs button,
+.rifle-dashboard-subtabs button {
+  padding: 10px 16px;
+  border: 1px solid #cbded1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #52675c;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.rifle-dashboard-tabs button.active,
+.rifle-dashboard-subtabs button.active,
+.rifle-dashboard-tabs button:hover,
+.rifle-dashboard-subtabs button:hover {
+  border-color: #16854b;
+  background: #16854b;
+  color: #ffffff;
+}
+
+.rifle-dashboard-subtabs {
+  margin-top: 12px;
+}
+
+.rifle-dashboard-subtabs span {
+  color: #60766b;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.rifle-dashboard-overview {
+  margin-top: 30px;
+}
+
+.rifle-dashboard-overview h2 {
+  margin: 0 0 18px;
+  color: #176e42;
+}
+
+.rifle-dashboard-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.rifle-dashboard-stat {
+  padding: 22px;
+  border-radius: 9px;
+  background: #ffffff;
+  box-shadow: 0 5px 18px rgba(24, 53, 43, 0.09);
+}
+
+.rifle-dashboard-stat-label {
+  color: #71827a;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.rifle-dashboard-stat-value {
+  margin-top: 10px;
+  color: #2d435d;
+  font-size: 2.1rem;
+  font-weight: 800;
+}
+
+.rifle-dashboard-table-wrap {
+  margin-top: 26px;
+  overflow: auto;
+  border-radius: 9px;
+  background: #ffffff;
+  box-shadow: 0 5px 18px rgba(24, 53, 43, 0.09);
+}
+
+.rifle-dashboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+}
+
+.rifle-dashboard-table th,
+.rifle-dashboard-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e6eee9;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.rifle-dashboard-table th {
+  background: #f1f8f3;
+  color: #3f5b4d;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+}
+
+.rifle-dashboard-empty {
+  padding: 48px 20px;
+  text-align: center;
+  color: #71827a;
+}
+
+.rifle-dashboard-panel {
+  margin-top: 30px;
+  padding: 28px;
+  border-radius: 9px;
+  background: #ffffff;
+  box-shadow: 0 5px 18px rgba(24, 53, 43, 0.09);
+}
+
+.rifle-dashboard-panel h2 {
+  margin: 0 0 8px;
+  color: #176e42;
+}
+
+.rifle-dashboard-panel p {
+  margin: 0;
+  color: #60766b;
+}
+
+@media (max-width: 760px) {
+  .rifle-dashboard-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .rifle-dashboard-stat-grid {
+    grid-template-columns: 1fr;
+  }
+}

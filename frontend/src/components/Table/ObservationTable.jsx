@@ -3,9 +3,12 @@ import { createPortal } from 'react-dom';
 import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry } from 'ag-grid-community';
 import { AllCommunityModule } from 'ag-grid-community';
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { getUniqueSeenHeards } from '../../utils/dataProcessing';
 import isEqual from 'lodash/isEqual';
 import { logger } from '../../utils/diagnosticLogger';
+import '../../css/components/Table/ObservationTable.css';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -464,7 +467,10 @@ constructor(props) {
   
   // Flag to prevent infinite update loops
   this.isUpdating = false;
-  
+
+  // Ref for the AG Grid instance, matching RifleRangeRoadObservationTable's setup
+  this.gridRef = React.createRef();
+
   // Location options for the dropdown editor
   this.locationOptions = [
     'Bidadari Park',
@@ -1258,6 +1264,188 @@ getEmptyObservation() {
     );
   }
 
+  buildColumns(isEditable, records = []) {
+    // Size each column to fit the longest rendered value (or header) in that column.
+    const getColumnWidth = (field, headerName, { min = 90, max = 400, formatter } = {}) => {
+      const longest = records.reduce((longestSoFar, record) => {
+        const raw = record?.[field];
+        if (raw === null || raw === undefined || raw === '') return longestSoFar;
+        const text = formatter ? String(formatter(raw)) : String(raw);
+        return Math.max(longestSoFar, text.length);
+      }, String(headerName || field).length);
+      return Math.min(Math.max(longest * 8 + 32, min), max);
+    };
+
+    return [
+      {
+        headerName: "S/N",
+        field: "serialNumber",
+        width: 70,
+        sortable: false,
+        editable: false, // Serial number should never be editable
+        pinned: 'left',
+      },
+      {
+        headerName: "Observer",
+        field: "Observer name",
+        width: getColumnWidth("Observer name", "Observer"),
+        editable: isEditable,
+        pinned: 'left',
+      },
+      {
+        headerName: "Bird ID",
+        field: "SHB individual ID",
+        width: getColumnWidth("SHB individual ID", "Bird ID"),
+        editable: isEditable,
+        cellRenderer: (params) => {
+          if (!params.value || params.value === '') return '';
+          // Display Bird ID as-is without formatting
+          return params.value;
+        }
+      },
+      {
+        headerName: "Location",
+        field: "Location",
+        cellRenderer: (params) =>
+          params.value ? `${params.value}` : '',
+        width: getColumnWidth("Location", "Location"),
+        editable: isEditable,
+        cellEditor: 'agSelectCellEditor',
+        cellEditorParams: {
+          values: LOCATION_OPTIONS
+        }
+      },
+      {
+        headerName: "Number of Bird(s)",
+        field: "Number of Birds",
+        cellRenderer: (params) =>
+          params.value != null && params.value !== '' ? params.value : '',
+        width: getColumnWidth("Number of Birds", "Number of Bird(s)"),
+        editable: isEditable,
+      },
+      {
+        headerName: "Height of Tree",
+        field: "Height of tree/m",
+        cellRenderer: (params) =>
+          params.value != null && params.value !== '' && !isNaN(params.value) ? `${params.value}m` : '',
+        width: getColumnWidth("Height of tree/m", "Height of Tree", { formatter: (v) => `${v}m` }),
+        editable: isEditable
+      },
+      {
+        headerName: "Height of Bird",
+        field: "Height of bird/m",
+        cellRenderer: (params) =>
+          params.value != null && params.value !== '' && !isNaN(params.value) ? `${params.value}m` : '',
+        width: getColumnWidth("Height of bird/m", "Height of Bird", { formatter: (v) => `${v}m` }),
+        editable: isEditable
+      },
+      {
+        headerName: "Date",
+        field: "Date",
+        cellRenderer: (params) => params.value ? this.formatDate(params.value) : '',
+        editable: isEditable,
+        width: getColumnWidth("Date", "Date", { formatter: (v) => this.formatDate(v) })
+      },
+      {
+        headerName: "Time",
+        field: "Time",
+        cellRenderer: (params) => {
+          if (params.value == null || params.value === '') return '';
+          const formattedTime = this.convertExcelTime(params.value);
+          return formattedTime;
+        },
+        width: getColumnWidth("Time", "Time", { formatter: (v) => this.convertExcelTime(v) }),
+        editable: isEditable
+      },
+      {
+        headerName: "Activity",
+        field: "Activity",
+        cellRenderer: (params) => params.value || '',
+        width: getColumnWidth("Activity", "Activity"),
+        editable: isEditable,
+        cellEditor: 'agSelectCellEditor',
+        cellEditorParams: {
+          values: ['Calling', 'Feeding', 'Perching', 'Preening', 'Others']
+        }
+      },
+      {
+        headerName: "Seen/Heard",
+        field: "Seen/Heard",
+        cellRenderer: (params) => params.value || '',
+        width: getColumnWidth("Seen/Heard", "Seen/Heard"),
+        editable: isEditable,
+        cellEditor: 'agSelectCellEditor',
+        cellEditorParams: {
+          values: ['Seen', 'Heard', 'Not found']
+        }
+      },
+      // Add delete button column as the LAST column for non-WWF-Volunteer users
+      ...(isEditable ? [{
+        headerName: "Actions",
+        field: "actions",
+        width: 100,
+        pinned: 'right',
+        cellRenderer: (params) => {
+          // Make the whole cell act as a delete button
+          return (
+            <div
+              onClick={async (e) => {
+                e.stopPropagation();
+
+                // Get the record ID from the row data
+                const recordId = params.data._id;
+                if (!recordId) {
+                  console.error('No record ID found for deletion');
+                  alert('Cannot delete record: No ID found');
+                  return;
+                }
+
+                // Confirm deletion
+                const confirmed = window.confirm('Are you sure you want to delete this survey record?');
+                if (!confirmed) return;
+
+                try {
+                  // Call the delete handler passed from parent
+                  if (this.props.onDataDelete) {
+                    await this.props.onDataDelete(recordId);
+                    console.log('Record deleted successfully:', recordId);
+                  } else {
+                    console.error('No delete handler provided');
+                    alert('Delete functionality not available');
+                  }
+                } catch (error) {
+                  console.error('Error deleting record:', error);
+                  alert('Failed to delete record. Please try again.');
+                }
+              }}
+              style={{
+                backgroundColor: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                margin: '2px',
+                textAlign: 'center',
+                userSelect: 'none',
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 'bold',
+              }}
+              title="Delete this row"
+            >
+              Delete
+            </div>
+          );
+        }
+      }] : [])
+    ];
+  }
+
   render() {
     try {
       const { data } = this.props;
@@ -1273,177 +1461,39 @@ getEmptyObservation() {
       // Check if user is not WWF-Volunteer to enable editing
       const userRole = localStorage.getItem('userRole'); // Assuming user role is stored in localStorage
       const isEditable = userRole !== 'WWF-Volunteer' && userRole !== null;
-      
-      const columns = [
-        { 
-          headerName: "S/N", 
-          field: "serialNumber",
-          width: 70,
-          sortable: false,
-          editable: false, // Serial number should never be editable
-        },
-        { 
-          headerName: "Observer", 
-          field: "Observer name", 
-          width: 300,
-          editable: isEditable
-        },
-        { 
-          headerName: "Bird ID", 
-          field: "SHB individual ID", 
-          width: 200,
-          editable: isEditable,
-          cellRenderer: (params) => {
-            if (!params.value || params.value === '') return '';
-            // Display Bird ID as-is without formatting
-            return params.value;
-          }
-        },
-        {
-          headerName: "Location",
-          field: "Location",
-          cellRenderer: (params) =>
-            params.value ? `${params.value}` : '',
-          width: 300,
-          editable: isEditable,
-          cellEditor: 'agSelectCellEditor',
-          cellEditorParams: {
-            values: LOCATION_OPTIONS
-          }
-        },
-        { 
-          headerName: "Number of Bird(s)", 
-          field: "Number of Birds",
-          cellRenderer: (params) => 
-            params.value != null && params.value !== '' ? params.value : '',
-          editable: isEditable,
-        },
-        {
-          headerName: "Height of Tree",
-          field: "Height of tree/m",
-          cellRenderer: (params) => 
-            params.value != null && params.value !== '' && !isNaN(params.value) ? `${params.value}m` : '',
-          editable: isEditable
-        },
-        {
-          headerName: "Height of Bird",
-          field: "Height of bird/m",
-          cellRenderer: (params) => 
-            params.value != null && params.value !== '' && !isNaN(params.value) ? `${params.value}m` : '',
-          editable: isEditable
-        },
-        { 
-          headerName: "Date", 
-          field: "Date", 
-          cellRenderer: (params) => params.value ? this.formatDate(params.value) : '',
-          editable: isEditable,
-          width: 120
-        },
-        {
-          headerName: "Time",
-          field: "Time",
-          cellRenderer: (params) => {
-            if (params.value == null || params.value === '') return '';
-            console.log('Time value:', params.value, 'Type:', typeof params.value);
-            const formattedTime = this.convertExcelTime(params.value);
-            console.log('Formatted time:', formattedTime);
-            return formattedTime;
-          },
-          width: 100,
-          editable: isEditable
-        },
-        {
-          headerName: "Activity",
-          field: "Activity",
-          cellRenderer: (params) => params.value || '',
-          width: 300,
-          editable: isEditable,
-          cellEditor: 'agSelectCellEditor',
-          cellEditorParams: {
-            values: ['Calling', 'Feeding', 'Perching', 'Preening', 'Others']
-          }
-        },
-        {
-          headerName: "Seen/Heard",
-          field: "Seen/Heard",
-          cellRenderer: (params) => params.value || '',
-          width: 300,
-          editable: isEditable,
-          cellEditor: 'agSelectCellEditor',
-          cellEditorParams: {
-            values: ['Seen', 'Heard', 'Not found']
-          }
-        },
-        // Add delete button column as the LAST column for non-WWF-Volunteer users
-        ...(isEditable ? [{
-          headerName: "Actions",
-          field: "actions",
-          width: 100,
-          pinned: 'right',
-          cellRenderer: (params) => {
-            // Make the whole cell act as a delete button
-            return (
-              <div
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  
-                  // Get the record ID from the row data
-                  const recordId = params.data._id;
-                  if (!recordId) {
-                    console.error('No record ID found for deletion');
-                    alert('Cannot delete record: No ID found');
-                    return;
-                  }
-                  
-                  // Confirm deletion
-                  const confirmed = window.confirm('Are you sure you want to delete this survey record?');
-                  if (!confirmed) return;
-                  
-                  try {
-                    // Call the delete handler passed from parent
-                    if (this.props.onDataDelete) {
-                      await this.props.onDataDelete(recordId);
-                      console.log('Record deleted successfully:', recordId);
-                    } else {
-                      console.error('No delete handler provided');
-                      alert('Delete functionality not available');
-                    }
-                  } catch (error) {
-                    console.error('Error deleting record:', error);
-                    alert('Failed to delete record. Please try again.');
-                  }
-                }}
-                style={{
-                  backgroundColor: '#dc3545',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  padding: '8px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  margin: '2px',
-                  textAlign: 'center',
-                  userSelect: 'none',
-                  width: '100%',
-                  height: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 'bold',
-                }}
-                title="Delete this row"
-              >
-                Delete
-              </div>
-            );
-          }
-        }] : [])
-      ];
+
+      // Cache columnDefs so AG Grid gets a STABLE array reference across renders.
+      // A fresh array literal on every render forces AG Grid to tear down and
+      // rebuild the whole header/row model, which can blank the grid if a parent
+      // re-render happens to fire while a popup (e.g. the page-size selector) is open.
+      // Recompute only when editability changes or the underlying data reference changes
+      // (column widths are content-based, so they must follow the data).
+      if (!this._columnsCache || this._columnsCacheKey !== isEditable || this._columnsCacheData !== transformedData) {
+        this._columnsCacheKey = isEditable;
+        this._columnsCacheData = transformedData;
+        this._columnsCache = this.buildColumns(isEditable, transformedData);
+      }
+      const columns = this._columnsCache;
 
       return (
         <>
           <div className="ag-theme-alpine" style={{ height: '50vh', width: '100%' }}>
             <AgGridReact
+              ref={this.gridRef}
+              theme="legacy"
+              className="ag-theme-alpine"
+              popupParent={document.body}
+              postProcessPopup={(params) => {
+                // popupParent=document.body detaches the popup from the cell's own
+                // positioning context, so pin it directly below the triggering cell.
+                if (!params.eventSource || !params.ePopup) return;
+                const rect = params.eventSource.getBoundingClientRect();
+                params.ePopup.style.top = `${rect.bottom + window.scrollY}px`;
+                params.ePopup.style.left = `${rect.left + window.scrollX}px`;
+                // Force the popup above the table's own stacking context so it never
+                // gets clipped by or interferes with the grid underneath.
+                params.ePopup.style.zIndex = '9999';
+              }}
               columnDefs={columns}
               rowData={transformedData}
               components={{
@@ -1455,6 +1505,9 @@ getEmptyObservation() {
                   sortable: true,
                   resizable: true,
               }}
+              rowSelection="multiple"
+              suppressColumnVirtualisation={true}
+              enableCellTextSelection={true}
               paginationPageSize={(() => {
                 try {
                   const dataLength = transformedData?.length || 0;
@@ -1486,6 +1539,9 @@ getEmptyObservation() {
               stopEditingWhenCellsLoseFocus={true}
               getRowId={(params) => {
                 // Ensure we return a string ID, not an object
+                if (!params.data) {
+                  return String(params.node?.rowIndex ?? params.node?.id ?? '');
+                }
                 if (params.data._id) {
                   if (typeof params.data._id === 'string') {
                     return params.data._id;
@@ -1626,6 +1682,14 @@ getEmptyObservation() {
                 }
               }}
               getRowStyle={params => {
+                // Guard against transitional row nodes with no data yet (e.g. while
+                // AG Grid recalculates pagination when the page-size selector opens),
+                // otherwise this throws on params.data being undefined/null and can
+                // abort the whole render pass, leaving the grid blank.
+                if (!params.data) {
+                  return { backgroundColor: '#f9f9f9' };
+                }
+
                 let backgroundColor = '#f9f9f9';  // Default light gray
 
                 // Adjust row background based on "Seen/Heard"

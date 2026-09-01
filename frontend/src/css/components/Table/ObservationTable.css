@@ -1,4 +1,8 @@
 /* Custom AG Grid styling to fix scrolling issues */
+/* Only set the outer container's fixed height - ag-grid.css (legacy theme, now
+   imported) already implements the correct flex/overflow chain for domLayout="normal"
+   on .ag-root-wrapper/.ag-root-wrapper-body/.ag-root/.ag-body-viewport/.ag-center-cols-viewport.
+   Re-declaring those with !important here previously fought AG Grid's own scroll wiring. */
 .ag-theme-alpine {
   --ag-row-height: 45px;
   --ag-header-height: 48px;
@@ -6,87 +10,46 @@
   --ag-header-background-color: #f5f7fa;
   --ag-odd-row-background-color: #ffffff;
   --ag-row-border-color: #eee;
-  height: 55vh !important;
-  max-height: 55vh !important;
-  overflow: hidden !important;
-  position: relative;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-  will-change: transform;
-  contain: strict;
-  isolation: isolate;
+  height: 55vh;
+  width: 100%;
 }
 
-/* Fix for the scroll always going back to top */
-.ag-root {
-  overflow: hidden !important;
-  height: 100% !important;
-}
-
-.ag-root-wrapper {
-  overflow: hidden !important;
-  position: relative;
-  height: 100% !important;
-  min-height: calc(100% - 10px) !important;
-}
-
-.ag-body-viewport {
-  overflow-y: auto !important;
-  overflow-x: auto !important;
-  position: relative !important;
-  will-change: transform;
-  scroll-behavior: smooth;
-  height: auto !important;
-  overscroll-behavior: contain;
-  scroll-snap-type: y proximity;
-  touch-action: pan-y;
-}
-
-.ag-center-cols-clipper {
-  min-height: 100px;
+.ag-header {
+  background-color: #f5f7fa;
+  border-bottom: 1px solid #dde2eb;
 }
 
 /* Custom scrollbars */
-.ag-body-viewport::-webkit-scrollbar {
+.ag-body-viewport::-webkit-scrollbar,
+.ag-center-cols-viewport::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 
-.ag-body-viewport::-webkit-scrollbar-track {
+.ag-body-viewport::-webkit-scrollbar-track,
+.ag-center-cols-viewport::-webkit-scrollbar-track {
   background: #f1f1f1;
   border-radius: 10px;
 }
 
-.ag-body-viewport::-webkit-scrollbar-thumb {
+.ag-body-viewport::-webkit-scrollbar-thumb,
+.ag-center-cols-viewport::-webkit-scrollbar-thumb {
   background: #c1c1c1;
   border-radius: 10px;
 }
 
-.ag-body-viewport::-webkit-scrollbar-thumb:hover {
+.ag-body-viewport::-webkit-scrollbar-thumb:hover,
+.ag-center-cols-viewport::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
-}
-
-/* Fix to prevent rows from disappearing when scrolling */
-.ag-body-horizontal-scroll {
-  position: sticky;
-  bottom: 0;
-  z-index: 5;
 }
 
 /* Fix for Firefox scrolling issues */
 @supports (-moz-appearance:none) {
-  .ag-body-viewport {
-    will-change: transform;
+  .ag-body-viewport,
+  .ag-center-cols-viewport {
     scrollbar-width: thin;
     scrollbar-color: #c1c1c1 #f1f1f1;
   }
-}
-
-/* Make header sticky */
-.ag-header {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 100 !important;
 }
 
 /* Ensure all cells are properly sized */
@@ -99,31 +62,9 @@
   line-height: 1.4 !important;
 }
 
-/* Prevent grid from jumping when scrolling */
-.ag-body-viewport.ag-layout-normal {
-  contain: content !important;
-  scroll-padding: 2px;
-}
-
-/* Ensure the row container has proper height */
-.ag-center-cols-viewport {
-  overscroll-behavior: contain;
-  overflow-x: hidden !important;
-}
-
-/* Ensure viewport properly handles wheel events */
-.ag-root-wrapper, .ag-body-viewport {
-  -webkit-overflow-scrolling: touch;
-}
-
 /* Ensure row heights are consistent */
 .ag-row {
   contain: layout !important;
-}
-
-/* Improve performance */
-.ag-center-cols-container {
-  width: 100% !important;
 }
 
 /* ===== AG SELECT CELL EDITOR STYLING ===== */
@@ -175,11 +116,28 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
 }
 
-/* Option list styling */
-.ag-select-list {
+/* Option list styling - scoped to the cell editor's popup only. `.ag-select-list`
+   is a generic class AG Grid reuses for EVERY list-based popup (including the
+   pagination page-size selector), so an unscoped rule here leaks into and can
+   break that unrelated popup's rendering. */
+.ag-popup-editor .ag-select-list {
   border-radius: 4px !important;
   max-height: 250px !important;
   overflow-y: auto !important;
+}
+
+/* With popupParent={document.body}, popups float outside the grid's own DOM/
+   scroll container, so wheel scrolling over the popup can chain to and move
+   the table underneath once the popup's own list finishes scrolling. Contain
+   the scroll to the popup itself. */
+.ag-popup,
+.ag-select-list {
+  overscroll-behavior: contain !important;
+}
+
+/* Keep the detached popup floating above the table's own stacking context. */
+.ag-popup {
+  z-index: 9999 !important;
 }
 
 /* First option styling */

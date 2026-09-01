@@ -1,5 +1,5 @@
-import React, { Suspense, lazy, Component } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { Suspense, lazy, Component, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import './css/App.css';
 import { ClipLoader } from 'react-spinners';
 import { initializeMapUtils } from './utils/mapUtils.js';
@@ -7,6 +7,7 @@ import { initializeTheme } from './utils/themeUtils.js';
 import DetailedAnalysisPopup from './components/DetailedAnalysisPopup.jsx';
 import ThemeToggle from './components/ThemeToggle/index.js';
 import NewSurveyModal from './components/Dashboard/NewSurveyModal.jsx';
+import RifleRangeRoadNewSurveyModal from './components/Dashboard/RifleRangeRoadNewSurveyModal.jsx';
 import AnomalyDetectionModal from './components/Dashboard/AnomalyDetectionModal.jsx';
 import MaintenanceBotButton from './components/MaintenanceBot/MaintenanceBotButton.jsx';
 import InteractiveGuide from './components/MaintenanceBot/InteractiveGuide.jsx';
@@ -28,9 +29,11 @@ import { AuthProvider } from './components/Auth/AuthContext.jsx';
 import { getCurrentUser, isLoggedIn, clearSession } from './data/loginData.js';
 import OAuthCallback from './components/Auth/OAuthCallback.jsx';
 import HomeRouteGuard from './components/Auth/HomeRouteGuard.jsx';
+import ProjectSwitcher from './components/ProjectSwitcher/ProjectSwitcher.jsx';
 
-import { fetchSurveyDataForHomePage, fetchSurveyData } from './data/shbData.js';
-import { getAllEvents } from './data/surveyData.js';
+import { fetchSurveyDataForHomePage, fetchSurveyData } from './data/strawheadedbulbul/shbData.js';
+import { getAllEvents } from './data/strawheadedbulbul/surveyData.js';
+import { getRifleRangeRoadSurveyData } from './data/riflerangeroad/surveyData.js';
 import { BASE_URL } from './config/apiConfig.js';
 
 // Dynamically import the components with explicit file extensions
@@ -40,9 +43,29 @@ const SurveyEvents = lazy(() => import('./Events/SurveyEvents.jsx'));
 const Settings = lazy(() => import('./Settings/Settings.jsx'));
 const ResetPassword = lazy(() => import('./components/ResetPassword/ResetPassword.jsx'));
 const LoginPage = lazy(() => import('./components/Login/LoginPage.jsx'));
+const RifleRangeRoadHome = lazy(() => import('./components/RifleRangeRoad/RifleRangeRoadHome.jsx'));
+const RifleRangeRoadDashboard = lazy(() => import('./components/RifleRangeRoad/RifleRangeRoadDashboard.jsx'));
+const RifleRangeRoadSurveyEvents = lazy(() => import('./components/RifleRangeRoad/RifleRangeRoadSurveyEvents.jsx'));
+const RifleRangeRoadSettings = lazy(() => import('./components/RifleRangeRoad/RifleRangeRoadSettings.jsx'));
 
 // Import bot data service
 import botDataService from './data/botData';
+
+function DynamicPageTitle() {
+  const location = useLocation();
+
+  useEffect(() => {
+    const title = location.pathname.startsWith('/RifleRangeRoad')
+      ? 'Rifle Range Road Project'
+      : location.pathname.startsWith('/StrawheadedBulbul')
+        ? 'Straw Headed Bulbul'
+        : 'WWF Project Platform';
+
+    document.title = title;
+  }, [location.pathname]);
+
+  return null;
+}
 
 class App extends Component {
   constructor(props) {
@@ -96,14 +119,32 @@ class App extends Component {
     };
   }
 
+  resolveDatabaseName = (pathname = window.location.pathname) => {
+    if (pathname.startsWith('/RifleRangeRoad')) return 'RifleRangeRoad';
+    if (pathname.startsWith('/StrawheadedBulbul')) return 'StrawHeadedBulbul';
+    return 'WWFSG';
+  };
+
+  updateDocumentTitle = () => {
+    const path = window.location.pathname || '/';
+    const title = path.startsWith('/RifleRangeRoad')
+      ? 'Rifle Range Road Project'
+      : path.startsWith('/StrawheadedBulbul')
+        ? 'Straw Headed Bulbul'
+        : 'WWF Project Platform';
+
+    document.title = title;
+  };
+
   componentDidMount() {
     console.log('=== App ComponentDidMount ===');
+    this.updateDocumentTitle();
     
     // Check and restore authentication state from localStorage
     this.checkAuthenticationStatus();
     
     // Load data based on authentication
-    this.loadData();
+    this.loadData(this.resolveDatabaseName());
     
     // Load bot data for Settings page
     this.loadBotData();
@@ -121,50 +162,51 @@ class App extends Component {
     // Listen for survey insertion events
     this.socket.on('surveyInserted', (data) => {
       console.log("Socket event - Survey inserted:", data);
-      this.loadData().then(() => this.updateAnomalyModalDataIfOpen());
+      this.loadData(this.resolveDatabaseName()).then(() => this.updateAnomalyModalDataIfOpen());
     });
     
     // Listen for survey update events
     this.socket.on('surveyUpdated', (data) => {
       console.log("Socket event - Survey updated:", data);
-      this.loadData().then(() => this.updateAnomalyModalDataIfOpen());
+      this.loadData(this.resolveDatabaseName()).then(() => this.updateAnomalyModalDataIfOpen());
     });
     
     // Listen for survey deletion events
     this.socket.on('surveyDeleted', (data) => {
       console.log("Socket event - Survey deleted:", data);
-      this.loadData().then(() => this.updateAnomalyModalDataIfOpen());
+      this.loadData(this.resolveDatabaseName()).then(() => this.updateAnomalyModalDataIfOpen());
     });
 
     // Listen for event-specific real-time updates
     this.socket.on('eventsAdded', (data) => {
       console.log("Socket event - Events added:", data);
-      this.loadData(); // Reload all data when events are added
+      this.loadData(this.resolveDatabaseName()); // Reload all data when events are added
     });
 
     this.socket.on('eventUpdated', (data) => {
       console.log("Socket event - Event updated:", data);
-      this.loadData(); // Reload all data when event is updated
+      this.loadData(this.resolveDatabaseName()); // Reload all data when event is updated
     });
 
     this.socket.on('eventParticipantsUpdated', (data) => {
       console.log("Socket event - Event participants updated:", data);
-      this.loadData(); // Reload all data when participants are updated
+      this.loadData(this.resolveDatabaseName()); // Reload all data when participants are updated
     });
 
     this.socket.on('eventsDeleted', (data) => {
       console.log("Socket event - Events deleted:", data);
-      this.loadData(); // Reload all data when events are deleted
+      this.loadData(this.resolveDatabaseName()); // Reload all data when events are deleted
     });
     
     // Keep the legacy event for backwards compatibility
     this.socket.on('survey-updated', (data) => {
       console.log("Socket event - Legacy survey updated:", data);
-      this.loadData(); // Reload data when updates occur
+      this.loadData(this.resolveDatabaseName()); // Reload data when updates occur
     });
 
     // Add resize event listener
     window.addEventListener('resize', this.handleWindowResize);
+    window.addEventListener('projectChanged', this.handleProjectChanged);
   }
 
   componentWillUnmount() {
@@ -173,6 +215,7 @@ class App extends Component {
       window.socket = null; // Clean up global socket reference
     }
     window.removeEventListener('resize', this.handleWindowResize);
+    window.removeEventListener('projectChanged', this.handleProjectChanged);
   }
 
   handleWindowResize = () => {
@@ -181,6 +224,15 @@ class App extends Component {
     if (this.state.showObservationPopup) {
       this.closeObservationPopup();
     }
+  };
+
+  handleProjectChanged = (event) => {
+    const databaseName = event.detail?.id === 'rifleRangeRoad'
+      ? 'RifleRangeRoad'
+      : event.detail?.id === 'strawHeadedBulbul'
+        ? 'StrawHeadedBulbul'
+        : 'WWFSG';
+    this.loadData(databaseName);
   };
 
   checkAuthenticationStatus = () => {
@@ -203,7 +255,9 @@ class App extends Component {
   onLoginSuccess = (loginResponse) => {
     console.log('Login successful:', loginResponse);
     
-    const userData = loginResponse.user || loginResponse.data || loginResponse;
+    const userData = loginResponse?.selectedProject
+      ? loginResponse
+      : loginResponse?.user || loginResponse?.data || loginResponse;
     
     // Ensure authentication data is stored consistently in localStorage
     localStorage.setItem('currentUser', JSON.stringify(userData));
@@ -219,7 +273,13 @@ class App extends Component {
     });
     
     console.log('Authentication state updated and persisted');
-    // No need to reload data since we only use public data
+    const selectedDatabase = userData.selectedProject === 'rifleRangeRoad'
+      ? 'RifleRangeRoad'
+      : userData.selectedProject === 'strawHeadedBulbul'
+        ? 'StrawHeadedBulbul'
+        : this.resolveDatabaseName();
+
+    this.loadData(selectedDatabase);
   };
 
   handleLogout = () => {
@@ -239,18 +299,20 @@ class App extends Component {
   };
 
   // Load public data only
-  loadData = async () => {
+  loadData = async (databaseName = this.resolveDatabaseName()) => {
     
     initializeMapUtils();
     initializeTheme();
 
-    const publicStats = await fetchSurveyDataForHomePage();
+    const publicStats = await fetchSurveyDataForHomePage(databaseName);
     console.log('Public statistics:', publicStats);
 
-    const shbData = await fetchSurveyData();
+    const shbData = await fetchSurveyData(databaseName);
     
     // Load events data
-    const eventsResponse = await getAllEvents();
+    const eventsResponse = databaseName === 'RifleRangeRoad'
+      ? await getRifleRangeRoadSurveyData()
+      : await getAllEvents(databaseName);
     console.log("Events response:", eventsResponse);
     let events = eventsResponse;
 
@@ -680,6 +742,8 @@ class App extends Component {
           
           
           <Router>
+            <DynamicPageTitle />
+            <ProjectSwitcher isAuthenticated={isAuthenticated} currentUser={currentUser} />
             <Suspense fallback={<div className="spinner-container"><ClipLoader color="#3498db" size={50} /></div>}>
               <Routes>
                 
@@ -703,7 +767,7 @@ class App extends Component {
                 <Route 
                   path="/StrawheadedBulbul" 
                   element={
-                    <HomeRouteGuard>
+                    <HomeRouteGuard isAuthenticated={isAuthenticated}>
                       <Home 
                         shbDataForPublic={shbDataForPublic}
                         isLoading={isLoading} 
@@ -716,6 +780,25 @@ class App extends Component {
                       />
                     </HomeRouteGuard>
                   } 
+                />
+
+                <Route
+                  path="/RifleRangeRoad"
+                  element={
+                    <HomeRouteGuard isAuthenticated={isAuthenticated}>
+                      <RifleRangeRoadHome
+                        shbDataForPublic={shbDataForPublic}
+                        isLoading={isLoading}
+                        isAuthenticated={isAuthenticated}
+                        onLoginSuccess={this.onLoginSuccess}
+                        openObservationPopup={this.openObservationPopup}
+                        closeObservationPopup={this.closeObservationPopup}
+                        onImageClick={this.openImageViewer}
+                        onOpenDeleteModal={this.handleOpenDeleteModal}
+                        databaseName="RifleRangeRoad"
+                      />
+                    </HomeRouteGuard>
+                  }
                 />
                 
                 {/* Protected Routes */}
@@ -741,7 +824,6 @@ class App extends Component {
                     path="/StrawheadedBulbul/surveyEvents" 
                     element={
                       <SurveyEvents 
-                        eventData={this.state.eventData}
                         isLoading={this.state.isLoading}
                         onRefreshEvents={this.loadData}
                         shouldOpenNewEventModal={this.state.shouldOpenNewEventModal}
@@ -760,6 +842,50 @@ class App extends Component {
                       />
                     } 
                   />
+                  <Route
+                    path="/RifleRangeRoad/dashboard"
+                    element={
+                      <RifleRangeRoadDashboard
+                        shbDataForPublic={shbDataForPublic}
+                        shbData={shbData}
+                        isLoading={isLoading}
+                        openDetailedAnalysis={this.openDetailedAnalysis}
+                        onAddSurvey={this.handleAddSurvey}
+                        onOpenNewSurveyModal={this.handleOpenNewSurveyModal}
+                        onCloseNewSurveyModal={this.handleCloseNewSurveyModal}
+                        openObservationPopup={this.openObservationPopup}
+                        closeObservationPopup={this.closeObservationPopup}
+                        onDataChange={this.handleDataChange}
+                        eventData={this.state.eventData}
+                        projectPath="/RifleRangeRoad"
+                      />
+                    }
+                  />
+                  <Route
+                    path="/RifleRangeRoad/surveyEvents"
+                    element={
+                      <RifleRangeRoadSurveyEvents
+                        eventData={this.state.eventData}
+                        isLoading={this.state.isLoading}
+                        onRefreshEvents={this.loadData}
+                        shouldOpenNewEventModal={this.state.shouldOpenNewEventModal}
+                        onNewEventModalHandled={this.handleNewEventModalHandled}
+                        projectPath="/RifleRangeRoad"
+                      />
+                    }
+                  />
+                  <Route
+                    path="/RifleRangeRoad/settings"
+                    element={
+                      <RifleRangeRoadSettings
+                        currentUser={this.state.currentUser}
+                        botData={this.state.botData}
+                        isBotDataLoading={this.state.isBotDataLoading}
+                        onRefreshBotData={this.loadBotData}
+                        projectPath="/RifleRangeRoad"
+                      />
+                    }
+                  />
                 </Route>
 
                 <Route path="/terms-of-service" element={<TermsOfServiceNotice />} />
@@ -774,12 +900,20 @@ class App extends Component {
         
         {currentUser && (
           <>
-            <NewSurveyModal 
-              show={showNewSurveyModal} 
-              onClose={this.handleCloseNewSurveyModal} 
-              onSubmit={this.handleAddSurvey}
-              onUploadSuccess={this.handleOpenUploadSuccessModal}
-            />
+            {window.location.pathname.startsWith('/RifleRangeRoad') ? (
+              <RifleRangeRoadNewSurveyModal
+                show={showNewSurveyModal}
+                onClose={this.handleCloseNewSurveyModal}
+                onSubmitSuccess={() => this.loadData()}
+              />
+            ) : (
+              <NewSurveyModal 
+                show={showNewSurveyModal} 
+                onClose={this.handleCloseNewSurveyModal} 
+                onSubmit={this.handleAddSurvey}
+                onUploadSuccess={this.handleOpenUploadSuccessModal}
+              />
+            )}
             <AnomalyDetectionModal 
               show={this.state.showAnomalyModal}
               data={this.state.anomalyModalData}
@@ -789,6 +923,7 @@ class App extends Component {
               isOpen={showDetailedAnalysis}
               onClose={this.closeDetailedAnalysis}
               data={detailedAnalysisData}
+              projectName={window.location.pathname.startsWith('/RifleRangeRoad') ? 'Rifle Range Road Project' : 'Straw Headed Bulbul'}
             />
             
             <MaintenanceBotButton 

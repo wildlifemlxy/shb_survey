@@ -1368,39 +1368,29 @@ class LoginPopup extends Component {
               <h1>Select a Project</h1>
               <p>Choose a project to continue</p>
             </div>
-            <div style={{ display: 'grid', gap: '12px', padding: '20px' }}>
+            <div className="project-selection-grid">
               {projectOptions.map(({ title, project }) => (
                 project ? (
                   <button
                     key={title}
                     type="button"
                     onClick={() => this.handleProjectSelection(project)}
-                    style={{
-                      padding: '16px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '8px',
-                      background: 'white',
-                      color: '#374151',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      fontWeight: '600'
-                    }}
+                    className="project-selection-tile"
                   >
-                    {title}
+                    <span className="project-selection-image-wrap">
+                      {project.image && (
+                        <img src={project.image} alt="" className="project-selection-image" />
+                      )}
+                    </span>
+                    <span className="project-selection-name">{title}</span>
                   </button>
                 ) : (
                   <div
                     key={title}
-                    style={{
-                      padding: '16px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '8px',
-                      color: '#374151',
-                      textAlign: 'left',
-                      fontWeight: '600'
-                    }}
+                    className="project-selection-tile project-selection-tile-disabled"
                   >
-                    {title}
+                    <span className="project-selection-image-wrap" />
+                    <span className="project-selection-name">{title}</span>
                   </div>
                 )
               ))}
@@ -1936,7 +1926,7 @@ class LoginPopup extends Component {
           
           <div className="login-header">
             <img src="/WWF%20Logo/WWF%20Logo%20Medium.jpg" alt="WWF Logo" className="login-logo" />
-            <h1>WWF SG Project Management Platform</h1>
+            <h1>WWF Project Platform</h1>
             <p>Please sign in to continue</p>
           </div>
 

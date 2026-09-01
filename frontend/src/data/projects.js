@@ -2,11 +2,20 @@
 export const PROJECTS = [
   {
     id: 'strawHeadedBulbul',
-    name: 'Straw-Headed Bulbul Survey',
+    name: 'Straw Headed Bulbul',
     description: 'A wildlife monitoring initiative tracking Straw-Headed Bulbul populations through survey walks, event coordination, and photo documentation across Singapore\'s nature reserves and parks.',
     path: '/StrawheadedBulbul',
+    image: '/shb.png',
     // Names as they appear in an Accounts document's `project` array (case-insensitive match)
     accountProjectNames: ['Straw-headed Bulbul']
+  },
+  {
+    id: 'rifleRangeRoad',
+    name: 'Rifle Range Road Project',
+    description: 'A conservation survey workspace for observations, field events, and project activity at Rifle Range Road.',
+    path: '/RifleRangeRoad',
+    image: '/forest/emergent.png',
+    accountProjectNames: ['Rifle Range Road', 'Rifle Road Road']
   }
 ];
 

@@ -9,6 +9,7 @@ import { faEye, faChartBar, faMapMarkedAlt, faTable } from '@fortawesome/free-so
 import OverviewTab from '../Tabs/Overview';
 import MapViewTab from '../Tabs/MapView/MapViewTab';
 import DataViewTab from '../Tabs/DataView/DataViewTab';
+import RifleRangeRoadDataViewTab from '../Tabs/DataView/RifleRangeRoadDataViewTab';
 import ChartsViewTab from '../Tabs/ChartsView/ChartsViewTab';
 
 // Import modal components
@@ -22,9 +23,11 @@ import { getValidCoordinates, getUniqueLocations, getUniqueActivity } from '../.
 import { standardizeCoordinates } from '../../utils/coordinateStandardization';
 import { handleTabChange } from '../../utils/mapUtils';
 import { filterData } from '../../utils/filterUtils';
+import { filterExternalMapRecords, isExternalSurveySelection, matchesSelectedSurveyType } from '../../utils/surveyTypeUtils';
 
 // Import CSS
 import '../../css/components/Dashboard/DashboardContainer.css';
+import '../../css/components/Tabs/RifleRangeRoadDataViewTab.css';
 
 class DashboardContainer extends Component {
   constructor(props) {
@@ -34,10 +37,17 @@ class DashboardContainer extends Component {
       filterActivity: '',
       searchQuery: '',
       activeTab: 'overview',
+      selectedDataType: props.defaultDataType || 'All',
+      filterType: '',
+      filterTimeOfDay: '',
+      filterWeather: '',
+      filterTaxa: '',
+      filterRoadkill: '',
+      filterRoadSide: '',
       locations: [],
       activities: [],
       validCoordinates: [],
-      filteredData: props.shbDataForPublic?.surveys || [],
+      filteredData: (props.dashboardData || props.shbData || props.shbDataForPublic?.surveys || []),
       currentDateTime: this.getFormattedDateTime(),
       showAddEventModal: false,
     };
@@ -58,7 +68,7 @@ class DashboardContainer extends Component {
 
   componentDidMount() {
     // Initialize data from props
-    if (this.props.shbData && this.props.shbData.length > 0) {
+    if (this.getDashboardData().length > 0) {
       this.updateDataFromProps();
     }
     
@@ -81,7 +91,7 @@ class DashboardContainer extends Component {
 
   componentDidUpdate(prevProps) {
     // Only update if shbData actually changed and is different
-    if (prevProps.shbData !== this.props.shbData && this.props.shbData) {
+    if (prevProps.shbData !== this.props.shbData || prevProps.dashboardData !== this.props.dashboardData) {
       // Use a flag to prevent infinite loops
       if (!this.isUpdating) {
         this.isUpdating = true;
@@ -95,14 +105,9 @@ class DashboardContainer extends Component {
   }
 
   updateDataFromProps = () => {
-    const surveyData = this.props.shbData;
+    const surveyData = this.getDashboardData();
     console.log('Updating data from props:', surveyData);
 
-    // Early return if no data
-    if (!surveyData || surveyData.length === 0) {
-      return;
-    }
-    
     const uniqueLocations = getUniqueLocations(surveyData);
     const uniqueActivities = getUniqueActivity(surveyData);
     const validCoordinates = getValidCoordinates(surveyData);
@@ -124,12 +129,93 @@ class DashboardContainer extends Component {
     });
   };
 
+  getDashboardData = () => {
+    const data = this.getRawDashboardData();
+    const records = Array.isArray(data) ? data : [];
+    if (!this.props.enableTypeTabs || this.state.selectedDataType === 'All') {
+      return records;
+    }
+
+    const selectedType = String(this.state.selectedDataType || '').trim();
+    return records.filter(record => matchesSelectedSurveyType(record, selectedType));
+  };
+
+  getDataTypes = () => {
+    const records = this.props.dashboardData || [];
+    return [...new Set(records
+      .map(record => String(record.type || '').trim())
+      .filter(Boolean))];
+  };
+
+  getDataTypeLabel = (dataType) => dataType
+    .replace(/^Data\s*\(/, '')
+    .replace(/\)\s*cleaned$/, '')
+    .trim();
+
+  getRawDashboardData = () => {
+    const data = this.props.enableTypeTabs
+      ? this.props.dashboardData
+      : this.props.dashboardData || this.props.shbData || this.props.shbDataForPublic?.surveys;
+    return Array.isArray(data) ? data : [];
+  };
+
+  getTimeOfDay = (record) => {
+    const value = record['Survey Start Time'] || record['Survey Start Time and End Time'] || '';
+    const hour = Number.parseInt(String(value).trim().match(/^\d{1,2}/)?.[0], 10);
+    return Number.isFinite(hour) ? (hour < 12 ? 'Morning' : 'Evening') : '';
+  };
+
+  getCustomFilters = () => {
+    const records = this.getRawDashboardData();
+    const uniqueValues = key => [...new Set(records.map(record => record[key]).filter(value => value !== null && value !== undefined && String(value).trim() !== '').map(String))].sort();
+    const roadSideKey = records.some(record => Object.prototype.hasOwnProperty.call(record, 'Which side of the road was it on?'))
+      ? 'Which side of the road was it on?'
+      : 'Which side of the road is it on? (N/S/On road)';
+    return [
+      { key: 'filterType', label: 'Survey Type', options: uniqueValues('type'), value: this.state.filterType },
+      { key: 'filterTimeOfDay', label: 'Time of Day', options: ['Morning', 'Evening'], value: this.state.filterTimeOfDay },
+      { key: 'filterWeather', label: 'Weather Conditions', options: uniqueValues('Weather Conditions'), value: this.state.filterWeather },
+      { key: 'filterTaxa', label: 'Taxa', options: uniqueValues('Taxa'), value: this.state.filterTaxa },
+      { key: 'filterRoadkill', label: 'Roadkill', options: uniqueValues('Roadkill?'), value: this.state.filterRoadkill },
+      { key: 'filterRoadSide', label: 'Road Side', options: uniqueValues(roadSideKey), value: this.state.filterRoadSide }
+    ];
+  };
+
+  getSurveyCount = (records) => {
+    const surveyKeys = new Set();
+    records.forEach(record => {
+      const date = record['Survey Date'] || record.Date || '';
+      const start = record['Survey Start Time'] || '';
+      const end = record['Survey End Time'] || '';
+      const combinedTime = record['Survey Start Time and End Time'] || '';
+      const timeKey = start || end ? `${start}|${end}` : combinedTime;
+      if (date || timeKey) surveyKeys.add(`${date}|${timeKey}`);
+    });
+    return surveyKeys.size;
+  };
+
+  setDataType = (selectedDataType) => {
+    this.setState({
+      selectedDataType,
+      filterType: selectedDataType === 'All' ? '' : selectedDataType
+    }, this.updateDataFromProps);
+  };
+
   // Filter methods
   handleFilterChange = (filters) => {
-    this.setState({ 
-      filterLocation: filters.filterLocation,
-      filterActivity: filters.filterActivity 
-    }, this.applyFilters);
+    this.setState(previousState => ({
+      selectedDataType: filters.filterType !== undefined
+        ? (filters.filterType || 'All')
+        : previousState.selectedDataType,
+      filterLocation: filters.filterLocation ?? previousState.filterLocation,
+      filterActivity: filters.filterActivity ?? previousState.filterActivity,
+      filterType: filters.filterType ?? previousState.filterType,
+      filterTimeOfDay: filters.filterTimeOfDay ?? previousState.filterTimeOfDay,
+      filterWeather: filters.filterWeather ?? previousState.filterWeather,
+      filterTaxa: filters.filterTaxa ?? previousState.filterTaxa,
+      filterRoadkill: filters.filterRoadkill ?? previousState.filterRoadkill,
+      filterRoadSide: filters.filterRoadSide ?? previousState.filterRoadSide
+    }), this.applyFilters);
   };
 
   // Search methods
@@ -138,10 +224,10 @@ class DashboardContainer extends Component {
   };
 
   applyFilters = () => {
-    const surveyData = this.props.shbDataForPublic?.surveys || [];
+    const surveyData = this.getDashboardData();
     
     // Early return if no data or currently updating
-    if (!surveyData || surveyData.length === 0 || this.isUpdating) {
+    if (this.isUpdating) {
       return;
     }
     
@@ -152,6 +238,19 @@ class DashboardContainer extends Component {
     };
     
     let filtered = filterData(surveyData, filters);
+
+    const customFilters = {
+      filterType: record => record.type,
+      filterTimeOfDay: record => this.getTimeOfDay(record),
+      filterWeather: record => record['Weather Conditions'],
+      filterTaxa: record => record.Taxa,
+      filterRoadkill: record => record['Roadkill?'],
+      filterRoadSide: record => record['Which side of the road was it on?'] || record['Which side of the road is it on? (N/S/On road)']
+    };
+    Object.entries(customFilters).forEach(([filterKey, getValue]) => {
+      const filterValue = this.state[filterKey];
+      if (filterValue) filtered = filtered.filter(record => String(getValue(record) || '').trim() === filterValue);
+    });
     
     // Apply additional search filtering if search query exists
     if (this.state.searchQuery && this.state.searchQuery.trim()) {
@@ -339,6 +438,9 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
 };
 
   render() {
+    const projectPath = this.props.projectPath || '/StrawheadedBulbul';
+    const projectName = this.props.projectName || 'Straw Headed Bulbul';
+    const isRifleRangeRoad = ['Rifle Range Road', 'Rifle Range Road Project'].includes(projectName);
     const { 
       filteredData, 
       filterLocation, 
@@ -357,6 +459,18 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
 
     const standardizedFilteredData = standardizeCoordinates(filteredData);
     const standardizedValidCoordinates = getValidCoordinates(standardizedFilteredData);
+    const dataTypes = this.props.enableTypeTabs
+      ? [
+        ...(this.props.hideAllDataType ? [] : ['All']),
+        ...this.getDataTypes()
+      ]
+      : [];
+    const showMapTab = true;
+    const mapRequiresSurveyType = this.props.enableTypeTabs && this.state.selectedDataType === 'All';
+    const isExternalSurvey = isRifleRangeRoad && isExternalSurveySelection(this.state.selectedDataType, filteredData);
+    const mapCoordinates = isRifleRangeRoad
+      ? (isExternalSurvey ? filterExternalMapRecords(filteredData) : getValidCoordinates(filteredData))
+      : standardizedValidCoordinates;
 
     return (
       <div className="dashboard-container">
@@ -367,14 +481,14 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
         <header className="dashboard-header">
           <div className="header-content">
             <div className="header-title">
-              <h1>Straw-headed Bulbul Survey Dashboard</h1>
+              <h1>{projectName} Survey Dashboard</h1>
               <div className="dashboard-datetime">
                 {this.state.currentDateTime}
               </div>
-              <p>Comprehensive Bird Observation Analytics</p>
+              <p>{this.props.enableTypeTabs ? 'Comprehensive Wildlife Survey Analytics' : 'Comprehensive Bird Observation Analytics'}</p>
             </div>
             <div className="header-actions">
-              <Link to="/StrawheadedBulbul" state={{ viaAppNavigation: true }} className="home-link">
+              <Link to={projectPath} state={{ viaAppNavigation: true }} className="home-link">
                 <FontAwesomeIcon icon={faHome} />
                 <span>Home</span>
               </Link>
@@ -390,74 +504,119 @@ exportChartsPDF = async (fileName, orientation, format = 'a4', useImageSmoothing
           data={filteredData || []}
           onFilterChange={this.handleFilterChange}
           onSearchChange={this.handleSearchChange}
+          customFilters={this.props.enableTypeTabs ? this.getCustomFilters() : []}
+          hideLocationActivity={this.props.hideLocationActivity}
+          className={this.props.filterClassName}
         />
         {/* Desktop Tab Navigation */}
         <section className="dashboard-tabs">
-          <div className="tabs-container">
-            <button 
+          <div className="tabs-container dashboard-tabs-container">
+            <div className="dashboard-main-tabs-row">
+              <button 
               key="overview-tab"
               className={`tab-button ${activeTab === 'overview' ? 'active' : ''}`}
               onClick={() => this.setActiveTab('overview')}
             >
               <FontAwesomeIcon icon={faEye} />
               <span style={{ marginLeft: 8 }}>Overview</span>
-            </button>
-            <button 
+              </button>
+              <button 
               key="charts-tab"
               className={`tab-button ${activeTab === 'charts' ? 'active' : ''}`}
               onClick={() => this.setActiveTab('charts')}
             >
               <FontAwesomeIcon icon={faChartBar} />
               <span style={{ marginLeft: 8 }}>Data Visualizations</span>
-            </button>
-            <button 
-              key="map-tab"
-              className={`tab-button ${activeTab === 'map' ? 'active' : ''}`}
-              onClick={() => this.setActiveTab('map')}
-            >
-              <FontAwesomeIcon icon={faMapMarkedAlt} />
-              <span style={{ marginLeft: 8 }}>Map View</span>
-            </button>
-            <button 
+              </button>
+              {showMapTab && (
+                <button 
+                  key="map-tab"
+                  className={`tab-button ${activeTab === 'map' ? 'active' : ''}`}
+                  onClick={() => this.setActiveTab('map')}
+                >
+                  <FontAwesomeIcon icon={faMapMarkedAlt} />
+                  <span style={{ marginLeft: 8 }}>Map View</span>
+                </button>
+              )}
+              <button 
               key="data-tab"
               className={`tab-button ${activeTab === 'data' ? 'active' : ''}`}
               onClick={() => this.setActiveTab('data')}
             >
               <FontAwesomeIcon icon={faTable} />
               <span style={{ marginLeft: 8 }}>Data Table</span>
-            </button>
+              </button>
+            </div>
+            {this.props.enableTypeTabs && (
+              <>
+                {!this.props.hideTypeLabel && <span className="dashboard-type-tabs-label">Survey type</span>}
+                {dataTypes.filter(dataType => activeTab !== 'map' || dataType !== 'All').map(dataType => (
+                  <button
+                    key={dataType}
+                    type="button"
+                    className={`tab-button dashboard-type-tab-button ${this.state.selectedDataType === dataType ? 'active' : ''}`}
+                    onClick={() => this.setDataType(dataType)}
+                  >
+                    {dataType === 'All' ? 'All Surveys' : this.getDataTypeLabel(dataType)}
+                  </button>
+                ))}
+              </>
+            )}
           </div>
         </section>
 
         {/* Tab Content */}
         <div className="dashboard-content">
           {activeTab === 'overview' && (
-            <OverviewTab 
+              <OverviewTab
               data={standardizedFilteredData}
               filteredData={filteredData}
+                surveyCount={this.getSurveyCount(filteredData)}
+                isRifleRangeRoad={isRifleRangeRoad}
             />
           )}
           
           {activeTab === 'charts' && (
             <ChartsViewTab 
               data={standardizedFilteredData}
+              isRifleRangeRoad={isRifleRangeRoad}
             />
           )}
           
           {activeTab === 'map' && (
-            <MapViewTab 
-              data={standardizedValidCoordinates}
-              openObservationPopup={this.props.openObservationPopup}
-              closeObservationPopup={this.props.closeObservationPopup}
-            />
+            mapRequiresSurveyType ? (
+              <div className="map-view-selection-prompt" style={{ minHeight: 420, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
+                <h2>Select a survey type to view the map</h2>
+                <p>Choose Regular, Rope Bridge, or External above.</p>
+              </div>
+            ) : (
+              <MapViewTab
+                data={mapCoordinates}
+                overviewData={standardizedFilteredData}
+                isRifleRangeRoad={isRifleRangeRoad}
+                isExternalSurvey={isExternalSurvey}
+                selectedDataType={this.state.selectedDataType}
+                openObservationPopup={this.props.openObservationPopup}
+                closeObservationPopup={this.props.closeObservationPopup}
+              />
+            )
           )}
           
           {activeTab === 'data' && (
-            <DataViewTab 
-              data={standardizedFilteredData}
-              onOpenNewSurveyModal={this.props.onOpenNewSurveyModal}
-              onDataChange={this.props.onDataChange}
-            />
+            isRifleRangeRoad ? (
+              <RifleRangeRoadDataViewTab 
+                data={standardizedFilteredData}
+                selectedDataType={this.state.selectedDataType}
+                onOpenNewSurveyModal={this.props.onOpenNewSurveyModal}
+                onDataChange={this.props.onDataChange}
+              />
+            ) : (
+              <DataViewTab 
+                data={standardizedFilteredData}
+                onOpenNewSurveyModal={this.props.onOpenNewSurveyModal}
+                onDataChange={this.props.onDataChange}
+              />
+            )
           )}
         </div>
 

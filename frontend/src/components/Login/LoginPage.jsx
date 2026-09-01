@@ -32,9 +32,13 @@ function LoginPage({ onLoginSuccess }) {
   }, []);
 
   if (isLoggedIn()) {
-    const accessibleProjects = getAccessibleProjects(getCurrentUser()?.project);
-    return accessibleProjects.length === 1
-      ? <Navigate to={accessibleProjects[0].path} state={{ viaAppNavigation: true }} replace />
+    const currentUser = getCurrentUser();
+    const accessibleProjects = getAccessibleProjects(currentUser?.project);
+    const selectedProject = PROJECTS.find(project => project.id === currentUser?.selectedProject);
+    const destination = selectedProject || (accessibleProjects.length === 1 ? accessibleProjects[0] : null);
+
+    return destination
+      ? <Navigate to={destination.path} state={{ viaAppNavigation: true }} replace />
       : <Navigate to="/" replace />;
   }
 
@@ -70,7 +74,7 @@ function LoginPage({ onLoginSuccess }) {
             />
           </div>
           <h1 className="hero-title">
-            WWF SG Project Management Platform
+            WWF Project Platform
           </h1>
           <div className="hero-datetime theme-datetime">
             {currentDateTime}
@@ -115,8 +119,8 @@ function LoginPage({ onLoginSuccess }) {
       <section className="info-section">
         <div className="info-container" style={{ gridTemplateColumns: '1fr', maxWidth: '900px', textAlign: 'left' }}>
           <div className="info-content">
-            {PROJECTS.map(project => (
-              <div key={project.id} style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
+            {PROJECTS.filter(project => project.showOnPublicHome !== false).map((project, index) => (
+              <div key={project.id} style={{ display: 'flex', gap: '2rem', alignItems: 'center', flexDirection: index % 2 === 0 ? 'row' : 'row-reverse' }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ marginBottom: '0.75rem' }}>
                     <h3 style={{ margin: 0 }}>{project.name}</h3>
@@ -142,7 +146,7 @@ function LoginPage({ onLoginSuccess }) {
                   </Link>
                 </div>
                 <img
-                  src={strawHeadedBulbulPainting}
+                  src={project.id === 'strawHeadedBulbul' ? strawHeadedBulbulPainting : project.image}
                   alt={project.name}
                   style={{ flex: '0 0 200px', width: '200px', borderRadius: '10px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)' }}
                 />

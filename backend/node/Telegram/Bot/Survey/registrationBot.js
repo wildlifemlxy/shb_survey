@@ -8,8 +8,8 @@
 
 const TelegramApi = require('../../utils/telegramApi');
 const { buildSurveyMessage, formatEventDate, buildGoogleCalendarLink, buildLocationLink } = require('../../utils/messageTemplates');
-const EventsController = require('../../../Controller/Events/eventsController');
-const TelegramController = require('../../../Controller/Telegram/telegramController');
+const EventsController = require('../../../Controller/strawHeadedBulbul/eventsController');
+const TelegramController = require('../../../Controller/strawHeadedBulbul/telegramController');
 const parseCustomDate = require('../../../cron/parseCustomDate');
 
 class RegistrationBot {

@@ -7,15 +7,16 @@ var cors = require("cors");
 
 var app = express(); // Initialize the Express app
 
-var surveyRoutes = require('./routes/surveyRoutes'); // Import MongoDB survey routes
-var eventsRoutes = require('./routes/eventsRoutes'); // Import MongoDB events routes
-var telegramRoutes = require('./routes/telegramRoutes'); // Import MongoDB telegram routes
-var userRoutes = require('./routes/usersRoutes'); // Import MongoDB user routes
-var mfaRoutes = require('./routes/mfaRoutes'); // Import MFA routes
-var galleryRoutes = require('./routes/galleryRoutes'); // Import images routes
-var animalIdentificationRoutes = require('./routes/animalIdentificationRoutes'); // Import animal identification routes
-var mapRoutes = require('./routes/mapRoutes'); // Import map configuration routes
-var googleCalendarRoutes = require('./routes/googleCalendarRoutes'); // Import .ics calendar-file download route (universal calendar fallback)
+var surveyRoutes = require('./routes/strawHeadedBulbul/surveyRoutes'); // Straw-headed Bulbul survey routes
+var rifleRangeRoadSurveyRoutes = require('./routes/rifleRangeRoad/surveyRoutes'); // Rifle Range Road survey routes
+var eventsRoutes = require('./routes/strawHeadedBulbul/eventsRoutes'); // Import MongoDB events routes
+var telegramRoutes = require('./routes/strawHeadedBulbul/telegramRoutes'); // Import MongoDB telegram routes
+var userRoutes = require('./routes/strawHeadedBulbul/usersRoutes'); // Import MongoDB user routes
+var mfaRoutes = require('./routes/strawHeadedBulbul/mfaRoutes'); // Import MFA routes
+var galleryRoutes = require('./routes/strawHeadedBulbul/galleryRoutes'); // Import images routes
+var animalIdentificationRoutes = require('./routes/strawHeadedBulbul/animalIdentificationRoutes'); // Import animal identification routes
+var mapRoutes = require('./routes/strawHeadedBulbul/mapRoutes'); // Import map configuration routes
+var googleCalendarRoutes = require('./routes/strawHeadedBulbul/googleCalendarRoutes'); // Import .ics calendar-file download route (universal calendar fallback)
 
 app.use(cors()); // Enable CORS
 app.use(logger('dev')); // HTTP request logger
@@ -70,19 +71,30 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Register routes
 app.use('/surveys', surveyRoutes);
+app.use('/strawHeadedBulbul/surveys', surveyRoutes);
+app.use('/rifleRangeRoad/surveys', rifleRangeRoadSurveyRoutes);
 app.use('/events', eventsRoutes);
+app.use('/strawHeadedBulbul/events', eventsRoutes);
 app.use('/telegram', telegramRoutes);
+app.use('/strawHeadedBulbul/telegram', telegramRoutes);
 app.use('/users', userRoutes);
+app.use('/strawHeadedBulbul/users', userRoutes);
 app.use('/mfa', mfaRoutes);
+app.use('/strawHeadedBulbul/mfa', mfaRoutes);
 app.use('/gallery', galleryRoutes);
+app.use('/strawHeadedBulbul/gallery', galleryRoutes);
 app.use('/animal-identification', animalIdentificationRoutes);
+app.use('/strawHeadedBulbul/animal-identification', animalIdentificationRoutes);
 app.use('/api/map', mapRoutes);
+app.use('/strawHeadedBulbul/api/map', mapRoutes);
 app.use('/telegram-calendar', googleCalendarRoutes);
+app.use('/strawHeadedBulbul/telegram-calendar', googleCalendarRoutes);
 
 // Telegram webhook routes will be registered dynamically
 // This placeholder allows dynamic route registration before 404 handler
 app.telegramWebhookRouter = require('express').Router();
 app.use('/telegram/webhook', app.telegramWebhookRouter);
+app.use('/strawHeadedBulbul/telegram/webhook', app.telegramWebhookRouter);
 
 //
 // catch 404 and forward to error handler

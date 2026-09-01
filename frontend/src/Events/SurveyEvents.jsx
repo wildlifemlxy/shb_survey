@@ -85,6 +85,7 @@ class SurveyEvents extends Component {
 
   render() 
   {
+    const projectPath = this.props.projectPath || '/StrawheadedBulbul';
     const { activeTab } = this.state;
     // Accept eventData and isLoading as props for linkage
     const events = Array.isArray(this.props.eventData) ? this.props.eventData : [];
@@ -117,7 +118,7 @@ class SurveyEvents extends Component {
               <p>Organize and track all survey walk events</p>
             </div>
             <div className="header-actions">
-              <Link to="/StrawheadedBulbul" state={{ viaAppNavigation: true }} className="home-link">
+              <Link to={projectPath} state={{ viaAppNavigation: true }} className="home-link">
                 <FontAwesomeIcon icon={faHome} />
                 <span>Home</span>
               </Link>

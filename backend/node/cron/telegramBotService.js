@@ -1,8 +1,8 @@
 const axios = require('axios');
 const schedule = require('node-schedule');
-const EventsController = require('../Controller/Events/eventsController');
+const EventsController = require('../Controller/strawHeadedBulbul/eventsController');
 const parseCustomDate = require('./parseCustomDate');
-const TelegramController = require('../Controller/Telegram/telegramController');
+const TelegramController = require('../Controller/strawHeadedBulbul/telegramController');
 const botConfig = require('../Telegram/config/botConfig');
 const { sendTelegramMessage } = require('../Telegram/utils/sendMessage');
 const { buildLocationLink } = require('../Telegram/utils/messageTemplates');

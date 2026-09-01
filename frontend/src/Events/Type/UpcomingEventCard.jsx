@@ -3,7 +3,7 @@ import '../../css/components/Events/Type/UpcomingEvents.css';
 import ParticipantList from './ParticipantList';
 import '../../css/components/Dashboard/ObserverInfoSection.css'; // Import styles for location dropdown
 import '../../css/components/Dashboard/ObservationDetailsSection.css'; // Import styles for time dropdown
-import { deleteEvents, updateEvents, updateParticipants } from '../../data/surveyData';
+import { deleteEvents, updateEvents, updateParticipants } from '../../data/strawheadedbulbul/surveyData';
 
 class UpcomingEventCard extends Component {
   constructor(props) {

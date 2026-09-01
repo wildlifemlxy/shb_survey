@@ -1,9 +1,9 @@
 import simpleApiService from '../utils/simpleApiService';
 
 // Fetch survey data for public home page viewing (no authentication required)
-export async function fetchSurveyDataForHomePage() {
+export async function fetchSurveyDataForHomePage(databaseName = 'WWFSG') {
   try {
-    const response = await simpleApiService.getPublicStats();
+    const response = await simpleApiService.getPublicStats(databaseName);
     
     if (response.success && response.statistics) {
       return {
@@ -31,11 +31,11 @@ export async function fetchSurveyDataForHomePage() {
   }
 }
 
-export async function fetchSurveyData() 
+export async function fetchSurveyData(databaseName = 'WWFSG') 
 {
   try 
   {
-    const response = await simpleApiService.getStats();
+    const response = await simpleApiService.getStats(databaseName);
     return response;
   } catch (error) {
     console.error('Error fetching public survey statistics:', error);

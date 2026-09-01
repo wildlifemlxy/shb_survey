@@ -4,8 +4,9 @@ import LoginPopup from '../Auth/LoginPopup';
 import { getCurrentUser, isLoggedIn, clearSession } from '../../data/loginData';
 import { getUniqueLocations } from '../../utils/dataProcessing';
 import { standardizeCoordinates } from '../../utils/coordinateStandardization';
-import { fetchSurveyDataForHomePage } from '../../data/shbData';
+import { fetchSurveyDataForHomePage } from '../../data/strawheadedbulbul/shbData';
 import Gallery from '../Gallery/Gallery';
+import RifleRangeRoadGallery from '../Gallery/RifleRangeRoadGallery';
 import '../../css/components/Home/Home.css';
 
 
@@ -268,7 +269,7 @@ class Home extends React.Component {
 
     // Use public statistics for all users (authenticated and unauthenticated)
     // PRIORITY 1: Use shbDataForPublic prop if available
-    if (shbDataForPublic && typeof shbDataForPublic === 'object' && 
+    if (!this.props.databaseName && shbDataForPublic && typeof shbDataForPublic === 'object' && 
         'observations' in shbDataForPublic && 'locations' in shbDataForPublic && 
         'volunteers' in shbDataForPublic && 'yearsActive' in shbDataForPublic) {
       
@@ -287,7 +288,7 @@ class Home extends React.Component {
     // FALLBACK: Fetch if shbDataForPublic prop is not available
     console.log('⚠️ shbDataForPublic prop not available, falling back to fetch...');
     try {
-      const publicStats = await fetchSurveyDataForHomePage();
+      const publicStats = await fetchSurveyDataForHomePage(this.props.databaseName);
       console.log('Fetched public statistics for all users:', publicStats);
       
       if (publicStats && typeof publicStats === 'object' && 
@@ -364,6 +365,21 @@ class Home extends React.Component {
 
   render() {
     const { statistics, currentDateTime, isLoginPopupOpen, fullscreenMedia } = this.state;
+    const projectPath = this.props.projectPath || '/StrawheadedBulbul';
+    const projectName = this.props.projectName || 'Straw Headed Bulbul';
+    const showGallery = this.props.showGallery !== false;
+    const isRifleRangeRoadProject = ['Rifle Range Road', 'Rifle Range Road Project'].includes(projectName);
+    const projectInfo = isRifleRangeRoadProject
+      ? {
+          title: 'Protecting Rifle Range Road',
+          description: 'Rifle Range Road is an important conservation area where field observations and coordinated survey work support the protection of Singapore\'s natural habitats.',
+          detail: 'Our conservation platform combines citizen science with advanced technology to monitor biodiversity, coordinate field activities, and support evidence-based conservation work.'
+        }
+      : {
+          title: 'Protecting the Straw-headed Bulbul',
+          description: 'The Straw-headed Bulbul (Pycnonotus zeylanicus) is a critically endangered songbird native to Southeast Asia. Once common across the region, habitat loss and illegal trapping have pushed this species to the brink of extinction.',
+          detail: 'Our conservation platform combines citizen science with advanced technology to monitor populations, track behaviors, and coordinate protection efforts across Singapore\'s nature reserves and parks.'
+        };
     
     // Prioritize authentication status from props, fallback to state
     const isAuthenticated = this.props.isAuthenticated !== undefined ? this.props.isAuthenticated : this.state.isAuthenticated;
@@ -415,7 +431,7 @@ class Home extends React.Component {
               />
             </div>
             <h1 className="hero-title">
-              WWF Straw-headed Bulbul Survey Platform
+              WWF {projectName} Survey Platform
             </h1>
             <div className="hero-datetime theme-datetime">
               {currentDateTime}
@@ -427,23 +443,42 @@ class Home extends React.Component {
             {/* CTA buttons - Only show when authenticated */}
             {isAuthenticated ? (
               <div className="hero-cta">
-                <Link to="/StrawheadedBulbul/dashboard" className="btn btn-primary btn-primary-cta">
+                <Link to={`${projectPath}/dashboard`} className="btn btn-primary btn-primary-cta">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M3 13H11V3H3V13ZM3 21H11V15H3V21ZM13 21H21V11H13V21ZM13 3V9H21V3H13Z"/>
                   </svg>
                   Explore Dashboard
                 </Link>
-                <Link to="/StrawheadedBulbul/surveyEvents" className="btn btn-accent btn-accent-cta">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2Z"/>
-                  </svg>
-                  Survey Event Management
-                </Link>
+                {isRifleRangeRoadProject ? (
+                  <button type="button" className="btn btn-accent btn-accent-cta" disabled title="Coming soon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2Z"/>
+                    </svg>
+                    Survey Event Management
+                  </button>
+                ) : (
+                  <Link to={`${projectPath}/surveyEvents`} className="btn btn-accent btn-accent-cta">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2Z"/>
+                    </svg>
+                    Survey Event Management
+                  </Link>
+                )}
                 {(() => {
                   // Only show Settings link if user is not a WWF-Volunteer (using same logic as render method)
                   if (!isWWFVolunteer) {
+                    if (isRifleRangeRoadProject) {
+                      return (
+                        <button type="button" className="btn btn-secondary btn-secondary-cta" disabled title="Coming soon">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2L3.09 8.26L4 21L12 17L20 21L20.91 8.26L12 2Z"/>
+                          </svg>
+                          Settings
+                        </button>
+                      );
+                    }
                     return (
-                      <Link to="/StrawheadedBulbul/settings" className="btn btn-secondary btn-secondary-cta">
+                      <Link to={`${projectPath}/settings`} className="btn btn-secondary btn-secondary-cta">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M12 2L3.09 8.26L4 21L12 17L20 21L20.91 8.26L12 2Z"/>
                         </svg>
@@ -478,7 +513,7 @@ class Home extends React.Component {
               </div>
             ) : this.props.isPublicPreview ? (
               <div className="hero-cta">
-                <Link to="/" className="btn btn-login">
+                <Link to="/" className="btn-login-cta">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12,4A4,4 0 1,0 16,8A4,4 0 0,0 12,4M12,14C7.58,14 4,15.79 4,18V20H20V18C20,15.79 16.42,14 12,14Z"/>
                   </svg>
@@ -518,7 +553,7 @@ class Home extends React.Component {
           <div className="features-container">
             <div className="features-header">
               <h2 className="features-title">Comprehensive Conservation Tools</h2>
-              <p className="features-subtitle">Everything you need to monitor, analyze, and protect the Straw-headed Bulbul population</p>
+              <p className="features-subtitle">Everything you need to monitor, analyze, and protect the {projectName} project</p>
             </div>
               <div className="features-grid auth-features-grid">
                 {/* Dashboard Card */}
@@ -535,7 +570,7 @@ class Home extends React.Component {
                     <li><span className="feature-bullet dashboard-bullet">&#8226;</span>Comprehensive conservation reports</li>
                   </ul>
                   {isAuthenticated ? (
-                    <Link to="/StrawheadedBulbul/dashboard" className="feature-button dashboard-button">
+                    <Link to={`${projectPath}/dashboard`} className="feature-button dashboard-button">
                       View Dashboard
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 4L10.59 5.41L16.17 11H4V13H16.17L10.59 18.59L12 20L20 12L12 4Z"/>
@@ -565,12 +600,21 @@ class Home extends React.Component {
                     <li><span className="feature-bullet survey-bullet">&#8226;</span>Live updates for upcoming events</li>
                   </ul>
                   {isAuthenticated ? (
-                    <Link to="/StrawheadedBulbul/surveyEvents" className="feature-button survey-button">
-                      Manage Surveys
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 4L10.59 5.41L16.17 11H4V13H16.17L10.59 18.59L12 20L20 12L12 4Z"/>
-                      </svg>
-                    </Link>
+                    isRifleRangeRoadProject ? (
+                      <button type="button" className="feature-button survey-button" disabled title="Coming soon">
+                        Manage Surveys
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 4L10.59 5.41L16.17 11H4V13H16.17L10.59 18.59L12 20L20 12L12 4Z"/>
+                        </svg>
+                      </button>
+                    ) : (
+                      <Link to={`${projectPath}/surveyEvents`} className="feature-button survey-button">
+                        Manage Surveys
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 4L10.59 5.41L16.17 11H4V13H16.17L10.59 18.59L12 20L20 12L12 4Z"/>
+                        </svg>
+                      </Link>
+                    )
                   ) : (
                     <Link to="/" className="feature-button survey-button">
                       Go to Login
@@ -599,12 +643,21 @@ class Home extends React.Component {
                           <li><span className="feature-bullet telegram-bullet">&#8226;</span>Manage Telegram access and permissions</li>
                         </ul>
                         {isAuthenticated ? (
-                          <Link to="/StrawheadedBulbul/settings" className="feature-button telegram-button">
-                            Telegram Settings
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M12 4L10.59 5.41L16.17 11H4V13H16.17L10.59 18.59L12 20L20 12L12 4Z"/>
-                            </svg>
-                          </Link>
+                          isRifleRangeRoadProject ? (
+                            <button type="button" className="feature-button telegram-button" disabled title="Coming soon">
+                              Telegram Settings
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 4L10.59 5.41L16.17 11H4V13H16.17L10.59 18.59L12 20L20 12L12 4Z"/>
+                              </svg>
+                            </button>
+                          ) : (
+                            <Link to={`${projectPath}/settings`} className="feature-button telegram-button">
+                              Telegram Settings
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 4L10.59 5.41L16.17 11H4V13H16.17L10.59 18.59L12 20L20 12L12 4Z"/>
+                              </svg>
+                            </Link>
+                          )
                         ) : (
                           <Link to="/" className="feature-button telegram-button">
                             Go to Login
@@ -622,36 +675,35 @@ class Home extends React.Component {
             </div>
           </section>
 
-        {/* Gallery Component */}
-        <Gallery 
-          onImageClick={this.props.onImageClick}
-          onOpenDeleteModal={this.props.onOpenDeleteModal}
-        />
+        {showGallery && (
+          isRifleRangeRoadProject ? (
+            <RifleRangeRoadGallery />
+          ) : (
+            <Gallery 
+              onImageClick={this.props.onImageClick}
+              onOpenDeleteModal={this.props.onOpenDeleteModal}
+            />
+          )
+        )}
 
         {/* Info Section */}
         <section className="info-section">
-          <div className="info-container">
+          <div className={`info-container ${showGallery ? '' : 'info-container-no-image'}`}>
             <div className="info-content">
-              <h3>Protecting the Straw-headed Bulbul</h3>
-              <p>
-                The Straw-headed Bulbul (Pycnonotus zeylanicus) is a critically endangered songbird 
-                native to Southeast Asia. Once common across the region, habitat loss and illegal 
-                trapping have pushed this species to the brink of extinction.
-              </p>
-              <p>
-                Our conservation platform combines citizen science with advanced technology to monitor 
-                populations, track behaviors, and coordinate protection efforts across Singapore's 
-                nature reserves and parks.
-              </p>
+              <h3>{projectInfo.title}</h3>
+              <p>{projectInfo.description}</p>
+              <p>{projectInfo.detail}</p>
               <div className="info-stats">
                 <div className="stat-item">
                   <div className="stat-number">{statistics.totalObservations}</div>
                   <div className="stat-label">Observations</div>
                 </div>
-                <div className="stat-item">
-                  <div className="stat-number">{statistics.uniqueLocations}</div>
-                  <div className="stat-label">Locations</div>
-                </div>
+                {!isRifleRangeRoadProject && (
+                  <div className="stat-item">
+                    <div className="stat-number">{statistics.uniqueLocations}</div>
+                    <div className="stat-label">Locations</div>
+                  </div>
+                )}
                 <div className="stat-item">
                   <div className="stat-number">{statistics.totalVolunteers}</div>
                   <div className="stat-label">Volunteers</div>
@@ -662,25 +714,45 @@ class Home extends React.Component {
                 </div>
               </div>
             </div>
-            <div className="info-image">
-              <div className="painting-container">
-                <img 
-                  src="/Feng Yun Painting.jpg" 
-                  alt="Feng Yun Traditional Chinese Painting - Artistic representation of nature and wildlife conservation"
-                  className="feng-yun-painting"
-                  onError={(e) => {
-                    e.target.src = '/Feng Yun Painting.jpg';
-                  }}
-                />
-                <div className="painting-overlay">
-                  <div className="painting-caption">
-                    <h4>Art Inspiring Conservation</h4>
-                    <p>Credits: Feng Yun</p>
-                    <p>Capturing the delicate beauty of Singapore's endangered birds and inspiring deeper connection with nature through artistic expression</p>
-                  </div>
+            {showGallery && (
+              <div className="info-image">
+                <div className="painting-container">
+                  {isRifleRangeRoadProject ? (
+                    <>
+                      <img
+                        src="/forest/emergent.png"
+                        alt="Rifle Range Road forest canopy - representing the conservation area's natural habitat"
+                        className="feng-yun-painting"
+                      />
+                      <div className="painting-overlay">
+                        <div className="painting-caption">
+                          <h4>Protecting Natural Habitats</h4>
+                          <p>Rifle Range Road's forest canopy, home to Singapore's biodiversity</p>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <img 
+                        src="/Feng Yun Painting.jpg" 
+                        alt="Feng Yun Traditional Chinese Painting - Artistic representation of nature and wildlife conservation"
+                        className="feng-yun-painting"
+                        onError={(e) => {
+                          e.target.src = '/Feng Yun Painting.jpg';
+                        }}
+                      />
+                      <div className="painting-overlay">
+                        <div className="painting-caption">
+                          <h4>Art Inspiring Conservation</h4>
+                          <p>Credits: Feng Yun</p>
+                          <p>Capturing the delicate beauty of Singapore's endangered birds and inspiring deeper connection with nature through artistic expression</p>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </section>
 

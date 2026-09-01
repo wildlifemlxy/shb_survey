@@ -1,5 +1,7 @@
 import React, { Component } from 'react';
+import { BASE_URL } from '../../config/apiConfig.js';
 import { fetchMapConfig, SINGAPORE_CENTER, SINGAPORE_ZOOM, DEFAULT_MAP_TYPE } from '../../config/mapConfig';
+import { normalizeMapMarkerValue } from '../../utils/surveyTypeUtils';
 
 class GoogleMapComponent extends Component {
   constructor(props) {
@@ -7,6 +9,9 @@ class GoogleMapComponent extends Component {
     this.mapRef = React.createRef();
     this.map = null;
     this.markers = [];
+    this.routePolyline = null;
+    this.lastMarkerDataHash = null;
+    this.hasFittedInitialMarkers = false;
     this.markerClusterer = null; // Add marker clusterer
     this.loadingTimeout = null; // Add timeout for loading
     this.retryCount = 0; // Add retry counter
@@ -17,6 +22,7 @@ class GoogleMapComponent extends Component {
       isLoadingMaps: false,
       isLoadingClusterer: false,
       selectedObservation: null, // Track selected observation for sidebar
+      detailTab: 'overview',
     };
     
     // Throttle functions to improve performance
@@ -201,12 +207,12 @@ class GoogleMapComponent extends Component {
   initializeMap = () => {
     if (!this.mapRef.current || !window.google) return;
 
-    const { zoom = SINGAPORE_ZOOM } = this.props;
+    const { zoom = SINGAPORE_ZOOM, center = SINGAPORE_CENTER } = this.props;
     
     // Initialize the map with optimized settings for faster loading
     this.map = new window.google.maps.Map(this.mapRef.current, {
-      center: { lat: SINGAPORE_CENTER.lat, lng: SINGAPORE_CENTER.lng }, // Singapore center from config
-      zoom: 11, // Default zoom level
+      center: { lat: center.lat, lng: center.lng },
+      zoom,
       minZoom: 11, // Minimum zoom level
       maxZoom: 20, // Maximum zoom level
       mapTypeId: window.google.maps.MapTypeId.HYBRID,
@@ -253,6 +259,93 @@ class GoogleMapComponent extends Component {
     });
   }
 
+  normalizeLampPostKey = (value) => {
+    if (value === null || value === undefined) return null;
+
+    const text = String(value).trim();
+    if (!text) return null;
+
+    const cleaned = text
+      .toUpperCase()
+      .replace(/^NO\.?\s*/, '')
+      .replace(/^LTA\s+/, '')
+      .replace(/^LAMP\s*POST\s*/, '')
+      .replace(/^LAMPPOST\s*/, '')
+      .replace(/^LP\s*/, '')
+      .replace(/^POST\s*/, '')
+      .replace(/^#/, '')
+      .replace(/[^A-Z0-9]/g, '');
+
+    if (!cleaned) return null;
+
+    const trimmed = cleaned.replace(/^0+(?=\d)/, '');
+    const variants = [];
+
+    if (trimmed) variants.push(trimmed);
+
+    const numericOnly = trimmed.replace(/[^0-9]/g, '');
+    if (numericOnly) variants.push(numericOnly);
+
+    const alphaSuffixMatch = trimmed.match(/^(\d+)([A-Z])$/u);
+    if (alphaSuffixMatch) {
+      const [, numericPart, suffix] = alphaSuffixMatch;
+      variants.push(`${numericPart}${suffix}`);
+      variants.push(numericPart);
+    }
+
+    return [...new Set(variants.filter(Boolean))].find(Boolean) || null;
+  };
+
+  getLampPostLookupKeys = (value) => {
+    const normalizedKey = this.normalizeLampPostKey(value);
+    if (!normalizedKey) return [];
+
+    const keys = new Set([normalizedKey]);
+    const numericPart = normalizedKey.replace(/[^0-9]/g, '');
+    const alphaPart = normalizedKey.replace(/[^A-Z]/g, '');
+
+    if (numericPart) {
+      keys.add(numericPart);
+      keys.add(String(Number(numericPart)));
+    }
+
+    if (alphaPart) {
+      keys.add(`${numericPart}${alphaPart}`);
+    }
+
+    return Array.from(keys).filter(Boolean);
+  };
+
+  getCoordinatesForObservation = (observation) => {
+    const coordinateText = observation['Co-ordinates/Nearest Landmarks']
+      ?? observation['Co-ordinates/Nearest Landmark']
+      ?? observation['Nearest Landmarks']
+      ?? observation.Landmark;
+
+    const directCoordinates = coordinateText ? (() => {
+      const parts = String(coordinateText).trim().split(/[\s,]+/).filter(Boolean);
+      if (parts.length < 2) return null;
+      const lat = Number.parseFloat(parts[0]);
+      const lng = Number.parseFloat(parts[1]);
+      return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+    })() : null;
+
+    if (directCoordinates) {
+      return directCoordinates;
+    }
+
+    const latValue = observation.Lat ?? observation.Latitude ?? observation.latitude ?? observation.lat;
+    const lngValue = observation.Long ?? observation.Lon ?? observation.Longitude ?? observation.longitude ?? observation.lng;
+    const lat = Number(latValue);
+    const lng = Number(lngValue);
+
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return { lat, lng };
+    }
+
+    return null;
+  };
+
   // Aggressive keep-alive mechanism for InfoWindows
   startInfoWindowKeepAlive = () => {
     if (this.infoWindowKeepAlive) {
@@ -282,8 +375,32 @@ class GoogleMapComponent extends Component {
     }, 500); // Check every 500ms for more aggressive monitoring
   };
 
+  getMarkerDataHash = (data) => {
+    if (!Array.isArray(data)) return 'empty';
+
+    return data.map(observation => {
+      if (!observation) return 'null';
+      const lat = observation.Lat ?? observation.Latitude ?? observation.latitude ?? observation.lat;
+      const lng = observation.Long ?? observation.Lon ?? observation.Longitude ?? observation.longitude ?? observation.lng;
+      return [
+        observation._id || observation.id || observation.Location || '',
+        observation.type || '',
+        lat,
+        lng,
+        observation['Co-ordinates/Nearest Landmarks'] || '',
+        observation['Which side of the road is it on? (N/S/On road)'] || '',
+        observation['Seen/Heard'] || ''
+      ].join(':');
+    }).join('|');
+  };
+
   updateMarkers = () => {
     if (!this.map || !window.google) return;
+
+    const { data, isRifleRangeRoad = false, isExternalSurvey = false } = this.props;
+    const markerDataHash = this.getMarkerDataHash(data);
+    if (markerDataHash === this.lastMarkerDataHash) return;
+    this.lastMarkerDataHash = markerDataHash;
 
     // Clear existing markers and clusterer
     if (this.markerClusterer) {
@@ -291,8 +408,11 @@ class GoogleMapComponent extends Component {
     }
     this.markers.forEach(marker => marker.setMap(null));
     this.markers = [];
+    if (this.routePolyline) {
+      this.routePolyline.setMap(null);
+      this.routePolyline = null;
+    }
 
-    const { data } = this.props;
     if (!data || !Array.isArray(data)) return;
 
     // Create markers for each observation
@@ -300,10 +420,16 @@ class GoogleMapComponent extends Component {
     const coordinateGroups = new Map();
     
     data.forEach((observation, index) => {
-      const lat = parseFloat(observation.Lat);
-      const lng = parseFloat(observation.Long);
+      const coordinates = this.getCoordinatesForObservation(observation);
+      if (!coordinates) return;
 
-      if (isNaN(lat) || isNaN(lng)) return;
+      const markerValue = normalizeMapMarkerValue(observation, isExternalSurvey || isRifleRangeRoad);
+      if (!markerValue) {
+        console.log('Skipping map marker for invalid/unknown marker state:', observation['Co-ordinates/Nearest Landmarks'] || observation.Location || observation._id || 'unknown');
+        return;
+      }
+
+      const { lat, lng } = coordinates;
 
       const coordKey = `${lat.toFixed(6)}_${lng.toFixed(6)}`;
       if (!coordinateGroups.has(coordKey)) {
@@ -311,6 +437,15 @@ class GoogleMapComponent extends Component {
       }
       coordinateGroups.get(coordKey).push({ observation, index, lat, lng });
     });
+
+    if (coordinateGroups.size > 0 && !isRifleRangeRoad && !this.hasFittedInitialMarkers) {
+      const bounds = new window.google.maps.LatLngBounds();
+      coordinateGroups.forEach(observations => {
+        observations.forEach(({ lat, lng }) => bounds.extend({ lat, lng }));
+      });
+      this.map.fitBounds(bounds, 48);
+      this.hasFittedInitialMarkers = true;
+    }
 
     // Create markers with offset for overlapping coordinates
     coordinateGroups.forEach((observations, coordKey) => {
@@ -338,15 +473,17 @@ class GoogleMapComponent extends Component {
           console.log(`Marker ${groupIndex + 1}/${observations.length} at ${coordKey} offset to: ${offsetLat.toFixed(6)}, ${offsetLng.toFixed(6)}`);
         }
 
-        // Determine marker color based on Seen/Heard value
+        // Determine marker color based on the active map legend
         let iconUrl;
-        const seenHeard = (observation["Seen/Heard"] || '').toLowerCase().trim();
-        
-        switch (seenHeard) {
+        const markerValue = normalizeMapMarkerValue(observation, isExternalSurvey || isRifleRangeRoad);
+
+        switch (markerValue) {
           case 'seen':
+          case 'on bridge':
             iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png';
             break;
           case 'heard':
+          case 'off bridge':
             iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png';
             break;
           case 'not found':
@@ -388,8 +525,9 @@ class GoogleMapComponent extends Component {
     const overlappingGroups = Array.from(coordinateGroups.values()).filter(group => group.length > 1);
     console.log(`Coordinate groups with multiple markers: ${overlappingGroups.length}`);
 
-    // Initialize clustering if available
-    if (window.MarkerClusterer && this.markers.length > 0) {
+    // Initialize clustering only for Rifle Range Road at zoom 16; other maps stay unclustered.
+    const shouldCluster = Boolean(isRifleRangeRoad);
+    if (window.MarkerClusterer && this.markers.length > 0 && shouldCluster) {
       // Custom cluster styles
       const clusterStyles = [
         {
@@ -422,20 +560,21 @@ class GoogleMapComponent extends Component {
       ];
 
       this.markerClusterer = new window.MarkerClusterer(this.map, this.markers, {
-        gridSize: 40, // Increased grid size for better performance
-        maxZoom: 13,  // Clusters break apart earlier when zooming in
+        gridSize: 40,
+        maxZoom: 18,
         styles: clusterStyles,
         minimumClusterSize: 2,
-        // Optimize for performance
         averageCenter: true,
         ignoreHidden: true,
-        enableRetinaIcons: false, // Disable retina for better performance
+        enableRetinaIcons: false,
+        zoomOnClick: true,
       });
-      console.log('Clustering enabled with', this.markers.length, 'markers');
+
+      console.log('Rifle Range Road clustering enabled with', this.markers.length, 'markers from zoom 15 to 18');
     } else {
       // Fallback: add markers directly to map
       this.markers.forEach(marker => marker.setMap(this.map));
-      console.log('Clustering not available, showing individual markers');
+      console.log('Clustering disabled for this map view, showing individual markers');
     }
   };
 
@@ -467,12 +606,16 @@ class GoogleMapComponent extends Component {
       this.markerClusterer.clearMarkers();
       this.markerClusterer = null;
     }
-    
+
     // Clean up markers and their event listeners
     this.markers.forEach(marker => {
       marker.setMap(null);
     });
     this.markers = [];
+    if (this.map?.data) {
+    }
+    this.routePolyline = null;
+    this.hasFittedInitialMarkers = false;
     
     // Clear map reference
     if (this.map) {
@@ -504,6 +647,9 @@ class GoogleMapComponent extends Component {
           // Handle ISO date strings like "2024-12-15"
           if (dateValue.includes('-')) {
             date = new Date(dateValue);
+          } else if (dateValue.includes('/')) {
+            const [day, month, year] = dateValue.split('/').map(Number);
+            date = new Date(year, month - 1, day);
           }
         }
         
@@ -573,30 +719,147 @@ class GoogleMapComponent extends Component {
       }
     };
 
-    // Extract and format data
-    const location = observation.Location || 'Unknown Location';
-    const seenHeardValue = observation["Seen/Heard"] || 'Unknown';
-    const formattedDate = formatDate(observation.Date);
-    const formattedTime = formatTime(observation.Time);
-    const lat = parseFloat(observation.Lat).toFixed(6);
-    const lng = parseFloat(observation.Long).toFixed(6);
-    const observer = observation.Observer || observation["Observer name"] || '';
-    const species = observation.Species || '';
-    const notes = observation.Notes || '';
+    // Extract and format data from both survey schemas
+    const isRifleRangeRoad = Boolean(this.props.isRifleRangeRoad);
+    const hasRifleSurveyFields = isRifleRangeRoad || Boolean(observation['Survey Date'] || observation['Time of Observation'] || observation['Which side of the road is it on? (N/S/On road)'] || observation['Which side of the road was it on?']);
+    const commonName = observation['Common Name (If unavailable, sci name)'] || observation['Common Name'] || observation.Species || '';
+    const scientificName = observation['Scientific Name (Genus/Species)'] || observation['Genus/Species Name'] || observation['Scientific Name'] || '';
+    const location = observation.Location || observation.Site || observation['Survey Location'] || observation['Co-ordinates/Nearest Landmarks'] || (hasRifleSurveyFields ? 'Rifle Range Road' : 'Unknown Location');
+    const seenHeardValue = hasRifleSurveyFields
+      ? observation['Which side of the road is it on? (N/S/On road)'] || observation['Which side of the road was it on?'] || observation['Road Side'] || 'Unknown'
+      : observation['Seen/Heard'] || 'Unknown';
+    const formattedDate = formatDate(observation['Survey Date'] || observation['Survey date'] || observation.Date);
+    const formattedTime = formatTime(observation['Time of Observation'] || observation['Observation Time'] || observation.Time);
+    const resolvedCoordinates = this.getCoordinatesForObservation(observation);
+    const lat = resolvedCoordinates ? resolvedCoordinates.lat.toFixed(6) : 'Unknown';
+    const lng = resolvedCoordinates ? resolvedCoordinates.lng.toFixed(6) : 'Unknown';
+    const observer = observation.Observer || observation['Observer name'] || observation['Observer Name'] || observation['Name of Surveyors'] || observation['iNat Username'] || '';
+    const species = commonName || scientificName;
+    const notes = observation.Notes || observation['Behaviours observed and/or other remarks'] || observation['Remarks'] || '';
     
     // Additional fields from the data structure
     const shbId = observation["SHB individual ID"] || '';
-    const numberOfBirds = observation["Number of Birds"] || '';
+    const numberOfBirds = observation["Number of Birds"] || observation.Count || observation.count || '';
     const treeHeight = observation["Height of tree/m"] || '';
     const birdHeight = observation["Height of bird/m"] || '';
-    const activity = observation.Activity || '';
+    const activity = observation.Activity || observation['Behaviour'] || '';
     const activityDetails = observation["Activity Details"] || observation["Activity (foraging, preening, calling, perching, others)"] || '';
+    const surveyDirection = observation['Survey Direction'] || '';
+    const surveyTimeRange = observation['Survey Start Time and End Time'] || '';
     const serialNumber = observation.serialNumber || '';
+    const taxonomy = observation.Taxa || observation.Taxonomy || '';
+    const targetSpecies = observation['Target Species?'] || observation['Target Species'] || '';
+    const identified = observation['Identified?'] || '';
+    const roadkill = observation['Roadkill?'] || '';
+    const srdb3Status = observation['SRDB3 Status'] || observation['SRDB3 status'] || '';
+    const iucnStatus = observation['IUCN Status'] || observation['IUCN status'] || '';
+    const imageUrl = observation['Image URL'] || observation['Upload any pictures if available.'] || observation.imageUrl || '';
+    const displayedFields = new Set([
+      '_id', 'id', 'Location', 'Site', 'Survey Location', 'Seen/Heard',
+      'Which side of the road is it on? (N/S/On road)', 'Which side of the road was it on?', 'Road Side', 'Survey Date',
+      'Survey date', 'Date', 'Time of Observation', 'Observation Time', 'Time',
+      'Lat', 'Latitude', 'latitude', 'lat', 'Long', 'Lon', 'Longitude', 'longitude', 'lng',
+      'Observer', 'Observer name', 'Observer Name', 'Name of Surveyors', 'iNat Username', 'Species',
+      'Common Name (If unavailable, sci name)', 'Common Name', 'Scientific Name (Genus/Species)',
+      'Genus/Species Name', 'Scientific Name', 'Notes', 'Behaviours observed and/or other remarks', 'Remarks',
+      'Image URL', 'Upload any pictures if available.', 'imageUrl', 'Survey Start Time', 'Survey End Time',
+      'Survey Start Time and End Time', 'Survey Direction', 'Co-ordinates/Nearest Landmarks',
+      'SHB individual ID', 'Number of Birds', 'Count', 'count', 'Height of tree/m',
+      'Height of bird/m', 'Activity', 'Behaviour', 'Activity Details',
+      'Activity (foraging, preening, calling, perching, others)', 'serialNumber',
+      'Taxa', 'Taxonomy', 'Target Species?', 'Target Species', 'Identified?', 'Roadkill?',
+      'SRDB3 Status', 'SRDB3 status', 'IUCN Status', 'IUCN status'
+    ]);
+    const additionalFields = Object.entries(observation).filter(([key, value]) =>
+      !displayedFields.has(key) && value !== null && value !== undefined && String(value).trim() !== ''
+    );
     
-    const statusColor = seenHeardValue === 'seen' ? '#22c55e' : 
-                       seenHeardValue === 'heard' ? '#f59e0b' : 
-                       seenHeardValue === 'not found' ? '#dc2626' : '#3b82f6';
+    const normalizedStatus = String(seenHeardValue).toLowerCase().trim();
+    const statusColor = normalizedStatus === 'seen' || normalizedStatus === 'north' || normalizedStatus === 'n'
+      ? '#22c55e'
+      : normalizedStatus === 'heard' || normalizedStatus === 'south' || normalizedStatus === 's'
+        ? '#f59e0b'
+        : normalizedStatus === 'not found' || normalizedStatus === 'on road'
+          ? '#dc2626'
+          : '#3b82f6';
 
+    const surveyFields = [
+      ['Status', seenHeardValue],
+      ['Identified?', identified],
+      ['Count', numberOfBirds],
+      ['Roadkill?', roadkill],
+      ['Observer Name', observer],
+      ['Date', formattedDate],
+      ['Time', formattedTime],
+      ['Survey Start Time', observation['Survey Start Time']],
+      ['Survey End Time', observation['Survey End Time']],
+      ['Survey Time', surveyTimeRange],
+      ['Survey Direction', surveyDirection],
+      ['Activity', activity],
+      ['Activity Details', activityDetails],
+      ['Behaviours / Remarks', notes],
+      ['Serial #', serialNumber],
+      ['Location', location],
+      ['Latitude', lat],
+      ['Longitude', lng]
+    ].filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== '');
+
+    const detailTab = this.state.detailTab === 'survey' ? 'survey' : 'overview';
+
+    if (hasRifleSurveyFields) {
+      return (
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+          <button type="button" aria-label="Close survey details" onClick={() => this.setState({ selectedObservation: null })} style={{ background: 'none', border: 0, color: '#52647d', fontSize: '24px', cursor: 'pointer' }}>x</button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: imageUrl ? 'minmax(0, 1fr) minmax(0, 1.35fr)' : 'minmax(0, 1fr)', gap: '24px', alignItems: 'stretch', minHeight: 0, flex: 1, overflow: 'hidden' }}>
+          {imageUrl && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, overflow: 'hidden' }}><a href={imageUrl} target="_blank" rel="noreferrer" aria-label={`Open full-size image for ${commonName || 'survey observation'}`}><img src={imageUrl} alt={commonName || 'Survey observation'} style={{ display: 'block', width: '100%', height: 'auto', maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '8px', border: '1px solid #dbe5df', background: '#f8faf9', cursor: 'zoom-in' }} onError={(event) => { event.currentTarget.style.display = 'none'; }} /></a></div>}
+            <div style={{ minHeight: 0, height: '100%', overflowY: 'auto', overflowX: 'hidden', paddingRight: '8px' }}>
+        <div style={{ position: 'sticky', top: 0, zIndex: 3, paddingTop: '8px', backgroundColor: '#ffffff' }}>
+          <h3 style={{ margin: 0, color: '#142039', fontSize: '28px', lineHeight: 1.2 }}>{commonName || location}</h3>
+          {scientificName && <div style={{ marginTop: '10px', color: '#52647d', fontSize: '20px', fontStyle: 'italic' }}>{scientificName}</div>}
+
+        {(taxonomy || targetSpecies || srdb3Status || iucnStatus) && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '18px 24px', padding: '18px', marginBottom: '20px', border: '1px solid #9bbcab', borderRadius: '10px', background: '#edf3ef' }}>
+            {[[ 'Taxonomy', taxonomy ], [ 'Target Species', targetSpecies ], [ 'SRDB3 Status', srdb3Status ], [ 'IUCN Status', iucnStatus ]].filter(([, value]) => value).map(([label, value]) => (
+              <div key={label}><div style={{ color: '#52647d', fontSize: '12px', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '8px' }}>{label}</div><strong style={{ color: '#142039', fontSize: '19px' }}>{value}</strong></div>
+            ))}
+          </div>
+        )}
+
+        <div role="tablist" aria-label="Survey detail sections" style={{ position: 'sticky', top: 0, zIndex: 2, display: 'flex', gap: '26px', borderBottom: '1px solid #dbe5df', margin: '0 0 20px', padding: '8px 0 4px', backgroundColor: '#ffffff', isolation: 'isolate' }}>
+          {[['overview', 'Overview'], ['survey', 'Survey']].map(([key, label]) => (
+            <button key={key} type="button" role="tab" aria-selected={detailTab === key} onClick={() => this.setState({ detailTab: key })} style={{ padding: '0 0 12px', border: 0, borderBottom: detailTab === key ? '3px solid #7ba995' : '3px solid transparent', outline: 'none', background: 'none', color: detailTab === key ? '#142039' : '#52647d', fontSize: '17px', fontWeight: detailTab === key ? 700 : 400, cursor: 'pointer' }}>{label}</button>
+          ))}
+        </div>
+        </div>
+
+        {detailTab === 'overview' && (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '22px 28px', marginBottom: '24px' }}>
+              {[['Identified?', identified], ['Count', numberOfBirds], ['Roadkill?', roadkill]].filter(([, value]) => value).map(([label, value]) => (
+                <div key={label}><div style={{ color: '#52647d', fontSize: '12px', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '8px' }}>{label}</div><div style={{ color: '#142039', fontSize: '19px' }}>{value}</div></div>
+              ))}
+            </div>
+            {notes && <div style={{ padding: '18px', border: '1px solid #9bbcab', borderRadius: '10px', background: '#edf3ef' }}><div style={{ color: '#52647d', fontSize: '12px', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '12px' }}>Behaviours / Remarks</div><div style={{ color: '#142039', fontSize: '17px', lineHeight: 1.6 }}>{notes}</div></div>}
+          </div>
+        )}
+
+        {detailTab === 'survey' && (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '16px 24px' }}>{surveyFields.map(([label, value]) => <div key={label} style={{ minWidth: 0, padding: '8px 0', borderBottom: '1px solid #edf2f0' }}><strong style={{ display: 'block', color: '#52647d', fontSize: '12px', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '6px' }}>{label}</strong><span style={{ color: '#142039', overflowWrap: 'anywhere' }}>{String(value)}</span></div>)}</div>
+              {additionalFields.length > 0 && <div style={{ marginTop: '22px' }}><div style={{ color: '#52647d', fontSize: '12px', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '10px' }}>Additional Survey Details</div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '16px 24px' }}>{additionalFields.map(([key, value]) => <div key={key} style={{ minWidth: 0, padding: '8px 0', borderBottom: '1px solid #edf2f0' }}><strong style={{ display: 'block', color: '#64748b', fontSize: '12px', marginBottom: '6px', overflowWrap: 'anywhere' }}>{key}</strong><span style={{ color: '#142039', overflowWrap: 'anywhere' }}>{String(value)}</span></div>)}</div></div>}
+            </div>
+        )}
+
+          </div>
+        </div>
+      </div>
+      );
+    }
+
+    /* Legacy detail markup retained below for reference. */
     return (
       <div>
         {/* Header with close button */}
@@ -605,8 +868,9 @@ class GoogleMapComponent extends Component {
           justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: '20px',
+          padding: '20px 0 10px 20px',
           paddingBottom: '10px',
-          borderBottom: '2px solid #e5e7eb'
+          backgroundColor: '#ffffff'
         }}>
           <h3 style={{
             margin: 0,
@@ -616,7 +880,7 @@ class GoogleMapComponent extends Component {
             maxWidth: '80%',
             wordWrap: 'break-word'
           }}>
-            {location}
+            {commonName || location}
           </h3>
           <button
             onClick={() => this.setState({ selectedObservation: null })}
@@ -636,6 +900,21 @@ class GoogleMapComponent extends Component {
             ×
           </button>
         </div>
+
+        {scientificName && (
+          <div style={{ color: '#64748b', fontSize: '18px', fontStyle: 'italic', marginBottom: '24px' }}>
+            {scientificName}
+          </div>
+        )}
+
+        {(taxonomy || targetSpecies || srdb3Status || iucnStatus) && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '20px 28px', padding: '20px 18px', marginBottom: '24px', border: '1px solid #9bbcab', borderRadius: '10px', backgroundColor: '#edf3ef' }}>
+            {taxonomy && <div><div style={{ color: '#52647d', fontSize: '12px', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '8px' }}>Taxonomy</div><strong style={{ fontSize: '20px', color: '#142039' }}>{taxonomy}</strong></div>}
+            {targetSpecies && <div><div style={{ color: '#52647d', fontSize: '12px', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '8px' }}>Target Species</div><strong style={{ fontSize: '20px', color: '#142039' }}>{targetSpecies}</strong></div>}
+            {srdb3Status && <div><div style={{ color: '#52647d', fontSize: '12px', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '8px' }}>SRDB3 Status</div><strong style={{ fontSize: '20px', color: '#142039' }}>{srdb3Status}</strong></div>}
+            {iucnStatus && <div><div style={{ color: '#52647d', fontSize: '12px', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '8px' }}>IUCN Status</div><strong style={{ fontSize: '20px', color: '#142039' }}>{iucnStatus}</strong></div>}
+          </div>
+        )}
 
         {/* Status */}
         <div style={{ marginBottom: '16px' }}>
@@ -657,6 +936,14 @@ class GoogleMapComponent extends Component {
             {seenHeardValue}
           </div>
         </div>
+
+        {hasRifleSurveyFields && (identified || numberOfBirds || roadkill) && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '20px 28px', marginBottom: '24px' }}>
+            {identified && <div><div style={{ fontSize: '12px', color: '#6b7280', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '8px' }}>Identified?</div><div style={{ fontSize: '18px', color: '#1f2937' }}>{identified}</div></div>}
+            {numberOfBirds && <div><div style={{ fontSize: '12px', color: '#6b7280', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '8px' }}>Count</div><div style={{ fontSize: '18px', color: '#1f2937' }}>{numberOfBirds}</div></div>}
+            {roadkill && <div><div style={{ fontSize: '12px', color: '#6b7280', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '8px' }}>Roadkill?</div><div style={{ fontSize: '18px', color: '#1f2937' }}>{roadkill}</div></div>}
+          </div>
+        )}
 
         {/* Serial Number */}
         {serialNumber && (
@@ -877,7 +1164,7 @@ class GoogleMapComponent extends Component {
               textTransform: 'uppercase',
               marginBottom: '4px'
             }}>
-              Species
+              {hasRifleSurveyFields ? 'Common Name' : 'Species'}
             </div>
             <div style={{ fontSize: '14px', color: '#1f2937' }}>
               {species}
@@ -895,7 +1182,7 @@ class GoogleMapComponent extends Component {
               textTransform: 'uppercase',
               marginBottom: '4px'
             }}>
-              Notes
+              {hasRifleSurveyFields ? 'Behaviours / Remarks' : 'Notes'}
             </div>
             <div style={{ 
               fontSize: '14px', 
@@ -912,6 +1199,20 @@ class GoogleMapComponent extends Component {
             }}>
               {notes}
             </div>
+          </div>
+        )}
+
+        {additionalFields.length > 0 && (
+          <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #e5e7eb' }}>
+            <div style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '12px' }}>
+              Additional Survey Details
+            </div>
+            {additionalFields.map(([key, value]) => (
+              <div key={key} style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1fr) minmax(0, 2fr)', gap: '12px', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                <strong style={{ color: '#64748b', fontSize: '12px', overflowWrap: 'anywhere' }}>{key}</strong>
+                <span style={{ color: '#1f2937', fontSize: '14px', overflowWrap: 'anywhere' }}>{String(value)}</span>
+              </div>
+            ))}
           </div>
         )}
       </div>

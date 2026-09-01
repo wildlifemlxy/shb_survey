@@ -1,0 +1,258 @@
+var express = require('express');
+var router = express.Router();
+var TelegramController = require('../../Controller/strawHeadedBulbul/telegramController');
+const axios = require('axios');
+
+// POST /telegram - create a new Telegram bot
+router.post('/', async function(req, res, next) {
+    const io = req.app.get('io'); // Get the Socket.IO instance
+    const { purpose, token, name, description } = req.body;
+const botConfig = require('../../Telegram/config/botConfig');
+
+    if (purpose === 'createBot') {
+        try {
+            console.log('Creating bot with token:', token, 'name:', name, 'description:', description);
+            // Validate required fields
+            if (!token) {
+                return res.status(400).json({ error: 'Bot token and name are required.' });
+            }
+            
+            const telegramController = new TelegramController();
+            const bot = await telegramController.createBot(
+                token,
+                name,
+                description
+            );
+            return res.status(201).json({ message: 'Bot created', bot });
+        } catch (err) {
+            console.error('Error in createBot:', err);
+            return res.status(500).json({ error: err.message || 'Failed to create bot.' });
+        }
+    }
+    else if (purpose === 'getBotInfo') 
+    {
+        console.log('Getting bot info for token:', token);
+        try {
+            if (!token) {
+                return res.status(400).json({ error: 'Bot token is required.' });
+            }
+            
+            const telegramRes = await axios.get(`https://api.telegram.org/bot${token}/getMe`);
+            const telegramData = telegramRes.data;
+            console.log('Telegram getMe response:', telegramData);
+            
+            if (!telegramData.ok) {
+                return res.status(400).json({ error: 'Invalid Telegram bot token.' });
+            }
+            
+            return res.status(200).json({
+                ok: true,
+                result: telegramData.result
+            });
+        } catch (err) {
+            console.error('Error in getBotInfo:', err);
+            return res.status(500).json({ error: err.message || 'Failed to get bot info.' });
+        }
+    } 
+    else if (purpose === 'retrieve') {
+        try {
+            console.log('Retrieving all bots for user...');
+            const telegramController = new TelegramController();
+            const result = await telegramController.getAllBots();
+            
+            if (result.success) {
+                return res.status(200).json({ message: result.message, data: result.data, success: result.success });
+            } else {
+                return res.status(500).json({ error: result.error || 'Failed to retrieve bots.' });
+            }
+        } catch (err) {
+            return res.status(500).json({ error: err.message || 'Failed to retrieve bots.' });
+        }
+    }
+    else if (purpose === 'getBotGroups') {
+        try {
+            const { token } = req.body;
+            if (!token) {
+                return res.status(400).json({ error: 'Bot token is required.' });
+            }
+            
+            const telegramRes = await axios.get(`https://api.telegram.org/bot${token}/getUpdates`);
+            
+            // Check if response is valid
+            if (!telegramRes.data || !telegramRes.data.ok) {
+                console.log('Telegram API returned error:', telegramRes.data);
+                return res.status(200).json({ groups: [], message: 'No updates available from Telegram.' });
+            }
+            
+            const updates = telegramRes.data.result || [];
+            
+            // If no updates, return empty groups
+            if (!updates || updates.length === 0) {
+                console.log('No updates found for bot');
+                return res.status(200).json({ groups: [], message: 'Bot has no recent updates. Add the bot to a group and send a message to see it here.' });
+            }
+            
+            // Include every chat the bot has seen in its updates
+            const chats = {};
+            for (const update of updates) {
+                console.log('Processing update:', update);
+                const msg = update.message || update.channel_post || update.my_chat_member || update.chat_member;
+                if (msg && msg.chat && msg.chat.id) {
+                    const chat = msg.chat;
+                    chats[chat.id] = {
+                        id: chat.id,
+                        title: chat.title || chat.username || chat.first_name || String(chat.id),
+                        type: chat.type || 'unknown'
+                    };
+                }
+            }
+            console.log('Telegram getUpdates response:', chats);
+            const groups = Object.values(chats);
+            return res.status(200).json({ groups });
+        } catch (err) {
+            console.error('Error in getBotGroups:', err.response?.data || err.message);
+            // Return empty groups with error message instead of 500
+            return res.status(200).json({ 
+                groups: [], 
+                error: err.response?.data?.description || err.message || 'Failed to retrieve group info.',
+                message: 'Could not fetch bot groups. Make sure the bot token is valid and the bot has been added to groups.'
+            });
+        }
+    }
+    else if (purpose === 'getChatHistory') {
+        try {
+            const { token, chatId } = req.body;
+            if (!token || !chatId) {
+                return res.status(400).json({ error: 'Bot token and chatId are required.' });
+            }
+            
+            const telegramController = new TelegramController();
+            const result = await telegramController.getChatHistory(token, chatId);
+            console.log('Chat history result:', result);
+            
+            if (result.success) {
+                return res.status(200).json({ data: result.data, success: true });
+            } else {
+                return res.status(500).json({ error: result.error || 'Failed to retrieve chat history.' });
+            }
+        } catch (err) {
+            console.error('Error in getChatHistory:', err);
+            return res.status(500).json({ error: err.message || 'Failed to retrieve chat history.' });
+        }
+    }
+    else if (purpose === 'getMaintenanceStatus') {
+        try {
+            // Return maintenance status information
+            const maintenanceStatus = {
+                status: {
+                    lastMaintenance: new Date().toISOString(),
+                    activeTasks: [],
+                    systemHealth: {
+                        database: 'healthy',
+                        api: 'healthy',
+                        storage: 'healthy',
+                        cpu: 'normal',
+                        memory: 'normal'
+                    }
+                }
+            };
+            return res.status(200).json(maintenanceStatus);
+        } catch (err) {
+            console.error('Error in getMaintenanceStatus:', err);
+            return res.status(500).json({ error: err.message || 'Failed to get maintenance status.' });
+        }
+    }
+    return res.status(400).json({ error: 'Invalid purpose.' });
+});
+
+// GET /telegram/pending-reminders - check for pending reminders
+router.get('/pending-reminders', async function(req, res) {
+    try {
+        const getPendingReminders = req.app.locals.getPendingReminders;
+        
+// GET /telegram/health - verify the configured bot and Azure webhook status
+router.get('/health', async function(req, res) {
+    if (!botConfig.BOT_TOKEN) {
+        return res.status(503).json({
+            ok: false,
+            status: 'disabled',
+            error: 'TELEGRAM_BOT_TOKEN is not configured'
+        });
+    }
+
+    try {
+        const apiBase = `https://api.telegram.org/bot${botConfig.BOT_TOKEN}`;
+        const [botResponse, webhookResponse] = await Promise.all([
+            axios.get(`${apiBase}/getMe`),
+            axios.get(`${apiBase}/getWebhookInfo`)
+        ]);
+        const webhook = webhookResponse.data?.result || {};
+
+        return res.status(200).json({
+            ok: botResponse.data?.ok === true && webhookResponse.data?.ok === true,
+            status: webhook.url ? 'webhook-active' : 'webhook-not-configured',
+            bot: botResponse.data?.result?.username || null,
+            webhook: {
+                configured: Boolean(webhook.url),
+                pendingUpdates: webhook.pending_update_count || 0,
+                lastError: webhook.last_error_message || null,
+                lastErrorDate: webhook.last_error_date || null
+            }
+        });
+    } catch (err) {
+        return res.status(503).json({
+            ok: false,
+            status: 'unreachable',
+            error: err.response?.data?.description || err.message
+        });
+    }
+});
+        if (!getPendingReminders) {
+            return res.status(503).json({ 
+                success: false, 
+                error: 'Reminder service not initialized. Server may need restart.' 
+            });
+        }
+        
+        const pending = await getPendingReminders();
+        return res.status(200).json({ 
+            success: true, 
+            count: pending.length, 
+            pendingReminders: pending 
+        });
+    } catch (err) {
+        console.error('Error getting pending reminders:', err);
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// POST /telegram/send-pending-reminders - send all pending reminders
+router.post('/send-pending-reminders', async function(req, res) {
+    try {
+        const sendPendingReminders = req.app.locals.sendPendingReminders;
+        
+        if (!sendPendingReminders) {
+            return res.status(503).json({ 
+                success: false, 
+                error: 'Reminder service not initialized. Server may need restart.' 
+            });
+        }
+        
+        const results = await sendPendingReminders();
+        const successCount = results.filter(r => r.success).length;
+        const failCount = results.filter(r => !r.success).length;
+        
+        return res.status(200).json({ 
+            success: true, 
+            totalSent: results.length,
+            successCount,
+            failCount,
+            results 
+        });
+    } catch (err) {
+        console.error('Error sending pending reminders:', err);
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+module.exports = router;

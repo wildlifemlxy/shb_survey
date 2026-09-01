@@ -3,7 +3,7 @@ import '../../css/components/Events/Type/UpcomingEvents.css';
 import UpcomingEventCard from './UpcomingEventCard';
 import axios from 'axios';
 import AddEventModal from './AddEventModal';
-import { deleteEvents, updateEvents, updateParticipants } from '../../data/surveyData';
+import { deleteEvents, updateEvents, updateParticipants } from '../../data/strawheadedbulbul/surveyData';
 import { BASE_URL } from '../../config/apiConfig.js';
 
 // Helper to group events by organizer type and remove duplicates

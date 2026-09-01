@@ -5,7 +5,7 @@
 
 const DatabaseConnectivity = require('./Database/databaseConnectivity');
 const { ObjectId } = require('mongodb');
-const SurveyController = require('./Controller/Survey/surveyController');
+const SurveyController = require('./Controller/strawHeadedBulbul/surveyController');
 
 async function testSurveyUpdate() {
   const db = DatabaseConnectivity.getInstance();

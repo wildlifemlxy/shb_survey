@@ -103,20 +103,42 @@ export const extractNoBirds = (data) => {
   });
 };
 
+const parseCoordinateText = (value) => {
+  if (value === null || value === undefined) return null;
+
+  const text = String(value).trim();
+  if (!text) return null;
+
+  const parts = text.split(/[\s,]+/).filter(Boolean);
+  if (parts.length < 2) return null;
+
+  const lat = Number.parseFloat(parts[0]);
+  const lng = Number.parseFloat(parts[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  return { lat, lng };
+};
+
 export const getValidCoordinates = (data) => {
   if (!data) {
     return [];
   }
 
   const resolvedData = data; // Ensure that the data is resolved before filtering
-  console.log("Resolved Data:", resolvedData);
 
-  return resolvedData.filter(item => 
-    item.Lat && item.Long && 
-    !isNaN(item.Lat) && !isNaN(item.Long) &&
-    item.Lat > 1.0 && item.Lat < 1.5 && // Valid Singapore latitude range
-    item.Long > 103.5 && item.Long < 104.1 // Valid Singapore longitude range
-  );
+  return resolvedData
+    .map(item => {
+      const directCoordinates = parseCoordinateText(item['Co-ordinates/Nearest Landmarks'] ?? item['Co-ordinates/Nearest Landmark'] ?? item['Nearest Landmarks'] ?? item.Landmark);
+      const lat = item.Lat ?? item.Latitude ?? item.latitude ?? item.lat ?? directCoordinates?.lat;
+      const lng = item.Long ?? item.Lon ?? item.Longitude ?? item.longitude ?? item.lng ?? directCoordinates?.lng;
+      return { item, lat: Number(lat), lng: Number(lng) };
+    })
+    .filter(({ lat, lng }) =>
+      Number.isFinite(lat) && Number.isFinite(lng) &&
+      lat > 1.0 && lat < 1.5 && // Valid Singapore latitude range
+      lng > 103.5 && lng < 104.1 // Valid Singapore longitude range
+    )
+    .map(({ item, lat, lng }) => ({ ...item, Lat: lat, Long: lng }));
 };
 
 export const countByMonthYear = (data) => {

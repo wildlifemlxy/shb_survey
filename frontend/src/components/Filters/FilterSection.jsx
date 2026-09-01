@@ -347,7 +347,8 @@ class FilterSection extends Component {
       if (this.props.onFilterChange) {
         this.props.onFilterChange({
           filterLocation: '',
-          filterActivity: ''
+          filterActivity: '',
+          ...Object.fromEntries((this.props.customFilters || []).map(filter => [filter.key, '']))
         });
       }
     });
@@ -367,6 +368,8 @@ class FilterSection extends Component {
     const locations = Array.isArray(this.props.locations) ? this.props.locations : [];
     const activities = Array.isArray(this.props.activities) ? this.props.activities : [];
     const className = this.props.className || '';
+    const customFilters = Array.isArray(this.props.customFilters) ? this.props.customFilters : [];
+    const showLocationActivityFilters = !this.props.hideLocationActivity;
 
     // Only log warnings if component has been mounted for a while and still no data
     // AND if we have some data props but they're still empty (which indicates a real issue)
@@ -391,7 +394,7 @@ class FilterSection extends Component {
         <div className="filters-container">
           <div className="filters-header">
             <h3>Filter Data</h3>
-            {(filterLocation || filterActivity) && (
+            {(filterLocation || filterActivity || customFilters.some(filter => filter.value)) && (
               <button 
                 className="clear-filters-btn"
                 onClick={this.clearFilters}
@@ -403,6 +406,8 @@ class FilterSection extends Component {
           </div>
           {/* One row: location, activity, search */}
           <div className="filters-grid" style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
+            {showLocationActivityFilters && (
+              <>
             <div className="filter-group" style={{ flex: 1 }}>
               <label htmlFor="filterLocation">Filter by Location</label>
               <div className="combobox-container">
@@ -526,8 +531,28 @@ class FilterSection extends Component {
                 )}
               </div>
             </div>
-            {/* Simple search input, with search icon */}
-            <div className="filter-group" style={{ flex: 2, position: 'relative' }}>
+              </>
+            )}
+            {customFilters.map(filter => (
+              <div className="filter-group" key={filter.key} style={{ flex: 1, minWidth: '150px' }}>
+                <label htmlFor={filter.key}>{filter.label}</label>
+                <select
+                  id={filter.key}
+                  value={filter.value || ''}
+                  onChange={(event) => this.props.onFilterChange?.({
+                    filterLocation: this.state.filterLocation,
+                    filterActivity: this.state.filterActivity,
+                    [filter.key]: event.target.value
+                  })}
+                  className="combobox-input"
+                >
+                  <option value="">All</option>
+                  {filter.options.map(option => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </div>
+            ))}
+            {/* Keep Search after the project-specific filters. */}
+            <div className="filter-group filter-search-group" style={{ flex: 2, position: 'relative' }}>
               <label htmlFor="searchInput">Search</label>
               <div style={{ position: 'relative' }}>
                 <input

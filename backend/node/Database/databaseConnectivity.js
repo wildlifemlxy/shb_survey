@@ -11,14 +11,17 @@ const { MongoClient, ObjectId } = require('mongodb');
 const WWFSG_URI = 'mongodb+srv://wildlifemlxy_db_user:JFAP3r1XRswoSCws@wwfsg.zx3o6wr.mongodb.net/WWFSG?retryWrites=true&w=1&appName=WWFSG&maxPoolSize=100&minPoolSize=5&maxIdleTimeMS=600000&serverSelectionTimeoutMS=30000&socketTimeoutMS=360000&connectTimeoutMS=30000&waitQueueTimeoutMS=30000';
 // Same cluster/credentials as WWFSG_URI, just pointed at the StrawHeadedBulbul database.
 const STRAWHEADEDBULBUL_URI = 'mongodb+srv://wildlifemlxy_db_user:JFAP3r1XRswoSCws@wwfsg.zx3o6wr.mongodb.net/StrawHeadedBulbul?retryWrites=true&w=1&appName=StrawHeadedBulbul&maxPoolSize=100&minPoolSize=5&maxIdleTimeMS=600000&serverSelectionTimeoutMS=30000&socketTimeoutMS=360000&connectTimeoutMS=30000&waitQueueTimeoutMS=30000';
+const RIFLE_RANGE_ROAD_URI = 'mongodb+srv://wildlifemlxy_db_user:JFAP3r1XRswoSCws@wwfsg.zx3o6wr.mongodb.net/RifleRangeRoad?retryWrites=true&w=1&appName=RifleRangeRoad&maxPoolSize=100&minPoolSize=5&maxIdleTimeMS=600000&serverSelectionTimeoutMS=30000&socketTimeoutMS=360000&connectTimeoutMS=30000&waitQueueTimeoutMS=30000';
 
 const CLIENT_URIS = {
   wwfsg: WWFSG_URI,
-  strawHeadedBulbul: STRAWHEADEDBULBUL_URI
+  strawHeadedBulbul: STRAWHEADEDBULBUL_URI,
+  rifleRangeRoad: RIFLE_RANGE_ROAD_URI
 };
 const DB_NAMES = {
   wwfsg: 'WWFSG',
-  strawHeadedBulbul: 'StrawHeadedBulbul'
+  strawHeadedBulbul: 'StrawHeadedBulbul',
+  rifleRangeRoad: 'RifleRangeRoad'
 };
 
 const CLIENT_OPTIONS = {
@@ -63,6 +66,27 @@ function getSharedClient(key) {
     state.client = new MongoClient(CLIENT_URIS[key], CLIENT_OPTIONS);
   }
   return state.client;
+}
+
+function getDatabaseTarget(databaseName) {
+  const normalizedInput = String(databaseName ?? '').trim();
+  const aliases = {
+    'straw-headed-bulbul': 'StrawHeadedBulbul',
+    'straw headed bulbul': 'StrawHeadedBulbul',
+    'strawheadedbulbul': 'StrawHeadedBulbul',
+    'rifle range road': 'RifleRangeRoad',
+    'riflerangeroad': 'RifleRangeRoad',
+    'wwfsg': 'WWFSG',
+    'general': 'WWFSG',
+    'default': 'WWFSG'
+  };
+
+  const resolvedDatabaseName = aliases[normalizedInput.toLowerCase()] || normalizedInput || 'WWFSG';
+  const key = Object.keys(DB_NAMES).find(dbKey => DB_NAMES[dbKey] === resolvedDatabaseName);
+  if (!key) {
+    throw new Error(`Unsupported database: ${databaseName}`);
+  }
+  return { key, databaseName: resolvedDatabaseName };
 }
 
 // ─── Collection → database routing ───────────────────────────────────────────
@@ -422,7 +446,13 @@ class DatabaseConnectivity {
 
   // Legacy methods for backwards compatibility - now using isolated operations
   async getAllDocuments(databaseName, collectionName) {
-    const documents = await this.find(collectionName, {});
+    const target = getDatabaseTarget(databaseName);
+
+    const documents = await this.executeOperation(async () => {
+      const client = this.getClient(target.key);
+      const documentsDb = client.db(target.databaseName);
+      return await documentsDb.collection(collectionName).find({}).toArray();
+    }, `getAllDocuments ${target.databaseName}.${collectionName}`, target.key);
     
     // Convert ObjectId to string for all documents for backwards compatibility
     return documents.map(doc => ({
@@ -432,7 +462,11 @@ class DatabaseConnectivity {
   }
 
   async insertDocument(databaseName, collectionName, document) {
-    const result = await this.insert(collectionName, document);
+    const target = getDatabaseTarget(databaseName);
+    const result = await this.executeOperation(async () => {
+      const client = this.getClient(target.key);
+      return await client.db(target.databaseName).collection(collectionName).insertOne(document);
+    }, `insertDocument ${target.databaseName}.${collectionName}`, target.key);
     
     // Return the inserted document with string ID for backwards compatibility
     if (result.insertedId) {
@@ -445,7 +479,11 @@ class DatabaseConnectivity {
   }
 
   async insertDocuments(databaseName, collectionName, documents) {
-    const result = await this.insert(collectionName, documents);
+    const target = getDatabaseTarget(databaseName);
+    const result = await this.executeOperation(async () => {
+      const client = this.getClient(target.key);
+      return await client.db(target.databaseName).collection(collectionName).insertMany(documents);
+    }, `insertDocuments ${target.databaseName}.${collectionName}`, target.key);
     
     // Convert inserted IDs to strings for backwards compatibility
     if (result.insertedIds) {
@@ -466,7 +504,11 @@ class DatabaseConnectivity {
     if (filter._id && typeof filter._id === 'string') {
       filter._id = new ObjectId(filter._id);
     }
-    return await this.update(collectionName, filter, updateData);
+    const target = getDatabaseTarget(databaseName);
+    return await this.executeOperation(async () => {
+      const client = this.getClient(target.key);
+      return await client.db(target.databaseName).collection(collectionName).updateOne(filter, updateData);
+    }, `updateDocument ${target.databaseName}.${collectionName}`, target.key);
   }
 
   async deleteDocument(databaseName, collectionName, filter) {
@@ -474,7 +516,11 @@ class DatabaseConnectivity {
     if (filter._id && typeof filter._id === 'string') {
       filter._id = new ObjectId(filter._id);
     }
-    return await this.delete(collectionName, filter);
+    const target = getDatabaseTarget(databaseName);
+    return await this.executeOperation(async () => {
+      const client = this.getClient(target.key);
+      return await client.db(target.databaseName).collection(collectionName).deleteOne(filter);
+    }, `deleteDocument ${target.databaseName}.${collectionName}`, target.key);
   }
 
   async getDocument(databaseName, collectionName, email, password) {
@@ -484,7 +530,11 @@ class DatabaseConnectivity {
       // Create query object with email and password
       const query = { email, password };
       
-      const documents = await this.find(collectionName, query);
+      const target = getDatabaseTarget(databaseName);
+      const documents = await this.executeOperation(async () => {
+        const client = this.getClient(target.key);
+        return await client.db(target.databaseName).collection(collectionName).find(query).toArray();
+      }, `getDocument ${target.databaseName}.${collectionName}`, target.key);
       const document = documents.length > 0 ? documents[0] : null;
       
       console.log("Retrieved document:", document);
@@ -505,7 +555,11 @@ class DatabaseConnectivity {
     try {
       console.log("Finding document with query:", query, "from collection:", collectionName);
       
-      const documents = await this.find(collectionName, query);
+      const target = getDatabaseTarget(databaseName);
+      const documents = await this.executeOperation(async () => {
+        const client = this.getClient(target.key);
+        return await client.db(target.databaseName).collection(collectionName).find(query).toArray();
+      }, `findDocument ${target.databaseName}.${collectionName}`, target.key);
       const document = documents.length > 0 ? documents[0] : null;
       
       console.log("Found document:", document ? "Found" : "Not found", document);

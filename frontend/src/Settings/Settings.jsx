@@ -62,6 +62,7 @@ class Settings extends Component {
   };
 
   render() {
+    const projectPath = this.props.projectPath || '/StrawheadedBulbul';
     const { botData, isBotDataLoading, onRefreshBotData } = this.props;
     const { activeTab } = this.state;
     const activeTabObj = TABS.find(tab => tab.key === activeTab);
@@ -79,7 +80,7 @@ class Settings extends Component {
               <p>Manage your survey platform preferences and integrations for Telegram bots</p>
             </div>
             <div className="header-actions">
-              <Link to="/StrawheadedBulbul" state={{ viaAppNavigation: true }} className="home-link settings-home-button">
+              <Link to={projectPath} state={{ viaAppNavigation: true }} className="home-link settings-home-button">
                 <FontAwesomeIcon icon={faHome} />
                 <span>Home</span>
               </Link>
