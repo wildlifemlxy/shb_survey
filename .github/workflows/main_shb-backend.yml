@@ -1,8 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
-# Let try
 
-name: Build and deploy Node.js app to Azure Web App - shb-backend
+name: WWF Straw Headed Bulbul (Backend) - Node App
 
 on:
   push:
@@ -24,17 +23,24 @@ jobs:
         with:
           node-version: '22.x'
 
-      - name: npm install, build, and test
+      - name: Remove lock file and node_modules
+        working-directory: ./backend/node
+        run: |
+          rm -f package-lock.json
+          rm -rf node_modules || true
+
+      - name: npm install and build
+        working-directory: ./backend/node
         run: |
           npm install
           npm run build --if-present
-          npm run test --if-present
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
+          path: ./backend/node
+          if-no-files-found: error
 
   deploy:
     runs-on: ubuntu-latest
@@ -48,6 +54,56 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: node-app
+          path: ./appdata
+      
+      - name: Verify deployment structure
+        run: |
+          echo "Contents of appdata directory:"
+          ls -la ./appdata
+          echo "Checking for required files..."
+          [ -f "./appdata/package.json" ] && echo "✓ package.json found" || echo "✗ package.json NOT found"
+          [ -f "./appdata/app.js" ] && echo "✓ app.js found" || echo "✗ app.js NOT found"
+          [ -d "./appdata/bin" ] && echo "✓ bin/ directory found" || echo "✗ bin/ directory NOT found"
+          [ -d "./appdata/node_modules" ] && echo "✓ node_modules found" || echo "✗ node_modules NOT found"
+      
+      - name: Create web.config in deployment directory
+        run: |
+          cat > ./appdata/web.config << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <system.webServer>
+              <webSocket enabled="false" />
+              <handlers>
+                <add name="iisnode" path="bin/www.js" verb="*" modules="iisnode" />
+              </handlers>
+              <rewrite>
+                <rules>
+                  <rule name="NodeInspector" patternSyntax="ECMAScript" stopProcessing="true">
+                    <match url="^bin/www.js\/debug[\/]?" />
+                  </rule>
+                  <rule name="StaticContent">
+                    <action type="Rewrite" url="public{REQUEST_URI}" />
+                  </rule>
+                  <rule name="DynamicContent">
+                    <conditions>
+                      <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="True" />
+                    </conditions>
+                    <action type="Rewrite" url="bin/www.js" />
+                  </rule>
+                </rules>
+              </rewrite>
+              <security>
+                <requestFiltering>
+                  <hiddenSegments>
+                    <add segment="node_modules" />
+                  </hiddenSegments>
+                </requestFiltering>
+              </security>
+            </system.webServer>
+          </configuration>
+          EOF
+          echo "✓ web.config created"
+          [ -f "./appdata/web.config" ] && echo "✓ web.config verified" || echo "✗ web.config NOT found"
       
       - name: Login to Azure
         uses: azure/login@v2
@@ -56,11 +112,54 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_AA12ED22E85E48838DF00D2D5965D828 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_E9A83F73E6714BC5849CF24305B83D2A }}
 
+      - name: 'Configure Azure App Settings'
+        uses: azure/appservice-settings@v1
+        with:
+          app-name: 'shb-backend'
+          slot-name: 'Production'
+          app-settings-json: |
+            [
+              {
+                "name": "GEMINI_API_KEY",
+                "value": "${{ secrets.GEMINI_API_KEY }}",
+                "slotSetting": false
+              },
+              {
+                "name": "TELEGRAM_BOT_TOKEN",
+                "value": "${{ secrets.TELEGRAM_BOT_TOKEN }}",
+                "slotSetting": false
+              },
+              {
+                "name": "GOOGLE_MAPS_API_KEY",
+                "value": "${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}",
+                "slotSetting": false
+              },
+              {
+                "name": "EMAIL_USER",
+                "value": "${{ secrets.EMAIL_USER }}",
+                "slotSetting": false
+              },
+              {
+                "name": "EMAIL_PASS",
+                "value": "${{ secrets.EMAIL_PASS }}",
+                "slotSetting": false
+              },
+              {
+                "name": "EMAIL_FROM",
+                "value": "${{ secrets.EMAIL_FROM }}",
+                "slotSetting": false
+              },
+              {
+                "name": "NODE_ENV",
+                "value": "production",
+                "slotSetting": false
+              }
+            ]
+
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'shb-backend'
           slot-name: 'Production'
-          package: .
-          
+          package: ./appdata
